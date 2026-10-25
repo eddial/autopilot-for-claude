@@ -1,5 +1,11 @@
 # Running it on your Mac
 
+**First, the check.** `bash scripts/mac-check.sh` runs everything that cannot be checked in the
+cloud, on a throwaway server of its own: the tests, pairing over your network, a real Claude Code
+session asking and taking an answer, your connectors and a signal preview, the Mac app, and the
+iPhone build. It writes a report (tokens taken out) and pushes it to the `mac-report` branch.
+`--no-ios`, `--no-claude` and `--no-push` leave parts out.
+
 Phase 1a: the server and the `autopilot` command-line tool. No app yet. It runs next to the Linear
 version without touching it.
 

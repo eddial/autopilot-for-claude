@@ -8,13 +8,14 @@
   },
   "scripts": {
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm -r typecheck && tsc -p scripts",
     "test": "vitest run",
     "lint": "oxlint",
     "schema": "pnpm --filter @autopilot/contracts schema",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "autopilot": "node apps/server/bin/autopilot.js",
-    "desktop": "pnpm --filter @autopilot/desktop start"
+    "desktop": "pnpm --filter @autopilot/desktop start",
+    "mac-check": "bash scripts/mac-check.sh"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

@@ -66,7 +66,14 @@ const main = async (argv: string[]): Promise<void> => {
   switch (command) {
     case 'serve': {
       const { startServer } = await import('./main.ts')
-      const handle = await startServer({ paths, self, owner: process.env.AUTOPILOT_OWNER })
+      const port = Number(process.env.AUTOPILOT_DEVICE_PORT)
+      const handle = await startServer({
+        paths,
+        self,
+        owner: process.env.AUTOPILOT_OWNER,
+        ...(process.env.AUTOPILOT_CLAUDE ? { claude: process.env.AUTOPILOT_CLAUDE } : {}),
+        ...(port ? { devicePort: port } : {}),
+      })
       const stop = () => void handle.close().then(() => process.exit(0))
       process.on('SIGTERM', stop)
       process.on('SIGINT', stop)
