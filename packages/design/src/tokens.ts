@@ -62,9 +62,9 @@ export const tones = {
 export type Tone = keyof typeof tones
 
 export const fonts = {
-  /** Headings. The window bundles Source Serif; the phone uses the system's Georgia until it does too. */
+  /** Headings, Source Serif on both: bundled in the window, embedded in the iPhone app (expo-font, by its PostScript name). */
   serif: "'Anthropic Serif', 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif",
-  serifNative: 'Georgia',
+  serifNative: 'SourceSerif4-Regular',
   sans: "'Anthropic Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
   mono: 'ui-monospace, Menlo, monospace',
 } as const

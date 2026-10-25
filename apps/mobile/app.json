@@ -27,7 +27,8 @@
       ["expo-notifications", { "color": "#5DB08F" }],
       "expo-background-task",
       ["expo-splash-screen", { "image": "./assets/splash.png", "backgroundColor": "#1F1E1D", "resizeMode": "contain" }],
-      ["expo-build-properties", { "ios": { "deploymentTarget": "16.4" } }]
+      ["expo-build-properties", { "ios": { "deploymentTarget": "16.4" } }],
+      ["expo-font", { "fonts": ["./assets/fonts/SourceSerif4-Regular.ttf"] }]
     ],
     "experiments": { "typedRoutes": true }
   }
