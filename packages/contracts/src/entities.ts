@@ -137,10 +137,12 @@ export const Workstream = z.object({
 })
 export type Workstream = z.infer<typeof Workstream>
 
+/** One way to reach a server: a socket path, or `host:port` on the LAN or the tailnet. */
 export const Route = z.object({
   kind: z.enum(['socket', 'lan', 'tailscale']),
   address: z.string(),
 })
+export type Route = z.infer<typeof Route>
 
 export const Machine = z.object({
   id: Id,
@@ -222,3 +224,22 @@ export const SetupStatus = z.object({
   workstreams: z.int(),
 })
 export type SetupStatus = z.infer<typeof SetupStatus>
+
+/**
+ * What a new device needs to reach and trust this server, shown as a QR code: the routes to try in
+ * order, the SHA-256 fingerprint of the server's certificate to pin, and a one-time code.
+ */
+export const Invite = z.object({
+  v: z.literal(1),
+  server: z.string(),
+  routes: z.array(Route).min(1),
+  fingerprint: z.string().regex(/^([0-9A-F]{2}:){31}[0-9A-F]{2}$/),
+  code: z.string(),
+})
+export type Invite = z.infer<typeof Invite>
+
+export const Pairing = z.object({
+  invite: Invite,
+  expiresAt: Timestamp,
+})
+export type Pairing = z.infer<typeof Pairing>

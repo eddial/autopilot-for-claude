@@ -5,9 +5,11 @@ import {
   type Decision,
   type Detected,
   type Machine,
+  type Pairing,
   type Meta,
   QueueEvent,
   type RoutingProposal,
+  type Scope,
   type Signal,
   type Workstream,
 } from '@autopilot/contracts'
@@ -34,6 +36,8 @@ export type Deps = {
   setup: Setup
   /** Installs the launchd agent for the server. */
   installService: () => void
+  /** Opens the device listener if needed and makes a one-time invite. */
+  startPairing: () => Promise<Pairing>
   log?: (message: string) => void
 }
 
@@ -59,7 +63,7 @@ const taskOf = (service: Service, path: readonly string[], input: unknown): stri
   return null
 }
 
-export const createRouter = ({ service, workstreams, signals, machine, applyRouting, detect, setup, installService, log = () => {} }: Deps) => {
+export const createRouter = ({ service, workstreams, signals, machine, applyRouting, detect, setup, installService, startPairing, log = () => {} }: Deps) => {
   const os = implement(contract).$context<Context>()
 
   /** Every call: check the token against the procedure's scopes, then map domain errors to typed ones. */
@@ -90,6 +94,8 @@ export const createRouter = ({ service, workstreams, signals, machine, applyRout
         throw error
       }
       switch (error.code) {
+        case 'FORBIDDEN':
+          throw errors.FORBIDDEN({ data: error.data as { needs: Scope[]; has: Scope | null }, message: error.message })
         case 'NOT_FOUND':
           throw errors.NOT_FOUND({ data: error.data as { entity: string; id: string }, message: error.message })
         case 'CONFLICT':
@@ -152,7 +158,22 @@ export const createRouter = ({ service, workstreams, signals, machine, applyRout
     },
 
     changes: {
-      since: guarded.changes.since.handler(({ input }) => service.changesSince(input.after, input.limit)),
+      since: guarded.changes.since.handler(async ({ input, signal }) => {
+        const page = service.changesSince(input.after, input.limit)
+        if (page.changes.length > 0 || input.wait === 0) return page
+        // Nothing new: hold the call until something changes or the wait runs out.
+        await new Promise<void>((resolve) => {
+          const done = () => {
+            clearTimeout(timer)
+            stop()
+            resolve()
+          }
+          const timer = setTimeout(done, input.wait * 1000)
+          const stop = service.onChange(done)
+          signal?.addEventListener('abort', done, { once: true })
+        })
+        return service.changesSince(input.after, input.limit)
+      }),
     },
 
     tasks: {
@@ -239,12 +260,10 @@ export const createRouter = ({ service, workstreams, signals, machine, applyRout
     },
 
     devices: {
-      list: guarded.devices.list.handler(() => []),
-      // Pairing arrives with the iPhone (phase 3).
-      pair: guarded.devices.pair.handler(() => {
-        throw new DomainError('NOT_FOUND', { entity: 'pairing code', id: '' }, 'Pairing is not available yet')
-      }),
-      remove: guarded.devices.remove.handler(() => ({})),
+      list: guarded.devices.list.handler(() => service.listDevices()),
+      startPairing: guarded.devices.startPairing.handler(() => startPairing()),
+      pair: guarded.devices.pair.handler(({ input }) => service.pairDevice(input)),
+      remove: guarded.devices.remove.handler(({ input }) => service.removeDevice(input)),
     },
 
     tokens: {

@@ -26,12 +26,14 @@ import {
   RunSignal,
   SaveWorkstream,
   SnoozeTask,
+  StartPairing,
   TaskRef,
   WaitOn,
 } from './commands.ts'
 import {
   Decision,
   Detected,
+  Pairing,
   SetupStatus,
   SignalExample,
   Device,
@@ -105,7 +107,14 @@ export const contract = {
   changes: {
     since: base
       .meta({ scopes: ['owner', 'read'] })
-      .input(z.object({ after: Seq, limit: z.int().min(1).max(1000).default(500) }))
+      .input(
+        z.object({
+          after: Seq,
+          limit: z.int().min(1).max(1000).default(500),
+          /** Seconds to hold the call open when nothing is new yet: a long poll for clients without a stream. */
+          wait: z.int().min(0).max(25).default(0),
+        }),
+      )
       .output(ChangesPage),
   },
 
@@ -190,6 +199,8 @@ export const contract = {
   devices: {
     list: base.meta({ scopes: OWNER }).output(z.array(Device)),
     /** Authorised by the one-time pairing code, not a token. */
+    /** A one-time invite, valid five minutes; opens the network listener for devices if it is not open yet. */
+    startPairing: base.meta({ scopes: OWNER }).input(StartPairing).output(Pairing),
     pair: base.meta({ scopes: [], public: true }).input(PairDevice).output(z.object({ device: Device, token: z.string() })),
     remove: base.meta({ scopes: OWNER }).input(RemoveDevice).output(z.object({})),
   },

@@ -17,10 +17,12 @@
     "@orpc/client": "^1.16.1",
     "@orpc/contract": "^1.16.1",
     "@orpc/server": "^1.16.1",
+    "qrcode": "1.5.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@types/qrcode": "1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { QueueItem, TaskDetail, Update } from '@autopilot/contracts'
 import { api, key, shell } from '../api.ts'
-import { age, titleCase, updateLabel } from '../format.ts'
+import { age, ago, titleCase, updateLabel } from '../format.ts'
 
 type Props = { item: QueueItem; onClose: () => void }
 
@@ -93,7 +93,7 @@ export const TaskPane = ({ item, onClose }: Props) => {
       <div className="task-title">
         <h2 className="serif">{task.title}</h2>
         <div className="meta" style={{ marginTop: 8 }}>
-          {filed} · {age(task.createdAt) === 'now' ? 'just now' : `${age(task.createdAt)} ago`}
+          {filed} · {ago(task.createdAt)}
           {task.links.map((l) => (
             <button key={l.url} className="chip" style={{ marginLeft: 8 }} onClick={() => open(l.url)}>
               {l.title}

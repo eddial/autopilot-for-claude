@@ -33,6 +33,7 @@ beforeAll(async () => {
     applyRouting: () => {},
     setup: new Setup({ paths: resolvePaths({ AUTOPILOT_DATA: dir }), examples: join(dir, 'examples'), claude: 'claude' }),
     installService: () => {},
+    startPairing: () => Promise.reject(new Error('no pairing here')),
     detect: () => Promise.resolve({ connectors: [], github: { cli: false, user: null } }),
     signals: {
       list: () => [],

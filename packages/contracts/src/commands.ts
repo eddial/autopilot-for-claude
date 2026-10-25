@@ -140,12 +140,14 @@ export const InstallService = command({})
 
 export const PauseSignal = command({ name: z.string(), paused: z.boolean() })
 
+/** From the new device, with the code from the invite. The device gets its own token back. */
 export const PairDevice = command({
   code: z.string().min(6).max(64),
-  publicKey: z.string().min(32),
   name: z.string().min(1).max(60),
   kind: z.enum(['mac', 'iphone']),
 })
+
+export const StartPairing = command({})
 
 export const RemoveDevice = command({ id: Id })
 

@@ -4,6 +4,7 @@ import { api, shell } from './api.ts'
 import { Nav } from './components/Nav.tsx'
 import { NewTask } from './components/NewTask.tsx'
 import { QueueList } from './components/QueueList.tsx'
+import { Servers } from './components/Servers.tsx'
 import { Setup } from './components/Setup.tsx'
 import { Signals } from './components/Signals.tsx'
 import { TaskPane } from './components/TaskPane.tsx'
@@ -77,7 +78,7 @@ export const App = () => {
   useEffect(() => shell?.onNavigate((to) => to === 'new' && setView({ kind: 'new' })), [])
 
   const openTask = (id: string) => {
-    if (view.kind === 'new' || view.kind === 'signals' || view.kind === 'setup') setView({ kind: 'queue', queue: 'needs_me' })
+    if (view.kind !== 'queue' && view.kind !== 'workstream') setView({ kind: 'queue', queue: 'needs_me' })
     setSelected(id)
     setShowingTask(true)
   }
@@ -163,6 +164,8 @@ export const App = () => {
         <NewTask workstreams={workstreams} onCreated={openTask} />
       ) : view.kind === 'signals' ? (
         <Signals items={items} workstreams={workstreams} onOpen={openTask} />
+      ) : view.kind === 'servers' ? (
+        <Servers />
       ) : view.kind === 'setup' ? (
         <Setup onDone={() => setView({ kind: 'queue', queue: 'needs_me' })} />
       ) : current ? (

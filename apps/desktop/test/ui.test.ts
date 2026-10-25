@@ -31,6 +31,8 @@ beforeAll(async () => {
     runClaude: () => Promise.resolve({ items: [] }),
     // Sessions start, but no Claude Code runs: the test plays the session through the service.
     spawn: () => ({ pid: 1, write: () => {}, kill: () => {}, onData: () => {}, onExit: () => {} }),
+    // Any free port for the device listener.
+    devicePort: 0,
     log: () => {},
   })
   web = await serveWeb(connect(paths.socket, readOwnerToken(paths) ?? ''))
@@ -103,5 +105,15 @@ describe('the Mac app window', () => {
     // No Claude Code here: the first check says so, and Continue waits for it.
     await expect.poll(() => page.getByRole('button', { name: 'Continue' }).isDisabled()).toBe(true)
     await shot('setup')
+  }, 30_000)
+
+  it('pairs an iPhone from the Servers screen', async () => {
+    await page.getByRole('button', { name: 'Servers' }).click()
+    await page.getByRole('button', { name: 'Pair an iPhone' }).click()
+    await expect.poll(() => page.getByText('Waiting for your phone').isVisible()).toBe(true)
+    await shot('pairing')
+    const code = (await page.getByText(/^Or type the code:/).textContent())?.replace('Or type the code:', '').trim() ?? ''
+    handle.service.pairDevice({ idempotencyKey: 'ui-pair-1', code, name: 'Badr’s iPhone', kind: 'iphone' })
+    await expect.poll(() => page.getByText('Paired with Badr’s iPhone.').isVisible(), { timeout: 10_000 }).toBe(true)
   }, 30_000)
 })

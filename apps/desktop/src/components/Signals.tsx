@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Decision, QueueItem, RoutingProposal, Signal, Workstream } from '@autopilot/contracts'
 import { api, key } from '../api.ts'
-import { age, titleCase } from '../format.ts'
+import { age, ago, titleCase } from '../format.ts'
 
 type Props = { items: QueueItem[]; workstreams: Workstream[]; onOpen: (id: string) => void }
 
@@ -100,7 +100,7 @@ export const Signals = ({ items, workstreams, onOpen }: Props) => {
                 <span className="name">{titleCase(s.name)}</span>
                 <span className="meta">
                   {schedule(s)} · last day {s.last24h.filed} filed, {s.last24h.updated} added, {s.last24h.dropped} dropped
-                  {s.lastRunAt ? ` · ran ${age(s.lastRunAt)} ago` : ''}
+                  {s.lastRunAt ? ` · ran ${ago(s.lastRunAt)}` : ''}
                 </span>
                 <div className="actions">
                   <button className="tool" disabled={shown === 'running'} onClick={() => void preview(s.name)}>

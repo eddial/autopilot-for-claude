@@ -85,6 +85,9 @@ export const Nav = ({ view, go, items, workstreams, signals, onHide, overlay }: 
           {failing && <span className="health-dot" style={{ background: 'var(--clay)' }} aria-label="A signal is failing" />}
         </span>
       </button>
+      <button className="nav-item" aria-current={current(view.kind === 'servers')} onClick={() => go({ kind: 'servers' })}>
+        Servers
+      </button>
       <button className="nav-item" aria-current={current(view.kind === 'setup')} onClick={() => go({ kind: 'setup' })}>
         Set up
       </button>

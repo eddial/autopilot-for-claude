@@ -164,6 +164,23 @@ const MIGRATIONS = [
     last_run_at text not null
   );
   `,
+  `
+  -- Phones and other Macs that paired; each has its own owner token.
+  create table devices (
+    id text primary key,
+    name text not null,
+    kind text not null,
+    token_id text not null references tokens(id),
+    created_at text not null,
+    last_seen_at text
+  );
+  -- One-time pairing codes, stored hashed like tokens.
+  create table pairing_codes (
+    code_hash text primary key,
+    expires_at text not null,
+    used_at text
+  );
+  `,
 ]
 
 export const openDatabase = (file: string): DatabaseSync => {

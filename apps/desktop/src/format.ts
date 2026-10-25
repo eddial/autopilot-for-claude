@@ -1,5 +1,11 @@
 import type { QueueItem, Update } from '@autopilot/contracts'
 
+/** `5m ago`, or `just now`. */
+export const ago = (iso: string): string => {
+  const a = age(iso)
+  return a === 'now' ? 'just now' : `${a} ago`
+}
+
 export const age = (iso: string, now = Date.now()): string => {
   const minutes = Math.max(0, Math.round((now - Date.parse(iso)) / 60_000))
   if (minutes < 1) return 'now'

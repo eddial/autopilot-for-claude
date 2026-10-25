@@ -13,6 +13,8 @@ import {
   type CloseTask,
   type CreateTask,
   type CreateToken,
+  type Device,
+  type PairDevice,
   type DecideRouting,
   type Decision,
   type EditTask,
@@ -127,7 +129,8 @@ export class Service {
   }
 
   /** Runs a write once per idempotency key; a repeat returns the stored result. */
-  idempotent<T>(key: string, procedure: string, fn: () => T): T {
+  /** `stored` is what a replay gets back; secrets are left out of it, so they never sit in the database. */
+  idempotent<T>(key: string, procedure: string, fn: () => T, stored: (result: T) => T = (result) => result): T {
     return this.transaction(() => {
       const done = this.db.prepare('select procedure, result from applied where key = ?').get(key) as Row | undefined
       if (done) {
@@ -137,7 +140,7 @@ export class Service {
       const result = fn()
       this.db
         .prepare('insert into applied (key, procedure, result, at) values (?, ?, ?, ?)')
-        .run(key, procedure, json(result ?? null), this.iso())
+        .run(key, procedure, json(stored(result) ?? null), this.iso())
       return result
     })
   }
@@ -1037,7 +1040,12 @@ export class Service {
   // ── tokens ────────────────────────────────────────────────────────────────
 
   createToken(input: In<typeof CreateToken>): { token: Token; secret: string } {
-    return this.idempotent(input.idempotencyKey, 'tokens.create', () => this.issueToken(input.name, input.scope, input.taskId ?? null))
+    return this.idempotent(
+      input.idempotencyKey,
+      'tokens.create',
+      () => this.issueToken(input.name, input.scope, input.taskId ?? null),
+      (result) => ({ ...result, secret: '' }),
+    )
   }
 
   /** Issues a token outside the API, e.g. the owner's first token or a session's own token. */
@@ -1048,6 +1056,69 @@ export class Service {
       .prepare('insert into tokens (id, name, scope, task_id, secret_hash, created_at) values (?, ?, ?, ?, ?, ?)')
       .run(id, name, scope, taskId, hashSecret(secret), this.iso())
     return { token: this.toToken(this.db.prepare('select * from tokens where id = ?').get(id) as Row), secret }
+  }
+
+  // ── devices ───────────────────────────────────────────────────────────────
+
+  /** Failed pairing attempts since the last good one; too many cancels every open code. */
+  private pairingFailures = 0
+
+  private toDevice(r: Row): Device {
+    return {
+      id: str(r.id),
+      name: str(r.name),
+      kind: str(r.kind) as Device['kind'],
+      createdAt: str(r.created_at),
+      lastSeenAt: strOrNull(r.last_seen_at),
+    }
+  }
+
+  listDevices(): Device[] {
+    return (this.db.prepare('select * from devices order by created_at').all() as Row[]).map((r) => this.toDevice(r))
+  }
+
+  /** A code of eight letters and digits without look-alikes, valid five minutes, usable once. */
+  newPairingCode(): { code: string; expiresAt: string } {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    const code = [...randomBytes(8)].map((b) => alphabet[b % alphabet.length]).join('')
+    const expiresAt = new Date(this.now().getTime() + 5 * 60_000).toISOString()
+    this.db.prepare('insert into pairing_codes (code_hash, expires_at) values (?, ?)').run(hashSecret(code), expiresAt)
+    this.pairingFailures = 0
+    return { code, expiresAt }
+  }
+
+  /**
+   * Not replayable: a lost answer means pairing again with a new code, since the token is returned
+   * only once and never stored.
+   */
+  pairDevice(input: In<typeof PairDevice>): { device: Device; token: string } {
+    const paired = this.transaction(() => {
+      const row = this.db
+        .prepare('select * from pairing_codes where code_hash = ? and used_at is null and expires_at > ?')
+        .get(hashSecret(input.code.trim().toUpperCase()), this.iso()) as Row | undefined
+      if (!row) return null
+      this.db.prepare('update pairing_codes set used_at = ? where code_hash = ?').run(this.iso(), str(row.code_hash))
+      const { token, secret } = this.issueToken(`${input.name} (${input.kind})`, 'owner', null)
+      const id = newId()
+      this.db
+        .prepare('insert into devices (id, name, kind, token_id, created_at) values (?, ?, ?, ?, ?)')
+        .run(id, input.name, input.kind, token.id, this.iso())
+      return { device: this.toDevice(this.db.prepare('select * from devices where id = ?').get(id) as Row), token: secret }
+    })
+    if (paired) return paired
+    // Codes are 40 bits; twenty wrong guesses close every open code all the same.
+    if (++this.pairingFailures >= 20) this.db.prepare('update pairing_codes set used_at = ? where used_at is null').run(this.iso())
+    throw new DomainError('FORBIDDEN', { needs: ['owner'], has: null }, 'That pairing code is wrong or has expired')
+  }
+
+  removeDevice(input: { idempotencyKey: string; id: string }): Record<string, never> {
+    return this.idempotent(input.idempotencyKey, 'devices.remove', () => {
+      const row = this.db.prepare('select token_id from devices where id = ?').get(input.id) as Row | undefined
+      if (!row) return {}
+      this.db.prepare('update tokens set revoked_at = ? where id = ?').run(this.iso(), str(row.token_id))
+      this.db.prepare('delete from devices where id = ?').run(input.id)
+      return {}
+    })
   }
 
   revokeToken(input: { idempotencyKey: string; id: string }): Record<string, never> {
@@ -1073,6 +1144,7 @@ export class Service {
       .get(hashSecret(secret)) as Row | undefined
     if (!row) return null
     this.db.prepare('update tokens set last_used_at = ? where id = ?').run(this.iso(), str(row.id))
+    this.db.prepare('update devices set last_seen_at = ? where token_id = ?').run(this.iso(), str(row.id))
     return { tokenId: str(row.id), name: str(row.name), scope: str(row.scope) as Scope, taskId: strOrNull(row.task_id) }
   }
 }

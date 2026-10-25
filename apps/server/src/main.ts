@@ -8,6 +8,10 @@ import { detect } from './detect.ts'
 import { openDatabase } from './db.ts'
 import { readWorkstreams } from './home.ts'
 import { listen } from './http.ts'
+import { deviceRoutes, DEVICE_PORT, listenDevices } from './network.ts'
+import { ensureCertificate } from './tls.ts'
+import type { AddressInfo } from 'node:net'
+import type { Server as HttpsServer } from 'node:https'
 import { Launcher, type SpawnPty } from './launcher.ts'
 import { loadPty } from './pty.ts'
 import { ensureDataDir, ensureOwnerToken } from './owner.ts'
@@ -31,6 +35,8 @@ export type ServerOptions = {
   spawn?: SpawnPty
   runClaude?: RunClaude
   maxParallel?: number
+  /** The HTTPS port for paired devices; 0 picks a free one (tests). */
+  devicePort?: number
   log?: (message: string) => void
 }
 
@@ -38,6 +44,8 @@ export type ServerHandle = {
   service: Service
   launcher: Launcher
   signals: Signals
+  /** The device listener's port once it is open. */
+  devicePort(): number | null
   close(): Promise<void>
 }
 
@@ -85,10 +93,18 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     capacity: options.maxParallel ?? 4,
     running: service.queue({ band: 'running' }).items.length,
     workstreams: workstreams().map((w) => w.name),
-    routes: [{ kind: 'socket', address: paths.socket }],
+    routes: [{ kind: 'socket', address: paths.socket }, ...(devices ? deviceRoutes(openPort()) : [])],
     health: 'online',
     lastSeenAt: service.now().toISOString(),
   })
+
+  // The listener for paired devices opens with the first pairing, and at start once any device is paired.
+  let devices: HttpsServer | null = null
+  const openPort = () => (devices?.address() as AddressInfo | null)?.port ?? 0
+  const openDevices = async () => {
+    devices ??= await listenDevices(router, service, ensureCertificate(paths), options.devicePort ?? DEVICE_PORT)
+    return devices
+  }
 
   const router = createRouter({
     service,
@@ -103,8 +119,24 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     detect: () => detect(options.claude ?? 'claude'),
     setup: new Setup({ paths, examples: join(ROOT, 'examples', 'home'), claude: options.claude ?? 'claude' }),
     installService: () => void installService({ ...options.self, paths }),
+    startPairing: async () => {
+      await openDevices()
+      const { code, expiresAt } = service.newPairingCode()
+      const routes = deviceRoutes(openPort())
+      return {
+        invite: {
+          v: 1 as const,
+          server: hostname().split('.')[0] ?? 'Mac',
+          routes: routes.length > 0 ? routes : [{ kind: 'lan' as const, address: `127.0.0.1:${openPort()}` }],
+          fingerprint: ensureCertificate(paths).fingerprint,
+          code,
+        },
+        expiresAt,
+      }
+    },
     log,
   })
+  if (service.listDevices().length > 0) await openDevices()
   const server: Server = await listen(router, service, paths.socket)
 
   // Side effects run after each commit and on a timer, so a deferred delivery is retried.
@@ -124,15 +156,19 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     service,
     launcher,
     signals,
+    devicePort: () => (devices ? openPort() : null),
     close: async () => {
       clearInterval(outbox)
       clearInterval(tick)
       unsubscribe()
       launcher.stopAll()
       // Live subscriptions keep connections open; close them so shutdown does not wait on clients.
-      const closed = new Promise<void>((resolve) => server.close(() => resolve()))
-      server.closeAllConnections()
-      await closed
+      const closing = [server, ...(devices ? [devices] : [])].map((s) => {
+        const closed = new Promise<void>((resolve) => s.close(() => resolve()))
+        s.closeAllConnections()
+        return closed
+      })
+      await Promise.all(closing)
       service.db.close()
     },
   }

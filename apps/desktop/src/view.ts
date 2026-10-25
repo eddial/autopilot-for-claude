@@ -8,6 +8,7 @@ export type View =
   | { kind: 'new' }
   | { kind: 'signals' }
   | { kind: 'setup' }
+  | { kind: 'servers' }
 
 export const QUEUE_VIEWS: { id: QueueView; title: string; bands: Band[] }[] = [
   { id: 'needs_me', title: 'Needs me', bands: ['your_turn', 'new'] },
