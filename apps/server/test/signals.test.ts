@@ -88,6 +88,27 @@ describe('signal runs', () => {
   })
 })
 
+describe('importing what is still open', () => {
+  it('files each open ticket once, without a first look, and leaves the rest alone', async () => {
+    const ticket = (id: string, closed = false) =>
+      item({ url: `https://linear.app/acme/issue/${id}`, title: `Ticket ${id}`, ticket: { id, closed } })
+    const { service, signals } = setup(() => Promise.resolve({ items: [ticket('ENG-1'), ticket('ENG-2'), ticket('ENG-3', true)] }))
+
+    expect((await signals.importOpen('slack', true)).map((d) => d.action)).toEqual(['created', 'created'])
+    expect(service.queue().items).toEqual([])
+
+    const filed = await signals.importOpen('slack')
+    expect(filed.map((d) => d.action)).toEqual(['created', 'created'])
+    const tasks = service.queue().items.map((i) => i.task)
+    expect(tasks.map((t) => t.source.mirrors).toSorted()).toEqual(['ENG-1', 'ENG-2'])
+    expect(tasks.every((t) => service.jobRanAt(`scout:${t.id}`) !== null)).toBe(true)
+
+    // Again: everything is already there, and nothing is added to it.
+    expect((await signals.importOpen('slack')).map((d) => d.action)).toEqual(['dropped', 'dropped'])
+    expect(tasks.map((t) => service.getTask(t.id).updates.length)).toEqual([0, 0])
+  })
+})
+
 describe('switching a signal on', () => {
   it('takes the paused line out of a signal file that starts paused', () => {
     const { signals, dir } = setup(() => Promise.resolve({ items: [] }))

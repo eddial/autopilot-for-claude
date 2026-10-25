@@ -122,6 +122,9 @@ export const DecideRouting = command({ proposalId: Id, accept: z.boolean() })
 
 export const RunSignal = command({ name: z.string(), dryMinutes: z.int().min(1).max(1440).optional() })
 
+/** Everything still open at a signal's source, once; `dry` previews without filing. */
+export const ImportSignal = command({ name: z.string(), dry: z.boolean().default(false) })
+
 export const AddSignal = command({
   name: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
   /** Values for the example's placeholders. */

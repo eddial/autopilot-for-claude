@@ -116,6 +116,21 @@ Mac mini: Servers → Pair a device → Copy invite for a Mac. Send yourself the
 MacBook: Servers → This app → paste → Use that Mac. Both Macs must be on the same network or
 Tailscale. "Use this Mac instead" switches back.
 
+## Moving from Linear
+
+Bring the open tickets assigned to you across once, then let the Linear signal keep them current.
+
+1. Add the Linear signal in Set up (or copy `examples/home/signals/linear.md` into
+   `~/autopilot/signals/`), with the tool names `autopilot connectors` shows for your Linear
+   connector.
+2. Preview: `autopilot import linear --dry` lists each open ticket and the workstream it would go
+   to. Nothing is filed. If the routing is off, adjust the workstream files and preview again.
+3. Import: `autopilot import linear`. Each open ticket becomes a task in New, linked to the ticket
+   and mirroring it, so commits and PRs keep naming the ticket. Imported tasks skip the first
+   look; they bring their own context. Running it again files nothing new.
+4. Resume the Linear signal (Signals → Resume). From then on new assignments and comments arrive by
+   themselves, and a ticket closed in Linear closes its task.
+
 ## Everyday commands
 
 | Command | Does |

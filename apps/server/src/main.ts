@@ -118,6 +118,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     signals: {
       list: () => signals.list(),
       run: (name, dryMinutes) => signals.run(name, dryMinutes),
+      importOpen: (name, dry) => signals.importOpen(name, dry),
       pause: (name, paused) => signals.pause(name, paused),
     },
     machine,

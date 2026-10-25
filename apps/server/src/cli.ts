@@ -22,6 +22,8 @@ const HELP = `autopilot <command>
                                  answer the task's open decision or question
   signal <name> [--dry <minutes>]
                                  run a signal now, or preview the last minutes without filing
+  import <signal> [--dry]        once, file everything still open at a signal's source
+                                 (moving from Linear: autopilot import linear --dry, then without)
   connectors                     the connectors Claude Code has here, and which signal reads each
   routing [accept|reject <id>]   the nightly routing review's proposals, or decide one
   status                         server, signals and queue at a glance
@@ -132,6 +134,18 @@ const main = async (argv: string[]): Promise<void> => {
         ...(values.dry ? { dryMinutes: Number(values.dry) } : {}),
       })
       console.log(decisions.map((d) => `${d.action.padEnd(8)} ${d.taskId ?? '-'} ${d.reason}`).join('\n') || 'Nothing found.')
+      return
+    }
+    case 'import': {
+      const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: { dry: { type: 'boolean' } } })
+      const name = positionals[0] ?? ''
+      if (!values.dry) console.log(`Importing what is still open in ${name}; this takes a minute or two…`)
+      const decisions = await client().api.signals.import({ idempotencyKey: key(), name, dry: values.dry ?? false })
+      console.log(
+        decisions.map((d) => `${d.action.padEnd(8)} ${d.taskId ?? '-'} ${d.workstream ?? ''} ${d.reason}`).join('\n') || 'Nothing open.',
+      )
+      const filed = decisions.filter((d) => d.action === 'created').length
+      console.log(values.dry ? `\nA preview: nothing was filed. Without --dry, ${filed} tasks would be.` : `\n${filed} tasks filed.`)
       return
     }
     case 'connectors': {

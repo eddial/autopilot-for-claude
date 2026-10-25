@@ -22,6 +22,7 @@ export type Context = { principal: Principal | null }
 export type SignalsApi = {
   list(): Signal[]
   run(name: string, dryMinutes?: number): Promise<Decision[]>
+  importOpen(name: string, dry: boolean): Promise<Decision[]>
   pause(name: string, paused: boolean): Signal
 }
 
@@ -234,6 +235,7 @@ export const createRouter = ({
     signals: {
       list: guarded.signals.list.handler(() => signals.list()),
       run: guarded.signals.run.handler(({ input }) => signals.run(input.name, input.dryMinutes)),
+      import: guarded.signals.import.handler(({ input }) => signals.importOpen(input.name, input.dry)),
       pause: guarded.signals.pause.handler(({ input }) => signals.pause(input.name, input.paused)),
       examples: guarded.signals.examples.handler(() => setup.signalExamples()),
       add: guarded.signals.add.handler(({ input }) => {

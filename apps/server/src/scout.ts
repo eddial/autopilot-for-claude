@@ -28,6 +28,9 @@ export type ScoutOptions = {
   log?: (message: string) => void
 }
 
+/** The job that records a task had its first look (or should not get one, like an import). */
+export const scoutJob = (taskId: string): string => `scout:${taskId}`
+
 /** Tasks older than this when first seen are left as they are: no scouting a backlog. */
 const FRESH_MS = 2 * 86_400_000
 /** Reading files in the workstream's repository or folder; never writing or running anything. */
@@ -57,21 +60,17 @@ export class Scout {
       const waiting = service
         .queue({ band: 'new' })
         .items.map((i) => i.task)
-        .filter((t) => t.createdBy !== 'system' && t.workstream !== 'autopilot' && !service.jobRanAt(this.job(t.id)))
+        .filter((t) => t.createdBy !== 'system' && t.workstream !== 'autopilot' && !service.jobRanAt(scoutJob(t.id)))
         .toSorted((a, b) => a.createdAt.localeCompare(b.createdAt))
       for (const task of waiting) {
         // Recorded first: a run that fails is not retried at every tick.
-        service.jobRan(this.job(task.id), service.now().toISOString())
+        service.jobRan(scoutJob(task.id), service.now().toISOString())
         if (now - Date.parse(task.createdAt) > FRESH_MS) continue
         await this.scout(task).catch((error: unknown) => this.o.log(`scout ${task.id}: ${String(error)}`))
       }
     } finally {
       this.running = false
     }
-  }
-
-  private job(taskId: string): string {
-    return `scout:${taskId}`
   }
 
   async scout(task: Task): Promise<void> {

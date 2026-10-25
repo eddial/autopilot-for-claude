@@ -6,6 +6,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { FileItem, type Decision, type Signal, type Workstream } from '@autopilot/contracts'
 import { z } from 'zod'
 import { lastCronMatch } from './cron.ts'
+import { scoutJob } from './scout.ts'
 import { readSignals, type SignalFile } from './home.ts'
 import type { Paths } from './paths.ts'
 import { DomainError, type Service } from './service.ts'
@@ -354,6 +355,47 @@ export class Signals {
     }
   }
 
+  /**
+   * Everything still open at a signal's source, once, regardless of its window: how a move from
+   * Linear starts with the open tickets already in the queue. What an active task already mirrors
+   * is left alone, so running it again changes nothing. Imported tasks get no first look (they
+   * bring their own context); the signal's own schedule is untouched.
+   */
+  async importOpen(name: string, dry = false): Promise<Decision[]> {
+    const { service } = this.o
+    const file = this.file(name)
+    const { secret, token } = service.issueToken(`signal ${name}`, 'signal', null)
+    try {
+      const output = await this.o.runClaude(this.prompt(file, null, service.now(), dry), {
+        tools: [...file.tools, 'mcp__autopilot__match_items', 'mcp__autopilot__list_workstreams'],
+        model: file.model,
+        schema: z.toJSONSchema(SignalOutput),
+        mcpConfig: this.mcpConfig(name, secret),
+        cwd: this.o.paths.home,
+      })
+      const parsed = SignalOutput.parse(typeof output === 'string' ? JSON.parse(output) : output)
+      const active = service.queue().items.map((i) => i.task)
+      return parsed.items
+        .filter((item) => item.action === 'create' && !item.ticket?.closed)
+        .map((item) => {
+          const there = active.find((t) => (item.ticket ? t.source.mirrors === item.ticket.id : t.source.url === item.url))
+          if (there)
+            return {
+              ...this.preview(name, item),
+              action: 'dropped' as const,
+              taskId: there.id,
+              reason: `${item.title}: already in the queue`,
+            }
+          if (dry) return this.preview(name, item)
+          const decision = this.apply(name, item)
+          if (decision.taskId) service.jobRan(scoutJob(decision.taskId), service.now().toISOString())
+          return decision
+        })
+    } finally {
+      service.db.prepare('update tokens set revoked_at = ? where id = ?').run(service.now().toISOString(), token.id)
+    }
+  }
+
   private apply(name: string, item: SignalOutput['items'][number]): Decision {
     // The same item seen again in an overlapping window applies once.
     const key = createHash('sha256').update(`${name}|${item.url}|${item.at}|${item.action}`).digest('hex')
@@ -419,7 +461,8 @@ export class Signals {
     return file
   }
 
-  private prompt(file: SignalFile, from: Date, end: Date, dry: boolean): string {
+  /** With no `from`, an import: everything still open, whatever its date. */
+  private prompt(file: SignalFile, from: Date | null, end: Date, dry: boolean): string {
     const read = (f: string) => readFileSync(join(this.o.prompts, f), 'utf8').replaceAll('{{owner}}', this.o.owner)
     const workstreams = this.o
       .workstreams()
@@ -437,7 +480,9 @@ export class Signals {
       `# Signal: ${file.name}\n\n${file.rules}`,
       `# Workstreams\n\n${workstreams || '(none yet: use "inbox")'}`,
       `# Active tasks\n\n${active || '(none)'}`,
-      `# Window\n\nFetch items with activity from ${from.toISOString()} up to ${end.toISOString()} (Unix seconds ${Math.floor(from.getTime() / 1000)} to ${Math.floor(end.getTime() / 1000)}). Ignore anything outside it.`,
+      from
+        ? `# Window\n\nFetch items with activity from ${from.toISOString()} up to ${end.toISOString()} (Unix seconds ${Math.floor(from.getTime() / 1000)} to ${Math.floor(end.getTime() / 1000)}). Ignore anything outside it.`
+        : `# Import\n\nThis is a one-time import into a new queue, not a window. Ignore the window and dates: return every item at this source that is still open and still ${this.o.owner}'s to act on (for tickets: every open ticket assigned to ${this.o.owner}, whatever its status short of done or cancelled), each as action "create" with its ticket set, routed to a workstream. Leave out what is done, cancelled, or someone else's.`,
       dry ? '# Dry run\n\nDecide as usual; nothing you return will be filed.' : '',
     ]
       .filter(Boolean)
