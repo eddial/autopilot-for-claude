@@ -45,7 +45,9 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   const { paths } = options
   const log = options.log ?? ((message: string) => console.log(`${new Date().toISOString()} ${message}`))
   ensureDataDir(paths)
-  const service = new Service({ db: openDatabase(paths.db), machineId: hostname() })
+  // The contract caps ids at 64 characters; macOS hostnames can be longer.
+  const machineId = hostname().split('.')[0]?.slice(0, 64) || 'local'
+  const service = new Service({ db: openDatabase(paths.db), machineId })
   chmodSync(paths.db, 0o600)
   ensureOwnerToken(paths, service)
 
@@ -96,6 +98,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
       pause: (name, paused) => signals.pause(name, paused),
     },
     machine,
+    log,
   })
   const server: Server = await listen(router, service, paths.socket)
 

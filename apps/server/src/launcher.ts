@@ -52,6 +52,7 @@ export class Launcher {
   private readonly live = new Map<string, Live>()
   private readonly opts: Required<LauncherOptions>
   private draining = false
+  private stopping = false
 
   constructor(options: LauncherOptions) {
     this.opts = {
@@ -204,6 +205,8 @@ export class Launcher {
   }
 
   private exited(taskId: string, sessionId: string, exitCode: number): void {
+    // On shutdown the server kills its sessions; the next start ends them in the database.
+    if (this.stopping) return
     const { service } = this.opts
     if (this.live.get(taskId)?.sessionId === sessionId) this.live.delete(taskId)
     service.setSession(sessionId, { state: 'ended', activity: null })
@@ -269,6 +272,7 @@ export class Launcher {
   }
 
   stopAll(): void {
+    this.stopping = true
     for (const live of this.live.values()) live.pty.kill()
   }
 }

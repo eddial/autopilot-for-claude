@@ -5,7 +5,7 @@ import {
   type Decision,
   type Machine,
   type Meta,
-  type QueueEvent,
+  QueueEvent,
   type Signal,
   type Workstream,
 } from '@autopilot/contracts'
@@ -25,6 +25,7 @@ export type Deps = {
   workstreams: () => Workstream[]
   signals: SignalsApi
   machine: () => Machine
+  log?: (message: string) => void
 }
 
 const authorOf = (principal: Principal | null): Author => {
@@ -49,7 +50,7 @@ const taskOf = (service: Service, path: readonly string[], input: unknown): stri
   return null
 }
 
-export const createRouter = ({ service, workstreams, signals, machine }: Deps) => {
+export const createRouter = ({ service, workstreams, signals, machine, log = () => {} }: Deps) => {
   const os = implement(contract).$context<Context>()
 
   /** Every call: check the token against the procedure's scopes, then map domain errors to typed ones. */
@@ -75,7 +76,10 @@ export const createRouter = ({ service, workstreams, signals, machine }: Deps) =
     try {
       return await next()
     } catch (error) {
-      if (!(error instanceof DomainError)) throw error
+      if (!(error instanceof DomainError)) {
+        log(`${path.join('.')} failed: ${error instanceof Error ? error.stack ?? error.message : String(error)}`)
+        throw error
+      }
       switch (error.code) {
         case 'NOT_FOUND':
           throw errors.NOT_FOUND({ data: error.data as { entity: string; id: string }, message: error.message })
@@ -104,12 +108,20 @@ export const createRouter = ({ service, workstreams, signals, machine }: Deps) =
         if (after === undefined) {
           const snapshot = service.queue()
           after = snapshot.seq
-          yield { type: 'snapshot', snapshot } satisfies QueueEvent
+          const event: QueueEvent = { type: 'snapshot', snapshot }
+          const checked = QueueEvent.safeParse(event)
+          if (!checked.success) log(`queue snapshot does not match the contract: ${JSON.stringify(checked.error.issues)}`)
+          yield event
         }
         for (;;) {
           if (signal?.aborted) return
           const page = service.changesSince(after, 500)
-          for (const change of page.changes) yield change
+          for (const change of page.changes) {
+            // An event the contract rejects would end the client's stream; log exactly what was wrong.
+            const checked = QueueEvent.safeParse(change)
+            if (!checked.success) log(`queue event ${change.seq} does not match the contract: ${JSON.stringify(checked.error.issues)} ${JSON.stringify(change).slice(0, 2000)}`)
+            yield change
+          }
           after = page.changes.at(-1)?.seq ?? after
           if (page.more) continue
           await new Promise<void>((resolve) => {
