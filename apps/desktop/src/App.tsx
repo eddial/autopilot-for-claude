@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem, Signal, Workstream } from '@autopilot/contracts'
 import { api, shell } from './api.ts'
-import { Nav } from './components/Nav.tsx'
+import { Nav, NavRail } from './components/Nav.tsx'
 import { NewTask } from './components/NewTask.tsx'
 import { QueueList } from './components/QueueList.tsx'
 import { Servers } from './components/Servers.tsx'
@@ -9,7 +9,7 @@ import { Setup } from './components/Setup.tsx'
 import { Signals } from './components/Signals.tsx'
 import { TaskPane } from './components/TaskPane.tsx'
 import { titleCase } from './format.ts'
-import { Button, Pilot } from './ui.tsx'
+import { Pilot } from './ui.tsx'
 import { useQueueItems, useStore } from './store.ts'
 import { QUEUE_VIEWS, type View } from './view.ts'
 
@@ -132,26 +132,24 @@ export const App = () => {
     window.addEventListener('pointerup', up)
   }
 
+  const go = (v: View) => {
+    setView(v)
+    setShowingTask(false)
+    setNavOverlay(false)
+    // Moving to another list leaves no task open from the last one. Only here: a task opened
+    // for you (just created, from a notification) stays open wherever it is.
+    if (selected && !listOf(v, items, done)?.items.some((i) => i.task.id === selected)) setSelected(null)
+  }
+
   return (
     <div className={`app${showingTask || !list ? ' showing-task' : ''}${navHidden ? ' nav-hidden' : ''}`}>
       {navOverlay && <div className="scrim" onClick={() => setNavOverlay(false)} aria-hidden="true" />}
       {navHidden ? (
-        <div className="drag nav-closed">
-          <Button kind="icon" aria-label="Show sidebar" onClick={() => setNavHidden(false)}>
-            <Pilot />
-          </Button>
-        </div>
+        <NavRail view={view} go={go} items={items} workstreams={workstreams} signals={signals} onShow={() => setNavHidden(false)} />
       ) : (
         <Nav
           view={view}
-          go={(v) => {
-            setView(v)
-            setShowingTask(false)
-            setNavOverlay(false)
-            // Moving to another list leaves no task open from the last one. Only here: a task opened
-            // for you (just created, from a notification) stays open wherever it is.
-            if (selected && !listOf(v, items, done)?.items.some((i) => i.task.id === selected)) setSelected(null)
-          }}
+          go={go}
           overlay={navOverlay}
           items={items}
           workstreams={workstreams}

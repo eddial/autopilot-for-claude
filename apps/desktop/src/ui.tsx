@@ -23,6 +23,8 @@ const BUTTON_CLASS = {
   /** The round send arrow in a composer. */
   send: 'send',
   nav: 'nav-item',
+  /** An icon in the folded sidebar, named in a flyout on hover. */
+  rail: 'rail-item',
   /** A row in a list; the list styles it. */
   row: 'row',
   /** A row in a short list of things, such as what a task links to. */
@@ -64,14 +66,15 @@ const ICONS = {
   ),
   /** Opens a menu below. */
   more: <path d="M4.5 6.5 8 10l3.5-3.5" />,
+  plus: <path d="M8 3.5v9M3.5 8h9" />,
   dismiss: <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />,
 } as const
 
 /** A small line icon for a button, in the button's colour. */
-export const Icon = ({ name }: { name: keyof typeof ICONS }) => (
+export const Icon = ({ name, size = 13 }: { name: keyof typeof ICONS; size?: number }) => (
   <svg
-    width="13"
-    height="13"
+    width={size}
+    height={size}
     viewBox="0 0 16 16"
     fill="none"
     stroke="currentColor"
@@ -81,6 +84,74 @@ export const Icon = ({ name }: { name: keyof typeof ICONS }) => (
     aria-hidden="true"
   >
     {ICONS[name]}
+  </svg>
+)
+
+/**
+ * The places in the nav, in the manner of the Claude app's own: thin, rounded strokes on a 20-point
+ * grid, open shapes, nothing filled.
+ */
+const NAV_ICONS = {
+  plus: <path d="M10 5v10M5 10h10" />,
+  inbox: (
+    <>
+      <path d="M3.5 11.25h3.4l.9 1.75h4.4l.9-1.75h3.4" />
+      <path d="M5.7 4.5h8.6l2.2 6.75v3.25A1.5 1.5 0 0 1 15 16H5a1.5 1.5 0 0 1-1.5-1.5v-3.25z" />
+    </>
+  ),
+  running: <path d="M14.2 4.75A6.75 6.75 0 1 1 5.8 4.75" />,
+  waiting: (
+    <path d="M5.75 3.25h8.5M5.75 16.75h8.5M6.75 3.25v2.2a3.4 3.4 0 0 0 1.3 2.7L10 9.75l1.95-1.6a3.4 3.4 0 0 0 1.3-2.7v-2.2M6.75 16.75v-2.2a3.4 3.4 0 0 1 1.3-2.7L10 10.25l1.95 1.6a3.4 3.4 0 0 1 1.3 2.7v2.2" />
+  ),
+  snoozed: (
+    <>
+      <circle cx="10" cy="10" r="6.75" />
+      <path d="M10 6.25V10l2.5 1.5" />
+    </>
+  ),
+  done: (
+    <>
+      <circle cx="10" cy="10" r="6.75" />
+      <path d="M7.25 10.25l1.9 1.9 3.6-4" />
+    </>
+  ),
+  signals: (
+    <>
+      <circle cx="10" cy="10" r="1.25" />
+      <path d="M6.8 6.8a4.5 4.5 0 0 0 0 6.4M13.2 6.8a4.5 4.5 0 0 1 0 6.4M4.35 4.35a8 8 0 0 0 0 11.3M15.65 4.35a8 8 0 0 1 0 11.3" />
+    </>
+  ),
+  servers: (
+    <>
+      <rect x="3" y="4" width="14" height="9.5" rx="1.75" />
+      <path d="M7.5 16.5h5M10 13.5v3" />
+    </>
+  ),
+  setup: (
+    <>
+      <path d="M3.5 6.5h7M14.5 6.5h2M3.5 13.5h2M9.5 13.5h7" />
+      <circle cx="12.5" cy="6.5" r="2" />
+      <circle cx="7.5" cy="13.5" r="2" />
+    </>
+  ),
+} as const
+
+export type NavIconName = keyof typeof NAV_ICONS
+
+/** A place in the nav: 16 points in the sidebar, 18 in the rail. */
+export const NavIcon = ({ name, size = 16 }: { name: NavIconName; size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 20 20"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.4"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {NAV_ICONS[name]}
   </svg>
 )
 

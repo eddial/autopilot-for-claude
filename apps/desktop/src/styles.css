@@ -482,10 +482,150 @@ button {
   margin-bottom: 16px;
 }
 
-.nav-closed {
-  width: 120px;
+.nav-mark {
+  width: 16px;
+  display: flex;
+  justify-content: center;
+  color: var(--text-3);
+}
+
+.nav-item[aria-current='page'] .nav-mark {
+  color: var(--text);
+}
+
+.initial {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  background: var(--raised);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+/* The sidebar folded to icons. Wide enough for the window's own buttons above them. */
+.rail {
+  width: 76px;
   flex: none;
-  padding: 12px 0 0 78px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 0 12px;
+  background: var(--window);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.rail-top {
+  align-self: stretch;
+  height: 44px;
+  flex: none;
+}
+
+.rail-gap {
+  height: 14px;
+  flex: none;
+}
+
+.rail-item {
+  position: relative;
+  width: 36px;
+  height: 34px;
+  flex: none;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+}
+
+/* A touch larger in the rail, where the icon is all there is. */
+.rail-item > svg {
+  width: 18px;
+  height: 18px;
+}
+
+.rail-item:hover {
+  background: var(--hover);
+  color: var(--text-2);
+}
+
+.rail-item[aria-current='page'] {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.rail-item.new {
+  margin: 6px 0 2px;
+}
+
+.rail-item .plus {
+  margin: 0;
+  align-items: center;
+  color: var(--well);
+}
+
+.rail-item .badge {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--raised);
+  color: var(--text-2);
+  font-size: 10px;
+  line-height: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rail-item .badge.you {
+  background: var(--pilot);
+  color: var(--well);
+}
+
+.rail-item .badge.dot {
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+}
+
+/* The name beside a rail icon while the pointer or the keyboard is on it. */
+.flyout {
+  position: fixed;
+  left: var(--flyout-x);
+  top: var(--flyout-y);
+  z-index: 30;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  border: 0.5px solid var(--border-strong);
+  background: var(--raised);
+  box-shadow: 0 6px 18px var(--shadow);
+  color: var(--text);
+  font-size: 12.5px;
+  white-space: nowrap;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.rail-item:hover .flyout,
+.rail-item:focus-visible .flyout {
+  display: flex;
+}
+
+.flyout-count {
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── task ── */
@@ -878,6 +1018,9 @@ button {
   top: calc(100% + 6px);
   left: 0;
   z-index: 10;
+  display: grid;
+  /* The label, then the detail columns, each lined up across the rows. */
+  grid-template-columns: 1fr auto auto;
   min-width: 180px;
   padding: 4px;
   border-radius: 10px;
@@ -887,9 +1030,11 @@ button {
 }
 
 .menu-items button {
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+  column-gap: 12px;
   width: 100%;
   white-space: nowrap;
   padding: 7px 10px;
@@ -907,6 +1052,14 @@ button {
 .menu-detail {
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
+}
+
+.menu-detail:first-of-type {
+  padding-left: 12px;
+}
+
+.menu-detail:last-child {
+  text-align: right;
 }
 
 /* ── new task ── */
@@ -1096,8 +1249,13 @@ button {
     display: flex;
   }
 
-  /* The window's own buttons sit over the leftmost pane now. */
-  .list-head {
+  /* The rail is the navigation; no need for a button to open it. */
+  .app.nav-hidden .narrow-only {
+    display: none;
+  }
+
+  /* The window's own buttons sit over the leftmost pane now, unless the rail is there. */
+  .app:not(.nav-hidden) .list-head {
     padding-left: 78px;
   }
 }
@@ -1117,7 +1275,7 @@ button {
     display: none;
   }
 
-  .task-head {
+  .app:not(.nav-hidden) .task-head {
     padding-left: 78px;
   }
 }
