@@ -2,12 +2,12 @@ import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, onTestFailed } from 'vitest'
-import * as pty from 'node-pty'
 import type { Change, QueueEvent } from '@autopilot/contracts'
 import { connect, type Client } from '../src/client.ts'
 import { startServer, type ServerHandle } from '../src/main.ts'
 import { readOwnerToken } from '../src/owner.ts'
 import { resolvePaths } from '../src/paths.ts'
+import { loadPty } from '../src/pty.ts'
 
 const SERVER = join(import.meta.dirname, '..')
 
@@ -28,6 +28,7 @@ beforeAll(async () => {
 
   // The MCP bridge and hooks run as separate processes and find the server through these.
   process.env.AUTOPILOT_SOCKET = paths.socket
+  const spawnPty = await loadPty()
   handle = await startServer({
     paths,
     claude,
@@ -35,9 +36,9 @@ beforeAll(async () => {
     runClaude: () => Promise.resolve({ items: [] }),
     log: (message) => trace.push(`[log] ${message}\n`),
     spawn: (file, args, options) => {
-      const session = pty.spawn(file, args, { name: 'xterm-256color', ...options })
+      const session = spawnPty(file, args, options)
       session.onData((data) => trace.push(data))
-      session.onExit(({ exitCode, signal }) => trace.push(`[exit] code ${exitCode} signal ${signal ?? '-'}\n`))
+      session.onExit(({ exitCode }) => trace.push(`[exit] code ${exitCode}\n`))
       return session
     },
   })

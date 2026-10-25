@@ -8,6 +8,7 @@ import { openDatabase } from './db.ts'
 import { readWorkstreams } from './home.ts'
 import { listen } from './http.ts'
 import { Launcher, type SpawnPty } from './launcher.ts'
+import { loadPty } from './pty.ts'
 import { ensureDataDir, ensureOwnerToken } from './owner.ts'
 import type { Paths } from './paths.ts'
 import { Service } from './service.ts'
@@ -35,14 +36,9 @@ export type ServerHandle = {
   close(): Promise<void>
 }
 
-/** node-pty is native; load it only when sessions are actually started. */
-const nodePty: SpawnPty = (file, args, options) => {
-  throw new Error(`node-pty not loaded (${file} ${args.length} args, ${options.cwd})`)
-}
-
-const loadPty = async (): Promise<SpawnPty> => {
-  const pty = await import('node-pty')
-  return (file, args, options) => pty.spawn(file, args, { name: 'xterm-256color', ...options })
+/** Used when node-pty cannot be loaded at all: every session start fails with this reason. */
+const missingPty: SpawnPty = () => {
+  throw new Error('node-pty could not be loaded; run pnpm install again')
 }
 
 export const startServer = async (options: ServerOptions): Promise<ServerHandle> => {
@@ -54,7 +50,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   ensureOwnerToken(paths, service)
 
   const workstreams = () => readWorkstreams(paths.home)
-  const spawn = options.spawn ?? (await loadPty().catch(() => nodePty))
+  const spawn = options.spawn ?? (await loadPty().catch(() => missingPty))
   const launcher = new Launcher({
     service,
     paths,
