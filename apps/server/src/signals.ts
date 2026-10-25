@@ -80,8 +80,6 @@ export const claudeHeadless =
         MCP_CONNECTION_NONBLOCKING: '0',
         CLAUDE_CODE_MCP_STARTUP_WAIT_MS: '30000',
         MAX_MCP_OUTPUT_TOKENS: '60000',
-        // The allowed tools load at the start, rather than through a search turn first.
-        ENABLE_TOOL_SEARCH: 'false',
       }
       const started = Date.now()
       const events: Record<string, unknown>[] = []
