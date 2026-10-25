@@ -14,7 +14,8 @@ alias autopilot="node $PWD/apps/server/bin/autopilot.js"
 ```
 
 Your config lives in `~/Library/Application Support/Autopilot/home/`, in the same format as the
-Linear version's `home/`. Copy over the workstreams you want and the Slack signal:
+Linear version's `home/` (`examples/home/` has a starting set). Copy over the workstreams you want
+and the Slack signal:
 
 ```sh
 H="$HOME/Library/Application Support/Autopilot/home"

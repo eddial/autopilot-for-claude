@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { FileItem, type Decision, type Signal, type Workstream } from '@autopilot/contracts'
 import { z } from 'zod'
+import { lastCronMatch } from './cron.ts'
 import { readSignals, type SignalFile } from './home.ts'
 import type { Paths } from './paths.ts'
 import { DomainError, type Service } from './service.ts'
@@ -24,6 +25,7 @@ export const SignalOutput = z.object({
       priority: z.int().min(1).max(4).optional(),
       taskId: z.string().optional(),
       note: z.string().optional(),
+      ticket: z.object({ id: z.string(), closed: z.boolean() }).optional(),
       reason: z.string(),
       searches: z.array(z.string()),
       gated: z.boolean(),
@@ -215,22 +217,40 @@ export class Signals {
     return this.toSignal(file)
   }
 
-  /** Runs every signal that is due, one at a time. Cron schedules arrive with digests in phase 1b. */
+  /**
+   * Runs every signal that is due, one at a time. A rolling signal runs `every`; a cron signal (a
+   * digest) runs at its scheduled minutes over everything since its last good run, and a failed
+   * cron run is retried `every` until it succeeds.
+   */
   async tick(): Promise<void> {
     if (this.running) return
     this.running = true
     try {
-      const now = this.o.service.now().getTime()
+      const now = this.o.service.now()
       for (const file of this.files()) {
         const state = this.state(file.name)
-        if (file.paused || state.paused || file.cron || !file.every) continue
-        const last = state.lastRunAt ? Date.parse(state.lastRunAt) : 0
-        if (now - last < durationMs(file.every)) continue
+        if (file.paused || state.paused) continue
+        // A new digest waits for its first scheduled minute rather than running on sight.
+        if (file.cron && state.lastRunAt === null) {
+          this.save(file.name, { ...state, lastRunAt: now.toISOString() })
+          continue
+        }
+        if (!this.due(file, state, now)) continue
         await this.run(file.name).catch((error: unknown) => this.o.log(`signal ${file.name}: ${String(error)}`))
       }
     } finally {
       this.running = false
     }
+  }
+
+  private due(file: SignalFile, state: State, now: Date): boolean {
+    const last = state.lastRunAt ? Date.parse(state.lastRunAt) : 0
+    if (file.cron) {
+      if (state.failingSince && file.every) return now.getTime() - last >= durationMs(file.every)
+      const scheduled = lastCronMatch(file.cron, now)
+      return scheduled !== null && scheduled.getTime() > last
+    }
+    return file.every !== null && now.getTime() - last >= durationMs(file.every)
   }
 
   /** One run over the window since the last one. `dryMinutes` previews that many minutes and files nothing. */
@@ -241,13 +261,14 @@ export class Signals {
     const end = service.now()
     const dry = dryMinutes !== undefined
 
-    // The first run only marks where to start: no backfill.
-    if (!dry && state.lastCheckedAt === null) {
+    const cap = file.windowCap ? durationMs(file.windowCap) : WINDOW_CAP
+    // A rolling signal's first run only marks where to start (no backfill); a digest's covers its cap.
+    if (!dry && state.lastCheckedAt === null && !file.cron) {
       this.save(name, { ...state, lastCheckedAt: end.toISOString(), lastRunAt: end.toISOString() })
       return []
     }
-    const last = dry ? end.getTime() - dryMinutes * 60_000 : Date.parse(state.lastCheckedAt ?? end.toISOString())
-    const from = new Date(Math.max(last - WINDOW_OVERLAP, end.getTime() - WINDOW_CAP))
+    const last = dry ? end.getTime() - dryMinutes * 60_000 : state.lastCheckedAt ? Date.parse(state.lastCheckedAt) : 0
+    const from = new Date(Math.max(last - WINDOW_OVERLAP, end.getTime() - cap))
 
     const { secret, token } = service.issueToken(`signal ${name}`, 'signal', null)
     try {
@@ -285,7 +306,7 @@ export class Signals {
     return this.o.service.fileItem(
       FileItem.parse({
         idempotencyKey: `signal-${key.slice(0, 40)}`,
-        item: { signal: name, url: item.url, sender: item.sender, channel: item.channel, at: item.at, title: item.title.slice(0, 120), summary: item.summary.slice(0, 2000) },
+        item: { signal: name, url: item.url, sender: item.sender, channel: item.channel, at: item.at, title: item.title.slice(0, 120), summary: item.summary.slice(0, 2000), ticket: item.ticket },
         action: item.action,
         taskId: item.taskId,
         workstream: item.workstream,

@@ -45,7 +45,7 @@ Every command takes an `idempotencyKey` and is authorised by scope.
 | `links.attach { taskId, url, title, subtitle? }` | `owner`, `session` (own) | |
 | `watchers.add { taskId, what, every?, until?, tools? }` / `watchers.remove` | `owner`, `session` (own) | |
 | `items.match { query }` | `signal` | The searches a signal run does before filing |
-| `items.file { item }` | `signal` | Creates a task or adds a `signal` update; logs a `Decision` |
+| `items.file { item }` | `signal` | Creates a task or adds a `signal` update; logs a `Decision`. An item with `ticket { id, closed }` mirrors a team ticket: one task per ticket, closed when the ticket closes |
 | `routing.decide { proposalId, accept }` | `owner` | |
 | `signals.run { name, dryMinutes? }`, `signals.pause` | `owner` | |
 | `devices.pair { code, publicKey, name }`, `devices.remove` | pairing / `owner` | |

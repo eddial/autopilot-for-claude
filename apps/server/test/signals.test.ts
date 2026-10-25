@@ -85,6 +85,39 @@ describe('signal runs', () => {
   })
 })
 
+describe('digest signals', () => {
+  it('waits for the schedule, covers the whole cap the first time, and retries a failure every interval', async () => {
+    const prompts: string[] = []
+    let fail = false
+    const { signals, advance, dir } = setup((prompt) => {
+      prompts.push(prompt)
+      return fail ? Promise.reject(new Error('down')) : Promise.resolve({ items: [] })
+    })
+    writeFileSync(join(dir, 'home', 'signals', 'slack.md'), '---\npaused: true\n---\n')
+    writeFileSync(join(dir, 'home', 'signals', 'digest.md'), '---\ncron: 0 * * * *\nevery: 10m\nwindow_cap: 8d\n---\nWhat shipped.\n')
+    await signals.tick()
+    advance(30)
+    await signals.tick()
+    expect(prompts).toHaveLength(0)
+
+    advance(30)
+    await signals.tick()
+    expect(prompts).toHaveLength(1)
+    expect(prompts[0]).toContain('from 2026-10-17T11:00:00.000Z up to 2026-10-25T11:00:00.000Z')
+
+    advance(60)
+    fail = true
+    await signals.tick()
+    advance(5)
+    await signals.tick()
+    advance(5)
+    fail = false
+    await signals.tick()
+    expect(prompts).toHaveLength(3)
+    expect(prompts[2]).toContain('from 2026-10-25T10:58:00.000Z')
+  })
+})
+
 const fakeClaude = (dir: string, initTools: string[]) => {
   const file = join(dir, 'claude')
   const events = [

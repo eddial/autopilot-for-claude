@@ -13,6 +13,7 @@ import { ensureDataDir, ensureOwnerToken } from './owner.ts'
 import type { Paths } from './paths.ts'
 import { Service } from './service.ts'
 import { claudeHeadless, Signals, type RunClaude } from './signals.ts'
+import { Watchers } from './watchers.ts'
 
 /** The repository root, for `prompts/` and `plugin/`. */
 export const ROOT = join(import.meta.dirname, '..', '..', '..')
@@ -66,16 +67,11 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   })
   launcher.reconcile()
 
-  const signals = new Signals({
-    service,
-    paths,
-    workstreams,
-    runClaude: options.runClaude ?? claudeHeadless(options.claude ?? 'claude'),
-    prompts: join(ROOT, 'prompts'),
-    owner: options.owner ?? 'the owner',
-    self: options.self,
-    log,
-  })
+  const runClaude = options.runClaude ?? claudeHeadless(options.claude ?? 'claude')
+  const prompts = join(ROOT, 'prompts')
+  const owner = options.owner ?? 'the owner'
+  const signals = new Signals({ service, paths, workstreams, runClaude, prompts, owner, self: options.self, log })
+  const watchers = new Watchers({ service, paths, workstreams, runClaude, prompts, owner, log })
 
   const machine = (): Machine => ({
     id: service.machineId,
@@ -106,7 +102,11 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   const drain = () => void launcher.drain().catch((error: unknown) => log(`outbox: ${String(error)}`))
   const unsubscribe = service.onChange(drain)
   const outbox = setInterval(drain, 2000)
-  const tick = setInterval(() => void signals.tick(), 30_000)
+  // Signals and watchers each run one at a time, but beside each other.
+  const tick = setInterval(() => {
+    void signals.tick()
+    void watchers.tick()
+  }, 30_000)
   drain()
   log(`listening on ${paths.socket}`)
 

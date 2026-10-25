@@ -232,7 +232,8 @@ export class Launcher {
       return this.start(taskId)
     }
     if (detail.session?.state !== 'idle') return 'defer'
-    live.pty.write(paste(`Answer from the owner on ${taskId}:\n\n${answer.body}`))
+    const from = answer.author === 'watcher' ? 'News from a watcher' : 'Answer from the owner'
+    live.pty.write(paste(`${from} on ${taskId}:\n\n${[answer.body, ...answer.attachments.map((a) => a.url)].join('\n\n')}`))
     service.setSession(live.sessionId, { state: 'working' })
     return 'done'
   }

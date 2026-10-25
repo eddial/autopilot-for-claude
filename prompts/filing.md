@@ -36,5 +36,11 @@ For each item:
    - `summary`: who wants what, by when, in one or two sentences.
 5. When unsure between two workstreams, pick one and say why in `reason`; {{owner}} moves it.
 
+**Team tickets.** When the signal reads a ticket tracker for tickets assigned to {{owner}} (its
+rules say so), set `ticket` on each item: `id` is the ticket's identifier (`LLE-15982`) and
+`closed` is true when the ticket is done or cancelled. The task mirrors the ticket: the engine
+finds an existing mirror by that id, so a ticket is never filed twice, and a closed ticket closes
+its mirror. Return a closed ticket as `update`; it needs no `taskId`.
+
 Return every item you looked at, created, updated or dropped, with a short `reason`, its
 `searches`, and `gated` (true only when step 1 dropped it).

@@ -37,7 +37,7 @@ Tasks are grouped into bands by whose turn it is, then ordered inside each band.
 | **Your turn** | An open update needs you (decision, question, review, stuck); a session waits on a permission prompt; a health issue or routing proposal | Blocking a live session first, then urgent, then longest wait. Unread items have a filled dot, seen ones a hollow dot |
 | **New** | A signal filed it, or you saved a task without starting it | Priority, then newest. Urgent ones go straight to Your turn and notify |
 | **Running** | A session is working on it | Latest activity, with one line of what it is doing |
-| **Waiting on others** | The session handed over to someone and left a watcher | Folded. Returns to Your turn when the watcher sees news or times out |
+| **Waiting on others** | The session handed over to someone and left a watcher | Folded. When the watcher sees news, a workstream with autonomy 3 or more wakes the session; otherwise, and when it times out, the task returns to Your turn |
 | **Snoozed** | You snoozed it until a time | Returns to Your turn when due |
 | **Done** | You closed it, or the mirrored team ticket closed | Out of the queue, searchable |
 

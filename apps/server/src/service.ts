@@ -447,14 +447,16 @@ export class Service {
   }
 
   closeTask(input: In<typeof CloseTask>): Task {
-    return this.idempotent(input.idempotencyKey, 'tasks.close', () => {
-      const task = this.task(input.id)
-      if (task.state === 'done' || task.state === 'canceled') return task
-      this.closeAsks(task.id)
-      if (this.liveSession(task)) this.enqueue('end_session', { taskId: task.id })
-      this.db.prepare('delete from watchers where task_id = ?').run(task.id)
-      return this.touch(task, { state: input.outcome })
-    })
+    return this.idempotent(input.idempotencyKey, 'tasks.close', () => this.close(this.task(input.id), input.outcome))
+  }
+
+  /** Closing ends the session and the watchers with it. */
+  private close(task: Task, outcome: 'done' | 'canceled'): Task {
+    if (task.state === 'done' || task.state === 'canceled') return task
+    this.closeAsks(task.id)
+    if (this.liveSession(task)) this.enqueue('end_session', { taskId: task.id })
+    this.db.prepare('delete from watchers where task_id = ?').run(task.id)
+    return this.touch(task, { state: outcome })
   }
 
   markSeen(input: In<typeof TaskRef>): Task {
@@ -472,8 +474,7 @@ export class Service {
           case 'start':
             return this.start(task)
           case 'dismiss':
-            this.closeAsks(task.id)
-            return this.touch(task, { state: 'canceled' })
+            return this.close(task, 'canceled')
           case 'snooze':
             if (!input.until) throw new DomainError('BAD_REQUEST', { field: 'until' }, 'Snooze needs a time')
             return this.touch(task, { state: 'snoozed', snoozedUntil: input.until })
@@ -612,6 +613,64 @@ export class Service {
     })
   }
 
+  /** Every watcher with what the runner needs: its last fingerprint and its task. */
+  watcherRuns(): { watcher: Watcher; fingerprint: string | null; task: Task; band: QueueItem['band'] }[] {
+    const rows = this.db.prepare('select * from watchers').all() as Row[]
+    return rows.map((r) => {
+      const task = this.task(str(r.task_id))
+      return { watcher: this.toWatcher(r), fingerprint: strOrNull(r.fingerprint), task, band: this.item(task).band }
+    })
+  }
+
+  /** A check ran; without a fingerprint (it failed, or had nothing to read with) the last one stays. */
+  watcherChecked(id: string, fingerprint: string | null): void {
+    this.db
+      .prepare('update watchers set fingerprint = coalesce(?, fingerprint), last_checked_at = ? where id = ?')
+      .run(fingerprint, this.iso(), id)
+  }
+
+  /**
+   * A person acted on what the task waits on. With autonomy to start by itself the session picks it
+   * up (a live one once idle, else a new one); otherwise it is the owner's turn.
+   */
+  watcherNews(id: string, news: { body: string; attachments: Link[]; wake: boolean }): Update {
+    return this.transaction(() => {
+      const task = this.task(this.watcherTask(id))
+      const update = this.insertUpdate(task, {
+        kind: news.wake ? 'info' : 'question',
+        body: news.wake ? news.body : `${news.body}\n\nStart the task to let the session act on it, or close it.`,
+        author: 'watcher',
+        attachments: news.attachments,
+      })
+      if (news.wake) {
+        this.touch(task, { state: 'running', snoozedUntil: null })
+        if (this.liveSession(task)) this.enqueue('deliver_answer', { taskId: task.id, updateId: update.id })
+        else this.enqueue('start_session', { taskId: task.id })
+      } else {
+        this.touch(task, {})
+      }
+      return update
+    })
+  }
+
+  /** `until` has passed with nothing new: the watcher goes, and a waiting task becomes the owner's call. */
+  watcherExpired(id: string): void {
+    this.transaction(() => {
+      const row = this.db.prepare('select * from watchers where id = ?').get(id) as Row | undefined
+      if (!row) return
+      const watcher = this.toWatcher(row)
+      const task = this.task(watcher.taskId)
+      this.db.prepare('delete from watchers where id = ?').run(id)
+      const waiting = task.state === 'waiting'
+      this.insertUpdate(task, {
+        kind: waiting ? 'question' : 'info',
+        body: `The watcher on "${watcher.what}" expired with nothing new.${waiting ? ' Chase, wait longer (a new watcher), or close?' : ''}`,
+        author: 'system',
+      })
+      this.touch(task, {})
+    })
+  }
+
   updateTask(id: string): string {
     return this.update(id).taskId
   }
@@ -646,16 +705,18 @@ export class Service {
       const { item } = input
       let action = input.action
       let taskId = input.taskId ?? null
-      // Never file the same thread twice: an active task with this source becomes an update.
-      if (action === 'create') {
-        const existing = this.db.prepare(`select id from tasks where ${ACTIVE} and source_url = ?`).get(item.url) as
-          | Row
-          | undefined
-        if (existing) {
-          action = 'update'
-          taskId = str(existing.id)
-        }
+      // Never file the same thread or team ticket twice: an active task with it becomes an update.
+      const existing = (
+        item.ticket
+          ? this.db.prepare(`select id from tasks where ${ACTIVE} and mirrors = ?`).get(item.ticket.id)
+          : this.db.prepare(`select id from tasks where ${ACTIVE} and source_url = ?`).get(item.url)
+      ) as Row | undefined
+      if (existing && (action === 'create' || item.ticket)) {
+        action = action === 'drop' && !item.ticket?.closed ? 'drop' : 'update'
+        taskId = str(existing.id)
       }
+      // A closed ticket with no mirror needs no task.
+      if (action === 'create' && item.ticket?.closed) action = 'drop'
       if (action === 'create') {
         const task = this.insertTask({
           title: item.title,
@@ -663,7 +724,7 @@ export class Service {
           workstream: input.workstream ?? this.defaultWorkstream,
           priority: input.priority ?? 3,
           state: 'new',
-          source: { signal: item.signal, url: item.url, mirrors: null },
+          source: { signal: item.signal, url: item.url, mirrors: item.ticket?.id ?? null },
           links: [{ url: item.url, title: `${item.signal}: ${item.title}`.slice(0, 200) }],
           createdBy: 'signal',
         })
@@ -681,7 +742,11 @@ export class Service {
         const links = task.links.some((l) => l.url === item.url)
           ? task.links
           : [...task.links, { url: item.url, title: `${item.signal}: ${item.title}`.slice(0, 200) }]
-        this.touch(task, { links })
+        const touched = this.touch(task, { links })
+        if (item.ticket?.closed && task.source.mirrors === item.ticket.id) {
+          this.insertUpdate(touched, { kind: 'done', body: `${item.ticket.id} was closed.`, author: 'system' })
+          this.close(this.task(task.id), 'done')
+        }
       }
       const decision: Decision = {
         id: newId(),

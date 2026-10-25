@@ -44,10 +44,12 @@ and nothing touches Linear.
 
 ## Phase 1b · Everything else from the Linear version
 
-- The other signals (Gmail, GitHub, Linear for team tickets, Fathom), each with a dry-run preview.
-- Team-ticket mirrors: work on the team ticket's own branch, name only the ticket, close when it
-  closes.
-- Watchers, health, the nightly routing review.
+- Built: the other signals as examples in `examples/home/signals/` (Gmail, GitHub, Linear for team
+  tickets, Fathom, a weekly digest), each previewed with `autopilot signal <name> --dry`; cron
+  schedules for digests; team-ticket mirrors (one task per ticket, branch named after the ticket,
+  closed when the ticket closes); watchers (checked every interval while the task waits on others
+  or on your review; news wakes the session or comes to Your turn; expiry asks you).
+- Still to build: health, the nightly routing review.
 - Connector detection and the preview over the last day, for onboarding.
 
 **Done when** a full day runs on the CLI with everything the Linear version did.

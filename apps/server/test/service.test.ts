@@ -128,6 +128,29 @@ describe('filing', () => {
     expect(s.getTask(first.taskId ?? '').updates.map((u) => u.kind)).toEqual(['signal'])
     expect(s.matchItems({ queries: [item.url] }).tasks.map((t) => t.id)).toEqual([first.taskId])
   })
+
+  it('mirrors a team ticket once and closes the mirror when the ticket closes', () => {
+    const s = setup()
+    const ticket = (over: Record<string, unknown>, closed: boolean) =>
+      s.fileItem(
+        FileItem.parse({
+          idempotencyKey: key(),
+          item: { ...item, signal: 'linear', url: `https://linear.app/acme/issue/LLE-15982/${closed ? 'x' : 'y'}`, ticket: { id: 'LLE-15982', closed } },
+          action: 'create',
+          reason: 'assigned to you',
+          searches: ['LLE-15982'],
+          gated: false,
+          ...over,
+        }),
+      )
+    const first = ticket({}, false)
+    expect(s.getTask(first.taskId ?? '').task.source.mirrors).toBe('LLE-15982')
+    // Another URL for the same ticket is still the same task; its closing closes the mirror.
+    expect(ticket({}, true)).toMatchObject({ action: 'updated', taskId: first.taskId })
+    expect(s.getTask(first.taskId ?? '').band).toBe('done')
+    // A closed ticket nobody mirrors is not filed.
+    expect(ticket({}, true).action).toBe('dropped')
+  })
 })
 
 describe('tokens', () => {

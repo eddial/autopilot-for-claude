@@ -97,6 +97,8 @@ export const SourceItem = z.object({
   at: Timestamp,
   title: z.string().max(120),
   summary: z.string().max(2_000),
+  /** A team ticket assigned to the owner: the task mirrors it and closes when it closes. */
+  ticket: z.object({ id: TaskId, closed: z.boolean() }).optional(),
 })
 
 export const FileItem = command({

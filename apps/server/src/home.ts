@@ -1,4 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { Workstream } from '@autopilot/contracts'
 import { parse as parseYaml } from 'yaml'
@@ -33,6 +34,12 @@ const markdownFiles = (dir: string): string[] =>
 
 const optionalString = (value: unknown): string | null => (typeof value === 'string' && value.length > 0 ? value : null)
 
+/** `~/code/product` as a person writes it. */
+const optionalPath = (value: unknown): string | null => {
+  const path = optionalString(value)
+  return path?.startsWith('~/') ? join(homedir(), path.slice(2)) : path
+}
+
 export const readWorkstreams = (home: string): Workstream[] =>
   markdownFiles(join(home, 'workstreams')).map((file) => {
     const { meta, body } = splitFrontmatter(readFileSync(join(home, 'workstreams', file), 'utf8'))
@@ -45,8 +52,8 @@ export const readWorkstreams = (home: string): Workstream[] =>
       urgent,
       work: section(body, 'Work'),
       autonomy: autonomy >= 1 && autonomy <= 4 ? Math.trunc(autonomy) : 2,
-      repo: optionalString(meta.repo),
-      folder: optionalString(meta.folder),
+      repo: optionalPath(meta.repo),
+      folder: optionalPath(meta.folder),
       machineId: null,
     }
   })
@@ -58,6 +65,8 @@ export type SignalFile = {
   tools: string[]
   model: string
   paused: boolean
+  /** How far back a run may reach; a cron signal's first run covers all of it. */
+  windowCap: string | null
   /** What counts, in the person's own words. */
   rules: string
 }
@@ -72,6 +81,7 @@ export const readSignals = (home: string): SignalFile[] =>
       tools: Array.isArray(meta.tools) ? meta.tools.map(String) : [],
       model: optionalString(meta.model) ?? 'haiku',
       paused: meta.paused === true,
+      windowCap: optionalString(meta.window_cap),
       rules: body.trim(),
     }
   })

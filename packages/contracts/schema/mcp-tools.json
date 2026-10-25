@@ -550,6 +550,23 @@
             "summary": {
               "type": "string",
               "maxLength": 2000
+            },
+            "ticket": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+                  "description": "Task identifier, e.g. AP-212"
+                },
+                "closed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "closed"
+              ]
             }
           },
           "required": [
