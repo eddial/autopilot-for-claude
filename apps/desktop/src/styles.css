@@ -478,7 +478,7 @@ button {
 
 .task-title h2 {
   margin: 0;
-  font-size: 24px;
+  font-size: 26px;
   line-height: 1.25;
 }
 
@@ -553,9 +553,25 @@ button {
 
 .item .source {
   flex: none;
-  width: 96px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 128px;
   font-size: 13px;
   color: var(--text-3);
+}
+
+.badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--raised);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .item .title {
@@ -584,9 +600,43 @@ button {
 }
 
 .section-label {
-  margin-bottom: 8px;
-  font-size: 13px;
+  margin-bottom: 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--text-3);
+}
+
+.props {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pill,
+.tag {
+  padding: 2px 10px;
+  border-radius: var(--radius-round);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.pill {
+  background: var(--tone-bg);
+  color: var(--tone-fg);
+}
+
+.pill.tone-quiet {
+  background: var(--raised);
+  color: var(--text-2);
+}
+
+.tag {
+  border: 0.5px solid var(--border-strong);
+  color: var(--text-2);
 }
 
 .msg.clamped {
@@ -600,12 +650,12 @@ button {
   margin-top: 4px;
 }
 
-/* What waits on the owner, above the activity. */
+/* What waits on the owner, above the activity: warm, so it reads first. */
 .ask-card {
   padding: 16px 18px;
   border-radius: 14px;
   border: 0.5px solid var(--clay);
-  background: var(--open);
+  background: linear-gradient(var(--clay-tint), var(--clay-tint)), var(--open);
 }
 
 .ask-head {
@@ -622,16 +672,16 @@ button {
 .feed {
   position: relative;
   margin: 0;
-  padding: 0 0 0 24px;
+  padding: 0 0 0 36px;
   list-style: none;
 }
 
 .feed::before {
   content: '';
   position: absolute;
-  left: 4px;
-  top: 8px;
-  bottom: 8px;
+  left: 11px;
+  top: 12px;
+  bottom: 12px;
   width: 1px;
   background: var(--border-strong);
 }
@@ -645,15 +695,34 @@ button {
   padding-bottom: 0;
 }
 
-.entry .mark {
+.avatar {
   position: absolute;
-  left: -24px;
-  top: 4px;
-  width: 9px;
-  height: 9px;
+  left: -36px;
+  top: -2px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: var(--tone-dot);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--raised);
+  color: var(--text-2);
   box-shadow: 0 0 0 3px var(--surface);
+}
+
+.avatar.session {
+  background: var(--clay-tint);
+  color: var(--clay);
+}
+
+.avatar.watcher {
+  background: var(--pilot-tint);
+  color: var(--pilot-soft);
+}
+
+.avatar.system,
+.avatar.scout {
+  background: var(--well);
 }
 
 .entry-head {
@@ -872,8 +941,10 @@ button {
 
 .page h2 {
   margin: 30px 0 10px;
-  font-size: 13px;
-  font-weight: 400;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--text-3);
 }
 

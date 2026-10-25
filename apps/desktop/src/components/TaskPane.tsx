@@ -4,13 +4,24 @@ import type { QueueItem, Update } from '@autopilot/contracts'
 import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
-import { ArrowUp, Banner, Button, Dot, Meta, Spacer } from '../ui.tsx'
+import type { Tone } from '@autopilot/design'
+import { ArrowUp, Avatar, Banner, Button, Dot, Meta, Pill, Spacer, Tag } from '../ui.tsx'
+import { BAND_TITLE } from '../view.ts'
 
 type Props = { item: QueueItem; onClose: () => void }
 
 const open = (url: string) => {
   if (shell) shell.openExternal(url)
   else window.open(url, '_blank', 'noopener')
+}
+
+const BAND_TONE: Record<QueueItem['band'], Tone> = {
+  your_turn: 'attention',
+  new: 'quiet',
+  running: 'good',
+  waiting: 'quiet',
+  snoozed: 'quiet',
+  done: 'good',
 }
 
 const SESSION_STATE: Record<string, string> = {
@@ -78,7 +89,7 @@ export const TaskPane = ({ item, onClose }: Props) => {
           </svg>
         </Button>
         <Meta as="span">
-          {titleCase(task.workstream)} · {task.id}
+          {task.id}
           {task.source.mirrors ? ` · ${task.source.mirrors}` : ''}
         </Meta>
         <Spacer />
@@ -92,8 +103,13 @@ export const TaskPane = ({ item, onClose }: Props) => {
       <div className="timeline">
         <header className="task-title">
           <h2 className="serif">{task.title}</h2>
-          <div className="meta filed">
-            {filed} · {ago(task.createdAt)}
+          <div className="props">
+            <Pill tone={BAND_TONE[item.band]}>{BAND_TITLE[item.band]}</Pill>
+            <Tag>{titleCase(task.workstream)}</Tag>
+            {task.priority <= 2 && <Tag>{task.priority === 1 ? 'Urgent' : 'High priority'}</Tag>}
+            <Meta as="span">
+              {filed} · {ago(task.createdAt)}
+            </Meta>
           </div>
           <Actions item={item} />
         </header>
@@ -110,7 +126,10 @@ export const TaskPane = ({ item, onClose }: Props) => {
               {task.links.map((l) => (
                 <li key={l.url}>
                   <Button kind="item" onClick={() => open(l.url)}>
-                    <span className="source">{linkSource(l.url)}</span>
+                    <span className="source">
+                      <span className="badge">{linkSource(l.url).charAt(0)}</span>
+                      {linkSource(l.url)}
+                    </span>
                     <span className="title">{l.title}</span>
                     {l.subtitle && <span className="meta">{l.subtitle}</span>}
                   </Button>
@@ -207,8 +226,9 @@ const AskCard = ({ update }: { update: Update }) => {
       <Attachments links={update.attachments} />
       {update.options.length > 0 && (
         <div className="options">
-          {update.options.map((o) => (
-            <Button key={o.id} onClick={() => answer({ optionId: o.id })}>
+          {/* Sessions put their recommendation first. */}
+          {update.options.map((o, i) => (
+            <Button key={o.id} kind={i === 0 ? 'primary' : 'secondary'} onClick={() => answer({ optionId: o.id })}>
               {o.label}
             </Button>
           ))}
@@ -237,7 +257,7 @@ const Entry = ({ update, latest }: { update: Update; latest: boolean }) => {
   const by = updateAuthor(update)
   return (
     <li className={`entry tone-${updateTone(update)}`}>
-      <span className="mark" aria-hidden="true" />
+      <Avatar who={update.author} />
       <div className="entry-head">
         <span className="entry-label">{updateLabel(update)}</span>
         {by ? ` · ${by}` : ''} · {age(update.createdAt)}
@@ -251,7 +271,7 @@ const Entry = ({ update, latest }: { update: Update; latest: boolean }) => {
 /** A line that moves nothing: a link attached, a watcher started or stopped. */
 const EventEntry = ({ update }: { update: Update }) => (
   <li className="entry event tone-quiet">
-    <span className="mark" aria-hidden="true" />
+    <Avatar who={update.author} />
     <div className="entry-head">
       <span className="entry-label">{updateLabel(update)}</span> {eventText(update)} · {age(update.createdAt)}
       {update.attachments.map((a) => (
@@ -269,7 +289,7 @@ const PendingEntry = ({ pending, options }: { pending: Pending; options: { id: s
   const words = pendingText(command) ?? (command.kind === 'answer' ? options.find((o) => o.id === command.optionId)?.label : undefined)
   return words ? (
     <li className="entry tone-quiet sending">
-      <span className="mark" aria-hidden="true" />
+      <Avatar who="owner" />
       <div className="entry-head">
         <span className="entry-label">You</span> · sending
       </div>

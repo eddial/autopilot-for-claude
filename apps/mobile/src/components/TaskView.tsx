@@ -1,13 +1,13 @@
 import { useState, type ReactNode } from 'react'
 import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { eventText, linkSource, pendingText, updateAuthor, updateLabel, updateTone } from '@autopilot/client'
+import { eventText, linkSource, pendingText, updateAuthor, updateLabel } from '@autopilot/client'
 import type { QueueItem, Update } from '@autopilot/contracts'
 import * as Haptics from 'expo-haptics'
 import KV from 'expo-sqlite/kv-store'
-import { age, titleCase } from '../format.ts'
+import { age, BAND_TITLE, titleCase } from '../format.ts'
 import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
-import { colours, radius, tones, type Tone } from '@autopilot/design'
-import { Banner, Button, Chip, bannerText, type } from '../ui.tsx'
+import { colours, radius, type Tone } from '@autopilot/design'
+import { Avatar, Banner, Button, Chip, Pill, Tag, bannerText, type } from '../ui.tsx'
 
 /** A task: its brief, what waits on you, and its activity; the same in a pushed screen and in the wide split. */
 export const TaskView = ({ item }: { item: QueueItem }) => {
@@ -30,11 +30,11 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
   const entries = [
     ...activity.map((u) =>
       u.kind === 'event' ? (
-        <Entry key={u.id} label={updateLabel(u)} by={null} at={age(u.createdAt)} tone="quiet" body={eventText(u)} event>
+        <Entry key={u.id} label={updateLabel(u)} by={null} at={age(u.createdAt)} who={u.author} body={eventText(u)} event>
           <Links update={u} />
         </Entry>
       ) : (
-        <Entry key={u.id} label={updateLabel(u)} by={updateAuthor(u)} at={age(u.createdAt)} tone={updateTone(u)} body={u.body}>
+        <Entry key={u.id} label={updateLabel(u)} by={updateAuthor(u)} at={age(u.createdAt)} who={u.author} body={u.body}>
           <Links update={u} />
         </Entry>
       ),
@@ -42,7 +42,7 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
     ...pending.flatMap((p) => {
       const { command } = p
       const words = pendingText(command) ?? (command.kind === 'answer' ? options.find((o) => o.id === command.optionId)?.label : undefined)
-      return words ? [<Entry key={p.id} label="You" by={null} at="waiting to reach your Mac" tone="quiet" body={words} sending />] : []
+      return words ? [<Entry key={p.id} label="You" by={null} at="waiting to reach your Mac" who="owner" body={words} sending />] : []
     }),
   ]
   const refused = conflicts.filter((c) => 'taskId' in c.command && c.command.taskId === task.id)
@@ -65,20 +65,25 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
       <ScrollView contentContainerStyle={styles.page} contentInsetAdjustmentBehavior="automatic">
         <View style={styles.head}>
           <Text style={type.meta}>
-            {titleCase(task.workstream)} · {task.id}
+            {task.id}
             {task.source.mirrors ? ` · ${task.source.mirrors}` : ''}
           </Text>
           <Text style={type.title}>{task.title}</Text>
+          <View style={styles.row}>
+            <Pill tone={BAND_TONE[item.band]} label={BAND_TITLE[item.band]} />
+            <Tag label={titleCase(task.workstream)} />
+            {task.priority <= 2 && <Tag label={task.priority === 1 ? 'Urgent' : 'High priority'} />}
+          </View>
         </View>
         {task.brief ? (
           <View style={styles.section}>
-            <Text style={type.meta}>Brief</Text>
+            <Text style={type.label}>Brief</Text>
             <Text style={type.body}>{task.brief}</Text>
           </View>
         ) : null}
         {task.links.length > 0 && (
           <View style={styles.section}>
-            <Text style={type.meta}>Linked</Text>
+            <Text style={type.label}>Linked</Text>
             <View style={styles.row}>
               {task.links.map((l) => (
                 <Chip key={l.url} label={`${linkSource(l.url)} · ${l.title}`} onPress={() => void Linking.openURL(l.url)} />
@@ -119,10 +124,10 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
             <Links update={ask} />
             {ask.options.length > 0 && (
               <View style={styles.row}>
-                {ask.options.map((o) => (
+                {ask.options.map((o, i) => (
                   <Button
                     key={o.id}
-                    kind="option"
+                    kind={i === 0 ? 'primary' : 'option'}
                     label={o.label}
                     onPress={() => void send({ kind: 'answer', taskId: task.id, updateId: ask.id, optionId: o.id })}
                   />
@@ -135,7 +140,7 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
         {!(ask && activity.length === 0 && pending.length === 0) && (
           <View style={styles.section}>
             <View style={styles.sectionHead}>
-              <Text style={type.meta}>Activity</Text>
+              <Text style={type.label}>Activity</Text>
               <Chip
                 label={order === 'newest' ? 'Newest first' : 'Oldest first'}
                 onPress={() => setOrder(order === 'newest' ? 'oldest' : 'newest')}
@@ -185,6 +190,15 @@ const useOrder = (): [Order, (order: Order) => void] => {
   ]
 }
 
+const BAND_TONE: Record<QueueItem['band'], Tone> = {
+  your_turn: 'attention',
+  new: 'quiet',
+  running: 'good',
+  waiting: 'quiet',
+  snoozed: 'quiet',
+  done: 'good',
+}
+
 const Links = ({ update }: { update: Update }) =>
   update.attachments.length > 0 ? (
     <View style={styles.row}>
@@ -203,7 +217,7 @@ const Entry = ({
   label,
   by,
   at,
-  tone,
+  who,
   body,
   sending,
   children,
@@ -211,7 +225,7 @@ const Entry = ({
   label: string
   by: string | null
   at: string
-  tone: Tone
+  who: Update['author']
   body: string
   sending?: boolean
   /** A one-line event: "Session linked …". */
@@ -219,7 +233,9 @@ const Entry = ({
   children?: ReactNode
 }) => (
   <View style={[styles.entry, sending && { opacity: 0.6 }]}>
-    <View style={[styles.mark, { backgroundColor: tones[tone].dot }]} />
+    <View style={styles.avatar}>
+      <Avatar who={who} />
+    </View>
     <Text style={type.meta}>
       <Text style={{ color: colours.text2 }}>{label}</Text>
       {event ? ` ${body}` : by ? ` · ${by}` : ''} · {at}
@@ -241,12 +257,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colours.clay,
-    backgroundColor: colours.open,
+    backgroundColor: colours.clayTint,
   },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  feed: { marginLeft: 4, paddingLeft: 18, borderLeftWidth: 1, borderLeftColor: colours.borderStrong, gap: 20 },
+  feed: { marginLeft: 11, paddingLeft: 22, borderLeftWidth: 1, borderLeftColor: colours.borderStrong, gap: 20 },
   entry: { gap: 4 },
-  mark: { position: 'absolute', left: -23, top: 4, width: 9, height: 9, borderRadius: 5, borderWidth: 2, borderColor: colours.surface },
+  avatar: { position: 'absolute', left: -36, top: -3, borderRadius: 14, borderWidth: 3, borderColor: colours.surface },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',

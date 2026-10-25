@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import { colours, fonts, pilot, radius, space, tones, type Tone } from '@autopilot/design'
+import { SymbolView, type SFSymbol } from 'expo-symbols'
 
 /**
  * The phone's building blocks, the same kinds as the Mac window's `src/ui.tsx` and from the same
@@ -16,7 +17,48 @@ export const type = StyleSheet.create({
   lead: { fontSize: 15, lineHeight: 22, color: colours.text2 },
   meta: { fontSize: 13, color: colours.text3 },
   note: { fontSize: 14, lineHeight: 20, color: colours.text3, padding: space[3] },
+  /** Section labels: small capitals, quiet. */
+  label: { fontSize: 11.5, fontWeight: '500', letterSpacing: 0.7, textTransform: 'uppercase', color: colours.text3 },
 })
+
+/** Where something stands, in a tone: "Your turn", "Running". */
+export const Pill = ({ tone, label }: { tone: Tone; label: string }) => (
+  <View style={[styles.pill, { backgroundColor: tone === 'quiet' ? colours.raised : tones[tone].bg }]}>
+    <Text style={[styles.pillText, { color: tone === 'quiet' ? colours.text2 : tones[tone].fg }]}>{label}</Text>
+  </View>
+)
+
+/** A quiet property: a workstream, a priority. */
+export const Tag = ({ label }: { label: string }) => (
+  <View style={[styles.pill, styles.tag]}>
+    <Text style={[styles.pillText, { color: colours.text2 }]}>{label}</Text>
+  </View>
+)
+
+type Who = 'owner' | 'session' | 'watcher' | 'signal' | 'system' | 'scout'
+
+const AVATAR: Record<Exclude<Who, 'system' | 'scout'>, { symbol: SFSymbol; fg: string; bg: string }> = {
+  session: { symbol: 'sparkle', fg: colours.clay, bg: colours.clayTint },
+  watcher: { symbol: 'eye', fg: colours.pilotSoft, bg: colours.pilotTint },
+  owner: { symbol: 'person.fill', fg: colours.text2, bg: colours.raised },
+  signal: { symbol: 'bolt.fill', fg: colours.text2, bg: colours.raised },
+}
+
+/** Who did something in a task's timeline, as on the Mac: the pilot for Autopilot, a symbol for the rest. */
+export const Avatar = ({ who }: { who: Who }) => {
+  if (who === 'system' || who === 'scout')
+    return (
+      <View style={[styles.avatar, { backgroundColor: colours.well }]}>
+        <Pilot pixel={1} />
+      </View>
+    )
+  const a = AVATAR[who]
+  return (
+    <View style={[styles.avatar, { backgroundColor: a.bg }]}>
+      <SymbolView name={a.symbol} size={12} tintColor={a.fg} />
+    </View>
+  )
+}
 
 export const Card = ({ children }: { children: ReactNode }) => <View style={styles.card}>{children}</View>
 
@@ -111,4 +153,8 @@ const styles = StyleSheet.create({
   button: { paddingHorizontal: space[6], paddingVertical: 9, borderRadius: radius.md, alignSelf: 'flex-start' },
   buttonText: { fontSize: 15, color: colours.text },
   pilotRow: { flexDirection: 'row' },
+  pill: { paddingHorizontal: space[4], paddingVertical: 3, borderRadius: radius.round },
+  tag: { borderWidth: StyleSheet.hairlineWidth, borderColor: colours.borderStrong },
+  pillText: { fontSize: 13 },
+  avatar: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
 })

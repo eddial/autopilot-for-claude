@@ -65,6 +65,45 @@ export const Dot = ({ tone, label }: { tone: Tone; label?: string }) => (
   <span className={`health-dot tone-${tone}`} role={label ? 'img' : undefined} aria-label={label} />
 )
 
+/** Where something stands, in a tone: "Your turn", "Running". */
+export const Pill = ({ tone, children }: { tone: Tone; children: ReactNode }) => <span className={`pill tone-${tone}`}>{children}</span>
+
+/** A quiet property: a workstream, a priority. */
+export const Tag = ({ children }: { children: ReactNode }) => <span className="tag">{children}</span>
+
+type Who = 'owner' | 'session' | 'watcher' | 'signal' | 'system' | 'scout'
+
+const GLYPH: Partial<Record<Who, ReactNode>> = {
+  // Claude's session: a small spark.
+  session: <path d="M8 2.5v11M2.5 8h11M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6" />,
+  watcher: (
+    <>
+      <path d="M1.8 8s2.3-4.2 6.2-4.2S14.2 8 14.2 8s-2.3 4.2-6.2 4.2S1.8 8 1.8 8z" />
+      <circle cx="8" cy="8" r="1.8" />
+    </>
+  ),
+  owner: (
+    <>
+      <circle cx="8" cy="5.6" r="2.6" />
+      <path d="M3 13.6c.8-2.4 2.7-3.6 5-3.6s4.2 1.2 5 3.6" />
+    </>
+  ),
+  signal: <path d="M9 1.8 4 9h4l-1 5.2L12 7H8z" />,
+}
+
+/** Who did something in a task's timeline: the pilot for Autopilot, a mark for the rest. */
+export const Avatar = ({ who }: { who: Who }) => (
+  <span className={`avatar ${who}`} aria-hidden="true">
+    {who === 'system' || who === 'scout' ? (
+      <Pilot pixel={1} />
+    ) : (
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+        {GLYPH[who]}
+      </svg>
+    )}
+  </span>
+)
+
 /** A line of news over a screen: something failed, or something worked. */
 export const Banner = ({ tone = 'attention', children }: { tone?: Tone; children: ReactNode }) => (
   <div className={`banner tone-${tone}`} role="status">
@@ -112,7 +151,7 @@ export const Spacer = () => <span style={{ flex: 1 }} />
 /** Quiet secondary text: ids, ages, explanations. */
 export const Meta = ({
   top,
-  as: Tag = 'div',
+  as: Element = 'div',
   className,
   children,
 }: {
@@ -121,9 +160,9 @@ export const Meta = ({
   className?: string
   children: ReactNode
 }) => (
-  <Tag className={className ? `meta ${className}` : 'meta'} style={top === undefined ? undefined : { marginTop: space[top] }}>
+  <Element className={className ? `meta ${className}` : 'meta'} style={top === undefined ? undefined : { marginTop: space[top] }}>
     {children}
-  </Tag>
+  </Element>
 )
 
 /** The pilot, Autopilot's mascot, drawn in squares. */

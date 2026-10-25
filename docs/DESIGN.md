@@ -19,8 +19,9 @@ screens to them. The look itself is in `PRODUCT.md`.
 | | Mac window (`apps/desktop/src/ui.tsx`) | iPhone (`apps/mobile/src/ui.tsx`) |
 | --- | --- | --- |
 | Buttons | `Button` with a `kind`: primary, secondary, tool, quiet, link, chip, icon, send, nav, row, menu | `Button` (primary, secondary, option, destructive), `Chip` |
-| Status | `Dot`, `Banner`, by tone | `Dot`, `Banner`, by tone |
-| Text | `Meta`; headings are `h1.serif` | `type.title`, `heading`, `body`, `name`, `lead`, `meta`, `note` |
+| Status | `Dot`, `Banner`, `Pill`, by tone; `Tag` for properties | `Dot`, `Banner`, `Pill`, by tone; `Tag` for properties |
+| Who | `Avatar`: the pilot for Autopilot, a spark for the session, an eye for a watcher, you | `Avatar`, with SF Symbols |
+| Text | `Meta`; headings are `h1.serif`; section labels are small capitals (`.section-label`) | `type.title`, `heading`, `body`, `name`, `lead`, `meta`, `note`, `label` |
 | Layout | `Row`, `Column`, `Spacer` (spacing steps only) | `Card`, `CardHead` |
 | Mascot | `Pilot` | `Pilot` |
 
