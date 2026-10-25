@@ -17,7 +17,7 @@ import { age, ago, titleCase, updateLabel } from '../format.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
 import type { Tone } from '@autopilot/design'
 import { ArrowUp, Avatar, Banner, Button, Claude, Dot, Icon, Markdown, Meta, Pill, Spacer, Tag } from '../ui.tsx'
-import { TaskArtifacts } from './Artifacts.tsx'
+import { LinkIcon, Linked } from './Links.tsx'
 import { BAND_TITLE } from '../view.ts'
 
 type Props = { item: QueueItem; onClose: () => void }
@@ -151,9 +151,9 @@ export const TaskPane = ({ item, onClose }: Props) => {
             <Body text={task.brief} />
           </section>
         )}
+        <Linked taskId={task.id} links={task.links} />
         {refused && <Banner>{refused}</Banner>}
         {ask && <AskCard update={ask} />}
-        <TaskArtifacts taskId={task.id} links={task.links} />
         <section className="section">
           <div className="section-head">
             <div className="section-label">Activity</div>
@@ -214,8 +214,9 @@ const Attachments = ({ links }: { links: Update['attachments'] }) =>
   links.length > 0 ? (
     <div className="attachments">
       {links.map((a) => (
-        <Button key={a.url} kind="chip" onClick={() => open(a.url)}>
-          {a.title}
+        <Button key={a.url} kind="chip" className="with-icon" onClick={() => open(a.url)}>
+          <LinkIcon link={a} />
+          {a.title.replace(/^(file|gmail|slack|github|linear|drive):\s*/i, '')}
         </Button>
       ))}
     </div>

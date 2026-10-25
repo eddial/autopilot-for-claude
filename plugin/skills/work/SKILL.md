@@ -35,7 +35,7 @@ Do the work up to the point where the owner only has to decide:
   the repo expects one.
 - **Decision needed** → gather the facts and options; recommend one.
 
-**Everything you make is an artifact: attach each one** with `attach_link` the moment it exists:
+**Link everything you make** with `attach_link` the moment it exists:
 drafts, sent mail, Slack messages, PRs, branches, and every file you write (`file:///…`, the full
 path). The owner reads files in place from the task, so keep them readable: Markdown for prose,
 CSV for tables. The title says what it is (`Reply to Sofie (draft)`), the subtitle where it lives

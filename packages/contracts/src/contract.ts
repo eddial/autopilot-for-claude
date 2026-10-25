@@ -39,7 +39,7 @@ import {
   Pairing,
   SetupStatus,
   SignalExample,
-  ArtifactPreview,
+  LinkPreview,
   SuggestedWorkstream,
   Device,
   Machine,
@@ -171,7 +171,7 @@ export const contract = {
     preview: base
       .meta({ scopes: [...READERS] })
       .input(PreviewLink)
-      .output(ArtifactPreview),
+      .output(LinkPreview),
   },
 
   watchers: {

@@ -4,13 +4,13 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { AttachLink, CreateTask } from '@autopilot/contracts'
 import { describe, expect, it } from 'vitest'
-import { previewArtifact } from '../src/artifacts.ts'
+import { previewLink } from '../src/link-preview.ts'
 import { openDatabase } from '../src/db.ts'
 import { DomainError, Service } from '../src/service.ts'
 
-describe('artifact previews', () => {
+describe('link previews', () => {
   it('reads the start of a text file the task links to, and nothing it does not', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'ap-artifact-'))
+    const dir = mkdtempSync(join(tmpdir(), 'ap-link-'))
     const draft = pathToFileURL(join(dir, 'reply.md')).href
     const secret = pathToFileURL(join(dir, 'notes.md')).href
     writeFileSync(join(dir, 'reply.md'), '# Reply to Northwind\n\nThanks for asking about SSO.')
@@ -23,7 +23,7 @@ describe('artifact previews', () => {
     )
 
     const linked = service.task(task.id)
-    expect(previewArtifact(linked, draft)).toMatchObject({ text: '# Reply to Northwind\n\nThanks for asking about SSO.', truncated: false })
-    expect(() => previewArtifact(linked, secret)).toThrow(DomainError)
+    expect(previewLink(linked, draft)).toMatchObject({ text: '# Reply to Northwind\n\nThanks for asking about SSO.', truncated: false })
+    expect(() => previewLink(linked, secret)).toThrow(DomainError)
   })
 })

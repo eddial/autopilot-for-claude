@@ -1,7 +1,7 @@
 import { closeSync, openSync, readSync, statSync } from 'node:fs'
 import { extname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { ArtifactPreview, Task } from '@autopilot/contracts'
+import type { LinkPreview, Task } from '@autopilot/contracts'
 import { DomainError } from './service.ts'
 
 /** Files worth reading in place: what sessions write as drafts, notes and data. */
@@ -10,13 +10,13 @@ const TEXT = new Set(['.md', '.markdown', '.txt', '.csv', '.json', '.yaml', '.ym
 /** Enough to read a draft or a note; a longer file opens in its own app. */
 const LIMIT = 64 * 1024
 
-const NONE = (bytes = 0): ArtifactPreview => ({ text: null, bytes, truncated: false })
+const NONE = (bytes = 0): LinkPreview => ({ text: null, bytes, truncated: false })
 
 /**
  * The start of a local text file the task links to. Only the task's own links are read, so a
  * reader cannot ask for any file on the Mac by naming it.
  */
-export const previewArtifact = (task: Task, url: string): ArtifactPreview => {
+export const previewLink = (task: Task, url: string): LinkPreview => {
   if (!task.links.some((l) => l.url === url)) throw new DomainError('NOT_FOUND', { entity: 'link', id: url })
   if (!url.startsWith('file:')) return NONE()
   const path = fileURLToPath(url)

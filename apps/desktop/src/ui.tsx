@@ -134,13 +134,6 @@ const NAV_ICONS = {
       <circle cx="7.5" cy="13.5" r="2" />
     </>
   ),
-  /** Two cards, one over the other, as the Claude app draws its Artifacts. */
-  artifacts: (
-    <>
-      <rect x="7.5" y="3.5" width="9" height="11" rx="1.75" />
-      <path d="M5.25 6.5h-.5A1.25 1.25 0 0 0 3.5 7.75v7.5a1.25 1.25 0 0 0 1.25 1.25h6.5a1.25 1.25 0 0 0 1.25-1.25v-.5" />
-    </>
-  ),
   document: (
     <>
       <path d="M11.5 3.25H6.25A1.5 1.5 0 0 0 4.75 4.75v10.5a1.5 1.5 0 0 0 1.5 1.5h7.5a1.5 1.5 0 0 0 1.5-1.5V7z" />

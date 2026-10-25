@@ -86,17 +86,17 @@ export const linkSource = (url: string): string => {
   return SOURCES.find(([pattern]) => pattern.test(hostname))?.[1] ?? hostname.replace(/^www\./, '')
 }
 
-/** What sort of thing an artifact is, for its card: the label, and the icon both apps draw. */
-export type ArtifactKind = { label: string; icon: 'document' | 'code' | 'mail' | 'link' | 'image' | 'table' }
+/** What sort of thing a link is: the label, and the icon both apps draw. */
+export type LinkKind = { label: string; icon: 'document' | 'code' | 'mail' | 'link' | 'image' | 'table' }
 
-const FILES: [RegExp, ArtifactKind][] = [
+const FILES: [RegExp, LinkKind][] = [
   [/\.(md|markdown|txt|rtf|docx?|pages|pdf|html?)$/i, { label: 'Document', icon: 'document' }],
   [/\.(csv|xlsx?|numbers|json|ya?ml)$/i, { label: 'Data', icon: 'table' }],
   [/\.(png|jpe?g|gif|svg|webp)$/i, { label: 'Image', icon: 'image' }],
   [/\.eml$/i, { label: 'Email', icon: 'mail' }],
 ]
 
-export const artifactKind = (link: { url: string; title: string }): ArtifactKind => {
+export const linkKind = (link: { url: string; title: string }): LinkKind => {
   const { url } = link
   if (url.startsWith('file:')) return FILES.find(([pattern]) => pattern.test(url))?.[1] ?? { label: 'File', icon: 'document' }
   if (/github\.com\/[^/]+\/[^/]+\/pull\//.test(url)) return { label: 'Pull request', icon: 'code' }

@@ -6,7 +6,6 @@ export type View =
   | { kind: 'queue'; queue: QueueView }
   | { kind: 'workstream'; name: string }
   | { kind: 'new' }
-  | { kind: 'artifacts' }
   | { kind: 'signals' }
   | { kind: 'setup' }
   | { kind: 'servers' }
