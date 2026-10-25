@@ -215,9 +215,9 @@ const Attachments = ({ links }: { links: Update['attachments'] }) =>
   links.length > 0 ? (
     <div className="attachments">
       {links.map((a) => (
-        <Button key={a.url} kind="chip" className="with-icon" onClick={() => open(a.url)}>
+        <Button key={a.url} kind="chip" title={a.title} onClick={() => open(a.url)}>
           <LinkIcon link={a} />
-          {a.title.replace(/^(file|gmail|slack|github|linear|drive):\s*/i, '')}
+          <span className="chip-text">{a.title.replace(/^(file|gmail|slack|github|linear|drive):\s*/i, '')}</span>
         </Button>
       ))}
     </div>
