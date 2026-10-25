@@ -120,7 +120,10 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
       clearInterval(tick)
       unsubscribe()
       launcher.stopAll()
-      await new Promise<void>((resolve) => server.close(() => resolve()))
+      // Live subscriptions keep connections open; close them so shutdown does not wait on clients.
+      const closed = new Promise<void>((resolve) => server.close(() => resolve()))
+      server.closeAllConnections()
+      await closed
       service.db.close()
     },
   }

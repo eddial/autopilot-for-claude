@@ -1,7 +1,8 @@
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFailed } from 'vitest'
+import * as pty from 'node-pty'
 import type { Change, QueueEvent } from '@autopilot/contracts'
 import { connect, type Client } from '../src/client.ts'
 import { startServer, type ServerHandle } from '../src/main.ts'
@@ -11,6 +12,8 @@ import { resolvePaths } from '../src/paths.ts'
 const SERVER = join(import.meta.dirname, '..')
 
 let handle: ServerHandle
+/** The session's terminal output and the server log, printed when the test fails. */
+const trace: string[] = []
 let owner: Client
 
 beforeAll(async () => {
@@ -30,7 +33,13 @@ beforeAll(async () => {
     claude,
     self: { node: process.execPath, script: join(SERVER, 'bin', 'autopilot.js') },
     runClaude: () => Promise.resolve({ items: [] }),
-    log: () => {},
+    log: (message) => trace.push(`[log] ${message}\n`),
+    spawn: (file, args, options) => {
+      const session = pty.spawn(file, args, { name: 'xterm-256color', ...options })
+      session.onData((data) => trace.push(data))
+      session.onExit(({ exitCode, signal }) => trace.push(`[exit] code ${exitCode} signal ${signal ?? '-'}\n`))
+      return session
+    },
   })
   owner = connect(paths.socket, readOwnerToken(paths) ?? '')
 })
@@ -50,6 +59,7 @@ const waitFor = async (stream: AsyncIterator<QueueEvent>, match: (change: Change
 
 describe('a task from start to finish', () => {
   it('starts a session that asks, takes the answer once idle, and hands over', async () => {
+    onTestFailed(() => console.log(`--- session and server trace ---\n${trace.join('')}`))
     const controller = new AbortController()
     const stream = (await owner.queue.subscribe({}, { signal: controller.signal }))[Symbol.asyncIterator]()
 
