@@ -1,0 +1,150 @@
+import { DatabaseSync } from 'node:sqlite'
+
+/**
+ * The schema. Normal tables for current state, an append-only `updates`
+ * table, a numbered `changes` feed written in the same transaction as every
+ * write, `applied` for idempotency keys, and an `outbox` for side effects that
+ * run after commit (docs/decisions/0003-storage.md).
+ *
+ * Migrations only ever append; `user_version` records how many have run.
+ */
+const MIGRATIONS = [
+  `
+  create table tasks (
+    id text primary key,
+    num integer not null,
+    title text not null,
+    brief text not null,
+    workstream text not null,
+    priority integer not null,
+    state text not null,
+    snoozed_until text,
+    source_signal text,
+    source_url text,
+    mirrors text,
+    links text not null default '[]',
+    session_id text,
+    created_by text not null,
+    created_at text not null,
+    updated_at text not null,
+    seen_at text
+  );
+  create index tasks_state on tasks(state);
+  create index tasks_source_url on tasks(source_url);
+
+  create table updates (
+    id text primary key,
+    task_id text not null references tasks(id),
+    kind text not null,
+    body text not null,
+    options text not null default '[]',
+    waiting_on text,
+    attachments text not null default '[]',
+    author text not null,
+    answers text,
+    open integer not null default 0,
+    created_at text not null
+  );
+  create index updates_task on updates(task_id, created_at);
+
+  create table sessions (
+    id text primary key,
+    task_id text not null references tasks(id),
+    machine_id text not null,
+    cwd text not null,
+    branch text,
+    resume_url text,
+    remote_control_url text,
+    state text not null,
+    activity text,
+    pid integer,
+    started_at text not null,
+    last_activity_at text not null
+  );
+
+  create table watchers (
+    id text primary key,
+    task_id text not null references tasks(id),
+    what text not null,
+    every text not null,
+    until text not null,
+    tools text not null default '[]',
+    fingerprint text,
+    last_checked_at text
+  );
+
+  create table tokens (
+    id text primary key,
+    name text not null,
+    scope text not null,
+    task_id text,
+    secret_hash text not null unique,
+    created_at text not null,
+    last_used_at text,
+    revoked_at text
+  );
+
+  create table decisions (
+    id text primary key,
+    signal text not null,
+    at text not null,
+    action text not null,
+    task_id text,
+    reason text not null,
+    searches text not null default '[]',
+    gated integer not null default 0,
+    item text not null
+  );
+
+  create table signal_state (
+    name text primary key,
+    last_checked_at text,
+    last_run_at text,
+    failing_since text,
+    message text
+  );
+
+  create table changes (
+    seq integer primary key autoincrement,
+    at text not null,
+    type text not null,
+    payload text not null
+  );
+
+  create table applied (
+    key text primary key,
+    procedure text not null,
+    result text not null,
+    at text not null
+  );
+
+  create table outbox (
+    id integer primary key autoincrement,
+    kind text not null,
+    payload text not null,
+    created_at text not null,
+    attempts integer not null default 0,
+    error text,
+    done_at text
+  );
+  create index outbox_pending on outbox(done_at, id);
+  `,
+]
+
+export const openDatabase = (file: string): DatabaseSync => {
+  const db = new DatabaseSync(file)
+  db.exec('pragma journal_mode = wal; pragma foreign_keys = on; pragma busy_timeout = 5000;')
+  const row = db.prepare('pragma user_version').get() as { user_version: number }
+  for (let version = row.user_version; version < MIGRATIONS.length; version++) {
+    db.exec('begin')
+    try {
+      db.exec(MIGRATIONS[version] ?? '')
+      db.exec(`pragma user_version = ${version + 1}`)
+      db.exec('commit')
+    } catch (error) {
+      db.exec('rollback')
+      throw error
+    }
+  }
+  return db
+}
