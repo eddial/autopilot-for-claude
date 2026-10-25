@@ -1,4 +1,4 @@
-import type { Update } from '@autopilot/contracts'
+import type { QueueItem, Task, Update } from '@autopilot/contracts'
 
 /**
  * How an update reads on a task's page, the same on the Mac and the iPhone: its label, who posted
@@ -88,3 +88,38 @@ export const updateTone = (update: Update): EntryTone => {
   if (update.kind === 'event') return 'quiet'
   return update.kind === 'done' || update.kind === 'info' ? 'good' : 'quiet'
 }
+
+/** Where a task stands now, for the top of its timeline. */
+export const nowText = (item: QueueItem): string => {
+  switch (item.band) {
+    case 'your_turn':
+      return 'Waiting on you'
+    case 'new':
+      return 'Not started'
+    case 'running':
+      return item.session?.activity ?? 'The session is working'
+    case 'waiting':
+      return 'Waiting on others'
+    case 'snoozed':
+      return item.task.snoozedUntil ? `Snoozed until ${shortDate(item.task.snoozedUntil)}` : 'Snoozed'
+    case 'done':
+      return item.task.state === 'canceled' ? 'Closed' : 'Done'
+  }
+}
+
+export const nowTone = (item: QueueItem): EntryTone =>
+  item.band === 'your_turn' ? 'attention' : item.band === 'running' || item.band === 'done' ? 'good' : 'quiet'
+
+/** How the task began, for the start of its timeline. */
+export const createdText = (task: Task): string =>
+  task.source.signal
+    ? `Filed from ${task.source.signal.charAt(0).toUpperCase()}${task.source.signal.slice(1)}`
+    : task.createdBy === 'system'
+      ? 'Created by Autopilot'
+      : task.createdBy === 'owner'
+        ? 'Created by you'
+        : 'Created by the session'
+
+/** `Sun 25 Oct, 15:30`. */
+export const shortDate = (iso: string): string =>
+  new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })

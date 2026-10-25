@@ -597,6 +597,165 @@ button {
 
 .entry.event .chip {
   margin-left: 4px;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.section-label {
+  margin-bottom: 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.props {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pill,
+.tag {
+  padding: 2px 10px;
+  border-radius: var(--radius-round);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.pill {
+  background: var(--tone-bg);
+  color: var(--tone-fg);
+}
+
+.pill.tone-quiet {
+  background: var(--raised);
+  color: var(--text-2);
+}
+
+.tag {
+  border: 0.5px solid var(--border-strong);
+  color: var(--text-2);
+}
+
+.msg.clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.msg + .link {
+  margin-top: 4px;
+}
+
+/* What waits on the owner, above the activity: warm, so it reads first. */
+.ask-card {
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 0.5px solid var(--clay);
+  background: linear-gradient(var(--clay-tint), var(--clay-tint)), var(--open);
+}
+
+.ask-head {
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--clay);
+}
+
+.ask-card .inline-reply {
+  margin-top: 12px;
+}
+
+/* The activity: a rail down the left, a mark per entry in its tone. */
+.feed {
+  margin: 0;
+  padding: 0 0 0 36px;
+  list-style: none;
+}
+
+.entry {
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.entry:last-child {
+  padding-bottom: 0;
+}
+
+/* The rail runs from one avatar to the next, never behind them. */
+.entry:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: -25px;
+  top: 26px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--border-strong);
+}
+
+.avatar {
+  position: absolute;
+  left: -36px;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--raised);
+  color: var(--text-2);
+}
+
+.avatar.session {
+  background: linear-gradient(var(--clay-tint), var(--clay-tint)), var(--surface);
+  color: var(--clay);
+}
+
+.avatar.watcher {
+  background: linear-gradient(var(--pilot-tint), var(--pilot-tint)), var(--surface);
+  color: var(--pilot-soft);
+}
+
+.avatar.system,
+.avatar.scout {
+  background: var(--well);
+}
+
+.avatar.now {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+}
+
+.now-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tone-dot);
+}
+
+.entry.marker .entry-head {
+  margin-bottom: 0;
+}
+
+.entry-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-bottom: 0;
+}
+
+.entry.event .chip {
+  margin-left: 4px;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 20px;
 }
 
 .section-label {
@@ -726,8 +885,10 @@ button {
 }
 
 .entry-head {
-  margin-bottom: 4px;
+  min-height: 22px;
+  margin-bottom: 2px;
   font-size: 13px;
+  line-height: 22px;
   color: var(--text-3);
 }
 

@@ -1,5 +1,16 @@
 import { useEffect, useState } from 'react'
-import { eventText, linkSource, pendingText, updateAuthor, updateTone, type Pending } from '@autopilot/client'
+import {
+  createdText,
+  eventText,
+  linkSource,
+  nowText,
+  nowTone,
+  pendingText,
+  shortDate,
+  updateAuthor,
+  updateTone,
+  type Pending,
+} from '@autopilot/client'
 import type { QueueItem, Update } from '@autopilot/contracts'
 import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
@@ -68,9 +79,12 @@ export const TaskPane = ({ item, onClose }: Props) => {
 
   const [order, setOrder] = useOrder()
   // Oldest first as they happened; the newest one shows in full.
+  // From how it began to where it stands now; the newest one shows in full.
   const entries = [
+    <Marker key="created" who={task.createdBy} label={createdText(task)} at={shortDate(task.createdAt)} />,
     ...activity.map((u, i) => <Entry key={u.id} update={u} latest={i === activity.length - 1 && pending.length === 0} />),
     ...pending.map((p) => <PendingEntry key={p.id} pending={p} options={updates.flatMap((u) => u.options)} />),
+    <Now key="now" item={item} />,
   ]
 
   const session = item.session
@@ -140,22 +154,15 @@ export const TaskPane = ({ item, onClose }: Props) => {
         )}
         {refused && <Banner>{refused}</Banner>}
         {ask && <AskCard update={ask} />}
-        {/* With only an ask so far, the card is the whole story. */}
-        {!(ask && activity.length === 0 && pending.length === 0) && (
-          <section className="section">
-            <div className="section-head">
-              <div className="section-label">Activity</div>
-              <Button kind="quiet" aria-label="Order of the activity" onClick={() => setOrder(order === 'newest' ? 'oldest' : 'newest')}>
-                {order === 'newest' ? 'Newest first' : 'Oldest first'}
-              </Button>
-            </div>
-            {activity.length === 0 && pending.length === 0 ? (
-              <Meta>{detail ? 'Nothing yet.' : ''}</Meta>
-            ) : (
-              <ol className="feed">{order === 'newest' ? entries.toReversed() : entries}</ol>
-            )}
-          </section>
-        )}
+        <section className="section">
+          <div className="section-head">
+            <div className="section-label">Activity</div>
+            <Button kind="quiet" aria-label="Order of the activity" onClick={() => setOrder(order === 'newest' ? 'oldest' : 'newest')}>
+              {order === 'newest' ? 'Newest first' : 'Oldest first'}
+            </Button>
+          </div>
+          <ol className="feed">{order === 'newest' ? entries.toReversed() : entries}</ol>
+        </section>
       </div>
       {!ask && <Composer item={item} />}
     </section>
@@ -267,6 +274,28 @@ const Entry = ({ update, latest }: { update: Update; latest: boolean }) => {
     </li>
   )
 }
+
+/** Where the timeline starts: how the task came in. */
+const Marker = ({ who, label, at }: { who: Update['author']; label: string; at: string }) => (
+  <li className="entry marker">
+    <Avatar who={who} />
+    <div className="entry-head">
+      <span className="entry-label">{label}</span> · {at}
+    </div>
+  </li>
+)
+
+/** Where the timeline ends: where the task stands now. */
+const Now = ({ item }: { item: QueueItem }) => (
+  <li className={`entry marker now tone-${nowTone(item)}`}>
+    <span className="avatar now" aria-hidden="true">
+      <span className="now-dot" />
+    </span>
+    <div className="entry-head">
+      <span className="entry-label">Now</span> · {nowText(item)}
+    </div>
+  </li>
+)
 
 /** A line that moves nothing: a link attached, a watcher started or stopped. */
 const EventEntry = ({ update }: { update: Update }) => (

@@ -74,8 +74,8 @@ export const Tag = ({ children }: { children: ReactNode }) => <span className="t
 type Who = 'owner' | 'session' | 'watcher' | 'signal' | 'system' | 'scout'
 
 const GLYPH: Partial<Record<Who, ReactNode>> = {
-  // Claude's session: a small spark.
-  session: <path d="M8 2.5v11M2.5 8h11M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6" />,
+  // Claude's session: a small sparkle.
+  session: <path d="M8 1.8c.5 3 1.7 4.6 6 6.2-4.3 1.6-5.5 3.2-6 6.2-.5-3-1.7-4.6-6-6.2 4.3-1.6 5.5-3.2 6-6.2z" fill="currentColor" />,
   watcher: (
     <>
       <path d="M1.8 8s2.3-4.2 6.2-4.2S14.2 8 14.2 8s-2.3 4.2-6.2 4.2S1.8 8 1.8 8z" />

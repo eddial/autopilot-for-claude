@@ -38,8 +38,8 @@ export const Tag = ({ label }: { label: string }) => (
 type Who = 'owner' | 'session' | 'watcher' | 'signal' | 'system' | 'scout'
 
 const AVATAR: Record<Exclude<Who, 'system' | 'scout'>, { symbol: SFSymbol; fg: string; bg: string }> = {
-  session: { symbol: 'sparkle', fg: colours.clay, bg: colours.clayTint },
-  watcher: { symbol: 'eye', fg: colours.pilotSoft, bg: colours.pilotTint },
+  session: { symbol: 'sparkle', fg: colours.clay, bg: colours.raised },
+  watcher: { symbol: 'eye', fg: colours.pilotSoft, bg: colours.raised },
   owner: { symbol: 'person.fill', fg: colours.text2, bg: colours.raised },
   signal: { symbol: 'bolt.fill', fg: colours.text2, bg: colours.raised },
 }

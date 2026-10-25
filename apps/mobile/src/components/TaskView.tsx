@@ -1,12 +1,12 @@
 import { useState, type ReactNode } from 'react'
 import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { eventText, linkSource, pendingText, updateAuthor, updateLabel } from '@autopilot/client'
+import { createdText, eventText, linkSource, nowText, nowTone, pendingText, shortDate, updateAuthor, updateLabel } from '@autopilot/client'
 import type { QueueItem, Update } from '@autopilot/contracts'
 import * as Haptics from 'expo-haptics'
 import KV from 'expo-sqlite/kv-store'
 import { age, BAND_TITLE, titleCase } from '../format.ts'
 import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
-import { colours, radius, type Tone } from '@autopilot/design'
+import { colours, radius, tones, type Tone } from '@autopilot/design'
 import { Avatar, Banner, Button, Chip, Pill, Tag, bannerText, type } from '../ui.tsx'
 
 /** A task: its brief, what waits on you, and its activity; the same in a pushed screen and in the wide split. */
@@ -28,6 +28,7 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
   const [order, setOrder] = useOrder()
   // Oldest first as they happened.
   const entries = [
+    <Entry key="created" label={createdText(task)} by={null} at={shortDate(task.createdAt)} who={task.createdBy} body="" event />,
     ...activity.map((u) =>
       u.kind === 'event' ? (
         <Entry key={u.id} label={updateLabel(u)} by={null} at={age(u.createdAt)} who={u.author} body={eventText(u)} event>
@@ -44,7 +45,9 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
       const words = pendingText(command) ?? (command.kind === 'answer' ? options.find((o) => o.id === command.optionId)?.label : undefined)
       return words ? [<Entry key={p.id} label="You" by={null} at="waiting to reach your Mac" who="owner" body={words} sending />] : []
     }),
+    <Entry key="now" label="Now" by={null} at={nowText(item)} who="now" tone={nowTone(item)} body="" event />,
   ]
+  const shown = order === 'newest' ? [...entries].reverse() : entries
   const refused = conflicts.filter((c) => 'taskId' in c.command && c.command.taskId === task.id)
 
   const send = async (command: Parameters<NonNullable<typeof sync>['send']>[0]) => {
@@ -147,8 +150,13 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
               />
             </View>
             <View style={styles.feed}>
-              {order === 'newest' ? [...entries].reverse() : entries}
-              {activity.length === 0 && pending.length === 0 && <Text style={type.meta}>{detail ? 'Nothing yet.' : ''}</Text>}
+              {/* The rail runs from one avatar to the next; the last entry has none below it. */}
+              {shown.map((entry, i) => (
+                <View key={entry.key} style={styles.slot}>
+                  {i < shown.length - 1 && <View style={styles.rail} />}
+                  {entry}
+                </View>
+              ))}
             </View>
           </View>
         )}
@@ -218,6 +226,7 @@ const Entry = ({
   by,
   at,
   who,
+  tone = 'quiet',
   body,
   sending,
   children,
@@ -225,7 +234,8 @@ const Entry = ({
   label: string
   by: string | null
   at: string
-  who: Update['author']
+  who: Update['author'] | 'now'
+  tone?: Tone
   body: string
   sending?: boolean
   /** A one-line event: "Session linked …". */
@@ -234,11 +244,17 @@ const Entry = ({
 }) => (
   <View style={[styles.entry, sending && { opacity: 0.6 }]}>
     <View style={styles.avatar}>
-      <Avatar who={who} />
+      {who === 'now' ? (
+        <View style={styles.now}>
+          <View style={[styles.nowDot, { backgroundColor: tones[tone].dot }]} />
+        </View>
+      ) : (
+        <Avatar who={who} />
+      )}
     </View>
-    <Text style={type.meta}>
+    <Text style={[type.meta, styles.entryHead]}>
       <Text style={{ color: colours.text2 }}>{label}</Text>
-      {event ? ` ${body}` : by ? ` · ${by}` : ''} · {at}
+      {event ? (body ? ` ${body}` : '') : by ? ` · ${by}` : ''} · {at}
     </Text>
     {event ? null : <Text style={type.body}>{body}</Text>}
     {children}
@@ -260,9 +276,23 @@ const styles = StyleSheet.create({
     backgroundColor: colours.clayTint,
   },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  feed: { marginLeft: 11, paddingLeft: 22, borderLeftWidth: 1, borderLeftColor: colours.borderStrong, gap: 20 },
+  feed: { paddingLeft: 36 },
+  slot: { paddingBottom: 20 },
+  rail: { position: 'absolute', left: -25, top: 26, bottom: 4, width: 1, backgroundColor: colours.borderStrong },
+  entryHead: { lineHeight: 22 },
+  now: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colours.borderStrong,
+    backgroundColor: colours.surface,
+  },
+  nowDot: { width: 8, height: 8, borderRadius: 4 },
   entry: { gap: 4 },
-  avatar: { position: 'absolute', left: -36, top: -3, borderRadius: 14, borderWidth: 3, borderColor: colours.surface },
+  avatar: { position: 'absolute', left: -36, top: 0 },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
