@@ -51,6 +51,8 @@ const NEVER = ['Agent', 'Task', 'ScheduleWakeup', 'CronCreate', 'Monitor', 'Work
 export const claudeHeadless =
   (claude = 'claude', wait: (ms: number) => Promise<unknown> = sleep): RunClaude =>
   async (prompt, options) => {
+    // Claude Code refuses the draft 2020-12 `$schema` line `z.toJSONSchema` writes; the rest it takes.
+    const { $schema: _, ...schema } = options.schema as Record<string, unknown>
     const once = async (): Promise<{ events: Record<string, unknown>[]; missing: string[] }> => {
       const args = [
         '-p',
@@ -66,7 +68,7 @@ export const claudeHeadless =
         '--model',
         options.model,
         '--json-schema',
-        JSON.stringify(options.schema),
+        JSON.stringify(schema),
         '--mcp-config',
         options.mcpConfig,
       ]

@@ -2,6 +2,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from '
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import { openDatabase } from '../src/db.ts'
 import { resolvePaths } from '../src/paths.ts'
 import { Service } from '../src/service.ts'
@@ -193,11 +194,19 @@ const fakeClaude = (dir: string, initTools: string[]) => {
     { type: 'system', subtype: 'init', tools: initTools },
     { type: 'result', is_error: false, structured_output: { items: [] } },
   ]
-  writeFileSync(file, `#!/bin/sh\ncat > /dev/null\ncat <<'EOF'\n${events.map((e) => JSON.stringify(e)).join('\n')}\nEOF\n`)
+  // Like Claude Code, it refuses a schema that names its draft.
+  const refuse = `case "$*" in *'"$schema"'*) echo 'Error: --json-schema is not a valid JSON Schema' >&2; exit 1;; esac`
+  writeFileSync(file, `#!/bin/sh\n${refuse}\ncat > /dev/null\ncat <<'EOF'\n${events.map((e) => JSON.stringify(e)).join('\n')}\nEOF\n`)
   chmodSync(file, 0o755)
   return file
 }
-const options = (dir: string) => ({ tools: ['mcp__claude_ai_Slack__read'], model: 'haiku', schema: {}, mcpConfig: '/dev/null', cwd: dir })
+const options = (dir: string) => ({
+  tools: ['mcp__claude_ai_Slack__read'],
+  model: 'haiku',
+  schema: z.toJSONSchema(z.object({ items: z.array(z.string()) })),
+  mcpConfig: '/dev/null',
+  cwd: dir,
+})
 
 describe('claudeHeadless', () => {
   it('returns the structured output when the connector tools are there', async () => {
