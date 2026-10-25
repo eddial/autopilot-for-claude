@@ -1,0 +1,50 @@
+name: iPhone app
+
+# On macOS, so only when a change could break it.
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/mobile/**
+      - packages/client/**
+      - packages/contracts/**
+      - packages/design/**
+      - pnpm-lock.yaml
+      - .github/workflows/ios.yml
+  pull_request:
+    paths:
+      - apps/mobile/**
+      - packages/client/**
+      - packages/contracts/**
+      - packages/design/**
+      - pnpm-lock.yaml
+      - .github/workflows/ios.yml
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The iPhone app compiled for the simulator: the Swift module and the native configuration.
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - name: Generate the native project
+        run: cd apps/mobile && CI=1 npx expo prebuild --platform ios --clean
+      - name: Build for the simulator
+        run: |
+          cd apps/mobile/ios
+          set -o pipefail
+          xcodebuild -workspace Autopilot.xcworkspace -scheme Autopilot -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -80

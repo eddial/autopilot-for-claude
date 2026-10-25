@@ -1,0 +1,45 @@
+name: Mac app
+
+# On macOS, so only when a change could break it.
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/desktop/**
+      - apps/server/**
+      - packages/**
+      - prompts/**
+      - pnpm-lock.yaml
+      - .github/workflows/desktop.yml
+  pull_request:
+    paths:
+      - apps/desktop/**
+      - apps/server/**
+      - packages/**
+      - prompts/**
+      - pnpm-lock.yaml
+      - .github/workflows/desktop.yml
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The Mac app as a real Electron app: it starts the server and the window goes live on its feed.
+  desktop:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @autopilot/desktop build
+      - name: Smoke test
+        run: cd apps/desktop && AUTOPILOT_SMOKE=1 AUTOPILOT_DATA="$RUNNER_TEMP/ap" AUTOPILOT_SOCKET=/tmp/ap-smoke.sock npx electron .
+      - name: Server log
+        if: always()
+        run: cat "$RUNNER_TEMP/ap/logs/server.log" || true
