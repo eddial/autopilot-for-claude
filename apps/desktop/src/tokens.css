@@ -21,6 +21,9 @@
   --pilot: #5DB08F;
   --pilot-soft: #8FCDB2;
   --pilot-tint: rgba(93, 176, 143, 0.14);
+  --amber: #D9A94E;
+  --amber-soft: #E8C47F;
+  --amber-tint: rgba(217, 169, 78, 0.14);
   --border: rgba(222, 220, 209, 0.15);
   --border-strong: rgba(222, 220, 209, 0.22);
   --hover: rgba(255, 255, 255, 0.04);
@@ -59,6 +62,12 @@
   --tone-fg: #8FCDB2;
   --tone-bg: rgba(93, 176, 143, 0.14);
   --tone-dot: #5DB08F;
+}
+
+.tone-paused {
+  --tone-fg: #E8C47F;
+  --tone-bg: rgba(217, 169, 78, 0.14);
+  --tone-dot: #D9A94E;
 }
 
 .tone-quiet {

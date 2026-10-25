@@ -84,16 +84,7 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
             <Text style={type.body}>{task.brief}</Text>
           </View>
         ) : null}
-        {task.links.length > 0 && (
-          <View style={styles.section}>
-            <Text style={type.label}>Linked</Text>
-            <View style={styles.row}>
-              {task.links.map((l) => (
-                <Chip key={l.url} label={`${linkSource(l.url)} · ${l.title}`} onPress={() => void Linking.openURL(l.url)} />
-              ))}
-            </View>
-          </View>
-        )}
+        {task.links.length > 0 && <Linked links={task.links} />}
         {refused.map((c) => (
           <Banner key={c.id}>
             <Text style={bannerText()}>
@@ -184,6 +175,30 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
   )
 }
 
+/** What the task points to outside Autopilot: one quiet line until opened. */
+const Linked = ({ links }: { links: QueueItem['task']['links'] }) => {
+  const [shown, setShown] = useState(false)
+  const sources = [...new Set(links.map((l) => linkSource(l.url)))]
+  return (
+    <View style={styles.section}>
+      <Pressable onPress={() => setShown((s) => !s)} accessibilityRole="button" accessibilityState={{ expanded: shown }}>
+        <Text style={type.meta}>
+          {shown ? '▾' : '▸'} {links.length} linked · {sources.join(', ')}
+        </Text>
+      </Pressable>
+      {shown &&
+        links.map((l) => (
+          <Pressable key={l.url} onPress={() => void Linking.openURL(l.url)} accessibilityRole="link" style={styles.linkRow}>
+            <Text style={[type.meta, styles.linkSource]}>{linkSource(l.url)}</Text>
+            <Text style={styles.linkTitle} numberOfLines={1}>
+              {l.title}
+            </Text>
+          </Pressable>
+        ))}
+    </View>
+  )
+}
+
 type Order = 'newest' | 'oldest'
 
 /** Newest first unless the owner chose otherwise; remembered on the phone. */
@@ -202,8 +217,8 @@ const BAND_TONE: Record<QueueItem['band'], Tone> = {
   your_turn: 'attention',
   new: 'quiet',
   running: 'good',
-  waiting: 'quiet',
-  snoozed: 'quiet',
+  waiting: 'paused',
+  snoozed: 'paused',
   done: 'good',
 }
 
@@ -275,6 +290,9 @@ const styles = StyleSheet.create({
     borderColor: colours.clay,
     backgroundColor: colours.clayTint,
   },
+  linkRow: { flexDirection: 'row', gap: 10, paddingLeft: 16, paddingVertical: 4 },
+  linkSource: { width: 80 },
+  linkTitle: { flex: 1, fontSize: 14, color: colours.text2 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   feed: { paddingLeft: 36 },
   slot: { paddingBottom: 20 },

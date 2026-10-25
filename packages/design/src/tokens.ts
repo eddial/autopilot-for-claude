@@ -23,13 +23,17 @@ export const colours = {
   text3: '#9C9A92',
   muted: '#6B6A65',
 
-  // Clay asks for you; pilot green means it is running or well.
+  // Clay asks for you (and is the session acting); pilot green means running, well or new from a
+  // signal; amber means paused on something: waiting on others, snoozed, a watcher.
   clay: '#D97757',
   claySoft: '#E8A086',
   clayTint: 'rgba(217, 119, 87, 0.12)',
   pilot: '#5DB08F',
   pilotSoft: '#8FCDB2',
   pilotTint: 'rgba(93, 176, 143, 0.14)',
+  amber: '#D9A94E',
+  amberSoft: '#E8C47F',
+  amberTint: 'rgba(217, 169, 78, 0.14)',
 
   border: 'rgba(222, 220, 209, 0.15)',
   borderStrong: 'rgba(222, 220, 209, 0.22)',
@@ -45,6 +49,7 @@ export type Colour = keyof typeof colours
 export const tones = {
   attention: { fg: colours.claySoft, bg: colours.clayTint, dot: colours.clay },
   good: { fg: colours.pilotSoft, bg: colours.pilotTint, dot: colours.pilot },
+  paused: { fg: colours.amberSoft, bg: colours.amberTint, dot: colours.amber },
   quiet: { fg: colours.text3, bg: colours.hover, dot: colours.muted },
 } as const
 

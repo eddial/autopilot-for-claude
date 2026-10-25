@@ -5,7 +5,7 @@ import type { QueueItem, Task, Update } from '@autopilot/contracts'
  * it when the label does not say, and its tone (the names of `@autopilot/design`'s tones).
  */
 
-export type EntryTone = 'attention' | 'good' | 'quiet'
+export type EntryTone = 'attention' | 'good' | 'paused' | 'quiet'
 
 const ASKING: Partial<Record<Update['kind'], string>> = {
   decision: 'Needs your decision',
@@ -86,6 +86,7 @@ export const linkSource = (url: string): string => {
 export const updateTone = (update: Update): EntryTone => {
   if (update.kind in ASKING) return update.open ? 'attention' : 'quiet'
   if (update.kind === 'event') return 'quiet'
+  if (update.kind === 'waiting') return 'paused'
   return update.kind === 'done' || update.kind === 'info' ? 'good' : 'quiet'
 }
 
@@ -108,7 +109,13 @@ export const nowText = (item: QueueItem): string => {
 }
 
 export const nowTone = (item: QueueItem): EntryTone =>
-  item.band === 'your_turn' ? 'attention' : item.band === 'running' || item.band === 'done' ? 'good' : 'quiet'
+  item.band === 'your_turn'
+    ? 'attention'
+    : item.band === 'running' || item.band === 'done'
+      ? 'good'
+      : item.band === 'waiting' || item.band === 'snoozed'
+        ? 'paused'
+        : 'quiet'
 
 /** How the task began, for the start of its timeline. */
 export const createdText = (task: Task): string =>

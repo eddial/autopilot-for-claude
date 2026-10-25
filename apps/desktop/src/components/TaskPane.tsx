@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   createdText,
   eventText,
@@ -16,7 +16,7 @@ import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
 import type { Tone } from '@autopilot/design'
-import { ArrowUp, Avatar, Banner, Button, Dot, Meta, Pill, Spacer, Tag } from '../ui.tsx'
+import { ArrowUp, Avatar, Banner, Button, Chevron, Dot, Icon, Meta, Pill, Spacer, Tag } from '../ui.tsx'
 import { BAND_TITLE } from '../view.ts'
 
 type Props = { item: QueueItem; onClose: () => void }
@@ -30,8 +30,8 @@ const BAND_TONE: Record<QueueItem['band'], Tone> = {
   your_turn: 'attention',
   new: 'quiet',
   running: 'good',
-  waiting: 'quiet',
-  snoozed: 'quiet',
+  waiting: 'paused',
+  snoozed: 'paused',
   done: 'good',
 }
 
@@ -133,25 +133,7 @@ export const TaskPane = ({ item, onClose }: Props) => {
             <Body text={task.brief} />
           </section>
         )}
-        {task.links.length > 0 && (
-          <section className="section">
-            <div className="section-label">Linked</div>
-            <ul className="linked">
-              {task.links.map((l) => (
-                <li key={l.url}>
-                  <Button kind="item" onClick={() => open(l.url)}>
-                    <span className="source">
-                      <span className="badge">{linkSource(l.url).charAt(0)}</span>
-                      {linkSource(l.url)}
-                    </span>
-                    <span className="title">{l.title}</span>
-                    {l.subtitle && <span className="meta">{l.subtitle}</span>}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        {task.links.length > 0 && <Linked links={task.links} />}
         {refused && <Banner>{refused}</Banner>}
         {ask && <AskCard update={ask} />}
         <section className="section">
@@ -327,11 +309,38 @@ const PendingEntry = ({ pending, options }: { pending: Pending; options: { id: s
   ) : null
 }
 
-const Menu = ({ label, items }: { label: string; items: { label: string; run: () => void }[] }) => {
+/** What the task points to outside Autopilot: one quiet line until opened. */
+const Linked = ({ links }: { links: QueueItem['task']['links'] }) => {
+  const [shown, setShown] = useState(false)
+  const sources = [...new Set(links.map((l) => linkSource(l.url)))]
+  return (
+    <section className="linked">
+      <Button kind="link" className="linked-toggle" aria-expanded={shown} onClick={() => setShown((s) => !s)}>
+        <Chevron open={shown} />
+        {links.length} linked · {sources.join(', ')}
+      </Button>
+      {shown && (
+        <ul>
+          {links.map((l) => (
+            <li key={l.url}>
+              <Button kind="item" onClick={() => open(l.url)}>
+                <span className="source">{linkSource(l.url)}</span>
+                <span className="title">{l.title}</span>
+                {l.subtitle && <span className="meta">{l.subtitle}</span>}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+const Menu = ({ label, className, items }: { label: ReactNode; className?: string; items: { label: string; run: () => void }[] }) => {
   const [shown, setShown] = useState(false)
   return (
     <div className="menu">
-      <Button kind="tool" aria-haspopup="menu" aria-expanded={shown} onClick={() => setShown((s) => !s)}>
+      <Button kind="tool" className={className} aria-haspopup="menu" aria-expanded={shown} onClick={() => setShown((s) => !s)}>
         {label}
       </Button>
       {shown && (
@@ -366,23 +375,43 @@ const Actions = ({ item }: { item: QueueItem }) => {
   return (
     <div className="task-actions">
       {item.band === 'new' && !live && (
-        <Button kind="primary" onClick={() => send({ kind: 'start', taskId: task.id })}>
+        <Button kind="primary" className="with-icon" onClick={() => send({ kind: 'start', taskId: task.id })}>
+          <Icon name="play" />
           Start
         </Button>
       )}
-      {sessionLinks.length > 0 && <Menu label="Open session" items={sessionLinks} />}
+      {sessionLinks.length > 0 && (
+        <Menu
+          className="tinted tone-attention"
+          label={
+            <>
+              <Icon name="open" />
+              Open session
+            </>
+          }
+          items={sessionLinks}
+        />
+      )}
       <Menu
-        label="Snooze"
+        className="tinted tone-paused"
+        label={
+          <>
+            <Icon name="snooze" />
+            Snooze
+          </>
+        }
         items={snoozeTimes().map((t) => ({
           label: t.label,
           run: () => send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() }),
         }))}
       />
-      <Button kind="tool" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'done' })}>
+      <Button kind="tool" className="tinted tone-good" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'done' })}>
+        <Icon name="done" />
         Mark done
       </Button>
       {item.band === 'new' && (
         <Button kind="quiet" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'canceled' })}>
+          <Icon name="dismiss" />
           Not for me
         </Button>
       )}

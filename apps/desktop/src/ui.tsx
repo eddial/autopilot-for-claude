@@ -53,6 +53,47 @@ export const SearchIcon = () => (
   </svg>
 )
 
+const ICONS = {
+  play: <path d="M5 3.5v9l7-4.5z" fill="currentColor" stroke="none" />,
+  done: <path d="M3.5 8.5l3 3 6-7" />,
+  snooze: <path d="M12.5 10.2A5.3 5.3 0 0 1 5.8 3.5a5.3 5.3 0 1 0 6.7 6.7z" />,
+  open: <path d="M6.5 3.5h-3v9h9v-3M9 3.5h3.5V7M12.5 3.5 7.5 8.5" />,
+  dismiss: <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />,
+} as const
+
+/** A small line icon for a button, in the button's colour. */
+export const Icon = ({ name }: { name: keyof typeof ICONS }) => (
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {ICONS[name]}
+  </svg>
+)
+
+/** Points right when closed, down when open. */
+export const Chevron = ({ open }: { open: boolean }) => (
+  <svg
+    className={open ? 'chevron open' : 'chevron'}
+    width="10"
+    height="10"
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    aria-hidden="true"
+  >
+    <path d="M6 3.5 10.5 8 6 12.5" />
+  </svg>
+)
+
 /** The arrow on a send button; it takes the button's colour. */
 export const ArrowUp = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">

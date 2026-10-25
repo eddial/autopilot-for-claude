@@ -38,10 +38,11 @@ export const Tag = ({ label }: { label: string }) => (
 type Who = 'owner' | 'session' | 'watcher' | 'signal' | 'system' | 'scout'
 
 const AVATAR: Record<Exclude<Who, 'system' | 'scout'>, { symbol: SFSymbol; fg: string; bg: string }> = {
+  // The session in clay, a watcher in amber (paused on something), a signal in green, you in white.
   session: { symbol: 'sparkle', fg: colours.clay, bg: colours.raised },
-  watcher: { symbol: 'eye', fg: colours.pilotSoft, bg: colours.raised },
-  owner: { symbol: 'person.fill', fg: colours.text2, bg: colours.raised },
-  signal: { symbol: 'bolt.fill', fg: colours.text2, bg: colours.raised },
+  watcher: { symbol: 'eye', fg: colours.amber, bg: colours.raised },
+  owner: { symbol: 'person.fill', fg: colours.text, bg: colours.raised },
+  signal: { symbol: 'bolt.fill', fg: colours.pilot, bg: colours.raised },
 }
 
 /** Who did something in a task's timeline, as on the Mac: the pilot for Autopilot, a symbol for the rest. */

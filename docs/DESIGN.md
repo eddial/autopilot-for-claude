@@ -14,6 +14,15 @@ screens to them. The look itself is in `PRODUCT.md`.
 - A test fails when `tokens.css` is stale or when a colour literal (`#…`, `rgb(…)`) appears in
   either app's sources. Need a new colour? Add it to the tokens, with a name for what it means.
 
+## What the colours mean
+
+| Colour | Means |
+| --- | --- |
+| Clay (orange) | The session acting, and what waits on you |
+| Green | Running, done, or something new from a signal |
+| Amber (yellow) | Paused on something: waiting on others, snoozed, a watcher |
+| White / grey | You, and everything neutral |
+
 ## Building blocks
 
 | | Mac window (`apps/desktop/src/ui.tsx`) | iPhone (`apps/mobile/src/ui.tsx`) |
