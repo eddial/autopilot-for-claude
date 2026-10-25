@@ -88,10 +88,11 @@ describe('signal runs', () => {
   })
 })
 
+const ticket = (id: string, closed = false) =>
+  item({ url: `https://linear.app/acme/issue/${id}`, title: `Ticket ${id}`, ticket: { id, closed } })
+
 describe('importing what is still open', () => {
   it('files each open ticket once, without a first look, and leaves the rest alone', async () => {
-    const ticket = (id: string, closed = false) =>
-      item({ url: `https://linear.app/acme/issue/${id}`, title: `Ticket ${id}`, ticket: { id, closed } })
     const { service, signals } = setup(() => Promise.resolve({ items: [ticket('ENG-1'), ticket('ENG-2'), ticket('ENG-3', true)] }))
 
     expect((await signals.importOpen('slack', true)).map((d) => d.action)).toEqual(['created', 'created'])
