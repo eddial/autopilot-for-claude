@@ -74,17 +74,49 @@ button {
   flex: none;
   display: flex;
   flex-direction: column;
-  padding: 12px 10px;
+  padding: 0 10px 12px;
   background: var(--window);
   overflow-y: auto;
 }
 
+/*
+ * The title-bar row every pane starts with: 48 points, centred on the window's own buttons
+ * (Electron puts them at 18, 18). The sidebar button sits just after them, at 80.
+ */
 .nav-top {
   display: flex;
   align-items: center;
-  height: 36px;
-  margin-bottom: 14px;
-  padding: 0 0 0 72px;
+  height: 48px;
+  padding: 0 0 0 70px;
+}
+
+.titlebar {
+  height: 48px;
+  flex: none;
+}
+
+.window-toggle {
+  position: fixed;
+  top: 9px;
+  left: 80px;
+  z-index: 15;
+  display: none;
+  -webkit-app-region: no-drag;
+}
+
+.app.nav-hidden .window-toggle {
+  display: flex;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 14px;
+}
+
+.brand .serif {
+  font-size: 19px;
 }
 
 .nav-item {
@@ -217,8 +249,7 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 18px 20px 6px;
-  min-height: 52px;
+  padding: 0 20px 6px;
 }
 
 .list-head h1 {
@@ -507,7 +538,7 @@ button {
 .rail {
   width: 76px;
   flex: none;
-  display: flex;
+  display: none;
   flex-direction: column;
   align-items: center;
   gap: 2px;
@@ -517,9 +548,13 @@ button {
   scrollbar-width: none;
 }
 
+.app.nav-hidden .rail {
+  display: flex;
+}
+
 .rail-top {
   align-self: stretch;
-  height: 44px;
+  height: 48px;
   flex: none;
 }
 
@@ -629,7 +664,7 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 52px;
+  height: 48px;
   padding: 0 24px;
 }
 
@@ -1214,10 +1249,6 @@ button {
 
 /* ── narrow: beside Claude Code ── */
 
-.narrow-only {
-  display: none;
-}
-
 .scrim {
   position: fixed;
   inset: 0;
@@ -1240,18 +1271,10 @@ button {
     box-shadow: 0 0 40px var(--shadow);
   }
 
-  .narrow-only {
+  /* Too narrow for the sidebar: the rail stands in for it, and the sidebar opens over the list. */
+  .rail,
+  .window-toggle {
     display: flex;
-  }
-
-  /* The rail is the navigation; no need for a button to open it. */
-  .app.nav-hidden .narrow-only {
-    display: none;
-  }
-
-  /* The window's own buttons sit over the leftmost pane now, unless the rail is there. */
-  .app:not(.nav-hidden) .list-head {
-    padding-left: 78px;
   }
 }
 
@@ -1270,8 +1293,14 @@ button {
     display: none;
   }
 
-  .app:not(.nav-hidden) .task-head {
-    padding-left: 78px;
+  /* No rail either: the window's buttons and the sidebar button sit over the pane. */
+  .app .rail,
+  .app.nav-hidden .rail {
+    display: none;
+  }
+
+  .task-head {
+    padding-left: 124px;
   }
 }
 
@@ -1372,4 +1401,71 @@ textarea.inline-reply {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+/* ── set up: checks, workstreams being shaped, the preview ── */
+
+.hero {
+  margin-bottom: 22px;
+}
+
+.hero h1 {
+  margin: 0;
+}
+
+/* A check: the light, then its title over its detail, so long details wrap under the title. */
+.check {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: center;
+}
+
+.check .health-dot {
+  grid-row: 1 / span 2;
+}
+
+.check .name {
+  grid-column: 2;
+}
+
+.check .meta {
+  grid-column: 2;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.check .actions {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+
+.draft-name {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.workstream-draft .meta-line {
+  margin-top: 4px;
+}
+
+.working {
+  margin: 0;
+}
+
+.left-alone {
+  margin-top: 14px;
+  color: var(--text-2);
+  font-size: 13.5px;
+}
+
+.left-alone summary {
+  cursor: pointer;
+  margin-bottom: 6px;
 }

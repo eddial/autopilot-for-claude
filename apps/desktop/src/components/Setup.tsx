@@ -6,14 +6,65 @@ import { Banner, Button, Dot, Meta, Pilot, Row } from '../ui.tsx'
 
 type Props = { onDone: () => void }
 
-const STEPS = ['Get ready', 'Sources', 'Preview', 'Workstreams', 'Switch on']
+const STEPS = ['Get ready', 'Sources', 'Workstreams', 'Preview', 'Switch on']
 
-/** Labels for the placeholders the examples use. */
-const FIELD_LABEL: Record<string, string> = {
-  YOUR_SLACK_USER_ID: 'Your Slack member ID (profile → ⋯ → Copy member ID)',
-}
+/** How far back the sweep reads. */
+const SWEEP_DAYS = 14
+
+/** Labels for the placeholders the examples still ask for. */
+const FIELD_LABEL: Record<string, string> = {}
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
+
+/** A source by the name its makers give it. */
+const nameOf = (name: string) => ({ github: 'GitHub' })[name] ?? titleCase(name)
+
+/** The first sentence of a description, or its first words when that is long. */
+const gist = (text: string) => {
+  const sentence = /^.*?[.!?:](?=\s|$)/.exec(text)?.[0] ?? text
+  return sentence.length <= 130 ? sentence : `${sentence.slice(0, 130).replace(/\s+\S*$/, '')}…`
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
+const list = (names: string[]) => (names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`)
+
+/** A workstream as you shape it in set-up: from the sweep, an example, or your own. */
+type Draft = { id: string; name: string; routing: string; urgent: string; repo: string; evidence: string[]; count: number | null }
+
+const draftOf = (
+  w: Pick<Workstream, 'name' | 'routing' | 'urgent'> & { repo?: string | null; evidence?: string[]; count?: number },
+): Draft => ({
+  id: key(),
+  name: w.name,
+  routing: w.routing,
+  urgent: w.urgent,
+  repo: w.repo ?? '',
+  evidence: w.evidence ?? [],
+  count: w.count ?? null,
+})
+
+/** Names are file names: lowercase words joined by hyphens. */
+const slug = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+/, '')
+    .slice(0, 40)
+
+/** What one source's preview is doing. */
+type Run = { started: number; finished?: number; decisions?: Decision[]; error?: string }
+
+/** Seconds since `from`, ticking while `on`. */
+const useSeconds = (on: boolean) => {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!on) return
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [on])
+  return (from: number, to?: number) => Math.max(0, Math.round(((to ?? now) - from) / 1000))
+}
 
 /** Onboarding: five steps to a working queue (docs/PRODUCT.md, Onboarding). */
 export const Setup = ({ onDone }: Props) => {
@@ -23,8 +74,9 @@ export const Setup = ({ onDone }: Props) => {
   const [examples, setExamples] = useState<SignalExample[]>([])
   const [chosen, setChosen] = useState<Set<string>>(new Set())
   const [values, setValues] = useState<Record<string, string>>({})
-  const [previews, setPreviews] = useState<Record<string, Decision[] | string>>({})
-  const [workstreams, setWorkstreams] = useState<(Workstream & { use: boolean })[]>([])
+  const [drafts, setDrafts] = useState<Draft[] | null>(null)
+  const [sweep, setSweep] = useState<{ started: number } | null>(null)
+  const [runs, setRuns] = useState<Record<string, Run>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -34,32 +86,24 @@ export const Setup = ({ onDone }: Props) => {
     void api.connectors.detect().then(setDetected, (e: unknown) => setError(`Could not read your Claude connectors: ${message(e)}`))
   }, [])
 
-  const available = (example: SignalExample): boolean => {
-    if (example.name === 'github') return detected?.github.user != null
-    return detected?.connectors.some((c) => c.signal === example.name && c.tools.length > 0) ?? false
-  }
+  const previewing = Object.values(runs).some((r) => r.finished === undefined)
+  const seconds = useSeconds(sweep !== null || previewing)
 
-  const step2 = async () => {
+  /** A source is something a connector or the GitHub CLI reads; a digest is set up later, in Signals. */
+  const connector = (example: SignalExample) => detected?.connectors.find((c) => c.signal === example.name)
+  const isSource = (example: SignalExample) => example.name === 'github' || connector(example) !== undefined
+  const available = (example: SignalExample): boolean =>
+    example.name === 'github' ? detected?.github.user != null : (connector(example)?.tools.length ?? 0) > 0
+  const sources = examples.filter(isSource)
+  const listening = sources.filter(available).map((e) => nameOf(e.name))
+  const chosenNames = [...chosen].map(nameOf)
+
+  const addSources = async () => {
     setBusy(true)
     setError(null)
     try {
       for (const name of chosen) await api.signals.add({ idempotencyKey: key(), name, values })
       setStep(2)
-      const results = await Promise.all(
-        [...chosen].map(async (name) => {
-          try {
-            return [name, await api.signals.run({ idempotencyKey: key(), name, dryMinutes: 24 * 60 })] as const
-          } catch (e) {
-            return [name, message(e)] as const
-          }
-        }),
-      )
-      setPreviews(Object.fromEntries(results))
-      const suggested = new Set(
-        results.flatMap(([, r]) => (Array.isArray(r) ? r.flatMap((d) => (d.workstream ? [d.workstream] : [])) : [])),
-      )
-      const options = await api.workstreams.examples()
-      setWorkstreams(options.map((w) => ({ ...w, use: suggested.size === 0 || suggested.has(w.name) })))
     } catch (e) {
       setError(message(e))
     } finally {
@@ -67,24 +111,62 @@ export const Setup = ({ onDone }: Props) => {
     }
   }
 
-  const step4 = async () => {
+  const startSweep = async () => {
+    setError(null)
+    setSweep({ started: Date.now() })
+    try {
+      const found = await api.workstreams.sweep({ idempotencyKey: key(), signals: [...chosen], days: SWEEP_DAYS })
+      setDrafts((d) => d ?? found.map(draftOf))
+      if (found.length === 0) setError('I found nothing to group yet. Start from the examples, or add your own.')
+    } catch (e) {
+      setError(`The sweep did not finish: ${message(e)}. Set them up yourself instead.`)
+    } finally {
+      setSweep(null)
+    }
+  }
+
+  const manual = async () => {
+    setSweep(null)
+    try {
+      const options = await api.workstreams.examples()
+      setDrafts(options.map(draftOf))
+    } catch (e) {
+      setError(message(e))
+      setDrafts([])
+    }
+  }
+
+  const saveWorkstreams = async () => {
     setBusy(true)
     setError(null)
     try {
-      for (const w of workstreams.filter((x) => x.use)) {
+      for (const d of drafts ?? []) {
         await api.workstreams.save({
           idempotencyKey: key(),
-          name: w.name,
-          routing: w.routing,
-          urgent: w.urgent,
-          ...(w.repo ? { repo: w.repo } : {}),
+          name: d.name.replace(/-+$/, ''),
+          routing: d.routing,
+          urgent: d.urgent,
+          ...(d.repo.trim() ? { repo: d.repo.trim() } : {}),
         })
       }
-      setStep(4)
+      setStep(3)
+      startPreview()
     } catch (e) {
       setError(message(e))
     } finally {
       setBusy(false)
+    }
+  }
+
+  /** Each source previews on its own and shows as soon as it is done. */
+  const startPreview = () => {
+    const started = Date.now()
+    setRuns(Object.fromEntries([...chosen].map((name) => [name, { started }])))
+    for (const name of chosen) {
+      api.signals.run({ idempotencyKey: key(), name, dryMinutes: 24 * 60 }).then(
+        (decisions) => setRuns((r) => ({ ...r, [name]: { started, finished: Date.now(), decisions } })),
+        (e: unknown) => setRuns((r) => ({ ...r, [name]: { started, finished: Date.now(), error: message(e) } })),
+      )
     }
   }
 
@@ -99,9 +181,12 @@ export const Setup = ({ onDone }: Props) => {
     }
   }
 
-  const decisions = Object.values(previews).flatMap((p) => (Array.isArray(p) ? p : []))
+  const decisions = Object.values(runs).flatMap((r) => r.decisions ?? [])
   const filed = decisions.filter((d) => d.action === 'created')
+  const leftAlone = decisions.filter((d) => d.action === 'dropped')
   const byWorkstream = Object.entries(Object.groupBy(filed, (d) => d.workstream ?? 'inbox'))
+  const edit = (id: string, patch: Partial<Draft>) => setDrafts((all) => (all ?? []).map((d) => (d.id === id ? { ...d, ...patch } : d)))
+  const named = (drafts ?? []).every((d) => d.name.replace(/-+$/, '') !== '' && d.routing.trim() !== '')
 
   return (
     <section className="pane task" aria-label="Set up">
@@ -118,7 +203,7 @@ export const Setup = ({ onDone }: Props) => {
 
         {step === 0 && (
           <>
-            <Row gap={6} top={9}>
+            <Row gap={6} top={9} className="hero">
               <Pilot pixel={3} />
               <h1 className="serif">Hi, I'm your pilot.</h1>
             </Row>
@@ -136,9 +221,15 @@ export const Setup = ({ onDone }: Props) => {
               }
             />
             <Check
-              ok={detected ? detected.connectors.length > 0 : error ? false : null}
+              ok={detected ? listening.length > 0 : error ? false : null}
               title="Your Claude connectors are there"
-              detail={detected ? `${detected.connectors.length} found` : error ? 'Could not ask Claude Code' : 'Asking Claude Code…'}
+              detail={
+                detected
+                  ? `${plural(detected.connectors.length, 'connector', 'connectors')}; I can listen to ${listening.length > 0 ? list(listening) : 'none of them yet'}`
+                  : error
+                    ? 'Could not ask Claude Code'
+                    : 'Asking Claude Code…'
+              }
             />
             <Check
               ok={status?.service ?? null}
@@ -157,7 +248,7 @@ export const Setup = ({ onDone }: Props) => {
               )}
             </Check>
             <div className="step-bar">
-              <Meta as="span">About a minute. Nothing is filed until step 5.</Meta>
+              <Meta as="span">A few minutes. Nothing is filed until step 5.</Meta>
               <Button kind="primary" disabled={!status?.claude.installed} onClick={() => setStep(1)}>
                 Continue
               </Button>
@@ -169,9 +260,9 @@ export const Setup = ({ onDone }: Props) => {
           <>
             <h1 className="serif step-title">Where should I listen?</h1>
             <p className="lead">
-              These are the sources I can read with your Claude connectors. Pick one or two to start; I only ever read from them.
+              These are the sources your Claude connectors let me read. Pick the ones where work reaches you; I only ever read.
             </p>
-            {examples.map((example) => {
+            {sources.map((example) => {
               const on = chosen.has(example.name)
               const can = available(example) || example.added
               return (
@@ -190,13 +281,13 @@ export const Setup = ({ onDone }: Props) => {
                         })
                       }
                     />
-                    <span className="name">{titleCase(example.name)}</span>
+                    <span className="name">{nameOf(example.name)}</span>
                     <span className="meta">
                       {can
-                        ? example.summary.slice(0, 120)
+                        ? gist(example.summary)
                         : example.name === 'github'
                           ? 'Sign in with gh auth login first'
-                          : 'Not connected in Claude yet'}
+                          : 'Connected, but Claude Code sees none of its tools. Reconnect it in Claude.'}
                     </span>
                   </label>
                   {on &&
@@ -217,52 +308,116 @@ export const Setup = ({ onDone }: Props) => {
               <Button kind="tool" onClick={() => setStep(0)}>
                 Back
               </Button>
-              <Button kind="primary" disabled={busy || chosen.size === 0} onClick={() => void step2()}>
-                {busy ? 'Adding…' : 'Next: what I would have picked up yesterday'}
+              <Button kind="primary" disabled={busy || chosen.size === 0} onClick={() => void addSources()}>
+                {busy ? 'Connecting…' : 'Next: where work should go'}
               </Button>
             </div>
           </>
         )}
 
-        {step === 2 && (
+        {step === 2 && drafts === null && (
           <>
-            <h1 className="serif step-title">Yesterday, I would have picked up these</h1>
-            {busy || Object.keys(previews).length < chosen.size ? (
-              <p className="lead">Reading yesterday from {[...chosen].map(titleCase).join(' and ')}. This takes a minute or two…</p>
-            ) : (
+            <h1 className="serif step-title">Where should work go?</h1>
+            {sweep === null ? (
               <>
                 <p className="lead">
-                  {filed.length} new tasks, {decisions.filter((d) => d.action === 'updated').length} follow-ups,{' '}
-                  {decisions.filter((d) => d.action === 'dropped').length} left alone.
+                  I can look through the last two weeks of {list(chosenNames)} (what was sent to you directly, what mentions you, what is
+                  assigned to you) and suggest workstreams from what I find. I only read: nothing is sent, changed or filed.
                 </p>
-                {Object.entries(previews)
-                  .filter(([, p]) => typeof p === 'string')
-                  .map(([name, p]) => (
-                    <Banner key={name}>
-                      {titleCase(name)}: {String(p)}
-                    </Banner>
-                  ))}
-                {byWorkstream.map(([ws, list]) => (
-                  <div key={ws}>
-                    <h2>{titleCase(ws)}</h2>
-                    {list?.map((d, i) => (
-                      <div key={`${d.signal}-${i}`} className="card">
-                        <div className="card-head">
-                          <span className="name">{d.title ?? d.reason}</span>
-                          <span className="meta">{titleCase(d.signal)}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ))}
+                <div className="step-bar">
+                  <Button kind="tool" onClick={() => setStep(1)}>
+                    Back
+                  </Button>
+                  <Button kind="tool" onClick={() => void manual()}>
+                    Set them up myself
+                  </Button>
+                  <Button kind="primary" onClick={() => void startSweep()}>
+                    Look through two weeks
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <Row gap={4} top={4}>
+                  <Pilot pixel={2} />
+                  <p className="lead working">
+                    Reading two weeks of {list(chosenNames)}… {seconds(sweep.started)} s. This usually takes a minute or two.
+                  </p>
+                </Row>
+                <div className="step-bar">
+                  <Button kind="tool" onClick={() => void manual()}>
+                    Set them up myself instead
+                  </Button>
+                </div>
               </>
             )}
+          </>
+        )}
+
+        {step === 2 && drafts !== null && (
+          <>
+            <h1 className="serif step-title">Where should work go?</h1>
+            <p className="lead">
+              {drafts.some((d) => d.count !== null)
+                ? 'This is how your last two weeks group. Rename, reword or remove any of them; the words are how I decide where things land.'
+                : 'Start from these, or add your own. The words are how I decide where things land.'}
+            </p>
+            {drafts.map((d) => (
+              <div key={d.id} className="card workstream-draft">
+                <div className="card-head">
+                  <input
+                    className="draft-name"
+                    aria-label="Workstream name"
+                    placeholder="name"
+                    value={d.name}
+                    onChange={(e) => edit(d.id, { name: slug(e.target.value) })}
+                  />
+                  {d.count !== null && <span className="meta">{plural(d.count, 'item', 'items')} in two weeks</span>}
+                  <div className="actions">
+                    <Button
+                      kind="quiet"
+                      aria-label={`Remove ${d.name}`}
+                      onClick={() => setDrafts((all) => (all ?? []).filter((x) => x.id !== d.id))}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+                {d.evidence.length > 0 && <Meta className="meta-line">Like: {d.evidence.join(' · ')}</Meta>}
+                <textarea
+                  className="inline-reply"
+                  rows={Math.min(8, Math.max(3, Math.ceil(d.routing.length / 80)))}
+                  aria-label={`What lands in ${d.name}`}
+                  placeholder="What lands here: senders, customers, channels, repositories…"
+                  value={d.routing}
+                  onChange={(e) => edit(d.id, { routing: e.target.value })}
+                />
+                <input
+                  className="inline-reply"
+                  aria-label={`When ${d.name} is urgent`}
+                  placeholder="Urgent when…"
+                  value={d.urgent}
+                  onChange={(e) => edit(d.id, { urgent: e.target.value })}
+                />
+                <input
+                  className="inline-reply"
+                  aria-label={`Repository for ${d.name}`}
+                  placeholder="For code work: the checkout, like ~/code/product (optional)"
+                  value={d.repo}
+                  onChange={(e) => edit(d.id, { repo: e.target.value })}
+                />
+              </div>
+            ))}
+            <Button kind="tool" onClick={() => setDrafts((all) => [...(all ?? []), draftOf({ name: '', routing: '', urgent: '' })])}>
+              Add a workstream
+            </Button>
             <div className="step-bar">
-              <Button kind="tool" onClick={() => setStep(1)}>
+              <Button kind="tool" onClick={() => setDrafts(null)}>
                 Back
               </Button>
-              <Button kind="primary" disabled={busy} onClick={() => setStep(3)}>
-                Looks right
+              <Meta as="span">Every workstream starts by preparing work, never sending it.</Meta>
+              <Button kind="primary" disabled={busy || drafts.length === 0 || !named} onClick={() => void saveWorkstreams()}>
+                {busy ? 'Saving…' : 'Next: what I would have picked up yesterday'}
               </Button>
             </div>
           </>
@@ -270,54 +425,59 @@ export const Setup = ({ onDone }: Props) => {
 
         {step === 3 && (
           <>
-            <h1 className="serif step-title">Where should work go?</h1>
-            <p className="lead">Adjust the words if they're off; they're how I decide where things land. Everything else can wait.</p>
-            {workstreams.map((w, i) => {
-              const set = (patch: Partial<Workstream & { use: boolean }>) =>
-                setWorkstreams((all) => all.map((x, j) => (j === i ? { ...x, ...patch } : x)))
-              return (
-                <div key={w.name} className="card">
-                  <label className="card-head">
-                    <input type="checkbox" checked={w.use} onChange={() => set({ use: !w.use })} />
-                    <span className="name">{titleCase(w.name)}</span>
-                  </label>
-                  {w.use && (
-                    <>
-                      <textarea
-                        className="inline-reply"
-                        rows={3}
-                        aria-label={`What lands in ${w.name}`}
-                        value={w.routing}
-                        onChange={(e) => set({ routing: e.target.value })}
-                      />
-                      <input
-                        className="inline-reply"
-                        aria-label={`When ${w.name} is urgent`}
-                        placeholder="Urgent when…"
-                        value={w.urgent}
-                        onChange={(e) => set({ urgent: e.target.value })}
-                      />
-                      {w.repo !== null && (
-                        <input
-                          className="inline-reply"
-                          aria-label={`Repository for ${w.name}`}
-                          placeholder="~/code/your-repo"
-                          value={w.repo}
-                          onChange={(e) => set({ repo: e.target.value })}
-                        />
-                      )}
-                    </>
-                  )}
+            <h1 className="serif step-title">Yesterday, I would have picked up these</h1>
+            <p className="lead">
+              {previewing
+                ? `Reading yesterday from ${list(chosenNames)}. Each source shows as soon as it is done.`
+                : `${plural(filed.length, 'new task', 'new tasks')}, ${plural(decisions.filter((d) => d.action === 'updated').length, 'follow-up', 'follow-ups')}, ${leftAlone.length} left alone.`}
+            </p>
+            {Object.entries(runs).map(([name, run]) => (
+              <div key={name} className="card">
+                <div className="card-head">
+                  <Dot
+                    tone={run.finished === undefined ? 'quiet' : run.error ? 'alert' : 'pilot'}
+                    label={run.finished === undefined ? 'reading' : run.error ? 'failed' : 'done'}
+                  />
+                  <span className="name">{nameOf(name)}</span>
+                  <span className="meta">
+                    {run.finished === undefined
+                      ? `Reading… ${seconds(run.started)} s`
+                      : run.error
+                        ? run.error.slice(0, 160)
+                        : `${plural(run.decisions?.filter((d) => d.action === 'created').length ?? 0, 'new task', 'new tasks')}, ${run.decisions?.filter((d) => d.action === 'dropped').length ?? 0} left alone, in ${seconds(run.started, run.finished)} s`}
+                  </span>
                 </div>
-              )
-            })}
+              </div>
+            ))}
+            {byWorkstream.map(([ws, items]) => (
+              <div key={ws}>
+                <h2>{titleCase(ws)}</h2>
+                {items?.map((d) => (
+                  <div key={d.id} className="card">
+                    <div className="card-head">
+                      <span className="name">{d.title ?? d.reason}</span>
+                      <span className="meta">{nameOf(d.signal)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+            {leftAlone.length > 0 && (
+              <details className="left-alone">
+                <summary>Left alone ({leftAlone.length})</summary>
+                {leftAlone.map((d) => (
+                  <Meta key={d.id}>
+                    {nameOf(d.signal)}: {d.reason}
+                  </Meta>
+                ))}
+              </details>
+            )}
             <div className="step-bar">
               <Button kind="tool" onClick={() => setStep(2)}>
                 Back
               </Button>
-              <Meta as="span">Every workstream starts by preparing work, never sending it.</Meta>
-              <Button kind="primary" disabled={busy || !workstreams.some((w) => w.use)} onClick={() => void step4()}>
-                Continue
+              <Button kind="primary" onClick={() => setStep(4)}>
+                {previewing ? 'Go on without waiting' : 'Looks right'}
               </Button>
             </div>
           </>
@@ -325,21 +485,14 @@ export const Setup = ({ onDone }: Props) => {
 
         {step === 4 && (
           <>
-            <Row gap={6} top={9}>
+            <Row gap={6} top={9} className="hero">
               <Pilot pixel={3} />
               <h1 className="serif">Ready for take-off</h1>
             </Row>
+            <Check ok title={`Listening to ${list(chosenNames)}, from now on`} detail="Nothing from before today is filed." />
             <Check
               ok
-              title={`Listening to ${[...chosen].map(titleCase).join(' and ')}, from now on`}
-              detail="Nothing from before today is filed."
-            />
-            <Check
-              ok
-              title={`Sorting into ${workstreams
-                .filter((w) => w.use)
-                .map((w) => titleCase(w.name))
-                .join(', ')}`}
+              title={`Sorting into ${list((drafts ?? []).map((d) => titleCase(d.name)))}`}
               detail="Correct me by moving a task; I learn from it overnight."
             />
             <Check ok title="Sessions prepare drafts and branches" detail="You send and merge." />
@@ -360,7 +513,7 @@ export const Setup = ({ onDone }: Props) => {
 
 const Check = ({ ok, title, detail, children }: { ok: boolean | null; title: string; detail: string; children?: React.ReactNode }) => (
   <div className="card">
-    <div className="card-head">
+    <div className="check">
       <Dot tone={ok === null ? 'quiet' : ok ? 'pilot' : 'alert'} label={ok === null ? 'checking' : ok ? 'ok' : 'needs attention'} />
       <span className="name">{title}</span>
       <span className="meta">{detail}</span>

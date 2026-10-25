@@ -2,7 +2,7 @@ import type { QueueItem, Signal, Workstream } from '@autopilot/contracts'
 import type { ReactNode } from 'react'
 import { titleCase } from '../format.ts'
 import { QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
-import { Button, Dot, NavIcon, SidebarIcon, type NavIconName } from '../ui.tsx'
+import { Button, Dot, NavIcon, Pilot, SidebarIcon, type NavIconName } from '../ui.tsx'
 
 type Props = {
   view: View
@@ -118,6 +118,10 @@ export const Nav = ({ onHide, overlay, ...props }: Props & { onHide: () => void;
           <SidebarIcon />
         </Button>
       </div>
+      <div className="brand">
+        <Pilot />
+        <span className="serif">Autopilot</span>
+      </div>
       <Button kind="nav" className="new" aria-current={current(props.view.kind === 'new')} onClick={() => props.go({ kind: 'new' })}>
         <span className="plus" aria-hidden="true">
           <NavIcon name="plus" size={14} />
@@ -183,15 +187,12 @@ const Spot = ({ entry }: { entry: Entry }) => (
 )
 
 /** The sidebar folded away: the same places as icons, named on hover. */
-export const NavRail = ({ onShow, ...props }: Props & { onShow: () => void }) => {
+export const NavRail = (props: Props) => {
   const { queues, streams, places } = entries(props)
   return (
     <nav className="rail" aria-label="Autopilot">
+      {/* The window's own buttons and the sidebar button sit here. */}
       <div className="rail-top drag" />
-      <Button kind="rail" aria-label="Show sidebar" onClick={onShow} onPointerEnter={place} onFocus={place}>
-        <SidebarIcon />
-        <Flyout entry={{ label: 'Show sidebar', count: 0 }} />
-      </Button>
       <Button
         kind="rail"
         className="new"

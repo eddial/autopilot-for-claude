@@ -9,7 +9,7 @@ import { Setup } from './components/Setup.tsx'
 import { Signals } from './components/Signals.tsx'
 import { TaskPane } from './components/TaskPane.tsx'
 import { titleCase } from './format.ts'
-import { Pilot } from './ui.tsx'
+import { Button, Pilot, SidebarIcon } from './ui.tsx'
 import { useQueueItems, useStore } from './store.ts'
 import { QUEUE_VIEWS, type View } from './view.ts'
 
@@ -141,12 +141,22 @@ export const App = () => {
     if (selected && !listOf(v, items, done)?.items.some((i) => i.task.id === selected)) setSelected(null)
   }
 
+  // Too narrow for the sidebar beside the list, it opens over it.
+  const showNav = () => {
+    setNavHidden(false)
+    if (window.matchMedia('(max-width: 1080px)').matches) setNavOverlay(true)
+  }
+
   return (
     <div className={`app${showingTask || !list ? ' showing-task' : ''}${navHidden ? ' nav-hidden' : ''}`}>
       {navOverlay && <div className="scrim" onClick={() => setNavOverlay(false)} aria-hidden="true" />}
-      {navHidden ? (
-        <NavRail view={view} go={go} items={items} workstreams={workstreams} signals={signals} onShow={() => setNavHidden(false)} />
-      ) : (
+      {/* Beside the window's own buttons whenever the sidebar is folded, as in the Claude app. */}
+      <Button kind="icon" className="window-toggle" aria-label="Show sidebar" onClick={showNav}>
+        <SidebarIcon />
+      </Button>
+      {/* Shown when the sidebar is folded, or the window is too narrow for it (styles.css). */}
+      <NavRail view={view} go={go} items={items} workstreams={workstreams} signals={signals} />
+      {(!navHidden || navOverlay) && (
         <Nav
           view={view}
           go={go}
@@ -154,7 +164,10 @@ export const App = () => {
           items={items}
           workstreams={workstreams}
           signals={signals}
-          onHide={() => setNavHidden(true)}
+          onHide={() => {
+            setNavHidden(true)
+            setNavOverlay(false)
+          }}
         />
       )}
       {list && (
@@ -168,7 +181,6 @@ export const App = () => {
             onOpen={openTask}
             width={listWidth}
             banner={banner}
-            onMenu={() => setNavOverlay(true)}
           />
           <div className="grip" role="separator" aria-label="Resize list" aria-orientation="vertical" onPointerDown={startResize}>
             <span />

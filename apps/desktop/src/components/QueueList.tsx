@@ -4,7 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
 import { BAND_TITLE } from '../view.ts'
-import { Banner, Button, SearchIcon, SidebarIcon } from '../ui.tsx'
+import { Banner, Button, SearchIcon } from '../ui.tsx'
 
 type Props = {
   title: string
@@ -16,8 +16,6 @@ type Props = {
   onOpen: (id: string) => void
   width: number
   banner: string | null
-  /** Opens navigation when the window is too narrow to show it. */
-  onMenu: () => void
 }
 
 /** `ws:customers from:slack pricing`: tokens narrow by workstream and source, the rest matches titles. */
@@ -34,7 +32,7 @@ const matches = (item: QueueItem, filter: string): boolean =>
 
 type Entry = { kind: 'group'; band: Band; count: number } | { kind: 'item'; item: QueueItem }
 
-export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, width, banner, onMenu }: Props) => {
+export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, width, banner }: Props) => {
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const visible = useMemo(() => items.filter((i) => matches(i, filter)), [items, filter])
@@ -90,10 +88,8 @@ export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, w
   return (
     // oxlint-disable-next-line react/forbid-dom-props -- the width the person dragged it to
     <section className="pane list" style={{ width }} aria-label={title}>
-      <div className="list-head drag">
-        <Button kind="icon" className="narrow-only" aria-label="Show navigation" onClick={onMenu}>
-          <SidebarIcon />
-        </Button>
+      <div className="titlebar drag" />
+      <div className="list-head">
         <h1 className="serif">{title}</h1>
         <span className="count">{visible.length}</span>
       </div>
