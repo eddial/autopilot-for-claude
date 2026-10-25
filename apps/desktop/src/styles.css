@@ -887,8 +887,11 @@ button {
 }
 
 .menu-items button {
-  display: block;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
   width: 100%;
+  white-space: nowrap;
   padding: 7px 10px;
   border: 0;
   border-radius: 7px;
@@ -899,6 +902,11 @@ button {
 
 .menu-items button:hover {
   background: var(--press);
+}
+
+.menu-detail {
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── new task ── */

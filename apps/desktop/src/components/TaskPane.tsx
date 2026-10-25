@@ -16,7 +16,7 @@ import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
 import type { Tone } from '@autopilot/design'
-import { ArrowUp, Avatar, Banner, Button, Chevron, Dot, Icon, Meta, Pill, Spacer, Tag } from '../ui.tsx'
+import { ArrowUp, Avatar, Banner, Button, Chevron, Claude, Dot, Icon, Meta, Pill, Spacer, Tag } from '../ui.tsx'
 import { BAND_TITLE } from '../view.ts'
 
 type Props = { item: QueueItem; onClose: () => void }
@@ -43,8 +43,12 @@ const SESSION_STATE: Record<string, string> = {
   ended: 'Session ended',
 }
 
-/** Snooze choices, as times from now. */
-const snoozeTimes = (): { label: string; until: Date }[] => {
+const time = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+const day = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+const weekday = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'short' })
+
+/** Snooze choices, as times from now, each with the time it comes back. */
+const snoozeTimes = (): { label: string; detail: string; until: Date }[] => {
   const now = new Date()
   const at = (days: number, hour: number) => {
     const d = new Date(now)
@@ -52,13 +56,18 @@ const snoozeTimes = (): { label: string; until: Date }[] => {
     d.setHours(hour, 0, 0, 0)
     return d
   }
+  const later = (hours: number) => new Date(now.getTime() + hours * 3_600_000)
   const monday = (8 - now.getDay()) % 7 || 7
+  // An evening less than an hour away is no snooze at all.
+  const soon = later(1)
   return [
-    { label: 'For an hour', until: new Date(now.getTime() + 3_600_000) },
-    { label: 'This evening', until: at(0, 18) },
-    { label: 'Tomorrow morning', until: at(1, 9) },
-    { label: 'Monday morning', until: at(monday, 9) },
-  ].filter((t) => t.until > now)
+    { label: 'In an hour', until: soon, detail: time(soon) },
+    { label: 'In three hours', until: later(3), detail: time(later(3)) },
+    { label: 'This evening', until: at(0, 18), detail: '18:00' },
+    { label: 'Tomorrow morning', until: at(1, 9), detail: `${weekday(at(1, 9))} 09:00` },
+    { label: 'Monday morning', until: at(monday, 9), detail: day(at(monday, 9)) },
+    { label: 'In a week', until: at(7, 9), detail: day(at(7, 9)) },
+  ].filter((t) => t.until >= soon)
 }
 
 export const TaskPane = ({ item, onClose }: Props) => {
@@ -336,12 +345,15 @@ const Linked = ({ links }: { links: QueueItem['task']['links'] }) => {
   )
 }
 
-const Menu = ({ label, className, items }: { label: ReactNode; className?: string; items: { label: string; run: () => void }[] }) => {
+type MenuItem = { label: string; detail?: string; run: () => void }
+
+const Menu = ({ label, className, items }: { label: ReactNode; className?: string; items: MenuItem[] }) => {
   const [shown, setShown] = useState(false)
   return (
     <div className="menu">
       <Button kind="tool" className={className} aria-haspopup="menu" aria-expanded={shown} onClick={() => setShown((s) => !s)}>
         {label}
+        <Icon name="more" />
       </Button>
       {shown && (
         <div className="menu-items" role="menu" onMouseLeave={() => setShown(false)}>
@@ -356,6 +368,7 @@ const Menu = ({ label, className, items }: { label: ReactNode; className?: strin
               }}
             >
               {i.label}
+              {i.detail && <span className="menu-detail">{i.detail}</span>}
             </Button>
           ))}
         </div>
@@ -385,7 +398,7 @@ const Actions = ({ item }: { item: QueueItem }) => {
           className="tinted tone-claude"
           label={
             <>
-              <Icon name="open" />
+              <Claude pixel={0.875} />
               Open session
             </>
           }
@@ -396,12 +409,13 @@ const Actions = ({ item }: { item: QueueItem }) => {
         className="tinted tone-paused"
         label={
           <>
-            <Icon name="snooze" />
+            <Icon name="clock" />
             Snooze
           </>
         }
         items={snoozeTimes().map((t) => ({
           label: t.label,
+          detail: t.detail,
           run: () => send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() }),
         }))}
       />

@@ -56,8 +56,14 @@ export const SearchIcon = () => (
 const ICONS = {
   play: <path d="M5 3.5v9l7-4.5z" fill="currentColor" stroke="none" />,
   done: <path d="M3.5 8.5l3 3 6-7" />,
-  snooze: <path d="M12.5 10.2A5.3 5.3 0 0 1 5.8 3.5a5.3 5.3 0 1 0 6.7 6.7z" />,
-  open: <path d="M6.5 3.5h-3v9h9v-3M9 3.5h3.5V7M12.5 3.5 7.5 8.5" />,
+  clock: (
+    <>
+      <circle cx="8" cy="8" r="5.75" />
+      <path d="M8 4.75V8l2.25 1.5" />
+    </>
+  ),
+  /** Opens a menu below. */
+  more: <path d="M4.5 6.5 8 10l3.5-3.5" />,
   dismiss: <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />,
 } as const
 
@@ -136,7 +142,7 @@ export const Avatar = ({ who }: { who: Who }) => (
     {who === 'system' || who === 'scout' ? (
       <Pilot pixel={1} />
     ) : who === 'session' ? (
-      <Mascot art={claude} pixel={1} label="Claude" />
+      <Claude />
     ) : (
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
         {GLYPH[who]}
@@ -229,3 +235,6 @@ const Mascot = ({
 
 /** The pilot, Autopilot's mascot. */
 export const Pilot = ({ pixel = 1.5 }: { pixel?: number }) => <Mascot art={pilot} pixel={pixel} label="Autopilot" />
+
+/** Claude, the mark of a session wherever one is shown or opened. */
+export const Claude = ({ pixel = 1 }: { pixel?: number }) => <Mascot art={claude} pixel={pixel} label="Claude" />
