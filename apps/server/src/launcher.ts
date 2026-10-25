@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Task, Workstream } from '@autopilot/contracts'
 import type { Paths } from './paths.ts'
@@ -31,10 +31,44 @@ export type LauncherOptions = {
   claude?: string
   pluginDir?: string | null
   maxParallel?: number
+  /**
+   * Claude Code's own settings file (`~/.claude.json`), where the launcher marks its folders as
+   * trusted; null leaves it alone (tests).
+   */
+  claudeConfig?: string | null
   log?: (message: string) => void
 }
 
-type Live = { pty: Pty; sessionId: string; output: string }
+type Live = { pty: Pty; sessionId: string; output: string; stuck: boolean }
+
+/** Startup screens a session can stop at; nobody is at the terminal to answer them. */
+const STARTUP_PROMPT = /trust this folder|Enter to confirm|Bypass Permissions mode|Do you want to proceed/i
+const STUCK_AFTER_MS = 45_000
+
+/** The screen as text: terminal escape sequences out. Matching control characters is the point here. */
+const plain = (text: string): string =>
+  text
+    // oxlint-disable-next-line no-control-regex
+    .replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '')
+    // oxlint-disable-next-line no-control-regex
+    .replace(/\u001b\][^\u0007]*\u0007/g, '')
+    .replace(/[^\S\n]+/g, ' ')
+
+/**
+ * Claude Code asks "Do you trust this folder?" in a folder it has not seen, and the session never
+ * starts. Every folder the launcher opens is Autopilot's own (its work folder, a workstream's
+ * folder, or a worktree of a configured repo), so it records the answer ahead of time, the way
+ * Claude Code does, with an atomic rename so Claude Code never reads half a file.
+ */
+export const trustFolder = (config: string, folder: string): void => {
+  const settings = (existsSync(config) ? JSON.parse(readFileSync(config, 'utf8')) : {}) as {
+    projects?: Record<string, { hasTrustDialogAccepted?: boolean }>
+  }
+  if (settings.projects?.[folder]?.hasTrustDialogAccepted) return
+  settings.projects = { ...settings.projects, [folder]: { ...settings.projects?.[folder], hasTrustDialogAccepted: true } }
+  writeFileSync(`${config}.autopilot.tmp`, JSON.stringify(settings, null, 2))
+  renameSync(`${config}.autopilot.tmp`, config)
+}
 
 const REMOTE_CONTROL_URL = /https:\/\/claude\.ai\/code\/[A-Za-z0-9_\-/?=&.]+/
 
@@ -58,6 +92,7 @@ export class Launcher {
     this.opts = {
       claude: 'claude',
       pluginDir: null,
+      claudeConfig: null,
       maxParallel: 4,
       log: () => {},
       ...options,
@@ -111,6 +146,8 @@ export class Launcher {
 
     const workstream = this.opts.workstreams().find((w) => w.name === task.workstream)
     const { cwd, branch } = this.workspace(task, workstream)
+    // Claude Code keys trust by the real path (on macOS /tmp is /private/tmp).
+    if (this.opts.claudeConfig) trustFolder(this.opts.claudeConfig, realpathSync(cwd))
     const sessionId = randomUUID()
     const { secret } = service.issueToken(`session ${task.id}`, 'session', task.id)
     const dir = join(paths.data, 'sessions', sessionId)
@@ -167,6 +204,8 @@ export class Launcher {
       settings,
       '--permission-mode',
       'bypassPermissions',
+      // Nothing in a session should open a browser on the Mac.
+      '--no-chrome',
       ...(this.opts.pluginDir ? ['--plugin-dir', this.opts.pluginDir] : []),
       prompt,
     ]
@@ -176,7 +215,7 @@ export class Launcher {
       cols: 120,
       rows: 40,
     })
-    const live: Live = { pty, sessionId, output: '' }
+    const live: Live = { pty, sessionId, output: '', stuck: false }
     this.live.set(task.id, live)
 
     service.recordSession({
@@ -200,6 +239,15 @@ export class Launcher {
       }
     })
     pty.onExit(({ exitCode }) => this.exited(task.id, sessionId, exitCode))
+    // A session held at a startup screen never reports in; say what the screen shows, then stop it.
+    setTimeout(() => {
+      const session = service.session(sessionId)
+      if (!session || session.state !== 'starting' || !STARTUP_PROMPT.test(plain(live.output))) return
+      live.stuck = true
+      const screen = plain(live.output).split('\n').map((l) => l.trim()).filter(Boolean).slice(-12).join('\n')
+      service.systemUpdate(task.id, 'blocked', `The session stopped at a startup screen in ${cwd} and was closed. Answer it once in Claude Code there, then start the task again:\n\n${screen}`)
+      pty.kill()
+    }, STUCK_AFTER_MS).unref()
     this.opts.log(`started ${task.id} in ${cwd}`)
     return 'done'
   }
@@ -208,9 +256,12 @@ export class Launcher {
     // On shutdown the server kills its sessions; the next start ends them in the database.
     if (this.stopping) return
     const { service } = this.opts
-    if (this.live.get(taskId)?.sessionId === sessionId) this.live.delete(taskId)
+    const live = this.live.get(taskId)
+    if (live?.sessionId === sessionId) this.live.delete(taskId)
     service.setSession(sessionId, { state: 'ended', activity: null })
     service.revokeTaskTokens(taskId)
+    // Stopped at a startup screen: that was already reported.
+    if (live?.sessionId === sessionId && live.stuck) return
     const detail = service.getTask(taskId)
     // A session that posted anything but `info` since the owner's last instruction has handed over.
     const sinceOwner = detail.updates.slice(detail.updates.findLastIndex((u) => u.author === 'owner') + 1)

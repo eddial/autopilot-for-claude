@@ -1,5 +1,5 @@
 import { chmodSync } from 'node:fs'
-import { hostname } from 'node:os'
+import { homedir, hostname } from 'node:os'
 import { join } from 'node:path'
 import type { Server } from 'node:http'
 import type { Machine } from '@autopilot/contracts'
@@ -35,6 +35,8 @@ export type ServerOptions = {
   spawn?: SpawnPty
   runClaude?: RunClaude
   maxParallel?: number
+  /** Claude Code's settings file, for trusting the launcher's folders; null leaves it alone. */
+  claudeConfig?: string | null
   /** The HTTPS port for paired devices; 0 picks a free one (tests). */
   devicePort?: number
   log?: (message: string) => void
@@ -74,6 +76,8 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     self: options.self,
     claude: options.claude ?? 'claude',
     pluginDir: join(ROOT, 'plugin'),
+    // Tests run their own stand-in for Claude Code and leave ~/.claude.json alone.
+    claudeConfig: options.claudeConfig !== undefined ? options.claudeConfig : options.spawn ? null : join(homedir(), '.claude.json'),
     maxParallel: options.maxParallel ?? 4,
     log,
   })

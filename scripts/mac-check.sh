@@ -21,7 +21,8 @@ done
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 STAMP="$(date +%Y%m%d-%H%M%S)"
-WORK="$(mktemp -d /tmp/apcheck.XXXX)"
+# The real path: on macOS /tmp is /private/tmp, and Claude Code trusts folders by their real path.
+WORK="$(cd "$(mktemp -d /tmp/apcheck.XXXX)" && pwd -P)"
 REPORT="$WORK/report.md"
 export AUTOPILOT_DATA="$WORK/data"
 export AUTOPILOT_SOCKET="$WORK/s.sock"
