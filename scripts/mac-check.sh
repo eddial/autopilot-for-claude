@@ -73,6 +73,8 @@ command -v pnpm >/dev/null || { corepack enable 2>/dev/null || npm install -g pn
 
 section "Build and tests"
 record "pnpm install" pnpm install --frozen-lockfile
+# The window's tests drive it in a headless Chromium (about 100 MB, once).
+record "Chromium for the window's tests" pnpm --filter @autopilot/desktop exec playwright-core install chromium-headless-shell
 record "lint, typecheck and tests (pnpm check)" pnpm check
 
 section "The check server"

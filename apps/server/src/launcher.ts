@@ -70,7 +70,8 @@ export const trustFolder = (config: string, folder: string): void => {
   renameSync(`${config}.autopilot.tmp`, config)
 }
 
-const REMOTE_CONTROL_URL = /https:\/\/claude\.ai\/code\/[A-Za-z0-9_\-/?=&.]+/
+/** The link Remote Control prints; read from the screen with escape sequences taken out. */
+const REMOTE_CONTROL_URL = /https:\/\/claude\.ai\/[^\s"'<>]+/
 
 /** Pasted as one block, so a multi-line answer is not sent line by line. */
 export const paste = (text: string): string => `\u001b[200~${text}\u001b[201~\r`
@@ -234,7 +235,7 @@ export class Launcher {
       live.output = (live.output + data).slice(-20_000)
       const session = service.session(sessionId)
       if (session && !session.remoteControlUrl) {
-        const url = REMOTE_CONTROL_URL.exec(live.output)?.[0]
+        const url = REMOTE_CONTROL_URL.exec(plain(live.output))?.[0]
         if (url) service.setSession(sessionId, { remoteControlUrl: url })
       }
     })
