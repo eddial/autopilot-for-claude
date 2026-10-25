@@ -46,7 +46,7 @@ Every command takes an `idempotencyKey` and is authorised by scope.
 | `watchers.add { taskId, what, every?, until?, tools? }` / `watchers.remove` | `owner`, `session` (own) | |
 | `items.match { query }` | `signal` | The searches a signal run does before filing |
 | `items.file { item }` | `signal` | Creates a task or adds a `signal` update; logs a `Decision`. An item with `ticket { id, closed }` mirrors a team ticket: one task per ticket, closed when the ticket closes |
-| `routing.decide { proposalId, accept }` | `owner` | |
+| `routing.decide { proposalId, accept }` | `owner` | Accepting writes the edit into the home files (`CONFLICT` with `version_mismatch` when the file changed since) and closes the proposal's task |
 | `signals.run { name, dryMinutes? }`, `signals.pause` | `owner` | |
 | `devices.pair { code, publicKey, name }`, `devices.remove` | pairing / `owner` | |
 | `tokens.create { name, scope }`, `tokens.revoke` | `owner` | |
@@ -60,6 +60,9 @@ Every command takes an `idempotencyKey` and is authorised by scope.
 - `changes.since { after, limit }`: catch up after being offline, page by page.
 - `tasks.get { id }`: the task with its updates, session and watchers.
 - `signals.list`, `workstreams.list`, `routing.list`, `machines.list`, `devices.list`, `tokens.list`.
+- `connectors.detect`: the MCP servers Claude Code has on this Mac (claude.ai connectors included)
+  with their tools and the example signal that reads each, and whether the GitHub CLI is signed in.
+  Takes a few seconds; for onboarding.
 - `meta.version`: the API version and the oldest client it serves; needs no token.
 
 ## MCP

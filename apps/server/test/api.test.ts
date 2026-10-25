@@ -28,6 +28,8 @@ beforeAll(async () => {
   const router = createRouter({
     service,
     workstreams: () => [],
+    applyRouting: () => {},
+    detect: () => Promise.resolve({ connectors: [], github: { cli: false, user: null } }),
     signals: {
       list: () => [],
       run: () => Promise.resolve([]),

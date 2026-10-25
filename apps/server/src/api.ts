@@ -3,9 +3,11 @@ import {
   contract,
   type Author,
   type Decision,
+  type Detected,
   type Machine,
   type Meta,
   QueueEvent,
+  type RoutingProposal,
   type Signal,
   type Workstream,
 } from '@autopilot/contracts'
@@ -25,6 +27,9 @@ export type Deps = {
   workstreams: () => Workstream[]
   signals: SignalsApi
   machine: () => Machine
+  /** Writes an accepted routing proposal into the home files. */
+  applyRouting: (changes: RoutingProposal['changes']) => void
+  detect: () => Promise<Detected>
   log?: (message: string) => void
 }
 
@@ -50,7 +55,7 @@ const taskOf = (service: Service, path: readonly string[], input: unknown): stri
   return null
 }
 
-export const createRouter = ({ service, workstreams, signals, machine, log = () => {} }: Deps) => {
+export const createRouter = ({ service, workstreams, signals, machine, applyRouting, detect, log = () => {} }: Deps) => {
   const os = implement(contract).$context<Context>()
 
   /** Every call: check the token against the procedure's scopes, then map domain errors to typed ones. */
@@ -84,7 +89,7 @@ export const createRouter = ({ service, workstreams, signals, machine, log = () 
         case 'NOT_FOUND':
           throw errors.NOT_FOUND({ data: error.data as { entity: string; id: string }, message: error.message })
         case 'CONFLICT':
-          throw errors.CONFLICT({ data: error.data as { reason: 'already_answered' }, message: error.message })
+          throw errors.CONFLICT({ data: error.data as { reason: 'already_answered' | 'version_mismatch' }, message: error.message })
         case 'SERVICE_UNAVAILABLE':
           throw errors.SERVICE_UNAVAILABLE({
             data: error.data as { what: 'runner'; detail: string },
@@ -182,16 +187,18 @@ export const createRouter = ({ service, workstreams, signals, machine, log = () 
     },
 
     routing: {
-      list: guarded.routing.list.handler(() => []),
-      decide: guarded.routing.decide.handler(({ input }) => {
-        throw new DomainError('NOT_FOUND', { entity: 'routing proposal', id: input.proposalId })
-      }),
+      list: guarded.routing.list.handler(() => service.proposals()),
+      decide: guarded.routing.decide.handler(({ input }) => service.decideProposal(input, applyRouting)),
     },
 
     signals: {
       list: guarded.signals.list.handler(() => signals.list()),
       run: guarded.signals.run.handler(({ input }) => signals.run(input.name, input.dryMinutes)),
       pause: guarded.signals.pause.handler(({ input }) => signals.pause(input.name, input.paused)),
+    },
+
+    connectors: {
+      detect: guarded.connectors.detect.handler(() => detect()),
     },
 
     workstreams: {

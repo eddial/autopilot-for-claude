@@ -26,7 +26,7 @@ describe('contract', () => {
   })
 
   it('requires an idempotency key on every write', () => {
-    const reads = /^(meta\.|queue\.|changes\.|tasks\.get|items\.match|.*\.list$)/
+    const reads = /^(meta\.|queue\.|changes\.|tasks\.get|items\.match|connectors\.detect|.*\.list$)/
     const writes = procedures.filter((proc) => !reads.test(proc.path))
     const withoutKey = writes.filter((proc) => !(proc.input instanceof z.ZodObject && 'idempotencyKey' in proc.input.shape))
     expect(writes.length).toBeGreaterThan(20)

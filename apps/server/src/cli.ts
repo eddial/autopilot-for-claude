@@ -22,6 +22,8 @@ const HELP = `autopilot <command>
                                  answer the task's open decision or question
   signal <name> [--dry <minutes>]
                                  run a signal now, or preview the last minutes without filing
+  connectors                     the connectors Claude Code has here, and which signal reads each
+  routing [accept|reject <id>]   the nightly routing review's proposals, or decide one
   status                         server, signals and queue at a glance
   token <name> <scope> [--task <task>]
                                  create a token for an agent (scope: owner, read, create)
@@ -123,6 +125,30 @@ const main = async (argv: string[]): Promise<void> => {
         ...(values.dry ? { dryMinutes: Number(values.dry) } : {}),
       })
       console.log(decisions.map((d) => `${d.action.padEnd(8)} ${d.taskId ?? '-'} ${d.reason}`).join('\n') || 'Nothing found.')
+      return
+    }
+    case 'connectors': {
+      const { connectors, github } = await client().api.connectors.detect()
+      for (const c of connectors) {
+        console.log(`${c.name}: ${c.status}, ${c.tools.length} tools${c.signal ? ` · signal ${c.signal}` : ''}`)
+      }
+      console.log(`GitHub CLI: ${github.cli ? (github.user ? `signed in as ${github.user} · signal github` : 'not signed in (gh auth login)') : 'not installed'}`)
+      return
+    }
+    case 'routing': {
+      const { api } = client()
+      const [verb, id = ''] = rest
+      if (verb === 'accept' || verb === 'reject') {
+        const decided = await api.routing.decide({ idempotencyKey: key(), proposalId: id, accept: verb === 'accept' })
+        console.log(`${decided.state[0]?.toUpperCase()}${decided.state.slice(1)}: ${decided.reason}`)
+        return
+      }
+      const open = (await api.routing.list()).filter((p) => p.state === 'open')
+      console.log(
+        open
+          .map((p) => [`${p.id}  ${p.reason}`, ...p.changes.map((c) => `  ${c.file}\n  - ${c.before}\n  + ${c.after}`)].join('\n'))
+          .join('\n\n') || 'No open proposals.',
+      )
       return
     }
     case 'status': {

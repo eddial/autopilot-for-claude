@@ -13,6 +13,7 @@ import {
   type CloseTask,
   type CreateTask,
   type CreateToken,
+  type DecideRouting,
   type Decision,
   type EditTask,
   type FileItem,
@@ -20,6 +21,7 @@ import {
   type MatchItems,
   type PostUpdate,
   type ReportSession,
+  type RoutingProposal,
   type QueueItem,
   type QueueSnapshot,
   type Scope,
@@ -403,6 +405,8 @@ export class Service {
   editTask(input: In<typeof EditTask>): Task {
     return this.idempotent(input.idempotencyKey, 'tasks.edit', () => {
       const task = this.task(input.id)
+      if (input.workstream && input.workstream !== task.workstream) this.correct(task, 'workstream', task.workstream, input.workstream)
+      if (input.priority && input.priority !== task.priority) this.correct(task, 'priority', String(task.priority), String(input.priority))
       return this.touch(task, {
         title: input.title ?? task.title,
         workstream: input.workstream ?? task.workstream,
@@ -447,7 +451,111 @@ export class Service {
   }
 
   closeTask(input: In<typeof CloseTask>): Task {
-    return this.idempotent(input.idempotencyKey, 'tasks.close', () => this.close(this.task(input.id), input.outcome))
+    return this.idempotent(input.idempotencyKey, 'tasks.close', () => {
+      const task = this.task(input.id)
+      if (input.outcome === 'canceled' && task.state === 'new') this.correct(task, 'dismissed', null, null)
+      return this.close(task, input.outcome)
+    })
+  }
+
+  /** Only what a signal filed teaches routing; the owner's own tasks are theirs to place. */
+  private correct(task: Task, kind: 'workstream' | 'priority' | 'dismissed', before: string | null, after: string | null): void {
+    if (task.createdBy !== 'signal') return
+    this.db
+      .prepare('insert into corrections (id, at, task_id, kind, before, after) values (?, ?, ?, ?, ?, ?)')
+      .run(newId(), this.iso(), task.id, kind, before, after)
+  }
+
+  // ── routing review ────────────────────────────────────────────────────────
+
+  /** What the routing review reads: the owner's corrections and the signals' decisions since `since`. */
+  routingEvidence(since: string): {
+    corrections: { at: string; taskId: string; title: string; signal: string | null; kind: string; before: string | null; after: string | null }[]
+    decisions: { at: string; signal: string; action: string; taskId: string | null; reason: string; title: string }[]
+    byHand: { taskId: string; title: string; workstream: string; createdAt: string }[]
+  } {
+    const corrections = (
+      this.db
+        .prepare(
+          `select c.*, t.title, t.source_signal from corrections c join tasks t on t.id = c.task_id where c.at > ? order by c.at`,
+        )
+        .all(since) as Row[]
+    ).map((r) => ({
+      at: str(r.at),
+      taskId: str(r.task_id),
+      title: str(r.title),
+      signal: strOrNull(r.source_signal),
+      kind: str(r.kind),
+      before: strOrNull(r.before),
+      after: strOrNull(r.after),
+    }))
+    const decisions = (this.db.prepare('select * from decisions where at > ? order by at').all(since) as Row[]).map((r) => ({
+      at: str(r.at),
+      signal: str(r.signal),
+      action: str(r.action),
+      taskId: strOrNull(r.task_id),
+      reason: str(r.reason),
+      title: parse<{ title?: string }>(r.item).title ?? '',
+    }))
+    const byHand = (
+      this.db.prepare(`select * from tasks where created_by = 'owner' and created_at > ? order by created_at`).all(since) as Row[]
+    ).map((r) => ({ taskId: str(r.id), title: str(r.title), workstream: str(r.workstream), createdAt: str(r.created_at) }))
+    return { corrections, decisions, byHand }
+  }
+
+  private toProposal(r: Row): RoutingProposal {
+    return {
+      id: str(r.id),
+      createdAt: str(r.created_at),
+      reason: str(r.reason),
+      changes: parse<RoutingProposal['changes']>(r.changes),
+      state: str(r.state) as RoutingProposal['state'],
+    }
+  }
+
+  proposals(): RoutingProposal[] {
+    return (this.db.prepare(`select * from routing_proposals order by created_at desc limit 100`).all() as Row[]).map((r) =>
+      this.toProposal(r),
+    )
+  }
+
+  /** A proposal waits on the owner as a review in the `autopilot` workstream. */
+  propose(reason: string, changes: RoutingProposal['changes']): RoutingProposal {
+    return this.transaction(() => {
+      const id = newId()
+      const diff = changes.map((c) => `${c.file}\n- ${c.before}\n+ ${c.after}`).join('\n\n')
+      const task = this.systemTask(`Routing: ${reason}`, `${reason}\n\n${diff}\n\nAccept or reject it with routing.decide.`)
+      this.db
+        .prepare('insert into routing_proposals (id, created_at, reason, changes, state, task_id) values (?, ?, ?, ?, ?, ?)')
+        .run(id, this.iso(), reason, json(changes), 'open', task.id)
+      return this.toProposal(this.db.prepare('select * from routing_proposals where id = ?').get(id) as Row)
+    })
+  }
+
+  /** `apply` writes the change to the home files; it runs inside the transaction, so a failure keeps the proposal open. */
+  decideProposal(input: In<typeof DecideRouting>, apply: (changes: RoutingProposal['changes']) => void): RoutingProposal {
+    return this.idempotent(input.idempotencyKey, 'routing.decide', () => {
+      const row = this.db.prepare('select * from routing_proposals where id = ?').get(input.proposalId) as Row | undefined
+      if (!row) throw new DomainError('NOT_FOUND', { entity: 'routing proposal', id: input.proposalId })
+      const proposal = this.toProposal(row)
+      if (proposal.state !== 'open') throw new DomainError('CONFLICT', { reason: 'already_answered' }, 'Already decided')
+      if (input.accept) apply(proposal.changes)
+      const state = input.accept ? 'accepted' : 'rejected'
+      this.db.prepare('update routing_proposals set state = ? where id = ?').run(state, proposal.id)
+      const taskId = strOrNull(row.task_id)
+      if (taskId) this.close(this.task(taskId), input.accept ? 'done' : 'canceled')
+      return { ...proposal, state }
+    })
+  }
+
+  /** When one of Autopilot's own jobs last ran. */
+  jobRanAt(name: string): string | null {
+    const row = this.db.prepare('select last_run_at from jobs where name = ?').get(name) as Row | undefined
+    return row ? str(row.last_run_at) : null
+  }
+
+  jobRan(name: string, at: string): void {
+    this.db.prepare('insert into jobs (name, last_run_at) values (?, ?) on conflict(name) do update set last_run_at = excluded.last_run_at').run(name, at)
   }
 
   /** Closing ends the session and the watchers with it. */
@@ -474,12 +582,14 @@ export class Service {
           case 'start':
             return this.start(task)
           case 'dismiss':
+            if (task.state === 'new') this.correct(task, 'dismissed', null, null)
             return this.close(task, 'canceled')
           case 'snooze':
             if (!input.until) throw new DomainError('BAD_REQUEST', { field: 'until' }, 'Snooze needs a time')
             return this.touch(task, { state: 'snoozed', snoozedUntil: input.until })
           case 'move':
             if (!input.workstream) throw new DomainError('BAD_REQUEST', { field: 'workstream' }, 'Move needs a workstream')
+            if (input.workstream !== task.workstream) this.correct(task, 'workstream', task.workstream, input.workstream)
             return this.touch(task, { workstream: input.workstream })
         }
       }),
@@ -836,6 +946,45 @@ export class Service {
   }
 
   /** Autopilot itself says something on a task, e.g. that a session could not start. */
+  /** A task from Autopilot itself, in the `autopilot` workstream, on the owner's turn. */
+  systemTask(title: string, body: string): Task {
+    return this.transaction(() => {
+      const task = this.insertTask({
+        title: title.slice(0, 120),
+        brief: '',
+        workstream: 'autopilot',
+        priority: 2,
+        state: 'new',
+        source: { signal: null, url: null, mirrors: null },
+        links: [],
+        createdBy: 'system',
+      })
+      this.insertUpdate(task, { kind: 'blocked', body, author: 'system' })
+      return task
+    })
+  }
+
+  /** Reports a problem once; it stays reported (even if the owner closes the task) until it clears. */
+  openHealth(key: string, title: string, body: string): void {
+    this.transaction(() => {
+      if (this.db.prepare('select 1 from health where key = ?').get(key)) return
+      const task = this.systemTask(title, body)
+      this.db.prepare('insert into health (key, task_id, opened_at) values (?, ?, ?)').run(key, task.id, this.iso())
+    })
+  }
+
+  closeHealth(key: string, body: string): void {
+    this.transaction(() => {
+      const row = this.db.prepare('select task_id from health where key = ?').get(key) as Row | undefined
+      if (!row) return
+      this.db.prepare('delete from health where key = ?').run(key)
+      const task = this.task(str(row.task_id))
+      if (task.state === 'done' || task.state === 'canceled') return
+      this.insertUpdate(task, { kind: 'done', body, author: 'system' })
+      this.close(this.task(task.id), 'done')
+    })
+  }
+
   systemUpdate(taskId: string, kind: 'blocked' | 'info', body: string): Update {
     return this.transaction(() => {
       const task = this.task(taskId)

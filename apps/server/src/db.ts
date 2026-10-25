@@ -130,6 +130,40 @@ const MIGRATIONS = [
   create index outbox_pending on outbox(done_at, id);
   `,
   `alter table signal_state add column paused integer not null default 0;`,
+  `
+  alter table signal_state add column failures integer not null default 0;
+  -- The open health task per problem (a failing signal), until the problem clears.
+  create table health (
+    key text primary key,
+    task_id text not null references tasks(id),
+    opened_at text not null
+  );
+  `,
+  `
+  -- What the owner changed on a task a signal filed: what the nightly routing review learns from.
+  create table corrections (
+    id text primary key,
+    at text not null,
+    task_id text not null references tasks(id),
+    kind text not null,
+    before text,
+    after text
+  );
+  create index corrections_at on corrections(at);
+  create table routing_proposals (
+    id text primary key,
+    created_at text not null,
+    reason text not null,
+    changes text not null,
+    state text not null,
+    task_id text references tasks(id)
+  );
+  -- When each of Autopilot's own scheduled jobs last ran.
+  create table jobs (
+    name text primary key,
+    last_run_at text not null
+  );
+  `,
 ]
 
 export const openDatabase = (file: string): DatabaseSync => {

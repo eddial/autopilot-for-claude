@@ -27,6 +27,7 @@ import {
 } from './commands.ts'
 import {
   Decision,
+  Detected,
   Device,
   Machine,
   RoutingProposal,
@@ -151,6 +152,11 @@ export const contract = {
     list: base.meta({ scopes: ['owner', 'read'] }).output(z.array(Signal)),
     run: base.meta({ scopes: OWNER }).input(RunSignal).output(z.array(Decision)),
     pause: base.meta({ scopes: OWNER }).input(PauseSignal).output(Signal),
+  },
+
+  connectors: {
+    /** What onboarding can offer: Claude Code's connectors and the GitHub CLI. Takes a few seconds. */
+    detect: base.meta({ scopes: OWNER }).output(Detected),
   },
 
   workstreams: {

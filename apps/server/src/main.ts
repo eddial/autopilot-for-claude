@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import type { Server } from 'node:http'
 import type { Machine } from '@autopilot/contracts'
 import { createRouter } from './api.ts'
+import { detect } from './detect.ts'
 import { openDatabase } from './db.ts'
 import { readWorkstreams } from './home.ts'
 import { listen } from './http.ts'
@@ -13,6 +14,7 @@ import { ensureDataDir, ensureOwnerToken } from './owner.ts'
 import type { Paths } from './paths.ts'
 import { Service } from './service.ts'
 import { claudeHeadless, Signals, type RunClaude } from './signals.ts'
+import { Routing } from './routing.ts'
 import { Watchers } from './watchers.ts'
 
 /** The repository root, for `prompts/` and `plugin/`. */
@@ -72,6 +74,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   const owner = options.owner ?? 'the owner'
   const signals = new Signals({ service, paths, workstreams, runClaude, prompts, owner, self: options.self, log })
   const watchers = new Watchers({ service, paths, workstreams, runClaude, prompts, owner, log })
+  const routing = new Routing({ service, paths, runClaude, owner, log })
 
   const machine = (): Machine => ({
     id: service.machineId,
@@ -94,6 +97,8 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
       pause: (name, paused) => signals.pause(name, paused),
     },
     machine,
+    applyRouting: (changes) => routing.apply(changes),
+    detect: () => detect(options.claude ?? 'claude'),
     log,
   })
   const server: Server = await listen(router, service, paths.socket)
@@ -106,6 +111,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   const tick = setInterval(() => {
     void signals.tick()
     void watchers.tick()
+    void routing.tick()
   }, 30_000)
   drain()
   log(`listening on ${paths.socket}`)

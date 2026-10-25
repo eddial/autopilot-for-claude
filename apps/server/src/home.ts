@@ -25,7 +25,7 @@ const section = (body: string, title: string): string => {
   return match?.[1]?.trim() ?? ''
 }
 
-const markdownFiles = (dir: string): string[] =>
+export const markdownFiles = (dir: string): string[] =>
   existsSync(dir)
     ? readdirSync(dir)
         .filter((f) => f.endsWith('.md') && !f.startsWith('_'))

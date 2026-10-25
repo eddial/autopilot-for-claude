@@ -126,7 +126,20 @@ export const durationMs = (text: string): number => {
 const WINDOW_CAP = 72 * 3_600_000
 const WINDOW_OVERLAP = 2 * 60_000
 
-type State = { lastCheckedAt: string | null; lastRunAt: string | null; failingSince: string | null; message: string | null; paused: boolean }
+type State = {
+  lastCheckedAt: string | null
+  lastRunAt: string | null
+  failingSince: string | null
+  failures: number
+  message: string | null
+  paused: boolean
+}
+
+/** A signal is reported once it has failed for an hour and at least three runs. */
+const HEALTH_AFTER = 60 * 60_000
+const HEALTH_RUNS = 3
+/** A longer gap between ticks means the Mac slept; that time does not count as failing. */
+const WAKE_GAP = 5 * 60_000
 
 export type SignalsOptions = {
   service: Service
@@ -145,6 +158,7 @@ export type SignalsOptions = {
 export class Signals {
   private readonly o: Required<SignalsOptions>
   private running = false
+  private lastTick: number | null = null
 
   constructor(options: SignalsOptions) {
     this.o = { log: () => {}, ...options }
@@ -168,6 +182,7 @@ export class Signals {
       lastCheckedAt: (row?.last_checked_at as string | null) ?? null,
       lastRunAt: (row?.last_run_at as string | null) ?? null,
       failingSince: (row?.failing_since as string | null) ?? null,
+      failures: Number(row?.failures ?? 0),
       message: (row?.message as string | null) ?? null,
       paused: Number(row?.paused ?? 0) === 1,
     }
@@ -176,11 +191,11 @@ export class Signals {
   private save(name: string, state: State): void {
     this.o.service.db
       .prepare(
-        `insert into signal_state (name, last_checked_at, last_run_at, failing_since, message, paused) values (?, ?, ?, ?, ?, ?)
+        `insert into signal_state (name, last_checked_at, last_run_at, failing_since, failures, message, paused) values (?, ?, ?, ?, ?, ?, ?)
          on conflict(name) do update set last_checked_at = excluded.last_checked_at, last_run_at = excluded.last_run_at,
-         failing_since = excluded.failing_since, message = excluded.message, paused = excluded.paused`,
+         failing_since = excluded.failing_since, failures = excluded.failures, message = excluded.message, paused = excluded.paused`,
       )
-      .run(name, state.lastCheckedAt, state.lastRunAt, state.failingSince, state.message, state.paused ? 1 : 0)
+      .run(name, state.lastCheckedAt, state.lastRunAt, state.failingSince, state.failures, state.message, state.paused ? 1 : 0)
   }
 
   private toSignal(file: SignalFile): Signal {
@@ -227,7 +242,15 @@ export class Signals {
     this.running = true
     try {
       const now = this.o.service.now()
+      const slept = this.lastTick !== null && now.getTime() - this.lastTick > WAKE_GAP
+      this.lastTick = now.getTime()
       for (const file of this.files()) {
+        if (slept) {
+          // Restart the failing clocks: the network and connectors need a moment after a wake.
+          const state = this.state(file.name)
+          if (state.failingSince) this.save(file.name, { ...state, failingSince: now.toISOString() })
+          continue
+        }
         const state = this.state(file.name)
         if (file.paused || state.paused) continue
         // A new digest waits for its first scheduled minute rather than running on sight.
@@ -269,6 +292,7 @@ export class Signals {
     }
     const last = dry ? end.getTime() - dryMinutes * 60_000 : state.lastCheckedAt ? Date.parse(state.lastCheckedAt) : 0
     const from = new Date(Math.max(last - WINDOW_OVERLAP, end.getTime() - cap))
+    const missed = !dry && !file.cron && last - WINDOW_OVERLAP < from.getTime() ? new Date(last) : null
 
     const { secret, token } = service.issueToken(`signal ${name}`, 'signal', null)
     try {
@@ -281,18 +305,36 @@ export class Signals {
       })
       const parsed = SignalOutput.parse(typeof output === 'string' ? JSON.parse(output) : output)
       const decisions = dry ? parsed.items.map((i) => this.preview(name, i)) : parsed.items.map((i) => this.apply(name, i))
-      if (!dry) this.save(name, { ...state, lastCheckedAt: end.toISOString(), lastRunAt: end.toISOString(), failingSince: null, message: null })
+      if (!dry) {
+        this.save(name, { ...state, lastCheckedAt: end.toISOString(), lastRunAt: end.toISOString(), failingSince: null, failures: 0, message: null })
+        service.closeHealth(`signal:${name}`, `The ${name} signal runs again.`)
+        if (missed) {
+          service.systemTask(
+            `Check what the ${name} signal missed`,
+            `The ${name} signal did not run from ${missed.toISOString()} to ${from.toISOString()}, longer than it reaches back. Preview that time with a dry run, or close this.`,
+          )
+        }
+      }
       return decisions
     } catch (error) {
       if (!dry) {
         // Keep lastCheckedAt, so the next run covers the same window again.
         const message = error instanceof Error ? error.message : String(error)
-        this.save(name, {
+        const failing = {
           ...state,
           lastRunAt: end.toISOString(),
           failingSince: state.failingSince ?? end.toISOString(),
+          failures: state.failures + 1,
           message: message.slice(0, 500),
-        })
+        }
+        this.save(name, failing)
+        if (failing.failures >= HEALTH_RUNS && end.getTime() - Date.parse(failing.failingSince) >= HEALTH_AFTER) {
+          service.openHealth(
+            `signal:${name}`,
+            `The ${name} signal is failing`,
+            `The ${name} signal has failed since ${failing.failingSince} (${failing.failures} runs). Last error: ${failing.message}\n\nNothing from ${name} is filed until it runs again; it catches up on the missed time by itself.`,
+          )
+        }
       }
       throw error
     } finally {

@@ -180,3 +180,19 @@ export const RoutingProposal = z.object({
   state: z.enum(['open', 'accepted', 'rejected']),
 })
 export type RoutingProposal = z.infer<typeof RoutingProposal>
+
+/** An MCP server Claude Code has on this Mac, as a headless start reports it; for onboarding. */
+export const Connector = z.object({
+  name: z.string(),
+  status: z.string().describe('As Claude Code reports it: connected, needs-auth, failed, pending'),
+  tools: z.array(z.string()),
+  /** The example signal that reads it, when there is one. */
+  signal: z.string().nullable(),
+})
+export type Connector = z.infer<typeof Connector>
+
+export const Detected = z.object({
+  connectors: z.array(Connector),
+  github: z.object({ cli: z.boolean(), user: z.string().nullable() }),
+})
+export type Detected = z.infer<typeof Detected>

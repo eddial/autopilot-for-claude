@@ -85,6 +85,33 @@ describe('signal runs', () => {
   })
 })
 
+describe('signal health', () => {
+  it('reports a signal failing for an hour and three runs once, and closes it when it runs again', async () => {
+    let fail = true
+    const { service, signals, advance } = setup(() => (fail ? Promise.reject(new Error('Slack unreachable')) : Promise.resolve({ items: [] })))
+    await signals.run('slack')
+    for (let i = 0; i < 4; i++) {
+      advance(25)
+      await signals.run('slack').catch(() => {})
+    }
+    const reported = service.queue({ workstream: 'autopilot' }).items
+    expect(reported.map((i) => [i.task.title, i.band])).toEqual([['The slack signal is failing', 'your_turn']])
+
+    fail = false
+    advance(5)
+    await signals.run('slack')
+    expect(service.getTask(reported[0]?.task.id ?? '').band).toBe('done')
+  })
+
+  it('asks about the time a run could not reach back to', async () => {
+    const { service, signals, advance } = setup(() => Promise.resolve({ items: [] }))
+    await signals.run('slack')
+    advance(4 * 24 * 60)
+    await signals.run('slack')
+    expect(service.queue({ workstream: 'autopilot' }).items.map((i) => i.task.title)).toEqual(['Check what the slack signal missed'])
+  })
+})
+
 describe('digest signals', () => {
   it('waits for the schedule, covers the whole cap the first time, and retries a failure every interval', async () => {
     const prompts: string[] = []
@@ -94,25 +121,30 @@ describe('digest signals', () => {
       return fail ? Promise.reject(new Error('down')) : Promise.resolve({ items: [] })
     })
     writeFileSync(join(dir, 'home', 'signals', 'slack.md'), '---\npaused: true\n---\n')
+    // Ticks come every 30 seconds; a longer gap reads as a wake from sleep, which only resets clocks.
+    const tick = async () => {
+      await signals.tick()
+      await signals.tick()
+    }
     writeFileSync(join(dir, 'home', 'signals', 'digest.md'), '---\ncron: 0 * * * *\nevery: 10m\nwindow_cap: 8d\n---\nWhat shipped.\n')
-    await signals.tick()
+    await tick()
     advance(30)
-    await signals.tick()
+    await tick()
     expect(prompts).toHaveLength(0)
 
     advance(30)
-    await signals.tick()
+    await tick()
     expect(prompts).toHaveLength(1)
     expect(prompts[0]).toContain('from 2026-10-17T11:00:00.000Z up to 2026-10-25T11:00:00.000Z')
 
     advance(60)
     fail = true
-    await signals.tick()
+    await tick()
     advance(5)
-    await signals.tick()
+    await tick()
     advance(5)
     fail = false
-    await signals.tick()
+    await tick()
     expect(prompts).toHaveLength(3)
     expect(prompts[2]).toContain('from 2026-10-25T10:58:00.000Z')
   })

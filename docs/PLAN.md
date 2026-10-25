@@ -49,8 +49,11 @@ and nothing touches Linear.
   schedules for digests; team-ticket mirrors (one task per ticket, branch named after the ticket,
   closed when the ticket closes); watchers (checked every interval while the task waits on others
   or on your review; news wakes the session or comes to Your turn; expiry asks you).
-- Still to build: health, the nightly routing review.
-- Connector detection and the preview over the last day, for onboarding.
+- Built: health (a signal failing for an hour and three runs becomes a task in the `autopilot`
+  workstream and closes itself when the signal runs again; a gap longer than a signal reaches back
+  asks you); the nightly routing review (learns from what you re-file, re-prioritise and dismiss,
+  and proposes edits you accept with `autopilot routing accept`); connector detection
+  (`autopilot connectors`) for onboarding. The preview over the last day is a dry run per signal.
 
 **Done when** a full day runs on the CLI with everything the Linear version did.
 
