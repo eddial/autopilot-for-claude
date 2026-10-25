@@ -131,6 +131,21 @@ Bring the open tickets assigned to you across once, then let the Linear signal k
 4. Resume the Linear signal (Signals → Resume). From then on new assignments and comments arrive by
    themselves, and a ticket closed in Linear closes its task.
 
+## Where sessions work
+
+A session works in a folder, and it is always a git repository:
+
+1. The workstream's `repo:` (a checkout; `repo: default` is the default checkout below): each
+   task gets a worktree of it, on a branch named after the task.
+2. Else, when the task names a GitHub repository (a pull request, an issue, a link in its brief),
+   a worktree of that repository's checkout on this Mac, found by its remote.
+3. Else the task's own folder in `~/Library/Application Support/Autopilot/work/`, made a git
+   repository so its drafts have history.
+
+`home/checkouts.yaml` says where your checkouts are and which one is the default
+(`examples/home/checkouts.yaml` explains both). Without it, the usual places (`~/Sites`, `~/code`,
+`~/dev` and the like) are searched.
+
 ## Everyday commands
 
 | Command | Does |

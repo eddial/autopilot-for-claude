@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Task, Workstream } from '@autopilot/contracts'
+import { checkoutFor, type Checkouts } from './checkouts.ts'
 import { isGitCheckout } from './git.ts'
 import type { Paths } from './paths.ts'
 import type { OutboxItem, Service } from './service.ts'
@@ -37,6 +38,8 @@ export type LauncherOptions = {
    * trusted; null leaves it alone (tests).
    */
   claudeConfig?: string | null
+  /** The checkouts on this Mac, for tasks that name a repository and for `repo: default`. */
+  checkouts?: () => Checkouts
   log?: (message: string) => void
 }
 
@@ -96,6 +99,7 @@ export class Launcher {
       pluginDir: null,
       claudeConfig: null,
       maxParallel: 4,
+      checkouts: () => ({ repos: {}, fallback: null }),
       log: () => {},
       ...options,
     }
@@ -323,11 +327,17 @@ export class Launcher {
   /** Where the session runs: the workstream's folder, a worktree of its repo, or Autopilot's own work folder. */
   private workspace(task: Task, workstream: Workstream | undefined): { cwd: string; branch: string | null } {
     const id = task.source.mirrors ?? task.id
-    if (workstream?.repo) {
-      const repo = workstream.repo
+    // The workstream's checkout; else the one for the repository the task names; else a folder.
+    const checkouts = this.opts.checkouts()
+    if (workstream?.repo === 'default' && !checkouts.fallback)
+      throw new Error(
+        `the ${workstream.name} workstream works in the default checkout, and none is set. Add default: ~/path/to/checkout to ${join(this.opts.paths.home, 'checkouts.yaml')}, then reply here to start again`,
+      )
+    const repo = (workstream?.repo === 'default' ? checkouts.fallback : workstream?.repo) ?? checkoutFor(task, checkouts)
+    if (repo) {
       if (!isGitCheckout(repo))
         throw new Error(
-          `the ${workstream.name} workstream works in ${repo}, which is not a git checkout on this Mac. Point its repo at the right folder, or remove the line, in ${join(this.opts.paths.home, 'workstreams', `${workstream.name}.md`)}; then reply here to start again`,
+          `${task.workstream === workstream?.name ? `the ${task.workstream} workstream works in ` : ''}${repo}, which is not a git checkout on this Mac. Point its repo at the right folder, or remove the line, in ${join(this.opts.paths.home, 'workstreams', `${task.workstream}.md`)}; then reply here to start again`,
         )
       const cwd = join(repo, '.claude', 'worktrees', id)
       const branch = `claude/${id.toLowerCase()}`
@@ -349,6 +359,8 @@ export class Launcher {
     const base = workstream?.folder ?? join(this.opts.paths.data, 'work', task.workstream)
     const cwd = join(base, id)
     mkdirSync(cwd, { recursive: true })
+    // A repository of its own, so what the session makes has history: what changed since review.
+    if (!existsSync(join(cwd, '.git'))) execFileSync('git', ['init', '-q', cwd], { stdio: 'ignore' })
     return { cwd, branch: null }
   }
 

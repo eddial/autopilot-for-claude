@@ -99,3 +99,13 @@ export const keepFor = <T>(ms: number, get: () => Promise<T>, now: () => number 
     return value
   }
 }
+
+/** `keepFor` for an answer worked out on the spot. */
+export const keepSync = <T>(ms: number, get: () => T, now: () => number = Date.now): (() => T) => {
+  let kept: { at: number; value: T } | null = null
+  return () => {
+    if (kept && now() - kept.at < ms) return kept.value
+    kept = { at: now(), value: get() }
+    return kept.value
+  }
+}

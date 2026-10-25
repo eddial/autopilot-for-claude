@@ -130,7 +130,7 @@ export class Setup {
 
   saveWorkstream(input: { name: string; routing: string; urgent: string; repo?: string | undefined }): Workstream {
     // Sessions work in a worktree of it; a folder that is not a checkout would fail every start.
-    if (input.repo && !isGitCheckout(input.repo.replace(/^~(?=\/|$)/, homedir())))
+    if (input.repo && input.repo !== 'default' && !isGitCheckout(input.repo.replace(/^~(?=\/|$)/, homedir())))
       throw new DomainError('BAD_REQUEST', { field: 'repo' }, `${input.repo} is not a git checkout on this Mac`)
     const dir = join(this.o.paths.home, 'workstreams')
     mkdirSync(dir, { recursive: true })

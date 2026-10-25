@@ -35,6 +35,11 @@ Do the work up to the point where the owner only has to decide:
   the repo expects one.
 - **Decision needed** → gather the facts and options; recommend one.
 
+**Where you are.** In a worktree (a branch named after the task), commit there. Otherwise you are
+in the task's own folder, which is a git repository too: commit what you made there before each
+handover (`git add -A && git commit -m "review: draft for Sofie"`), so the owner can see what
+changed since they last looked.
+
 **Link everything you make** with `attach_link` the moment it exists:
 drafts, sent mail, Slack messages, PRs, branches, and every file you write (`file:///…`, the full
 path). The owner reads files in place from the task, so keep them readable: Markdown for prose,

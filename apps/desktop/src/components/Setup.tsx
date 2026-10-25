@@ -406,7 +406,7 @@ export const Setup = ({ onDone }: Props) => {
                 <input
                   className="inline-reply"
                   aria-label={`Repository for ${d.name}`}
-                  placeholder="A folder git knows, like ~/code/your-repo"
+                  placeholder="A folder git knows, like ~/code/your-repo, or default"
                   value={d.repo}
                   onChange={(e) => edit(d.id, { repo: e.target.value })}
                 />

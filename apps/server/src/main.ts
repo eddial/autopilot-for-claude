@@ -4,7 +4,8 @@ import { join } from 'node:path'
 import type { Server } from 'node:http'
 import type { Machine } from '@autopilot/contracts'
 import { createRouter } from './api.ts'
-import { detect, keepFor } from './detect.ts'
+import { loadCheckouts } from './checkouts.ts'
+import { detect, keepFor, keepSync } from './detect.ts'
 import { openDatabase } from './db.ts'
 import { readWorkstreams } from './home.ts'
 import { listen } from './http.ts'
@@ -80,6 +81,8 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     // Tests run their own stand-in for Claude Code and leave ~/.claude.json alone.
     claudeConfig: options.claudeConfig !== undefined ? options.claudeConfig : options.spawn ? null : join(homedir(), '.claude.json'),
     maxParallel: options.maxParallel ?? 4,
+    // Finding checkouts walks a few folders; once in ten minutes is plenty.
+    checkouts: keepSync(10 * 60_000, () => loadCheckouts(paths.home)),
     log,
   })
   launcher.reconcile()

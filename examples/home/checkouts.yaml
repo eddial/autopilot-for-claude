@@ -1,0 +1,8 @@
+# Where your code lives. A task that names a GitHub repository (a pull request, an issue, a link
+# in its brief) gets a worktree of that repository's checkout here, found by its remote.
+# Without roots, Autopilot looks in ~/Sites, ~/code, ~/dev, ~/src, ~/Projects, ~/Developer, ~/repos
+# and ~/git, two folders deep.
+roots: [~/code]
+
+# What a workstream's `repo: default` means: the checkout for code work that names no repository.
+# default: ~/code/product
