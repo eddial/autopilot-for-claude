@@ -138,7 +138,7 @@ const NAV_ICONS = {
 
 export type NavIconName = keyof typeof NAV_ICONS
 
-/** A place in the nav: 16 points in the sidebar, 18 in the rail. */
+/** A place in the nav; the nav draws it at 18 points. */
 export const NavIcon = ({ name, size = 16 }: { name: NavIconName; size?: number }) => (
   <svg
     width={size}
@@ -146,7 +146,7 @@ export const NavIcon = ({ name, size = 16 }: { name: NavIconName; size?: number 
     viewBox="0 0 20 20"
     fill="none"
     stroke="currentColor"
-    strokeWidth="1.4"
+    strokeWidth="1.6"
     strokeLinecap="round"
     strokeLinejoin="round"
     aria-hidden="true"

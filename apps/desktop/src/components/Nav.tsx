@@ -2,7 +2,7 @@ import type { QueueItem, Signal, Workstream } from '@autopilot/contracts'
 import type { ReactNode } from 'react'
 import { titleCase } from '../format.ts'
 import { QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
-import { Button, Dot, NavIcon, Pilot, SidebarIcon, Spacer, type NavIconName } from '../ui.tsx'
+import { Button, Dot, NavIcon, SidebarIcon, type NavIconName } from '../ui.tsx'
 
 type Props = {
   view: View
@@ -112,19 +112,15 @@ export const Nav = ({ onHide, overlay, ...props }: Props & { onHide: () => void;
   const { queues, streams, places } = entries(props)
   return (
     <nav className={`nav collapsible${overlay ? ' overlay' : ''}`} aria-label="Autopilot">
+      {/* Beside the window's own buttons, as in the Claude app. */}
       <div className="nav-top drag">
-        <Spacer />
         <Button kind="icon" aria-label="Hide sidebar" onClick={onHide}>
           <SidebarIcon />
         </Button>
       </div>
-      <div className="brand">
-        <Pilot />
-        <span className="serif">Autopilot</span>
-      </div>
       <Button kind="nav" className="new" aria-current={current(props.view.kind === 'new')} onClick={() => props.go({ kind: 'new' })}>
         <span className="plus" aria-hidden="true">
-          +
+          <NavIcon name="plus" size={14} />
         </span>
         New task
       </Button>
@@ -193,7 +189,7 @@ export const NavRail = ({ onShow, ...props }: Props & { onShow: () => void }) =>
     <nav className="rail" aria-label="Autopilot">
       <div className="rail-top drag" />
       <Button kind="rail" aria-label="Show sidebar" onClick={onShow} onPointerEnter={place} onFocus={place}>
-        <Pilot pixel={1.25} />
+        <SidebarIcon />
         <Flyout entry={{ label: 'Show sidebar', count: 0 }} />
       </Button>
       <Button
@@ -206,7 +202,7 @@ export const NavRail = ({ onShow, ...props }: Props & { onShow: () => void }) =>
         onFocus={place}
       >
         <span className="plus" aria-hidden="true">
-          <NavIcon name="plus" size={15} />
+          <NavIcon name="plus" size={14} />
         </span>
         <Flyout entry={{ label: 'New task', count: 0 }} />
       </Button>
