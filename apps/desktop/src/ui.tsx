@@ -26,6 +26,8 @@ const BUTTON_CLASS = {
   nav: 'nav-item',
   /** An icon in the folded sidebar, named in a flyout on hover. */
   rail: 'rail-item',
+  /** A step in the set-up stepper: open once reached. */
+  step: 'step',
   /** A row in a list; the list styles it. */
   row: 'row',
   /** A row in a short list of things, such as what a task links to. */

@@ -3,6 +3,7 @@ import type { Decision, Detected, SetupStatus, SignalExample, Workstream } from 
 import { api, key } from '../api.ts'
 import { titleCase } from '../format.ts'
 import { Banner, Button, Dot, Meta, Pilot, Row } from '../ui.tsx'
+import { WorkstreamsEditor } from './Workstreams.tsx'
 
 type Props = { onDone: () => void }
 
@@ -21,7 +22,7 @@ const nameOf = (name: string) => ({ github: 'GitHub' })[name] ?? titleCase(name)
 
 /** The first sentence of a description, or its first words when that is long. */
 const gist = (text: string) => {
-  const sentence = /^.*?[.!?:](?=\s|$)/.exec(text)?.[0] ?? text
+  const sentence = /^[\s\S]*?[.!?](?=\s|$)/.exec(text)?.[0]?.replace(/\s+/g, ' ') ?? text
   return sentence.length <= 130 ? sentence : `${sentence.slice(0, 130).replace(/\s+\S*$/, '')}…`
 }
 
@@ -69,6 +70,13 @@ const useSeconds = (on: boolean) => {
 /** Onboarding: five steps to a working queue (docs/PRODUCT.md, Onboarding). */
 export const Setup = ({ onDone }: Props) => {
   const [step, setStep] = useState(0)
+  // How far set-up has been: those steps can be opened again from the stepper.
+  const [reached, setReached] = useState(0)
+  const go = (n: number) => {
+    setStep(n)
+    setReached((r) => Math.max(r, n))
+  }
+  const [existing, setExisting] = useState<Workstream[]>([])
   const [status, setStatus] = useState<SetupStatus | null>(null)
   const [detected, setDetected] = useState<Detected | null>(null)
   const [examples, setExamples] = useState<SignalExample[]>([])
@@ -83,7 +91,13 @@ export const Setup = ({ onDone }: Props) => {
 
   useEffect(() => {
     void api.setup.status().then(setStatus, (e: unknown) => setError(message(e)))
-    void api.signals.examples().then(setExamples, () => {})
+    void api.signals.examples().then(
+      (found) => {
+        setExamples(found)
+        setChosen((c) => (c.size > 0 ? c : new Set(found.filter((e) => e.added).map((e) => e.name))))
+      },
+      () => {},
+    )
     // Said on its own check, in plain words, not as a banner over the page.
     void api.connectors
       .detect()
@@ -95,6 +109,14 @@ export const Setup = ({ onDone }: Props) => {
         ),
       )
   }, [])
+
+  useEffect(() => {
+    void api.workstreams.list().then(setExisting, () => {})
+  }, [])
+  // Set up before: every step can be opened, the sources that are in are ticked, and the
+  // workstreams step shows the ones there are.
+  const open = status && status.signals > 0 ? Math.max(reached, 4) : reached
+  const yours = existing.filter((w) => w.name !== 'autopilot')
 
   const previewing = Object.values(runs).some((r) => r.finished === undefined)
   const seconds = useSeconds(sweep !== null || previewing)
@@ -113,7 +135,7 @@ export const Setup = ({ onDone }: Props) => {
     setError(null)
     try {
       for (const name of chosen) await api.signals.add({ idempotencyKey: key(), name, values })
-      setStep(2)
+      go(2)
     } catch (e) {
       setError(message(e))
     } finally {
@@ -160,7 +182,7 @@ export const Setup = ({ onDone }: Props) => {
           ...(d.repo.trim() ? { repo: d.repo.trim() } : {}),
         })
       }
-      setStep(3)
+      go(3)
       startPreview()
     } catch (e) {
       setError(message(e))
@@ -203,13 +225,19 @@ export const Setup = ({ onDone }: Props) => {
     <section className="pane task" aria-label="Set up">
       <div className="task-head drag" />
       <div className="page narrow">
-        <ol className="steps" aria-label="Steps">
+        <ol className="stepper" aria-label="Steps">
           {STEPS.map((s, i) => (
-            <li key={s} aria-current={i === step ? 'step' : undefined} className={i < step ? 'done' : ''}>
-              {i < step ? '✓' : i + 1} {s}
+            <li key={s} className={i < step || (i <= open && i !== step) ? 'done' : i === step ? 'current' : ''}>
+              <Button kind="step" aria-current={i === step ? 'step' : undefined} disabled={i > open} onClick={() => go(i)}>
+                <span className="step-mark">{i < step || (i <= open && i !== step) ? '✓' : i + 1}</span>
+                <span className="step-name">{s}</span>
+              </Button>
             </li>
           ))}
         </ol>
+        <Meta as="span" className="step-count">
+          Step {step + 1} of {STEPS.length}
+        </Meta>
         {error && <Banner>{error}</Banner>}
 
         {step === 0 && (
@@ -258,7 +286,7 @@ export const Setup = ({ onDone }: Props) => {
             </Check>
             <div className="step-bar">
               <Meta as="span">A few minutes. Nothing is filed until step 5.</Meta>
-              <Button kind="primary" disabled={!status?.claude.installed} onClick={() => setStep(1)}>
+              <Button kind="primary" disabled={!status?.claude.installed} onClick={() => go(1)}>
                 Continue
               </Button>
             </div>
@@ -314,7 +342,7 @@ export const Setup = ({ onDone }: Props) => {
               )
             })}
             <div className="step-bar">
-              <Button kind="tool" onClick={() => setStep(0)}>
+              <Button kind="tool" onClick={() => go(0)}>
                 Back
               </Button>
               <Button kind="primary" disabled={busy || chosen.size === 0} onClick={() => void addSources()}>
@@ -324,7 +352,35 @@ export const Setup = ({ onDone }: Props) => {
           </>
         )}
 
-        {step === 2 && drafts === null && (
+        {step === 2 && drafts === null && sweep === null && yours.length > 0 && (
+          <>
+            <h1 className="serif step-title">Where should work go?</h1>
+            <p className="lead">
+              These are your workstreams. Change the words if they are off; they are how I decide where things land. I can also look through
+              the last two weeks for any that are missing.
+            </p>
+            <WorkstreamsEditor workstreams={existing} items={[]} onChange={setExisting} />
+            <div className="step-bar">
+              <Button kind="tool" onClick={() => go(1)}>
+                Back
+              </Button>
+              <Button kind="tool" onClick={() => void startSweep()}>
+                Look through two weeks for more
+              </Button>
+              <Button
+                kind="primary"
+                onClick={() => {
+                  go(3)
+                  startPreview()
+                }}
+              >
+                Next: what I would have picked up yesterday
+              </Button>
+            </div>
+          </>
+        )}
+
+        {step === 2 && drafts === null && (sweep !== null || yours.length === 0) && (
           <>
             <h1 className="serif step-title">Where should work go?</h1>
             {sweep === null ? (
@@ -334,7 +390,7 @@ export const Setup = ({ onDone }: Props) => {
                   assigned to you) and suggest workstreams from what I find. I only read: nothing is sent, changed or filed.
                 </p>
                 <div className="step-bar">
-                  <Button kind="tool" onClick={() => setStep(1)}>
+                  <Button kind="tool" onClick={() => go(1)}>
                     Back
                   </Button>
                   <Button kind="tool" onClick={() => void manual()}>
@@ -439,12 +495,19 @@ export const Setup = ({ onDone }: Props) => {
           <>
             <h1 className="serif step-title">Yesterday, I would have picked up these</h1>
             <p className="lead">
-              {previewing
-                ? `Reading yesterday from ${list(chosenNames)}. Each source shows as soon as it is done.`
-                : decisions.length === 0
-                  ? 'Nothing from yesterday would have needed you. Quiet days stay quiet; I only bring what asks something of you.'
-                  : `${plural(filed.length, 'new task', 'new tasks')}, ${plural(decisions.filter((d) => d.action === 'updated').length, 'follow-up', 'follow-ups')}, ${leftAlone.length} left alone.`}
+              {Object.keys(runs).length === 0
+                ? 'I can read yesterday from your sources and show what I would have brought you, without filing anything.'
+                : previewing
+                  ? `Reading yesterday from ${list(chosenNames)}. Each source shows as soon as it is done.`
+                  : decisions.length === 0
+                    ? 'Nothing from yesterday would have needed you. Quiet days stay quiet; I only bring what asks something of you.'
+                    : `${plural(filed.length, 'new task', 'new tasks')}, ${plural(decisions.filter((d) => d.action === 'updated').length, 'follow-up', 'follow-ups')}, ${leftAlone.length} left alone.`}
             </p>
+            {Object.keys(runs).length === 0 && (
+              <Button kind="tool" disabled={chosen.size === 0} onClick={() => startPreview()}>
+                Read yesterday from {list(chosenNames) || 'your sources'}
+              </Button>
+            )}
             {Object.entries(runs).map(([name, run]) => (
               <div key={name} className="card">
                 <div className="card-head">
@@ -487,10 +550,10 @@ export const Setup = ({ onDone }: Props) => {
               </details>
             )}
             <div className="step-bar">
-              <Button kind="tool" onClick={() => setStep(2)}>
+              <Button kind="tool" onClick={() => go(2)}>
                 Back
               </Button>
-              <Button kind="primary" onClick={() => setStep(4)}>
+              <Button kind="primary" onClick={() => go(4)}>
                 {previewing ? 'Go on without waiting' : 'Looks right'}
               </Button>
             </div>
@@ -511,7 +574,7 @@ export const Setup = ({ onDone }: Props) => {
             />
             <Check ok title="Sessions prepare drafts and branches" detail="You send and merge." />
             <div className="step-bar">
-              <Button kind="tool" onClick={() => setStep(3)}>
+              <Button kind="tool" onClick={() => go(3)}>
                 Back
               </Button>
               <Button kind="primary" disabled={busy} onClick={() => void switchOn()}>

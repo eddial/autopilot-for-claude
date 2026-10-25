@@ -28,6 +28,12 @@ const draftOf = (w: Workstream | null): Draft => ({
   autonomy: w?.autonomy ?? 2,
 })
 
+/** A home folder path as people write it. */
+const tilde = (path: string) => path.replace(/^\/Users\/[^/]+/, '~')
+
+/** The files wrap their lines; a card lets them flow, keeping paragraphs and list items. */
+const unwrap = (text: string) => text.replace(/([^\n])\n(?![\n\s]*[-*•]\s|\n)/g, '$1 ')
+
 const rows = (text: string) => Math.min(10, Math.max(3, Math.ceil(text.length / 80) + text.split('\n').length - 1))
 
 /** One workstream: read as a card, edited in place. A new one starts open, with an empty name. */
@@ -92,8 +98,12 @@ const WorkstreamCard = ({
           <span className="name">{titleCase(workstream.name)}</span>
           <span className="meta">
             {AUTONOMY[workstream.autonomy]} ·{' '}
-            {workstream.repo ? `worktrees of ${workstream.repo}` : workstream.folder ? `in ${workstream.folder}` : 'in its own folders'} ·{' '}
-            {open} open
+            {workstream.repo
+              ? `worktrees of ${tilde(workstream.repo)}`
+              : workstream.folder
+                ? `in ${tilde(workstream.folder)}`
+                : 'in its own folders'}{' '}
+            · {open} open
           </span>
           <div className="actions">
             <Button kind="tool" onClick={() => setEditing(true)}>
@@ -102,7 +112,7 @@ const WorkstreamCard = ({
           </div>
         </div>
         <Meta top={3} className="prose">
-          {workstream.routing}
+          {unwrap(workstream.routing)}
           {workstream.urgent ? `\nUrgent: ${workstream.urgent}` : ''}
         </Meta>
       </div>

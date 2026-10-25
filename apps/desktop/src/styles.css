@@ -1307,27 +1307,107 @@ button {
 
 /* ── set up ── */
 
-.steps {
+.stepper {
   display: flex;
-  flex-wrap: wrap;
-  gap: 18px;
+  align-items: center;
   margin: 8px 0 0;
   padding: 0;
   list-style: none;
-  font-size: 13px;
-  color: var(--text-3);
 }
 
-.steps [aria-current='step'] {
+.stepper li {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+}
+
+.stepper li:last-child {
+  flex: 0 0 auto;
+}
+
+/* The line to the next step, green once that stretch is behind. */
+.stepper li:not(:last-child)::after {
+  flex: 1;
+  height: 1px;
+  margin: 0 10px;
+  background: var(--border-strong);
+  content: '';
+}
+
+.stepper li.done::after {
+  background: var(--pilot);
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 4px;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: none;
+  color: var(--text-3);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.step:hover:not(:disabled) {
+  background: var(--hover);
   color: var(--text);
 }
 
-.steps .done {
+.step:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.step-mark {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-round);
+  font-size: 12px;
+}
+
+.stepper .done .step {
+  color: var(--text-2);
+}
+
+.stepper .done .step-mark {
+  border-color: var(--pilot);
+  background: var(--pilot-tint);
   color: var(--pilot);
+}
+
+.stepper .current .step {
+  color: var(--text);
+}
+
+.stepper .current .step-mark {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--window);
+}
+
+.step-count {
+  display: block;
+  margin-top: 18px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .page h1.step-title {
   margin-top: 24px;
+}
+
+.page .step-count + h1.step-title {
+  margin-top: 6px;
 }
 
 .card-head.pickable {
