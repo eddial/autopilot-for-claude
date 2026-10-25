@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Task, Workstream } from '@autopilot/contracts'
+import { isGitCheckout } from './git.ts'
 import type { Paths } from './paths.ts'
 import type { OutboxItem, Service } from './service.ts'
 
@@ -324,6 +325,10 @@ export class Launcher {
     const id = task.source.mirrors ?? task.id
     if (workstream?.repo) {
       const repo = workstream.repo
+      if (!isGitCheckout(repo))
+        throw new Error(
+          `the ${workstream.name} workstream works in ${repo}, which is not a git checkout on this Mac. Point its repo at the right folder, or remove the line, in ${join(this.opts.paths.home, 'workstreams', `${workstream.name}.md`)}; then reply here to start again`,
+        )
       const cwd = join(repo, '.claude', 'worktrees', id)
       const branch = `claude/${id.toLowerCase()}`
       if (!existsSync(cwd)) {

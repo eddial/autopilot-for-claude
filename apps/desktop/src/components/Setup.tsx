@@ -129,7 +129,8 @@ export const Setup = ({ onDone }: Props) => {
     setSweep(null)
     try {
       const options = await api.workstreams.examples()
-      setDrafts(options.map(draftOf))
+      // An example's repository is a placeholder, not a folder on this Mac.
+      setDrafts(options.map((w) => draftOf({ ...w, repo: null })))
     } catch (e) {
       setError(message(e))
       setDrafts([])

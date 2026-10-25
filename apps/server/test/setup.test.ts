@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -24,13 +25,13 @@ describe('onboarding set-up', () => {
     expect(slack).toContain('<@U0123>')
     expect(slack).toMatch(/^paused: true$/m)
 
-    const saved = setup.saveWorkstream({
-      name: 'engineering',
-      routing: 'Pull requests and bugs.',
-      urgent: 'prod down',
-      repo: '~/code/product',
-    })
-    expect(saved).toMatchObject({ routing: 'Pull requests and bugs.', urgent: 'prod down' })
+    // A repository must be a checkout on this Mac, or every session would fail to start.
+    const engineering = { name: 'engineering', routing: 'Pull requests and bugs.', urgent: 'prod down' }
+    expect(() => setup.saveWorkstream({ ...engineering, repo: join(dir, 'no-such-repo') })).toThrow(DomainError)
+    const repo = join(dir, 'product')
+    execFileSync('git', ['init', '-q', repo])
+    const saved = setup.saveWorkstream({ ...engineering, repo })
+    expect(saved).toMatchObject({ routing: 'Pull requests and bugs.', urgent: 'prod down', repo })
     expect(saved.work).toContain('failing test first')
     // Every home gets the autopilot workstream, for health and routing proposals.
     expect(readFileSync(join(paths.home, 'workstreams', 'autopilot.md'), 'utf8')).toContain('## Routing')
