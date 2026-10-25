@@ -72,6 +72,18 @@ autopilot signal slack --dry 60     # what the last hour would have filed; files
 If the preview looks right, the signal runs by itself every few minutes from now on (the first run
 only marks where to start). `autopilot status` shows its health; `autopilot ls` the queue.
 
+## The Mac app
+
+```sh
+pnpm install          # downloads Electron the first time
+pnpm desktop          # builds and opens the app; it starts the server if it is not running
+```
+
+The app lives in the menu bar with the Your turn count. ⌘N or ⌃⌥Space opens New task from
+anywhere. **Set up** in the sidebar walks through onboarding: it checks Claude Code, reads your
+Claude connectors, adds the signals you pick from `examples/home/`, previews yesterday, saves your
+workstreams and switches the signals on. Prefer it over copying files by hand.
+
 ## Everyday commands
 
 | Command | Does |

@@ -15,6 +15,8 @@ import type { Paths } from './paths.ts'
 import { Service } from './service.ts'
 import { claudeHeadless, Signals, type RunClaude } from './signals.ts'
 import { Routing } from './routing.ts'
+import { installService } from './service-install.ts'
+import { Setup } from './setup.ts'
 import { Watchers } from './watchers.ts'
 
 /** The repository root, for `prompts/` and `plugin/`. */
@@ -99,6 +101,8 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     machine,
     applyRouting: (changes) => routing.apply(changes),
     detect: () => detect(options.claude ?? 'claude'),
+    setup: new Setup({ paths, examples: join(ROOT, 'examples', 'home'), claude: options.claude ?? 'claude' }),
+    installService: () => void installService({ ...options.self, paths }),
     log,
   })
   const server: Server = await listen(router, service, paths.socket)

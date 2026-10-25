@@ -13,7 +13,8 @@
     "lint": "oxlint",
     "schema": "pnpm --filter @autopilot/contracts schema",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
-    "autopilot": "node apps/server/bin/autopilot.js"
+    "autopilot": "node apps/server/bin/autopilot.js",
+    "desktop": "pnpm --filter @autopilot/desktop start"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
@@ -23,6 +24,8 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "electron",
+      "esbuild",
       "node-pty"
     ]
   }

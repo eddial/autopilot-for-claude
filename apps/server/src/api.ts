@@ -13,6 +13,7 @@ import {
 } from '@autopilot/contracts'
 import { implement, ORPCError } from '@orpc/server'
 import { DomainError, type Principal, type Service } from './service.ts'
+import type { Setup } from './setup.ts'
 
 export type Context = { principal: Principal | null }
 
@@ -30,6 +31,9 @@ export type Deps = {
   /** Writes an accepted routing proposal into the home files. */
   applyRouting: (changes: RoutingProposal['changes']) => void
   detect: () => Promise<Detected>
+  setup: Setup
+  /** Installs the launchd agent for the server. */
+  installService: () => void
   log?: (message: string) => void
 }
 
@@ -55,7 +59,7 @@ const taskOf = (service: Service, path: readonly string[], input: unknown): stri
   return null
 }
 
-export const createRouter = ({ service, workstreams, signals, machine, applyRouting, detect, log = () => {} }: Deps) => {
+export const createRouter = ({ service, workstreams, signals, machine, applyRouting, detect, setup, installService, log = () => {} }: Deps) => {
   const os = implement(contract).$context<Context>()
 
   /** Every call: check the token against the procedure's scopes, then map domain errors to typed ones. */
@@ -92,7 +96,7 @@ export const createRouter = ({ service, workstreams, signals, machine, applyRout
           throw errors.CONFLICT({ data: error.data as { reason: 'already_answered' | 'version_mismatch' }, message: error.message })
         case 'SERVICE_UNAVAILABLE':
           throw errors.SERVICE_UNAVAILABLE({
-            data: error.data as { what: 'runner'; detail: string },
+            data: error.data as { what: 'runner' | 'connector' | 'claude'; detail: string },
             message: error.message,
           })
         default:
@@ -166,6 +170,7 @@ export const createRouter = ({ service, workstreams, signals, machine, applyRout
     updates: {
       post: guarded.updates.post.handler(({ input, context }) => service.postUpdate(input, authorOf(context.principal))),
       answer: guarded.updates.answer.handler(({ input }) => service.answerUpdate(input)),
+      instruct: guarded.updates.instruct.handler(({ input }) => service.instruct(input)),
     },
 
     sessions: {
@@ -195,14 +200,38 @@ export const createRouter = ({ service, workstreams, signals, machine, applyRout
       list: guarded.signals.list.handler(() => signals.list()),
       run: guarded.signals.run.handler(({ input }) => signals.run(input.name, input.dryMinutes)),
       pause: guarded.signals.pause.handler(({ input }) => signals.pause(input.name, input.paused)),
+      examples: guarded.signals.examples.handler(() => setup.signalExamples()),
+      add: guarded.signals.add.handler(({ input }) => {
+        setup.addSignal(input.name, input.values)
+        const added = signals.list().find((s) => s.name === input.name)
+        if (!added) throw new DomainError('NOT_FOUND', { entity: 'signal', id: input.name })
+        return added
+      }),
+    },
+
+    setup: {
+      status: guarded.setup.status.handler(() => setup.status()),
+      installService: guarded.setup.installService.handler(() => {
+        installService()
+        return setup.status()
+      }),
     },
 
     connectors: {
-      detect: guarded.connectors.detect.handler(() => detect()),
+      detect: guarded.connectors.detect.handler(async () => {
+        try {
+          return await detect()
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error)
+          throw new DomainError('SERVICE_UNAVAILABLE', { what: 'claude', detail }, `Claude Code could not be asked: ${detail}`)
+        }
+      }),
     },
 
     workstreams: {
       list: guarded.workstreams.list.handler(() => workstreams()),
+      examples: guarded.workstreams.examples.handler(() => setup.workstreamExamples()),
+      save: guarded.workstreams.save.handler(({ input }) => setup.saveWorkstream(input)),
     },
 
     machines: {

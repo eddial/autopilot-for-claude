@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -82,6 +82,16 @@ describe('signal runs', () => {
     await expect(signals.run('slack')).rejects.toThrow('Slack unreachable')
     expect(signals.list()[0]?.health).toMatchObject({ state: 'failing', message: 'Slack unreachable' })
     expect(started).not.toBeNull()
+  })
+})
+
+describe('switching a signal on', () => {
+  it('takes the paused line out of a signal file that starts paused', () => {
+    const { signals, dir } = setup(() => Promise.resolve({ items: [] }))
+    writeFileSync(join(dir, 'home', 'signals', 'slack.md'), '---\npaused: true\nevery: 5m\n---\nDMs.\n')
+    expect(signals.list()[0]?.paused).toBe(true)
+    expect(signals.pause('slack', false).paused).toBe(false)
+    expect(readFileSync(join(dir, 'home', 'signals', 'slack.md'), 'utf8')).toBe('---\nevery: 5m\n---\nDMs.\n')
   })
 })
 

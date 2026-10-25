@@ -47,6 +47,12 @@
     },
     "gated": {
       "type": "boolean"
+    },
+    "title": {
+      "type": "string"
+    },
+    "workstream": {
+      "type": "string"
     }
   },
   "required": [

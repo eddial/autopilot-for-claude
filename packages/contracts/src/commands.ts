@@ -80,6 +80,9 @@ export const hasAnswer = <S extends z.ZodType<{ optionId?: string | undefined; t
 
 export const AnswerUpdate = hasAnswer(command(AnswerUpdateFields))
 
+/** Tells the task's session something without an open ask; starts a session when there is none. */
+export const Instruct = command({ taskId: TaskId, body: z.string().min(1).max(20_000) })
+
 export const AttachLink = command({ taskId: TaskId, link: Link })
 
 export const AddWatcher = command({ taskId: TaskId, ...WatcherSpec.shape })
@@ -118,6 +121,22 @@ export const FileItem = command({
 export const DecideRouting = command({ proposalId: Id, accept: z.boolean() })
 
 export const RunSignal = command({ name: z.string(), dryMinutes: z.int().min(1).max(1440).optional() })
+
+export const AddSignal = command({
+  name: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
+  /** Values for the example's placeholders. */
+  values: z.record(z.string(), z.string().max(200)).default({}),
+})
+
+export const SaveWorkstream = command({
+  name: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(40),
+  routing: z.string().min(1).max(4_000),
+  urgent: z.string().max(500).default(''),
+  /** A git checkout for code work; each task gets a worktree. */
+  repo: z.string().max(500).optional(),
+})
+
+export const InstallService = command({})
 
 export const PauseSignal = command({ name: z.string(), paused: z.boolean() })
 

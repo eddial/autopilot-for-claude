@@ -9,7 +9,9 @@ import { createRouter } from '../src/api.ts'
 import { connect, type Client } from '../src/client.ts'
 import { openDatabase } from '../src/db.ts'
 import { listen } from '../src/http.ts'
+import { resolvePaths } from '../src/paths.ts'
 import { Service } from '../src/service.ts'
+import { Setup } from '../src/setup.ts'
 
 let server: Server
 let service: Service
@@ -29,6 +31,8 @@ beforeAll(async () => {
     service,
     workstreams: () => [],
     applyRouting: () => {},
+    setup: new Setup({ paths: resolvePaths({ AUTOPILOT_DATA: dir }), examples: join(dir, 'examples'), claude: 'claude' }),
+    installService: () => {},
     detect: () => Promise.resolve({ connectors: [], github: { cli: false, user: null } }),
     signals: {
       list: () => [],

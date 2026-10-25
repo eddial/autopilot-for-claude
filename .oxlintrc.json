@@ -1,13 +1,32 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "unicorn", "import", "vitest"],
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "import",
+    "vitest",
+    "react"
+  ],
   "categories": {
     "correctness": "error",
     "suspicious": "error"
   },
   "rules": {
     "typescript/no-explicit-any": "error",
-    "typescript/no-non-null-assertion": "error"
+    "typescript/no-non-null-assertion": "error",
+    "import/no-unassigned-import": [
+      "error",
+      {
+        "allow": [
+          "**/*.css"
+        ]
+      }
+    ],
+    "react/react-in-jsx-scope": "off"
   },
-  "ignorePatterns": ["**/schema/**", "**/node_modules/**"]
+  "ignorePatterns": [
+    "**/schema/**",
+    "**/node_modules/**",
+    "**/dist/**"
+  ]
 }

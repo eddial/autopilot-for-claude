@@ -12,7 +12,12 @@ product, architecture, API and plan; `docs/decisions/` records why things are th
   pty and delivers answers when they are idle; `signals.ts` runs `claude -p` for each signal.
 - `prompts/`: the shared and filing instructions signal runs get. `plugin/`: the Claude Code plugin
   sessions load, with the `work` skill.
-- `apps/desktop`, `apps/web` and `apps/mobile` arrive in later phases.
+- `apps/desktop`: the Mac app. `electron/` is the main process (it holds the owner token and serves
+  the contract to the window over a MessagePort through `proxy.ts`); `src/` is the React window,
+  which keeps the queue with `applyEvent` from the contracts. `pnpm desktop` runs it;
+  `pnpm --filter @autopilot/desktop web` serves the window in a browser against the running server.
+  `test/ui.test.ts` drives the real window in Chromium against a real server.
+- `apps/mobile` (the iPhone) arrives in phase 3.
 - How to run it on a Mac: `docs/RUNNING.md`.
 
 ## Commands

@@ -17,6 +17,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+        env:
+          # The tests drive the window in Chromium; Electron itself is not needed.
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: pnpm --filter @autopilot/desktop exec playwright-core install chromium-headless-shell
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test

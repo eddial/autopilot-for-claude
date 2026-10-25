@@ -227,7 +227,13 @@ export class Signals {
   }
 
   pause(name: string, paused: boolean): Signal {
-    const file = this.file(name)
+    let file = this.file(name)
+    // An example added through onboarding starts `paused: true` in its file; resuming takes that out.
+    if (!paused && file.paused) {
+      const path = join(this.o.paths.home, 'signals', `${name}.md`)
+      writeFileSync(path, readFileSync(path, 'utf8').replace(/^paused: true.*\n/m, ''))
+      file = this.file(name)
+    }
     this.save(name, { ...this.state(name), paused })
     return this.toSignal(file)
   }
@@ -371,6 +377,8 @@ export class Signals {
       reason: `${item.title}: ${item.reason}`,
       searches: item.searches,
       gated: item.gated,
+      title: item.title,
+      ...(item.workstream ? { workstream: item.workstream } : {}),
     }
   }
 

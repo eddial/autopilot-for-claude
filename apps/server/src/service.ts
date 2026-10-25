@@ -17,6 +17,7 @@ import {
   type Decision,
   type EditTask,
   type FileItem,
+  type Instruct,
   type Link,
   type MatchItems,
   type PostUpdate,
@@ -682,6 +683,18 @@ export class Service {
       const body = [option?.label, input.text].filter(Boolean).join('\n\n')
       const instruction = this.insertUpdate(task, { kind: 'instruction', body, author: 'owner', answers: ask.id })
       this.closeAsks(task.id)
+      this.touch(task, { state: 'running', snoozedUntil: null, seenAt: this.iso() })
+      if (this.liveSession(task)) this.enqueue('deliver_answer', { taskId: task.id, updateId: instruction.id })
+      else this.enqueue('start_session', { taskId: task.id })
+      return instruction
+    })
+  }
+
+  instruct(input: In<typeof Instruct>): Update {
+    return this.idempotent(input.idempotencyKey, 'updates.instruct', () => {
+      const task = this.task(input.taskId)
+      this.assertOpen(task)
+      const instruction = this.insertUpdate(task, { kind: 'instruction', body: input.body, author: 'owner' })
       this.touch(task, { state: 'running', snoozedUntil: null, seenAt: this.iso() })
       if (this.liveSession(task)) this.enqueue('deliver_answer', { taskId: task.id, updateId: instruction.id })
       else this.enqueue('start_session', { taskId: task.id })

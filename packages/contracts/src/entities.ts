@@ -108,6 +108,9 @@ export const Decision = z.object({
   reason: z.string(),
   searches: z.array(z.string()),
   gated: z.boolean(),
+  /** On a preview: the item and where it would go. */
+  title: z.string().optional(),
+  workstream: z.string().optional(),
 })
 export type Decision = z.infer<typeof Decision>
 
@@ -196,3 +199,26 @@ export const Detected = z.object({
   github: z.object({ cli: z.boolean(), user: z.string().nullable() }),
 })
 export type Detected = z.infer<typeof Detected>
+
+/** A signal from `examples/home/signals/` that onboarding can add. */
+export const SignalExample = z.object({
+  name: z.string(),
+  /** The first paragraph of its rules. */
+  summary: z.string(),
+  tools: z.array(z.string()),
+  /** Placeholders the person fills in when adding it, like `YOUR_SLACK_USER_ID`. */
+  fields: z.array(z.string()),
+  added: z.boolean(),
+})
+export type SignalExample = z.infer<typeof SignalExample>
+
+/** What onboarding checks before anything else. */
+export const SetupStatus = z.object({
+  claude: z.object({ installed: z.boolean(), version: z.string().nullable() }),
+  /** The server runs as a launchd agent, so it keeps going when the app is closed. */
+  service: z.boolean(),
+  home: z.string(),
+  signals: z.int(),
+  workstreams: z.int(),
+})
+export type SetupStatus = z.infer<typeof SetupStatus>

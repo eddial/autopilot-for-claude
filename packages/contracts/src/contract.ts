@@ -2,8 +2,11 @@ import { eventIterator, oc } from '@orpc/contract'
 import { z } from 'zod'
 import { ChangesPage, QueueEvent, QueueSnapshot, Seq } from './changes.ts'
 import {
+  AddSignal,
   AddWatcher,
   AnswerUpdate,
+  InstallService,
+  Instruct,
   AttachLink,
   BulkTasks,
   CloseTask,
@@ -21,6 +24,7 @@ import {
   RemoveWatcher,
   RevokeToken,
   RunSignal,
+  SaveWorkstream,
   SnoozeTask,
   TaskRef,
   WaitOn,
@@ -28,6 +32,8 @@ import {
 import {
   Decision,
   Detected,
+  SetupStatus,
+  SignalExample,
   Device,
   Machine,
   RoutingProposal,
@@ -122,6 +128,7 @@ export const contract = {
     post: base.meta({ scopes: ['session', 'watcher'], ownTask: true }).input(PostUpdate).output(Update),
     /** Records the answer as an `instruction` and delivers it into the session when it is idle. */
     answer: base.meta({ scopes: OWNER }).input(AnswerUpdate).output(Update),
+    instruct: base.meta({ scopes: OWNER }).input(Instruct).output(Update),
   },
 
   sessions: {
@@ -152,6 +159,15 @@ export const contract = {
     list: base.meta({ scopes: ['owner', 'read'] }).output(z.array(Signal)),
     run: base.meta({ scopes: OWNER }).input(RunSignal).output(z.array(Decision)),
     pause: base.meta({ scopes: OWNER }).input(PauseSignal).output(Signal),
+    /** The example signals onboarding offers, and whether each is added. */
+    examples: base.meta({ scopes: OWNER }).output(z.array(SignalExample)),
+    /** Copies an example into the home, paused until it is resumed. */
+    add: base.meta({ scopes: OWNER }).input(AddSignal).output(Signal),
+  },
+
+  setup: {
+    status: base.meta({ scopes: OWNER }).output(SetupStatus),
+    installService: base.meta({ scopes: OWNER }).input(InstallService).output(SetupStatus),
   },
 
   connectors: {
@@ -161,6 +177,10 @@ export const contract = {
 
   workstreams: {
     list: base.meta({ scopes: [...READERS, 'signal'] }).output(z.array(Workstream)),
+    /** The example workstreams, as starting points. */
+    examples: base.meta({ scopes: OWNER }).output(z.array(Workstream)),
+    /** Writes `## Routing` (and the repository); keeps the rest of an existing file. */
+    save: base.meta({ scopes: OWNER }).input(SaveWorkstream).output(Workstream),
   },
 
   machines: {

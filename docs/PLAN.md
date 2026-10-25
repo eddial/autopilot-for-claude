@@ -59,6 +59,14 @@ and nothing touches Linear.
 
 ## Phase 2 · Mac app
 
+**Status:** first version built and tested in Chromium against a real server; not yet run as an
+Electron app on a Mac, signed or packaged. Built: the window (navigation, queue with answering in
+place, task conversation, New task, Signals and workstreams with routing proposals, onboarding
+steps 1 to 5), the menu bar pilot with the Your turn count, notifications, ⌘N and ⌃⌥Space. It runs
+from the checkout with `pnpm desktop` and starts the server when the launchd agent is not running.
+Still to do: packaging, signing and notarising with electron-updater; the owner token in the
+Keychain; Servers; saved views; bulk actions; ⌘K; the light theme.
+
 - Electron shell: one window with navigation, list and task columns (each hideable or resizable),
   the narrow layout for beside Claude Code, menu bar with the Your turn count, notifications, global
   quick-add shortcut, first-run setup that installs the server. Signed and notarised; updates with
