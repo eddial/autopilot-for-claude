@@ -385,6 +385,7 @@ export const Setup = ({ onDone }: Props) => {
                   </div>
                 </div>
                 {d.evidence.length > 0 && <Meta className="meta-line">Like: {d.evidence.join(' · ')}</Meta>}
+                <span className="field-label">What lands here</span>
                 <textarea
                   className="inline-reply"
                   rows={Math.min(8, Math.max(3, Math.ceil(d.routing.length / 80)))}
@@ -393,17 +394,19 @@ export const Setup = ({ onDone }: Props) => {
                   value={d.routing}
                   onChange={(e) => edit(d.id, { routing: e.target.value })}
                 />
+                <span className="field-label">Urgent when</span>
                 <input
                   className="inline-reply"
                   aria-label={`When ${d.name} is urgent`}
-                  placeholder="Urgent when…"
+                  placeholder="An outage, a deadline today…"
                   value={d.urgent}
                   onChange={(e) => edit(d.id, { urgent: e.target.value })}
                 />
+                <span className="field-label">Code checkout, for code work (optional)</span>
                 <input
                   className="inline-reply"
                   aria-label={`Repository for ${d.name}`}
-                  placeholder="For code work: the checkout, like ~/code/product (optional)"
+                  placeholder="A folder git knows, like ~/code/your-repo"
                   value={d.repo}
                   onChange={(e) => edit(d.id, { repo: e.target.value })}
                 />
@@ -430,7 +433,9 @@ export const Setup = ({ onDone }: Props) => {
             <p className="lead">
               {previewing
                 ? `Reading yesterday from ${list(chosenNames)}. Each source shows as soon as it is done.`
-                : `${plural(filed.length, 'new task', 'new tasks')}, ${plural(decisions.filter((d) => d.action === 'updated').length, 'follow-up', 'follow-ups')}, ${leftAlone.length} left alone.`}
+                : decisions.length === 0
+                  ? 'Nothing from yesterday would have needed you. Quiet days stay quiet; I only bring what asks something of you.'
+                  : `${plural(filed.length, 'new task', 'new tasks')}, ${plural(decisions.filter((d) => d.action === 'updated').length, 'follow-up', 'follow-ups')}, ${leftAlone.length} left alone.`}
             </p>
             {Object.entries(runs).map(([name, run]) => (
               <div key={name} className="card">
