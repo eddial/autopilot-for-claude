@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Pressable, RefreshControl, SectionList, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import type { Band, QueueItem } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
@@ -43,6 +43,17 @@ export default function QueueScreen() {
     else router.push({ pathname: '/queue/[id]', params: { id } })
   }
   const selectedItem = split ? items.find((i) => i.task.id === selected) : undefined
+
+  // A phone has no hover: once online, fetch the conversations at the top of the queue in the
+  // background, so opening them needs no request.
+  const top = items
+    .filter((i) => i.band === 'your_turn' || i.band === 'new')
+    .slice(0, 15)
+    .map((i) => i.task.id)
+    .join(',')
+  useEffect(() => {
+    if (status === 'online' && top) void sync?.prefetch(top.split(','))
+  }, [sync, status, top])
 
   const list = (
     <SectionList

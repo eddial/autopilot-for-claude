@@ -16,7 +16,10 @@ person does shows on the next frame, and nothing they do waits on the network or
   fetched, the feed keeps it current, so a task opens without a request.
 - **Render only what is on screen.** Lists are virtualised and rows are memoised on the objects the
   store keeps stable, so a change to one task renders one row.
-- **Nothing on the way to the first frame touches the network.** Fonts and assets are bundled.
+- **Nothing on the way to the first frame touches the network.** Fonts and assets are bundled. The
+  phone reads its pairing and cached queue synchronously at launch, so it opens on the queue.
+- **Taps never write the whole cache.** The outbox (small) is saved at once; the queue at most once
+  a second, after catching up. A command is sent straight away, beside any long poll.
 - **The server answers in bulk.** The queue snapshot is three queries, not two per task, and every
   statement is prepared once.
 
@@ -34,6 +37,8 @@ run's summary.
 | `window.firstRows.cached` | 150 ms | Opening the window again: page start to the first row, from the saved queue |
 | `window.firstRows` | 400 ms | The very first start, with nothing saved yet |
 | `window.js.gzipKB` | 200 KB | The window's JavaScript, gzipped |
+| `client.queueItems.1000` | 4 ms | What the window and the phone compute on every change, in V8; Hermes is a few times slower and stays under a frame |
+| `phone.bundle.MB` | 8 MB | The phone's compiled Hermes bundle (CI measures it); most of the phone's launch time |
 | `server.snapshot.1000` | 25 ms | The whole queue of 1,000 tasks |
 | `server.taskDetail`, `server.write`, `server.changesSince` | 2 ms | One task; one write; catching up on the feed |
 

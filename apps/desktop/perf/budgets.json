@@ -4,11 +4,13 @@
   "server.taskDetail": 2,
   "server.write": 2,
   "server.changesSince": 2,
+  "client.queueItems.1000": 4,
   "window.firstRows": 400,
   "window.firstRows.cached": 150,
   "window.openTask": 20,
   "window.answer": 20,
   "window.switchView": 20,
   "window.longTasks.count": 0,
-  "window.js.gzipKB": 200
+  "window.js.gzipKB": 200,
+  "phone.bundle.MB": 8
 }

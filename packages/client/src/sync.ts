@@ -1,5 +1,6 @@
 import {
   applyEvent,
+  applyToDetail,
   emptyQueue,
   queueItems,
   type LiveQueue,
@@ -14,11 +15,14 @@ import { Link, Offline, timeoutSignal, type Api, type Connection, type PinnedFet
 export type Storage = {
   get(key: string): Promise<string | null>
   set(key: string, value: string): Promise<void>
+  /** A synchronous read, where the storage has one: the first frame can then show the cache. */
+  getSync?(key: string): string | null
 }
 
 export const memoryStorage = (): Storage => {
   const values = new Map<string, string>()
   return {
+    getSync: (key) => values.get(key) ?? null,
     get: (key) => Promise.resolve(values.get(key) ?? null),
     set: (key, value) => {
       values.set(key, value)
@@ -36,6 +40,8 @@ export type SyncState = {
   queue: LiveQueue
   outbox: Pending[]
   conflicts: Conflict[]
+  /** Conversations fetched once and kept current from the feed, so a task opens without a request. */
+  details: Record<string, TaskDetail>
 }
 
 export type SyncOptions = {
@@ -58,7 +64,9 @@ export type SyncOptions = {
 export class Sync {
   private readonly o: Required<Omit<SyncOptions, 'onYourTurn'>> & Pick<SyncOptions, 'onYourTurn'>
   private readonly link: Link
-  private state: SyncState = { status: 'connecting', routeKind: null, lastSyncedAt: null, queue: emptyQueue, outbox: [], conflicts: [] }
+  private state: SyncState = { status: 'connecting', routeKind: null, lastSyncedAt: null, queue: emptyQueue, outbox: [], conflicts: [], details: {} }
+  private saveTimer: ReturnType<typeof setTimeout> | null = null
+  private readonly fetching = new Set<string>()
   private readonly listeners = new Set<() => void>()
   private running = false
   /** Each start gets a number; a loop from before a stop ends instead of running beside the new one. */
@@ -85,6 +93,23 @@ export class Sync {
     for (const listener of this.listeners) listener()
   }
 
+  /** Reads the cache synchronously when the storage can, so the first frame shows the queue. */
+  restore(): boolean {
+    const getSync = this.o.storage.getSync
+    if (!getSync) return false
+    const read = <T>(key: string, fallback: T): T => {
+      const text = getSync(key)
+      return text ? (JSON.parse(text) as T) : fallback
+    }
+    this.set({
+      queue: read('queue', emptyQueue),
+      outbox: read('outbox', []),
+      conflicts: read('conflicts', []),
+      lastSyncedAt: read('lastSyncedAt', null),
+    })
+    return true
+  }
+
   async load(): Promise<void> {
     const read = async <T>(key: string, fallback: T): Promise<T> => {
       const text = await this.o.storage.get(key)
@@ -98,13 +123,23 @@ export class Sync {
     })
   }
 
+  /** The outbox and conflicts are small and must survive a crash: saved at once. */
   private async save(): Promise<void> {
     await Promise.all([
-      this.o.storage.set('queue', JSON.stringify(this.state.queue)),
       this.o.storage.set('outbox', JSON.stringify(this.state.outbox)),
       this.o.storage.set('conflicts', JSON.stringify(this.state.conflicts)),
-      this.o.storage.set('lastSyncedAt', JSON.stringify(this.state.lastSyncedAt)),
     ])
+  }
+
+  /** The queue is large and the server has it anyway: saved at most once a second, never on a tap. */
+  private saveQueueSoon(): void {
+    this.saveTimer ??= setTimeout(() => {
+      this.saveTimer = null
+      void Promise.all([
+        this.o.storage.set('queue', JSON.stringify(this.state.queue)),
+        this.o.storage.set('lastSyncedAt', JSON.stringify(this.state.lastSyncedAt)),
+      ]).catch(() => {})
+    }, 1000)
   }
 
   /** The queue as the screen shows it: the server's, with what is still in the outbox applied on top. */
@@ -123,6 +158,8 @@ export class Sync {
     const n = (this.state.outbox.at(-1)?.n ?? 0) + 1
     this.set({ outbox: [...this.state.outbox, { id: this.o.newKey(), n, at: this.o.now().toISOString(), command }] })
     await this.save()
+    // Straight away, beside any long poll in progress; a failure leaves it for the next round.
+    if (this.link.route()) void this.flush().catch(() => {})
     this.kick()
   }
 
@@ -170,7 +207,7 @@ export class Sync {
       await this.flush()
       await this.catchUp(waitSeconds)
       this.set({ status: 'online', lastSyncedAt: this.o.now().toISOString() })
-      await this.save()
+      this.saveQueueSoon()
     } catch {
       // No route, or a call failed on the way: the next round probes the routes again.
       this.link.lost()
@@ -183,6 +220,7 @@ export class Sync {
     // Never synced: start from a snapshot; afterwards only the changes since.
     const first = this.state.lastSyncedAt === null
     let queue = this.state.queue
+    let details = this.state.details
     if (first) {
       queue = applyEvent(queue, { type: 'snapshot', snapshot: await this.link.api.queue.list({}) })
     } else {
@@ -191,11 +229,14 @@ export class Sync {
           { after: queue.seq, wait },
           { signal: timeoutSignal((wait + 15) * 1000) },
         )
-        for (const change of page.changes) queue = applyEvent(queue, change)
+        for (const change of page.changes) {
+          queue = applyEvent(queue, change)
+          if (Object.keys(details).length > 0) details = Object.fromEntries(Object.entries(details).map(([id, d]) => [id, applyToDetail(d, change)]))
+        }
         if (!page.more) break
       }
     }
-    this.set({ queue })
+    this.set({ queue, details })
     if (!first && this.o.onYourTurn) {
       const fresh = this.items().filter((i) => i.band === 'your_turn' && !before.has(i.task.id))
       if (fresh.length > 0) this.o.onYourTurn(fresh)
@@ -213,17 +254,39 @@ export class Sync {
     }
   }
 
-  /** A task with its conversation; the cached copy when the server is out of reach. */
+  /** The conversation the phone already has, without waiting: in memory, or saved from last time. */
+  cachedDetail(taskId: string): TaskDetail | null {
+    const kept = this.state.details[taskId]
+    if (kept) return kept
+    const saved = this.o.storage.getSync?.(`task:${taskId}`)
+    return saved ? (JSON.parse(saved) as TaskDetail) : null
+  }
+
+  /** A task with its conversation, fetched and then kept current from the feed; the saved copy offline. */
   async detail(taskId: string): Promise<TaskDetail | null> {
     if (taskId.startsWith(PENDING_PREFIX)) return null
+    if (this.state.details[taskId]) return this.state.details[taskId] ?? null
+    if (this.fetching.has(taskId)) return this.cachedDetail(taskId)
+    this.fetching.add(taskId)
     try {
       if (!this.link.route() && !(await this.link.probe())) throw new Error('offline')
       const detail = await this.link.api.tasks.get({ id: taskId }, { signal: timeoutSignal(10_000) })
-      await this.o.storage.set(`task:${taskId}`, JSON.stringify(detail))
+      this.set({ details: { ...this.state.details, [taskId]: detail } })
+      void this.o.storage.set(`task:${taskId}`, JSON.stringify(detail)).catch(() => {})
       return detail
     } catch {
       const cached = await this.o.storage.get(`task:${taskId}`)
       return cached ? (JSON.parse(cached) as TaskDetail) : null
+    } finally {
+      this.fetching.delete(taskId)
+    }
+  }
+
+  /** Fetches, one at a time and in the background, the conversations likely to be opened next. */
+  async prefetch(taskIds: string[]): Promise<void> {
+    for (const id of taskIds) {
+      if (this.state.status !== 'online') return
+      if (!this.state.details[id]) await this.detail(id)
     }
   }
 

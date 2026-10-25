@@ -5,7 +5,8 @@ import { readdirSync, readFileSync, writeFileSync, mkdtempSync, appendFileSync }
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
-import { CreateTask, PostUpdate } from '@autopilot/contracts'
+import { overlay, type Pending } from '@autopilot/client'
+import { applyEvent, CreateTask, emptyQueue, PostUpdate, queueItems } from '@autopilot/contracts'
 import { connect } from '@autopilot/server/client'
 import { startServer } from '@autopilot/server/main'
 import { readOwnerToken } from '@autopilot/server/owner'
@@ -68,6 +69,12 @@ results['server.snapshot.1000'] = median(() => service.queue())
 results['server.taskDetail'] = median(() => service.getTask('AP-500'), 200)
 results['server.changesSince'] = median(() => service.changesSince(service.latestSeq() - 50, 500), 200)
 results['server.write'] = median(() => service.postUpdate(PostUpdate.parse({ idempotencyKey: key(), taskId: 'AP-7', kind: 'info', body: 'More.' }), 'session'), 200)
+
+// What the window and the phone compute on every change: the queue as shown, outbox on top. It runs
+// here in V8; Hermes on the phone is a few times slower, which the budget leaves room for.
+const live = applyEvent(emptyQueue, { type: 'snapshot', snapshot: service.queue() })
+const outbox: Pending[] = [{ id: 'p1', n: 1, at: new Date().toISOString(), command: { kind: 'snooze', taskId: 'AP-3', until: new Date(Date.now() + 3_600_000).toISOString() } }]
+results['client.queueItems.1000'] = median(() => queueItems(overlay(live, outbox, new Date()), new Date()), 50)
 
 // ── the window, in Chromium against that server ──
 
@@ -186,6 +193,15 @@ try {
     .reduce((total, f) => total + gzipSync(readFileSync(join(assets, f))).length / 1024, 0)
 } catch {
   console.log('(no dist/renderer: run pnpm --filter @autopilot/desktop build first for the bundle size)')
+}
+
+// ── the phone's compiled bundle, when CI exported it (its size is most of the launch time) ──
+
+const iosBundle = process.env.IOS_BUNDLE_DIR
+if (iosBundle) {
+  const find = (folder: string): string[] =>
+    readdirSync(folder, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? find(join(folder, e.name)) : e.name.endsWith('.hbc') ? [join(folder, e.name)] : []))
+  results['phone.bundle.MB'] = find(iosBundle).reduce((total, f) => total + readFileSync(f).length / 1_048_576, 0)
 }
 
 // ── the verdict ──

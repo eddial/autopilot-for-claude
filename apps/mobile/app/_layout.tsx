@@ -2,18 +2,22 @@ import { useEffect, useState } from 'react'
 import { router, Stack } from 'expo-router'
 import * as Notifications from 'expo-notifications'
 import { StatusBar } from 'expo-status-bar'
-import { connectTo, loadConnection, registerBackgroundSync, useItems, useSyncInstance, useWakeUps } from '../src/store.ts'
+import { booted, connectTo, loadConnection, registerBackgroundSync, useItems, useSyncInstance, useWakeUps } from '../src/store.ts'
 import { colours } from '../src/theme.ts'
 
 export default function Root() {
-  const [ready, setReady] = useState(false)
+  // Ready at once when the pairing and cache were read before the first frame (the usual case).
+  const [ready, setReady] = useState(() => booted() !== null)
   const sync = useSyncInstance()
   useWakeUps(sync)
 
   useEffect(() => {
-    void loadConnection()
-      .then((connection) => (connection ? connectTo(connection, false) : null))
-      .finally(() => setReady(true))
+    const started = booted()
+    if (started) started.start()
+    else
+      void loadConnection()
+        .then((connection) => (connection ? connectTo(connection, false) : null))
+        .finally(() => setReady(true))
     void registerBackgroundSync().catch(() => {})
     void Notifications.requestPermissionsAsync().catch(() => {})
     // A tapped notification opens its task.

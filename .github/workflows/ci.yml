@@ -44,7 +44,11 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: pnpm --filter @autopilot/desktop exec playwright-core install chromium-headless-shell
+      - name: The phone's bundle, for its size
+        run: cd apps/mobile && CI=1 npx expo export --platform ios --output-dir "$RUNNER_TEMP/ios-bundle"
       - run: pnpm perf
+        env:
+          IOS_BUNDLE_DIR: ${{ runner.temp }}/ios-bundle
 
   # The Mac app as a real Electron app: it starts the server and the window goes live on its feed.
   desktop:

@@ -17,6 +17,7 @@ const BACKGROUND_TASK = 'autopilot.sync'
 
 /** The cache and outbox live in SQLite, so they survive the app being closed. */
 const storage: Storage = {
+  getSync: (key) => KV.getItemSync(`autopilot.${key}`),
   get: (key) => KV.getItem(`autopilot.${key}`),
   set: (key, value) => KV.setItem(`autopilot.${key}`, value),
 }
@@ -44,17 +45,38 @@ export const loadConnection = async (): Promise<Connection | null> => {
   return text ? (JSON.parse(text) as Connection) : null
 }
 
-/** Starts syncing with a server, from pairing or from the Keychain at launch. */
+/** Starts syncing with a server just paired with. */
 export const connectTo = async (connection: Connection, save: boolean): Promise<Sync> => {
   if (save) await SecureStore.setItemAsync(CONNECTION_KEY, JSON.stringify(connection), { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK })
   current?.sync.stop()
   const sync = create(connection)
-  await sync.load()
+  if (!sync.restore()) await sync.load()
   sync.start()
   current = { sync, connection }
   changed()
   return sync
 }
+
+/**
+ * At launch, before the first frame: the pairing from the Keychain and the queue from SQLite, both
+ * read synchronously, so the app opens on the queue as it was rather than on an empty screen.
+ */
+const boot = (): void => {
+  try {
+    const text = SecureStore.getItem(CONNECTION_KEY)
+    if (!text) return
+    const connection = JSON.parse(text) as Connection
+    const sync = create(connection)
+    sync.restore()
+    current = { sync, connection }
+  } catch {
+    // Unreadable (the device is still locked after a restart): the layout pairs or retries.
+  }
+}
+boot()
+
+/** The sync started at launch, if the pairing could be read before the first frame. */
+export const booted = (): Sync | null => current?.sync ?? null
 
 export const unpair = async (): Promise<void> => {
   current?.sync.stop()
@@ -74,6 +96,16 @@ export const useSyncInstance = (): Sync | null =>
 
 export const serverName = (): string => current?.connection.server ?? 'your Mac'
 
+/** A conversation as the phone has it now, fetched in the background if it has none yet. */
+export const useDetail = (taskId: string) => {
+  const sync = useSyncInstance()
+  const { details } = useSyncState()
+  useEffect(() => {
+    void sync?.detail(taskId)
+  }, [sync, taskId])
+  return details[taskId] ?? sync?.cachedDetail(taskId) ?? null
+}
+
 const emptyState: SyncState = {
   status: 'offline',
   routeKind: null,
@@ -81,6 +113,7 @@ const emptyState: SyncState = {
   queue: { seq: 0, tasks: {}, asks: {}, sessions: {} },
   outbox: [],
   conflicts: [],
+  details: {},
 }
 
 export const useSyncState = (): SyncState => {

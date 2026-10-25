@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { pendingText } from '@autopilot/client'
 import type { QueueItem, TaskDetail, Update } from '@autopilot/contracts'
 import * as Haptics from 'expo-haptics'
 import { age, titleCase, updateLabel } from '../format.ts'
-import { useSyncInstance, useSyncState } from '../store.ts'
+import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
 import { colours, serif } from '../theme.ts'
 
 /** A task's conversation with the reply box; the same in a pushed screen and in the wide split. */
@@ -12,22 +12,13 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
   const sync = useSyncInstance()
   const { conflicts, outbox } = useSyncState()
   const { task, openAsk } = item
-  const [loaded, setLoaded] = useState<{ version: string; detail: TaskDetail } | null>(null)
-  const detail = loaded?.detail ?? null
+  // From the phone's own copy, kept current by the feed; the ask from the queue until it has one.
+  const detail = useDetail(task.id)
   const [text, setText] = useState('')
-  const version = `${task.id}|${task.updatedAt}|${openAsk?.id ?? ''}`
-
-  useEffect(() => {
-    let cancelled = false
-    void sync?.detail(task.id).then((d) => {
-      if (!cancelled && d) setLoaded({ version, detail: d })
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [sync, task.id, version])
 
   const pending = outbox.filter((p) => 'taskId' in p.command && p.command.taskId === task.id)
+  const answered = new Set(pending.flatMap((p) => (p.command.kind === 'answer' ? [p.command.updateId] : [])))
+  const updates = detail?.updates ?? (openAsk ? [openAsk] : [])
   const refused = conflicts.filter((c) => 'taskId' in c.command && c.command.taskId === task.id)
 
   const send = async (command: Parameters<NonNullable<typeof sync>['send']>[0]) => {
@@ -52,8 +43,8 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
         </Text>
         <Text style={styles.title}>{task.title}</Text>
         {task.brief ? <Text style={[styles.body, { color: colours.text2 }]}>{task.brief}</Text> : null}
-        {(detail?.updates ?? []).map((u) => (
-          <Entry key={u.id} update={u} onOption={(optionId) => void send({ kind: 'answer', taskId: task.id, updateId: u.id, optionId })} />
+        {updates.map((u) => (
+          <Entry key={u.id} update={u} answered={answered.has(u.id)} onOption={(optionId) => void send({ kind: 'answer', taskId: task.id, updateId: u.id, optionId })} />
         ))}
         {pending.map((p) => {
           const words = pendingText(p.command) ?? optionLabel(detail, p.command)
@@ -112,7 +103,8 @@ const optionLabel = (detail: TaskDetail | null, command: { kind: string; optionI
   return null
 }
 
-const Entry = ({ update, onOption }: { update: Update; onOption: (optionId: string) => void }) => {
+const Entry = ({ update, answered, onOption }: { update: Update; answered: boolean; onOption: (optionId: string) => void }) => {
+  const asking = update.open && !answered
   if (update.kind === 'instruction' && update.author === 'owner') {
     return (
       <View style={styles.bubble}>
@@ -122,7 +114,7 @@ const Entry = ({ update, onOption }: { update: Update; onOption: (optionId: stri
   }
   return (
     <View style={{ gap: 6 }}>
-      <Text style={[styles.label, update.open && { color: colours.clay }]}>
+      <Text style={[styles.label, asking && { color: colours.clay }]}>
         {updateLabel(update)}
         {update.author === 'session' ? '' : ` · ${titleCase(update.author)}`} · {age(update.createdAt)}
       </Text>
@@ -134,7 +126,7 @@ const Entry = ({ update, onOption }: { update: Update; onOption: (optionId: stri
           ))}
         </View>
       )}
-      {update.open && update.options.length > 0 && (
+      {asking && update.options.length > 0 && (
         <View style={styles.row}>
           {update.options.map((o) => (
             <Pressable key={o.id} style={styles.option} onPress={() => onOption(o.id)} accessibilityRole="button">

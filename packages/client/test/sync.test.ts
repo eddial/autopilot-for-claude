@@ -6,7 +6,7 @@ import { connect } from '@autopilot/server/client'
 import { startServer, type ServerHandle } from '@autopilot/server/main'
 import { readOwnerToken } from '@autopilot/server/owner'
 import { resolvePaths, type Paths } from '@autopilot/server/paths'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { pair, type Connection } from '../src/connection.ts'
 import { nodePinnedFetch } from '../src/node.ts'
 import { memoryStorage, Sync } from '../src/sync.ts'
@@ -96,6 +96,24 @@ describe('the phone against the Mac', () => {
     expect(reopened.getState()).toMatchObject({ status: 'online', outbox: [], conflicts: [{ reason: 'already_answered' }] })
     expect(back.service.queue().items.map((i) => i.task.title)).toContain('Draft the release note')
     expect(reopened.items().map((i) => i.task.title)).toContain('Draft the release note')
+  }, 30_000)
+
+  it('sends a command at once even during a long poll, and keeps an opened conversation current', async () => {
+    const { handle, invite } = await setup()
+    const connection = await pair(invite, { name: 'Test iPhone', kind: 'iphone' }, pinned, key())
+    const sync = new Sync({ connection, pinned, storage: memoryStorage() })
+    const task = handle.service.createTask(CreateTask.parse({ idempotencyKey: key(), title: 'Pick a colour', start: false }))
+    const ask = handle.service.postUpdate(PostUpdate.parse({ idempotencyKey: key(), taskId: task.id, kind: 'question', body: 'Red or blue?' }), 'session')
+    await sync.syncOnce()
+    await sync.detail(task.id)
+
+    const polling = sync.syncOnce(20)
+    await sync.send({ kind: 'answer', taskId: task.id, updateId: ask.id, text: 'Blue' })
+    // The Mac has it long before the poll would have ended, and the poll ends because it did.
+    await vi.waitFor(() => expect(handle.service.getTask(task.id).updates.map((u) => u.kind)).toEqual(['question', 'instruction']), { timeout: 3000 })
+    await polling
+    // The conversation fetched before is current from the feed, without fetching it again.
+    expect(sync.cachedDetail(task.id)?.updates.map((u) => `${u.kind}:${String(u.open)}`)).toEqual(['question:false', 'instruction:false'])
   }, 30_000)
 
   it('will not talk to a server whose certificate is not the paired one', async () => {
