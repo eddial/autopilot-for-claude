@@ -1,3 +1,4 @@
 .expo/
-ios/
-android/
+# The generated native projects; a module's own ios/ folder is source and stays.
+/ios/
+/android/

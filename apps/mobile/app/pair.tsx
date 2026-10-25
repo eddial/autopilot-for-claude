@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import { pair } from '@autopilot/client'
 import { Invite } from '@autopilot/contracts'
 import { CameraView, useCameraPermissions } from 'expo-camera'
+import { useLocalSearchParams } from 'expo-router'
 import { randomUUID } from 'expo-crypto'
 import * as Device from 'expo-device'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -11,9 +12,13 @@ import { connectTo } from '../src/store.ts'
 import { colours, radius } from '@autopilot/design'
 import { Button, Pilot, bannerText, type } from '../src/ui.tsx'
 
-/** First run: scan the QR code the Mac app shows under Servers → Pair a device. */
+/**
+ * First run: scan the QR code the Mac app shows under Servers → Pair a device, or open the same
+ * invite as a link (`autopilot://pair?invite=…`), which is how a phone without a camera pairs.
+ */
 export default function PairScreen() {
   const [permission, requestPermission] = useCameraPermissions()
+  const { invite: linked } = useLocalSearchParams<{ invite?: string }>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -36,6 +41,12 @@ export default function PairScreen() {
       setBusy(false)
     }
   }
+
+  useEffect(() => {
+    if (linked) void scanned(linked)
+    // Once per link opened; scanned is recreated each render.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [linked])
 
   return (
     <SafeAreaView style={styles.screen}>

@@ -19,7 +19,6 @@ export default function Root() {
         .then((connection) => (connection ? connectTo(connection, false) : null))
         .finally(() => setReady(true))
     void registerBackgroundSync().catch(() => {})
-    void Notifications.requestPermissionsAsync().catch(() => {})
     // A tapped notification opens its task.
     const tapped = Notifications.addNotificationResponseReceivedListener((response) => {
       const taskId = response.notification.request.content.data?.taskId
@@ -27,6 +26,12 @@ export default function Root() {
     })
     return () => tapped.remove()
   }, [])
+
+  // Asked once paired, when there is something to be told about, rather than at first launch.
+  const paired = sync !== null
+  useEffect(() => {
+    if (paired) void Notifications.requestPermissionsAsync().catch(() => {})
+  }, [paired])
 
   // The app icon's badge is the Your turn count.
   const items = useItems()
@@ -40,6 +45,7 @@ export default function Root() {
     <>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colours.window } }}>
+        <Stack.Screen name="index" />
         <Stack.Protected guard={sync !== null}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="new" options={{ presentation: 'modal', headerShown: true, title: 'New task' }} />
