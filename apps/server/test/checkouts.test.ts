@@ -53,7 +53,8 @@ describe('where a session works', () => {
       CreateTask.parse({
         idempotencyKey: 'co-000001',
         title: 'Review the PR',
-        brief: 'Please review https://github.com/acme/site/pull/12',
+        // Named in passing, before a comma, as people write it.
+        brief: 'In https://github.com/acme/site, please review the open PR.',
       }),
     )
     service.createTask(CreateTask.parse({ idempotencyKey: 'co-000002', title: 'Draft the investor update' }))

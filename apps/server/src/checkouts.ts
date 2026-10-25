@@ -23,7 +23,8 @@ const ROOTS = ['~/Sites', '~/code', '~/dev', '~/src', '~/Projects', '~/Developer
 
 const expand = (path: string) => (path.startsWith('~/') ? join(homedir(), path.slice(2)) : path)
 
-const GITHUB = /github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?(?=[/#?\s)>\]"'`]|$)/gi
+/** `github.com/owner/name`, wherever it sits in text: before a comma, a full stop, a bracket. */
+const GITHUB = /github\.com[/:]([\w.-]+)\/([\w-]+(?:\.(?!git\b)[\w-]+)*)/gi
 
 /** Every `owner/name` a text names on GitHub, in order. */
 export const githubRepos = (text: string): string[] => [...text.matchAll(GITHUB)].map((m) => `${m[1]}/${m[2]}`.toLowerCase())
