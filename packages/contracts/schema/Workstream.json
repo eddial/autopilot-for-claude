@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "routing": {
+      "type": "string",
+      "description": "What lands here"
+    },
+    "urgent": {
+      "type": "string",
+      "description": "When it is urgent"
+    },
+    "work": {
+      "type": "string",
+      "description": "How the work is done"
+    },
+    "autonomy": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4
+    },
+    "repo": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "folder": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "machineId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "name",
+    "routing",
+    "urgent",
+    "work",
+    "autonomy",
+    "repo",
+    "folder",
+    "machineId"
+  ],
+  "additionalProperties": false
+}

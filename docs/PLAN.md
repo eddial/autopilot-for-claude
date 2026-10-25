@@ -5,6 +5,9 @@ something usable. Everything else is listed under [Later](#later-out-of-scope).
 
 ## Phase 0 · Foundations
 
+**Status:** done. The MCP tool list is in [API.md](API.md#mcp) and generated into
+`packages/contracts/schema/mcp-tools.json`.
+
 - pnpm workspace with `apps/`, `packages/`, `prompts/` and `plugin/`; TypeScript strict, Vitest,
   oxlint; CI on macOS.
 - `packages/contracts`: Zod schemas for entities, update kinds and commands; the oRPC contract with

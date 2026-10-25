@@ -52,24 +52,31 @@ Every command takes an `idempotencyKey` and is authorised by scope.
 
 ## Queries and subscriptions
 
-- `tasks.list { view?, band?, workstream?, filter?, cursor? }`, `tasks.get { id }`
-- `signals.list`, `workstreams.list`, `machines.list`, `devices.list`, `tokens.list`
-- `subscribe.queue`: a snapshot, then numbered changes (`task.upserted`, `task.removed`,
-  `update.added`, `session.changed`). The client keeps the last number and resumes from it.
-- `subscribe.task { id }`: the task's snapshot, then its events.
+- `queue.list { band?, workstream?, filter? }`: a snapshot of the queue with its change number.
+- `queue.subscribe { after? }`: a snapshot (unless resuming from `after`), then every change
+  (`task.upserted`, `task.removed`, `update.added`, `update.changed`, `session.changed`,
+  `signal.changed`, `workstream.changed`) as it happens.
+- `changes.since { after, limit }`: catch up after being offline, page by page.
+- `tasks.get { id }`: the task with its updates, session and watchers.
+- `signals.list`, `workstreams.list`, `routing.list`, `machines.list`, `devices.list`, `tokens.list`.
+- `meta.version`: the API version and the oldest client it serves; needs no token.
 
 ## MCP
 
-The server exposes a subset of the commands and queries as MCP tools, described from the same
-schemas. Local agents connect with `autopilot mcp` (stdio bridge to the server); remote agents use
-streamable HTTP with a token.
+The server exposes a subset of the procedures as MCP tools, with the same input minus the
+idempotency key, which the bridge fills in. Local agents connect with `autopilot mcp` (stdio bridge
+to the server); remote agents use streamable HTTP with a token. The tool list, with each tool's
+scopes and input schema, is generated into `packages/contracts/schema/mcp-tools.json`.
 
-| Tool | Scope |
+| Tool | Scopes |
 | --- | --- |
-| `list_tasks`, `get_task` | `read` |
-| `create_task` | `create` |
-| `post_update`, `attach_link`, `add_watcher`, `wait_on` | `session` (own task) |
-| `answer_update`, `start_task`, `close_task`, `snooze_task` | `owner` |
+| `list_tasks` | `owner`, `read`, `create` |
+| `get_task` | `owner`, `read`, `create`, `session` (own task) |
+| `list_workstreams` | `owner`, `read`, `create`, `signal` |
+| `create_task` | `owner`, `create`, `session` |
+| `post_update` | `session` (own task), `watcher` |
+| `attach_link`, `add_watcher`, `wait_on` | `owner`, `session` (own task) |
+| `answer_update`, `start_task`, `snooze_task`, `close_task` | `owner` |
 | `match_items`, `file_item` | `signal` |
 
 Sessions get a `session` token for their own task automatically; signal runs get a `signal` token.
@@ -77,6 +84,13 @@ Other agents (Claude Desktop, a Lleverage agent) get a token from Servers → Ag
 
 ## Errors
 
-Typed errors in the oRPC contract: `NotFound`, `Forbidden` (scope), `Conflict` (stale version or a
-second open ask), `Invalid`, `Unavailable` (a runner or connector is down). Retries are safe
-because of idempotency keys.
+Typed errors in the oRPC contract:
+
+- `NOT_FOUND`: the task, update or other entity does not exist.
+- `FORBIDDEN`: the token's scope is not allowed, or a session token names another task.
+- `CONFLICT`: the ask was already answered elsewhere, the task was closed meanwhile, or the client's
+  API version is too old.
+- `SERVICE_UNAVAILABLE`: a runner, a connector or Claude itself is down.
+
+Invalid input is rejected with oRPC's validation error. Retries are safe because of idempotency
+keys.

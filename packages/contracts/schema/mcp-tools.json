@@ -1,0 +1,614 @@
+[
+  {
+    "name": "list_tasks",
+    "description": "List tasks in the queue, ordered by whose turn it is. Filter by band or workstream.",
+    "scopes": [
+      "owner",
+      "read",
+      "create"
+    ],
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "band": {
+          "type": "string",
+          "enum": [
+            "your_turn",
+            "new",
+            "running",
+            "waiting",
+            "snoozed",
+            "done"
+          ]
+        },
+        "workstream": {
+          "type": "string"
+        },
+        "filter": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  {
+    "name": "get_task",
+    "description": "Get a task with its updates, its session and what it waits on.",
+    "scopes": [
+      "owner",
+      "read",
+      "create",
+      "session"
+    ],
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+          "description": "Task identifier, e.g. AP-212"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "list_workstreams",
+    "description": "List workstreams: what lands in each, when it is urgent and how the work is done.",
+    "scopes": [
+      "owner",
+      "read",
+      "create",
+      "signal"
+    ],
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "create_task",
+    "description": "Create a task. With start true (the default) a Claude Code session starts on it with the brief as its first prompt.",
+    "scopes": [
+      "owner",
+      "create",
+      "session"
+    ],
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "brief": {
+          "default": "",
+          "type": "string",
+          "maxLength": 20000
+        },
+        "workstream": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "links": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "subtitle": {
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "url",
+              "title"
+            ]
+          }
+        },
+        "start": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "title"
+      ]
+    }
+  },
+  {
+    "name": "post_update",
+    "description": "Post an update on your task: decision (with options), question, review, blocked, waiting, done or info. Asks put the task on the owner’s turn.",
+    "scopes": [
+      "session",
+      "watcher"
+    ],
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "taskId": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+          "description": "Task identifier, e.g. AP-212"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "decision",
+            "question",
+            "review",
+            "blocked",
+            "waiting",
+            "done",
+            "info"
+          ]
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000
+        },
+        "options": {
+          "default": [],
+          "maxItems": 6,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 32
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ]
+          }
+        },
+        "waitingOn": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "attachments": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "subtitle": {
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "url",
+              "title"
+            ]
+          }
+        }
+      },
+      "required": [
+        "taskId",
+        "kind",
+        "body"
+      ]
+    }
+  },
+  {
+    "name": "attach_link",
+    "description": "Attach a link to your task: a branch, pull request, draft or file you created.",
+    "scopes": [
+      "owner",
+      "session"
+    ],
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "taskId": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+          "description": "Task identifier, e.g. AP-212"
+        },
+        "link": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "subtitle": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          "required": [
+            "url",
+            "title"
+          ]
+        }
+      },
+      "required": [
+        "taskId",
+        "link"
+      ]
+    }
+  },
+  {
+    "name": "add_watcher",
+    "description": "Watch what your task waits on (a reply, a review); news brings the task back.",
+    "scopes": [
+      "owner",
+      "session"
+    ],
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "taskId": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+          "description": "Task identifier, e.g. AP-212"
+        },
+        "what": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "every": {
+          "type": "string",
+          "pattern": "^\\d+[mhd]$",
+          "description": "Duration such as 30m, 1h or 14d"
+        },
+        "until": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+          "description": "ISO 8601 timestamp"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "taskId",
+        "what"
+      ]
+    }
+  },
+  {
+    "name": "wait_on",
+    "description": "Hand your task over to someone else, optionally with a watcher.",
+    "scopes": [
+      "owner",
+      "session"
+    ],
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+          "description": "Task identifier, e.g. AP-212"
+        },
+        "on": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "watcher": {
+          "type": "object",
+          "properties": {
+            "what": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "every": {
+              "type": "string",
+              "pattern": "^\\d+[mhd]$",
+              "description": "Duration such as 30m, 1h or 14d"
+            },
+            "until": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+              "description": "ISO 8601 timestamp"
+            },
+            "tools": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "what"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "on"
+      ]
+    }
+  },
+  {
+    "name": "answer_update",
+    "description": "Answer an open decision or question on a task, as the owner.",
+    "scopes": [
+      "owner"
+    ],
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "updateId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "optionId": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 20000
+        }
+      },
+      "required": [
+        "updateId"
+      ]
+    }
+  },
+  {
+    "name": "start_task",
+    "description": "Start a session on a new task.",
+    "scopes": [
+      "owner"
+    ],
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+          "description": "Task identifier, e.g. AP-212"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "snooze_task",
+    "description": "Snooze a task until a time; it comes back on the owner’s turn.",
+    "scopes": [
+      "owner"
+    ],
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+          "description": "Task identifier, e.g. AP-212"
+        },
+        "until": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+          "description": "ISO 8601 timestamp"
+        }
+      },
+      "required": [
+        "id",
+        "until"
+      ]
+    }
+  },
+  {
+    "name": "close_task",
+    "description": "Close a task as done or canceled; its session ends.",
+    "scopes": [
+      "owner"
+    ],
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+          "description": "Task identifier, e.g. AP-212"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "done",
+            "canceled"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "outcome"
+      ]
+    }
+  },
+  {
+    "name": "match_items",
+    "description": "Search active tasks before filing, by source URL or a short name.",
+    "scopes": [
+      "signal"
+    ],
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "queries": {
+          "minItems": 1,
+          "maxItems": 10,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        }
+      },
+      "required": [
+        "queries"
+      ]
+    }
+  },
+  {
+    "name": "file_item",
+    "description": "File what a signal found: create a task, add it to an existing one, or drop it with a reason.",
+    "scopes": [
+      "signal"
+    ],
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "item": {
+          "type": "object",
+          "properties": {
+            "signal": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "sender": {
+              "type": "string"
+            },
+            "channel": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+              "description": "ISO 8601 timestamp"
+            },
+            "title": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "summary": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "signal",
+            "url",
+            "sender",
+            "channel",
+            "at",
+            "title",
+            "summary"
+          ]
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "create",
+            "update",
+            "drop"
+          ]
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+          "description": "Task identifier, e.g. AP-212"
+        },
+        "workstream": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "note": {
+          "default": "",
+          "type": "string",
+          "maxLength": 2000
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "searches": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "gated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "item",
+        "action",
+        "reason",
+        "searches",
+        "gated"
+      ]
+    }
+  }
+]

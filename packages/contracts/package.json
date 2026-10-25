@@ -1,0 +1,17 @@
+{
+  "name": "@autopilot/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "schema": "node scripts/export-json-schema.ts"
+  },
+  "dependencies": {
+    "@orpc/contract": "^1.16.1",
+    "zod": "^4.6.7"
+  }
+}
