@@ -78,6 +78,9 @@ const SOURCES: [RegExp, string][] = [
 ]
 
 /** Where a link goes, for a list of linked things: `Gmail`, `GitHub`, `File`, or the host. */
+/** A signal or source as its makers write it: GitHub, not Github. */
+export const signalName = (name: string): string => ({ github: 'GitHub' })[name] ?? name.charAt(0).toUpperCase() + name.slice(1)
+
 export const linkSource = (url: string): string => {
   // Not URL: React Native's has no hostname.
   if (url.startsWith('file:')) return 'File'

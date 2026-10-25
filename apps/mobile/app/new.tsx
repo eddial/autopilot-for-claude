@@ -6,7 +6,7 @@ import KV from 'expo-sqlite/kv-store'
 import { titleCase } from '../src/format.ts'
 import { useSyncInstance } from '../src/store.ts'
 import { colours } from '@autopilot/design'
-import { Chip, type } from '../src/ui.tsx'
+import { Chip, Sides, type } from '../src/ui.tsx'
 
 const PRIORITIES = [
   { value: 1, label: 'Urgent' },
@@ -68,46 +68,48 @@ export default function NewTaskScreen() {
           onPress={create}
         />
       </Stack.Toolbar>
-      <ScrollView style={{ backgroundColor: colours.surface }} contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
-        <TextInput
-          style={styles.title}
-          placeholder="What needs doing, starting with a verb"
-          placeholderTextColor={colours.text3}
-          value={title}
-          onChangeText={setTitle}
-          maxLength={120}
-          autoFocus
-          accessibilityLabel="Title"
-        />
-        <TextInput
-          style={styles.brief}
-          placeholder="The brief: what you know, what to use, what not to do."
-          placeholderTextColor={colours.text3}
-          value={brief}
-          onChangeText={setBrief}
-          multiline
-          accessibilityLabel="Brief"
-        />
-        <Text style={[type.meta, styles.label]}>Workstream</Text>
-        <View style={styles.chips}>
-          <Chip label="Inbox" on={workstream === null} onPress={() => setWorkstream(null)} />
-          {workstreams
-            .filter((w) => w.name !== 'autopilot')
-            .map((w) => (
-              <Chip key={w.name} label={titleCase(w.name)} on={workstream === w.name} onPress={() => setWorkstream(w.name)} />
+      <Sides colour={colours.surface}>
+        <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+          <TextInput
+            style={styles.title}
+            placeholder="What needs doing, starting with a verb"
+            placeholderTextColor={colours.text3}
+            value={title}
+            onChangeText={setTitle}
+            maxLength={120}
+            autoFocus
+            accessibilityLabel="Title"
+          />
+          <TextInput
+            style={styles.brief}
+            placeholder="The brief: what you know, what to use, what not to do."
+            placeholderTextColor={colours.text3}
+            value={brief}
+            onChangeText={setBrief}
+            multiline
+            accessibilityLabel="Brief"
+          />
+          <Text style={[type.meta, styles.label]}>Workstream</Text>
+          <View style={styles.chips}>
+            <Chip label="Inbox" on={workstream === null} onPress={() => setWorkstream(null)} />
+            {workstreams
+              .filter((w) => w.name !== 'autopilot')
+              .map((w) => (
+                <Chip key={w.name} label={titleCase(w.name)} on={workstream === w.name} onPress={() => setWorkstream(w.name)} />
+              ))}
+          </View>
+          <Text style={[type.meta, styles.label]}>Priority</Text>
+          <View style={styles.chips}>
+            {PRIORITIES.map((p) => (
+              <Chip key={p.value} label={p.label} on={priority === p.value} onPress={() => setPriority(p.value)} />
             ))}
-        </View>
-        <Text style={[type.meta, styles.label]}>Priority</Text>
-        <View style={styles.chips}>
-          {PRIORITIES.map((p) => (
-            <Chip key={p.value} label={p.label} on={priority === p.value} onPress={() => setPriority(p.value)} />
-          ))}
-        </View>
-        <View style={styles.switchRow}>
-          <Text style={styles.switchText}>Start a session right away</Text>
-          <Switch value={start} onValueChange={setStart} trackColor={{ true: colours.pilot }} />
-        </View>
-      </ScrollView>
+          </View>
+          <View style={styles.switchRow}>
+            <Text style={styles.switchText}>Start a session right away</Text>
+            <Switch value={start} onValueChange={setStart} trackColor={{ true: colours.pilot }} />
+          </View>
+        </ScrollView>
+      </Sides>
     </>
   )
 }

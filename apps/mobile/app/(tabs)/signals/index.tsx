@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { RefreshControl, ScrollView, Text } from 'react-native'
 import type { Signal } from '@autopilot/contracts'
-import { Stack } from 'expo-router'
-import { age, titleCase } from '../../../src/format.ts'
+import { signalName } from '@autopilot/client'
+import { Stack, useFocusEffect } from 'expo-router'
+import { ago } from '../../../src/format.ts'
 import { useSyncInstance } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
 import { Card, CardHead, Dot, Sides, type } from '../../../src/ui.tsx'
@@ -23,7 +24,8 @@ export default function SignalsScreen() {
       })
       .catch(() => setOffline(true))
   }, [sync])
-  useEffect(load, [load])
+  // Each time the tab is opened, so a signal added or paused on the Mac shows.
+  useFocusEffect(load)
 
   return (
     <>
@@ -40,8 +42,12 @@ export default function SignalsScreen() {
             <Card key={s.name}>
               <CardHead>
                 <Dot tone={HEALTH[s.health.state]} />
-                <Text style={type.name}>{titleCase(s.name)}</Text>
-                {s.lastRunAt && <Text style={type.meta}>ran {age(s.lastRunAt)} ago</Text>}
+                <Text style={type.name}>{signalName(s.name)}</Text>
+                {s.health.state === 'paused' ? (
+                  <Text style={type.meta}>paused</Text>
+                ) : (
+                  s.lastRunAt && <Text style={type.meta}>ran {ago(s.lastRunAt)}</Text>
+                )}
               </CardHead>
               <Text style={type.meta}>
                 Last day: {s.last24h.filed} filed, {s.last24h.updated} added, {s.last24h.dropped} left alone

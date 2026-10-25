@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Decision, QueueItem, RoutingProposal, Signal, Workstream } from '@autopilot/contracts'
+import { signalName } from '@autopilot/client'
 import { api, key } from '../api.ts'
-import { age, ago, titleCase } from '../format.ts'
+import { age, ago } from '../format.ts'
 import { Banner, Button, Dot, Meta } from '../ui.tsx'
 import { WorkstreamsEditor } from './Workstreams.tsx'
 
@@ -104,7 +105,7 @@ export const Signals = ({ items, workstreams, onWorkstreams, onOpen }: Props) =>
             <div key={s.name} className="card">
               <div className="card-head">
                 <Dot tone={HEALTH_TONE[s.health.state]} label={s.health.state} />
-                <span className="name">{titleCase(s.name)}</span>
+                <span className="name">{signalName(s.name)}</span>
                 <span className="meta">
                   {schedule(s)} · last day {s.last24h.filed} filed, {s.last24h.updated} added, {s.last24h.dropped} dropped
                   {s.lastRunAt ? ` · ran ${ago(s.lastRunAt)}` : ''}

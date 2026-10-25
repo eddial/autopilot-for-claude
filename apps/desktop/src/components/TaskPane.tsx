@@ -89,7 +89,11 @@ export const TaskPane = ({ item, onClose }: Props) => {
   const updates = detail?.updates ?? (item.openAsk ? [item.openAsk] : [])
   // What needs the owner goes on top; the activity below is everything else, oldest first.
   const ask = updates.find((u) => u.open && !answered.has(u.id)) ?? null
-  const activity = updates.filter((u) => u !== ask)
+  // While the first look's questions are asked on top, its entry below keeps only what it found.
+  const asking = !ask && item.band === 'new' && firstLookQuestions(updates).length > 0
+  const activity = updates
+    .filter((u) => u !== ask)
+    .map((u) => (asking && u.author === 'scout' && u.kind === 'info' ? { ...u, body: withoutQuestions(u.body) } : u))
 
   useEffect(() => {
     if (item.unread) markSeen(task.id)
@@ -223,10 +227,15 @@ const Attachments = ({ links }: { links: Update['attachments'] }) =>
     </div>
   ) : null
 
+const BEFORE_STARTING = /^Before starting:\s*$/m
+
+/** A first look without its questions, for when they are asked on their own. */
+const withoutQuestions = (body: string) => body.split(BEFORE_STARTING)[0]?.trim() ?? body
+
 /** What the first look asked before anyone starts: its "Before starting" lines. */
 const firstLookQuestions = (updates: Update[]): string[] => {
   const look = updates.findLast((u) => u.author === 'scout' && u.kind === 'info')
-  const after = look?.body.split(/^Before starting:\s*$/m)[1]
+  const after = look?.body.split(BEFORE_STARTING)[1]
   return after ? after.split('\n').flatMap((l) => (/^\s*[-*]\s+/.test(l) ? [l.replace(/^\s*[-*]\s+/, '').trim()] : [])) : []
 }
 

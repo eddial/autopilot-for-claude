@@ -1,4 +1,4 @@
-import { updateLabel } from '@autopilot/client'
+import { signalName, updateLabel } from '@autopilot/client'
 import type { QueueItem } from '@autopilot/contracts'
 
 /** `5m ago`, or `just now`. */
@@ -19,7 +19,7 @@ export const age = (iso: string, now = Date.now()): string => {
 export const titleCase = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)
 
 export const sourceOf = (item: QueueItem): string =>
-  item.task.source.signal ? titleCase(item.task.source.signal) : item.task.createdBy === 'system' ? 'Autopilot' : 'You'
+  item.task.source.signal ? signalName(item.task.source.signal) : item.task.createdBy === 'system' ? 'Autopilot' : 'You'
 
 /** The line under a row's title. */
 export const rowMeta = (item: QueueItem): string => {

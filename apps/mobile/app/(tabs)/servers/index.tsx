@@ -1,6 +1,6 @@
 import { Alert, ScrollView, StyleSheet, Text } from 'react-native'
 import { Stack } from 'expo-router'
-import { age } from '../../../src/format.ts'
+import { ago } from '../../../src/format.ts'
 import { serverName, unpair, useSyncInstance, useSyncState } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
 import { Button, Card, CardHead, Dot, Sides, type } from '../../../src/ui.tsx'
@@ -24,7 +24,7 @@ export default function ServersScreen() {
               <Text style={type.name}>{serverName()}</Text>
             </CardHead>
             <Text style={type.meta}>{reached}</Text>
-            <Text style={type.meta}>{lastSyncedAt ? `Last synced ${age(lastSyncedAt)} ago` : 'Not synced yet'}</Text>
+            <Text style={type.meta}>{lastSyncedAt ? `Last synced ${ago(lastSyncedAt)}` : 'Not synced yet'}</Text>
             {outbox.length > 0 && <Text style={[type.meta, { color: colours.amberSoft }]}>{outbox.length} waiting to send</Text>}
             <Button label="Sync now" onPress={() => void sync?.syncOnce(0)} style={styles.gap} />
           </Card>

@@ -67,8 +67,8 @@ export const Avatar = ({ who }: { who: Who }) => {
  * inner one in landscape, the vertical bar takes the hardware edge. Top and bottom are the scroll
  * view's (contentInsetAdjustmentBehavior); the sides are measured where this view sits.
  */
-export const Sides = ({ children }: { children: ReactNode }) => (
-  <SafeAreaView edges={['left', 'right']} style={styles.sides}>
+export const Sides = ({ children, colour }: { children: ReactNode; colour?: string }) => (
+  <SafeAreaView edges={['left', 'right']} style={[styles.sides, colour ? { backgroundColor: colour } : null]}>
     {children}
   </SafeAreaView>
 )

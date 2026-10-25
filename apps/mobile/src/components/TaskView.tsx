@@ -75,9 +75,9 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={20}>
       <Sides>
-        <ScrollView contentContainerStyle={styles.page} contentInsetAdjustmentBehavior="automatic">
+        <ScrollView contentContainerStyle={styles.page} contentInsetAdjustmentBehavior="automatic" keyboardDismissMode="interactive">
           <View style={styles.head}>
             <Text style={type.meta}>
               {task.id}

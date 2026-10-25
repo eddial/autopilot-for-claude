@@ -1,4 +1,4 @@
-import { updateLabel } from '@autopilot/client'
+import { signalName, updateLabel } from '@autopilot/client'
 import type { Band, QueueItem } from '@autopilot/contracts'
 
 export const age = (iso: string, now = Date.now()): string => {
@@ -7,6 +7,12 @@ export const age = (iso: string, now = Date.now()): string => {
   if (minutes < 60) return `${minutes}m`
   const hours = Math.round(minutes / 60)
   return hours < 24 ? `${hours}h` : `${Math.round(hours / 24)}d`
+}
+
+/** When something last happened, as a phrase: "just now", "5m ago". */
+export const ago = (iso: string, now = Date.now()): string => {
+  const when = age(iso, now)
+  return when === 'now' ? 'just now' : `${when} ago`
 }
 
 export const titleCase = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)
@@ -28,7 +34,7 @@ export const rowMeta = (item: QueueItem): string => {
       : item.band === 'running'
         ? (item.session?.activity ?? 'Working')
         : null
-  const source = item.task.source.signal ? titleCase(item.task.source.signal) : item.task.createdBy === 'system' ? 'Autopilot' : 'You'
+  const source = item.task.source.signal ? signalName(item.task.source.signal) : item.task.createdBy === 'system' ? 'Autopilot' : 'You'
   return [what, titleCase(item.task.workstream), source].filter(Boolean).join(' · ')
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Decision, Detected, SetupStatus, SignalExample, Workstream } from '@autopilot/contracts'
+import { signalName } from '@autopilot/client'
 import { api, key } from '../api.ts'
 import { titleCase } from '../format.ts'
 import { Banner, Button, Dot, Meta, Pilot, Row } from '../ui.tsx'
@@ -18,7 +19,7 @@ const FIELD_LABEL: Record<string, string> = {}
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 /** A source by the name its makers give it. */
-const nameOf = (name: string) => ({ github: 'GitHub' })[name] ?? titleCase(name)
+const nameOf = signalName
 
 /** The first sentence of a description, or its first words when that is long. */
 const gist = (text: string) => {
