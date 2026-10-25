@@ -27,6 +27,7 @@ import {
   RevokeToken,
   RunSignal,
   SaveWorkstream,
+  RemoveWorkstream,
   SweepWorkstreams,
   SnoozeTask,
   StartPairing,
@@ -229,6 +230,7 @@ export const contract = {
     examples: base.meta({ scopes: OWNER }).output(z.array(Workstream)),
     /** Writes `## Routing` (and the repository); keeps the rest of an existing file. */
     save: base.meta({ scopes: OWNER }).input(SaveWorkstream).output(Workstream),
+    remove: base.meta({ scopes: OWNER }).input(RemoveWorkstream).output(z.array(Workstream)),
     /** Onboarding, with permission: a broad read of the sources to propose workstreams. A minute or two. */
     sweep: base.meta({ scopes: OWNER }).input(SweepWorkstreams).output(z.array(SuggestedWorkstream)),
   },

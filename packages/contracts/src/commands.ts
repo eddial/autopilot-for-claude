@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { DecisionOption } from './entities.ts'
-import { Scope, SessionState, UpdateKind } from './enums.ts'
+import { Autonomy, Scope, SessionState, UpdateKind } from './enums.ts'
 import { Duration, Id, IdempotencyKey, Link, Priority, TaskId, Timestamp } from './primitives.ts'
 
 /** Every write carries an idempotency key, so a retried or replayed command applies once. */
@@ -147,9 +147,15 @@ export const SaveWorkstream = command({
     .max(40),
   routing: z.string().min(1).max(4_000),
   urgent: z.string().max(500).default(''),
-  /** A git checkout for code work; each task gets a worktree. */
+  /** A git checkout for code work; each task gets a worktree. Empty takes it away. */
   repo: z.string().max(500).optional(),
+  /** How the work is done: the `## Work` section. Left out, it stays as it is. */
+  work: z.string().max(8_000).optional(),
+  autonomy: Autonomy.optional(),
 })
+
+/** Sets a workstream's file aside; refused while it has open tasks. */
+export const RemoveWorkstream = command({ name: z.string().regex(/^[a-z0-9][a-z0-9-]*$/) })
 
 export const InstallService = command({})
 

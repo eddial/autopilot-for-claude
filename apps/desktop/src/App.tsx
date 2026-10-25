@@ -190,7 +190,7 @@ export const App = () => {
       {view.kind === 'new' ? (
         <NewTask workstreams={workstreams} onCreated={openTask} />
       ) : view.kind === 'signals' ? (
-        <Signals items={items} workstreams={workstreams} onOpen={openTask} />
+        <Signals items={items} workstreams={workstreams} onWorkstreams={setWorkstreams} onOpen={openTask} />
       ) : view.kind === 'servers' ? (
         <Servers />
       ) : view.kind === 'setup' ? (

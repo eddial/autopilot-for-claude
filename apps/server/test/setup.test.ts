@@ -44,4 +44,32 @@ describe('onboarding set-up', () => {
     expect(company?.urgent).toBe('an investor, board or legal deadline within 24 hours, or a candidate offer about to lapse.')
     expect(company?.routing).not.toContain('lapse')
   })
+
+  it('edits a workstream in place, takes its repository away, and sets it aside', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ap-setup-'))
+    const paths = resolvePaths({ AUTOPILOT_DATA: join(dir, 'data'), AUTOPILOT_HOME: join(dir, 'home') })
+    const setup = new Setup({ paths, examples: EXAMPLES, claude: 'claude' })
+    const repo = join(dir, 'product')
+    execFileSync('git', ['init', '-q', repo])
+    setup.saveWorkstream({ name: 'research', routing: 'Market research.', urgent: '', repo })
+    const edited = setup.saveWorkstream({
+      name: 'research',
+      routing: 'Market and user research.',
+      urgent: 'a board meeting this week',
+      repo: '',
+      work: 'Write it up as a memo.',
+      autonomy: 3,
+    })
+    expect(edited).toMatchObject({
+      routing: 'Market and user research.',
+      urgent: 'a board meeting this week',
+      repo: null,
+      work: 'Write it up as a memo.',
+      autonomy: 3,
+    })
+
+    expect(() => setup.removeWorkstream('research', 2)).toThrow(DomainError)
+    expect(setup.removeWorkstream('research', 0).map((w) => w.name)).not.toContain('research')
+    expect(() => setup.removeWorkstream('autopilot', 0)).toThrow(DomainError)
+  })
 })

@@ -6587,6 +6587,15 @@
         "repo": {
           "type": "string",
           "maxLength": 500
+        },
+        "work": {
+          "type": "string",
+          "maxLength": 8000
+        },
+        "autonomy": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
         }
       },
       "required": [
@@ -6656,6 +6665,98 @@
         "machineId"
       ],
       "additionalProperties": false
+    }
+  },
+  "workstreams.remove": {
+    "meta": {
+      "scopes": [
+        "owner"
+      ]
+    },
+    "input": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128,
+          "description": "Unique per write; the server ignores a key it has already applied"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        }
+      },
+      "required": [
+        "idempotencyKey",
+        "name"
+      ]
+    },
+    "output": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "routing": {
+            "type": "string",
+            "description": "What lands here"
+          },
+          "urgent": {
+            "type": "string",
+            "description": "When it is urgent"
+          },
+          "work": {
+            "type": "string",
+            "description": "How the work is done"
+          },
+          "autonomy": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "repo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "folder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "machineId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "routing",
+          "urgent",
+          "work",
+          "autonomy",
+          "repo",
+          "folder",
+          "machineId"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "workstreams.sweep": {

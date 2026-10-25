@@ -1,5 +1,5 @@
 import { execFile, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { SetupStatus, SignalExample, Workstream } from '@autopilot/contracts'
@@ -10,6 +10,8 @@ import type { Paths } from './paths.ts'
 import { DomainError } from './service.ts'
 
 const PLACEHOLDER = /YOUR_[A-Z_]+/g
+
+const workOf = (text: string) => `## Work\n${text.trim()}\n`
 
 /** Placeholders the server fills in itself: the connector knows the answer, so nobody types it. */
 const LOOKUPS: Record<string, { tool: string; ask: string; answer: RegExp; what: string }> = {
@@ -128,7 +130,14 @@ export class Setup {
     return readWorkstreams(this.o.examples).filter((w) => w.name !== 'autopilot')
   }
 
-  saveWorkstream(input: { name: string; routing: string; urgent: string; repo?: string | undefined }): Workstream {
+  saveWorkstream(input: {
+    name: string
+    routing: string
+    urgent: string
+    repo?: string | undefined
+    work?: string | undefined
+    autonomy?: number | undefined
+  }): Workstream {
     // Sessions work in a worktree of it; a folder that is not a checkout would fail every start.
     if (input.repo && input.repo !== 'default' && !isGitCheckout(input.repo.replace(/^~(?=\/|$)/, homedir())))
       throw new DomainError('BAD_REQUEST', { field: 'repo' }, `${input.repo} is not a git checkout on this Mac`)
@@ -136,22 +145,49 @@ export class Setup {
     mkdirSync(dir, { recursive: true })
     const file = join(dir, `${input.name}.md`)
     const routing = `## Routing\n${input.routing.trim()}\n${input.urgent.trim() ? `Urgent: ${input.urgent.replace(/\s+/g, ' ').trim()}\n` : ''}`
-    if (existsSync(file)) {
-      const { meta, body } = splitFrontmatter(readFileSync(file, 'utf8'))
-      const next = { ...meta, ...(input.repo ? { repo: input.repo } : {}) }
-      const rest = body.replace(/^## Routing\s*\n[\s\S]*?(?=^## |(?![\s\S]))/m, '')
-      writeFileSync(file, `${Object.keys(next).length ? `---\n${stringify(next)}---\n` : ''}${routing}\n${rest.trimStart()}`)
+    const existing = existsSync(file) ? splitFrontmatter(readFileSync(file, 'utf8')) : null
+    const meta: Record<string, unknown> = { ...existing?.meta }
+    // An empty repo takes it away; left out, it stays.
+    if (input.repo !== undefined) {
+      if (input.repo.trim()) meta.repo = input.repo.trim()
+      else delete meta.repo
+    }
+    if (input.autonomy !== undefined) meta.autonomy = input.autonomy
+    let rest: string
+    if (existing) {
+      rest = existing.body.replace(/^## Routing\s*\n[\s\S]*?(?=^## |(?![\s\S]))/m, '').trimStart()
+      if (input.work !== undefined) {
+        const withoutWork = rest.replace(/^## Work\s*\n[\s\S]*?(?=^## |(?![\s\S]))/m, '').trim()
+        rest = `${workOf(input.work)}${withoutWork ? `\n${withoutWork}\n` : ''}`
+      }
     } else {
       const example = join(this.o.examples, 'workstreams', `${input.name}.md`)
-      const work = existsSync(example)
-        ? (/^## Work\s*\n[\s\S]*$/m.exec(readFileSync(example, 'utf8'))?.[0] ?? '')
-        : '## Work\nPrepare the work: drafts, branches, documents. Send, merge and publish nothing without asking.\n'
-      writeFileSync(file, `${input.repo ? `---\nrepo: ${input.repo}\n---\n` : ''}${routing}\n${work}`)
+      rest =
+        input.work !== undefined
+          ? workOf(input.work)
+          : existsSync(example)
+            ? (/^## Work\s*\n[\s\S]*$/m.exec(readFileSync(example, 'utf8'))?.[0] ?? '')
+            : '## Work\nPrepare the work: drafts, branches, documents. Send, merge and publish nothing without asking.\n'
     }
+    writeFileSync(file, `${Object.keys(meta).length ? `---\n${stringify(meta)}---\n` : ''}${routing}\n${rest}`)
     this.ensureAutopilotWorkstream()
     const saved = readWorkstreams(this.o.paths.home).find((w) => w.name === input.name)
     if (!saved) throw new Error(`Could not read back ${file}`)
     return saved
+  }
+
+  /** Sets a workstream's file aside in `home/retired/`, where it can be brought back by hand. */
+  removeWorkstream(name: string, openTasks: number): Workstream[] {
+    if (name === 'autopilot')
+      throw new DomainError('BAD_REQUEST', { field: 'name' }, 'Autopilot reports its own health in this workstream; it stays.')
+    if (openTasks > 0)
+      throw new DomainError('BAD_REQUEST', { field: 'name' }, `${name} still has ${openTasks} open tasks; move or close them first.`)
+    const file = join(this.o.paths.home, 'workstreams', `${name}.md`)
+    if (!existsSync(file)) throw new DomainError('NOT_FOUND', { entity: 'workstream', id: name })
+    const retired = join(this.o.paths.home, 'retired')
+    mkdirSync(retired, { recursive: true })
+    renameSync(file, join(retired, `${name}.md`))
+    return readWorkstreams(this.o.paths.home)
   }
 
   /** Health problems and routing proposals land in `autopilot`; every home needs it. */

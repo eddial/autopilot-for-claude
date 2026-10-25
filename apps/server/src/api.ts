@@ -274,6 +274,9 @@ export const createRouter = ({
       examples: guarded.workstreams.examples.handler(() => setup.workstreamExamples()),
       sweep: guarded.workstreams.sweep.handler(({ input }) => signals.sweep(input.signals, input.days)),
       save: guarded.workstreams.save.handler(({ input }) => setup.saveWorkstream(input)),
+      remove: guarded.workstreams.remove.handler(({ input }) =>
+        setup.removeWorkstream(input.name, service.queue().items.filter((i) => i.task.workstream === input.name).length),
+      ),
     },
 
     machines: {

@@ -3,16 +3,15 @@ import type { Decision, QueueItem, RoutingProposal, Signal, Workstream } from '@
 import { api, key } from '../api.ts'
 import { age, ago, titleCase } from '../format.ts'
 import { Banner, Button, Dot, Meta } from '../ui.tsx'
+import { WorkstreamsEditor } from './Workstreams.tsx'
 
-type Props = { items: QueueItem[]; workstreams: Workstream[]; onOpen: (id: string) => void }
-
-const AUTONOMY = ['', 'Files only', 'Prepares when started', 'Starts by itself', 'Finishes within its rules']
+type Props = { items: QueueItem[]; workstreams: Workstream[]; onWorkstreams: (all: Workstream[]) => void; onOpen: (id: string) => void }
 
 const schedule = (s: Signal) => ('every' in s.schedule ? `Every ${s.schedule.every}` : `Cron ${s.schedule.cron}`)
 
 const HEALTH_TONE = { ok: 'pilot', failing: 'alert', paused: 'paused' } as const
 
-export const Signals = ({ items, workstreams, onOpen }: Props) => {
+export const Signals = ({ items, workstreams, onWorkstreams, onOpen }: Props) => {
   const [signals, setSignals] = useState<Signal[]>([])
   const [proposals, setProposals] = useState<RoutingProposal[]>([])
   const [previews, setPreviews] = useState<Record<string, Decision[] | 'running' | string>>({})
@@ -134,21 +133,7 @@ export const Signals = ({ items, workstreams, onOpen }: Props) => {
         })}
 
         <h2>Workstreams</h2>
-        {workstreams.map((w) => (
-          <div key={w.name} className="card">
-            <div className="card-head">
-              <span className="name">{titleCase(w.name)}</span>
-              <span className="meta">
-                {AUTONOMY[w.autonomy]} · {w.repo ? `worktrees of ${w.repo}` : w.folder ? `in ${w.folder}` : 'in its own folders'} ·{' '}
-                {items.filter((i) => i.task.workstream === w.name).length} open
-              </span>
-            </div>
-            <Meta top={3} className="prose">
-              {w.routing}
-              {w.urgent ? `\nUrgent: ${w.urgent}` : ''}
-            </Meta>
-          </div>
-        ))}
+        <WorkstreamsEditor workstreams={workstreams} items={items} onChange={onWorkstreams} />
       </div>
     </section>
   )
