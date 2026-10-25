@@ -35,7 +35,8 @@ export const serveWeb = async (
     ? null
     : await createVite({
         configFile: join(import.meta.dirname, '..', 'vite.config.ts'),
-        server: { middlewareMode: true, hmr: false },
+        // No WebSocket: it takes a fixed port, which parallel test files would fight over.
+        server: { middlewareMode: true, hmr: false, ws: false },
         logLevel: 'warn',
       })
   const handler = new RPCHandler(proxyRouter(client))
