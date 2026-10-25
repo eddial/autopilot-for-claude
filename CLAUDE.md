@@ -41,6 +41,7 @@ pnpm format       # Prettier, the formatting CI checks
 pnpm schema       # regenerate packages/contracts/schema after changing the contract
 pnpm perf         # performance budgets (server and window)
 pnpm tokens       # regenerate apps/desktop/src/tokens.css after changing the design tokens
+pnpm screens      # screenshots of every Mac screen on a realistic queue, into screens/
 pnpm autopilot    # the CLI (serve, new, ls, show, answer, signal, status, mcp)
 ```
 

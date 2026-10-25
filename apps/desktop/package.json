@@ -10,7 +10,8 @@
     "start": "node scripts/build.ts && electron .",
     "typecheck": "tsc --noEmit",
     "web": "node scripts/web.ts",
-    "perf": "node scripts/build.ts && node perf/run.ts"
+    "perf": "node scripts/build.ts && node perf/run.ts",
+    "screens": "node scripts/screens.ts ../../screens"
   },
   "dependencies": {
     "@autopilot/client": "workspace:*",

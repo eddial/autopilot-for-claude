@@ -1,0 +1,114 @@
+import { mkdirSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { CreateTask, PostUpdate } from '@autopilot/contracts'
+import { keys, startTestServer } from '@autopilot/testkit'
+import { chromium, type Page } from 'playwright-core'
+import { serveWeb } from './web-server.ts'
+
+/**
+ * Screenshots of every screen of the Mac window, on a server filled with a realistic day:
+ * `pnpm screens [folder]` (default `screens/`). For reviewing the look without a Mac.
+ */
+
+const out = resolve(process.argv[2] ?? 'screens')
+mkdirSync(out, { recursive: true })
+
+const server = await startTestServer({
+  workstreams: {
+    engineering: '## Routing\nCode, pull requests, incidents and anything in the agent-service repo.\nUrgent: prod down\n',
+    customers: '## Routing\nQuestions and requests from customers in Slack and email.\nUrgent: an enterprise customer is blocked\n',
+    operations: '## Routing\nInvoices, contracts, hiring and the office.\n',
+  },
+})
+const { service } = server
+const key = keys('screens')
+
+const task = (title: string, workstream: string, brief = '', start = false, priority = 3) =>
+  service.createTask(CreateTask.parse({ idempotencyKey: key(), title, brief, workstream, start, priority }))
+const post = (taskId: string, kind: 'decision' | 'question' | 'review' | 'info' | 'done', body: string, options: string[] = []) =>
+  service.postUpdate(
+    PostUpdate.parse({ idempotencyKey: key(), taskId, kind, body, options: options.map((label, i) => ({ id: `o${i}`, label })) }),
+    'session',
+  )
+
+// Your turn: decisions, a question and a review.
+const caching = task('Decide on prompt caching for agent-service', 'engineering', 'Measure Opus first; do not touch prod.', true, 2)
+post(caching.id, 'info', 'Measured the three call sites on staging: caching cuts input cost by 71% on the planner and 64% on the reviewer.')
+post(caching.id, 'decision', 'Caching works on staging for all three call sites. Enable it for Opus only, or for every model?', [
+  'Opus only',
+  'Every model',
+])
+const acme = task('Reply to Acme about the SSO rollout date', 'customers', '', true, 1)
+post(
+  acme.id,
+  'question',
+  'Sarah at Acme asks whether SSO ships before their 1 December audit. Engineering says the 24th. Can I promise that?',
+)
+const pr = task('Review the retry fix for the webhook worker', 'engineering', '', true)
+post(
+  pr.id,
+  'review',
+  'The draft pull request is ready: retries back off exponentially and stop after five. Tests pass. Have a look before I mark it ready?',
+)
+const invoice = task('Pay the October Hetzner invoice', 'operations')
+post(invoice.id, 'decision', 'The invoice is €412, up from €380 because of the new staging box. Pay it now?', ['Pay it', 'Hold it'])
+
+// New, running, waiting, snoozed, done.
+task('Draft the Q4 hiring plan for two engineers', 'operations')
+task('Look into flaky e2e test on checkout', 'engineering', 'It fails about one run in ten on CI only.')
+task('Summarise the customer interviews from last week', 'customers', '', true)
+task('Upgrade the Node runtime to 24 in the worker images', 'engineering', '', true)
+const waiting = task('Get the signed DPA back from Globex', 'customers', '', true)
+service.waitOn({ idempotencyKey: key(), id: waiting.id, on: 'Globex legal' }, 'session')
+const snoozed = task('Renew the office lease', 'operations')
+service.snoozeTask({ idempotencyKey: key(), id: snoozed.id, until: new Date(Date.now() + 3 * 86_400_000).toISOString() })
+const done = task('Rotate the Stripe webhook secret', 'engineering', '', true)
+post(done.id, 'done', 'Rotated in both environments and verified a test event.')
+service.closeTask({ idempotencyKey: key(), id: done.id, outcome: 'done' })
+
+const web = await serveWeb(server.owner)
+const browser = await chromium.launch()
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 })
+const shot = async (name: string, p: Page = page) => {
+  await p.waitForTimeout(150)
+  await p.screenshot({ path: join(out, `${name}.png`) })
+  console.log(join(out, `${name}.png`))
+}
+
+await page.goto(web.url)
+await page.getByRole('heading', { name: 'Needs me' }).waitFor()
+await page.getByRole('option', { name: /prompt caching/ }).click()
+await page.getByRole('button', { name: 'Opus only' }).waitFor()
+await shot('01-needs-me')
+
+await page.getByRole('option', { name: /Hetzner/ }).click()
+await page.keyboard.press('Space')
+await shot('02-answer-in-place')
+await page.keyboard.press('Escape')
+
+await page.getByRole('button', { name: 'Running' }).click()
+await shot('03-running')
+await page.getByRole('button', { name: 'Engineering' }).click()
+await shot('04-workstream')
+await page.getByRole('button', { name: 'New task' }).click()
+await shot('05-new-task')
+await page.getByRole('button', { name: 'Signals' }).click()
+await page.getByRole('heading', { name: 'Signals and workstreams' }).waitFor()
+await shot('06-signals')
+await page.getByRole('button', { name: 'Servers' }).click()
+await page.getByRole('button', { name: 'Pair a device' }).click()
+await page.getByText('Waiting for your phone').waitFor()
+await shot('07-servers-pairing')
+await page.getByRole('button', { name: 'Set up' }).click()
+await shot('08-set-up')
+
+// Beside Claude Code: the window at a third of the screen.
+await page.getByRole('button', { name: 'Needs me' }).click()
+await page.setViewportSize({ width: 620, height: 900 })
+await shot('09-narrow-list')
+await page.getByRole('option', { name: /Acme/ }).dblclick()
+await shot('10-narrow-task')
+
+await browser.close()
+await web.close()
+await server.close()
