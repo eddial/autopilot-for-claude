@@ -48,7 +48,7 @@ const AVATAR: Record<Exclude<Who, 'system' | 'scout'>, { symbol: SFSymbol; fg: s
 export const Avatar = ({ who }: { who: Who }) => {
   if (who === 'system' || who === 'scout')
     return (
-      <View style={[styles.avatar, { backgroundColor: colours.well }]}>
+      <View style={[styles.avatar, { backgroundColor: colours.raised }]}>
         <Pilot pixel={1} />
       </View>
     )

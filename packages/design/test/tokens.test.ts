@@ -20,6 +20,13 @@ describe('design tokens', () => {
     expect(readFileSync(CSS_PATH, 'utf8')).toBe(css())
   })
 
+  it('the window states each style rule once', () => {
+    // A rule written twice wins by position, so an edit to the first copy silently does nothing.
+    const styles = readFileSync(join(ROOT, 'apps/desktop/src/styles.css'), 'utf8').replace(/@media[^{]*\{([\s\S]*?)\n\}/g, '')
+    const selectors = [...styles.matchAll(/^([^\s@/}][^{]*)\{/gm)].map((m) => m[1]?.replace(/\s+/g, ' ').trim())
+    expect(selectors.filter((s, i) => selectors.indexOf(s) !== i)).toEqual([])
+  })
+
   it('the apps take every colour from the tokens', () => {
     const found = SOURCES.flatMap((dir) => files(join(ROOT, dir))).flatMap((path) =>
       readFileSync(path, 'utf8')
