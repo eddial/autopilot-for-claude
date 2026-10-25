@@ -19,12 +19,12 @@ export default function ServersScreen() {
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 16, gap: 10 }}>
         <Card>
           <CardHead>
-            <Dot tone={status === 'online' ? 'good' : 'quiet'} />
+            <Dot tone={status === 'online' ? 'pilot' : 'quiet'} />
             <Text style={type.name}>{serverName()}</Text>
           </CardHead>
           <Text style={type.meta}>{reached}</Text>
           <Text style={type.meta}>{lastSyncedAt ? `Last synced ${age(lastSyncedAt)} ago` : 'Not synced yet'}</Text>
-          {outbox.length > 0 && <Text style={[type.meta, { color: colours.claySoft }]}>{outbox.length} waiting to send</Text>}
+          {outbox.length > 0 && <Text style={[type.meta, { color: colours.amberSoft }]}>{outbox.length} waiting to send</Text>}
           <Button label="Sync now" onPress={() => void sync?.syncOnce(0)} style={styles.gap} />
         </Card>
         <Text style={type.note}>

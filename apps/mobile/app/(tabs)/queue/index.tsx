@@ -70,7 +70,7 @@ export default function QueueScreen() {
         </Text>
       }
       renderSectionHeader={({ section }) => (
-        <Text style={[styles.section, section.band === 'your_turn' && { color: colours.claySoft }]}>
+        <Text style={[styles.section, section.band === 'your_turn' && { color: colours.pilotSoft }]}>
           {section.title} <Text style={{ color: colours.text3 }}>{section.data.length}</Text>
         </Text>
       )}
@@ -88,7 +88,7 @@ export default function QueueScreen() {
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button
             variant="prominent"
-            tintColor={colours.clay}
+            tintColor={colours.pilot}
             icon="plus"
             accessibilityLabel="New task"
             onPress={() => router.push('/new')}
@@ -116,7 +116,7 @@ export default function QueueScreen() {
               <View style={styles.placeholder}>
                 <Text style={styles.empty}>Pick a task.</Text>
                 <Pressable onPress={() => router.push('/new')}>
-                  <Text style={{ color: colours.clay, fontSize: 15 }}>New task</Text>
+                  <Text style={{ color: colours.pilot, fontSize: 15 }}>New task</Text>
                 </Pressable>
               </View>
             )}
@@ -147,9 +147,12 @@ const Row = ({ item, selected, onPress }: { item: QueueItem; selected: boolean; 
 const dotStyle = (item: QueueItem) => {
   switch (item.band) {
     case 'your_turn':
-      return item.unread ? { backgroundColor: colours.clay } : { borderWidth: 1.5, borderColor: colours.clay }
+      return item.unread ? { backgroundColor: colours.pilot } : { borderWidth: 1.5, borderColor: colours.pilot }
     case 'running':
-      return { backgroundColor: colours.pilot }
+      return { backgroundColor: colours.clay }
+    case 'waiting':
+    case 'snoozed':
+      return { backgroundColor: colours.amber }
     case 'new':
       return { backgroundColor: colours.text2 }
     default:

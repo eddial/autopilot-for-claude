@@ -27,12 +27,12 @@ const open = (url: string) => {
 }
 
 const BAND_TONE: Record<QueueItem['band'], Tone> = {
-  your_turn: 'attention',
+  your_turn: 'pilot',
   new: 'quiet',
-  running: 'good',
+  running: 'claude',
   waiting: 'paused',
   snoozed: 'paused',
-  done: 'good',
+  done: 'quiet',
 }
 
 const SESSION_STATE: Record<string, string> = {
@@ -109,7 +109,7 @@ export const TaskPane = ({ item, onClose }: Props) => {
         <Spacer />
         {session && session.state !== 'ended' && (
           <span className="meta session">
-            <Dot tone="good" />
+            <Dot tone="claude" />
             {session.activity ?? SESSION_STATE[session.state]}
           </span>
         )}
@@ -382,7 +382,7 @@ const Actions = ({ item }: { item: QueueItem }) => {
       )}
       {sessionLinks.length > 0 && (
         <Menu
-          className="tinted tone-attention"
+          className="tinted tone-claude"
           label={
             <>
               <Icon name="open" />
@@ -405,7 +405,7 @@ const Actions = ({ item }: { item: QueueItem }) => {
           run: () => send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() }),
         }))}
       />
-      <Button kind="tool" className="tinted tone-good" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'done' })}>
+      <Button kind="tool" className="tinted tone-pilot" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'done' })}>
         <Icon name="done" />
         Mark done
       </Button>

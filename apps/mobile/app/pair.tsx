@@ -58,7 +58,7 @@ export default function PairScreen() {
         ) : (
           <Button kind="primary" label="Allow the camera to scan" onPress={() => void requestPermission()} style={styles.allow} />
         )}
-        {busy && <ActivityIndicator style={StyleSheet.absoluteFill} color={colours.clay} size="large" />}
+        {busy && <ActivityIndicator style={StyleSheet.absoluteFill} color={colours.pilot} size="large" />}
       </View>
       {error && <Text style={[bannerText(), styles.error]}>{error}</Text>}
     </SafeAreaView>

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
-import { colours, fonts, pilot, radius, space, tones, type Tone } from '@autopilot/design'
+import { claude, colours, fonts, pilot, radius, space, tones, type Tone } from '@autopilot/design'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
 
 /**
@@ -37,20 +37,19 @@ export const Tag = ({ label }: { label: string }) => (
 
 type Who = 'owner' | 'session' | 'watcher' | 'signal' | 'system' | 'scout'
 
-const AVATAR: Record<Exclude<Who, 'system' | 'scout'>, { symbol: SFSymbol; fg: string; bg: string }> = {
-  // The session in clay, a watcher in amber (paused on something), a signal in green, you in white.
-  session: { symbol: 'sparkle', fg: colours.clay, bg: colours.raised },
+const AVATAR: Record<Exclude<Who, 'system' | 'scout' | 'session'>, { symbol: SFSymbol; fg: string; bg: string }> = {
+  // A watcher in amber (paused on something), a signal in green, you in white.
   watcher: { symbol: 'eye', fg: colours.amber, bg: colours.raised },
   owner: { symbol: 'person.fill', fg: colours.text, bg: colours.raised },
   signal: { symbol: 'bolt.fill', fg: colours.pilot, bg: colours.raised },
 }
 
-/** Who did something in a task's timeline, as on the Mac: the pilot for Autopilot, a symbol for the rest. */
+/** Who did something in a task's timeline, as on the Mac: the pilot for Autopilot, Claude for its session, a symbol for the rest. */
 export const Avatar = ({ who }: { who: Who }) => {
-  if (who === 'system' || who === 'scout')
+  if (who === 'system' || who === 'scout' || who === 'session')
     return (
       <View style={[styles.avatar, { backgroundColor: colours.raised }]}>
-        <Pilot pixel={1} />
+        {who === 'session' ? <Mascot art={claude} pixel={1} label="Claude" /> : <Pilot pixel={1} />}
       </View>
     )
   const a = AVATAR[who]
@@ -69,13 +68,13 @@ export const CardHead = ({ children }: { children: ReactNode }) => <View style={
 export const Dot = ({ tone }: { tone: Tone }) => <View style={[styles.dot, { backgroundColor: tones[tone].dot }]} />
 
 /** A line of news: offline, refused, failed, or done. */
-export const Banner = ({ tone = 'attention', children }: { tone?: Tone; children: ReactNode }) => (
+export const Banner = ({ tone = 'alert', children }: { tone?: Tone; children: ReactNode }) => (
   <View style={[styles.banner, { backgroundColor: tones[tone].bg }]}>
     {typeof children === 'string' ? <Text style={[styles.bannerText, { color: tones[tone].fg }]}>{children}</Text> : children}
   </View>
 )
 
-export const bannerText = (tone: Tone = 'attention') => [styles.bannerText, { color: tones[tone].fg }]
+export const bannerText = (tone: Tone = 'alert') => [styles.bannerText, { color: tones[tone].fg }]
 
 /** A small choice or link; `on` when it is the chosen one. */
 export const Chip = ({ label, on, onPress }: { label: string; on?: boolean; onPress: () => void }) => (
@@ -91,7 +90,7 @@ export const Chip = ({ label, on, onPress }: { label: string; on?: boolean; onPr
 
 const BUTTON = {
   /** The one thing to do next. */
-  primary: { box: { backgroundColor: colours.clay }, text: { color: colours.well, fontWeight: '600' } },
+  primary: { box: { backgroundColor: colours.pilot }, text: { color: colours.well, fontWeight: '600' } },
   /** An answer to a question. */
   option: { box: { backgroundColor: colours.button, borderWidth: StyleSheet.hairlineWidth, borderColor: colours.borderStrong }, text: {} },
   /** Anything else. */
@@ -116,18 +115,29 @@ export const Button = ({
   </Pressable>
 )
 
-/** The pilot, Autopilot's mascot, drawn in squares. */
-export const Pilot = ({ pixel = 3 }: { pixel?: number }) => (
-  <View accessibilityRole="image" accessibilityLabel="Autopilot">
-    {pilot.rows.map((row, y) => (
+/** Pixel art drawn in squares: the pilot, or Claude. */
+const Mascot = ({
+  art,
+  pixel,
+  label,
+}: {
+  art: { rows: readonly string[]; colours: Record<string, string> }
+  pixel: number
+  label: string
+}) => (
+  <View accessibilityRole="image" accessibilityLabel={label}>
+    {art.rows.map((row, y) => (
       <View key={y} style={styles.pilotRow}>
         {[...row].map((cell, x) => (
-          <View key={x} style={{ width: pixel, height: pixel, backgroundColor: pilot.colours[cell] ?? 'transparent' }} />
+          <View key={x} style={{ width: pixel, height: pixel, backgroundColor: art.colours[cell] ?? 'transparent' }} />
         ))}
       </View>
     ))}
   </View>
 )
+
+/** The pilot, Autopilot's mascot. */
+export const Pilot = ({ pixel = 3 }: { pixel?: number }) => <Mascot art={pilot} pixel={pixel} label="Autopilot" />
 
 const styles = StyleSheet.create({
   card: {
@@ -149,7 +159,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colours.borderStrong,
   },
-  chipOn: { backgroundColor: colours.raised, borderColor: colours.clay },
+  chipOn: { backgroundColor: colours.raised, borderColor: colours.pilot },
   chipText: { fontSize: 14, color: colours.text2 },
   button: { paddingHorizontal: space[6], paddingVertical: 9, borderRadius: radius.md, alignSelf: 'flex-start' },
   buttonText: { fontSize: 15, color: colours.text },

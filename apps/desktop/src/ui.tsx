@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
-import { pilot, space, type Space, type Tone } from '@autopilot/design'
+import { claude, pilot, space, type Space, type Tone } from '@autopilot/design'
 
 /**
  * The window's building blocks. Screens compose these and lay themselves out with classes from
@@ -115,8 +115,6 @@ export const Tag = ({ children }: { children: ReactNode }) => <span className="t
 type Who = 'owner' | 'session' | 'watcher' | 'signal' | 'system' | 'scout'
 
 const GLYPH: Partial<Record<Who, ReactNode>> = {
-  // Claude's session: a small sparkle.
-  session: <path d="M8 1.8c.5 3 1.7 4.6 6 6.2-4.3 1.6-5.5 3.2-6 6.2-.5-3-1.7-4.6-6-6.2 4.3-1.6 5.5-3.2 6-6.2z" fill="currentColor" />,
   watcher: (
     <>
       <path d="M1.8 8s2.3-4.2 6.2-4.2S14.2 8 14.2 8s-2.3 4.2-6.2 4.2S1.8 8 1.8 8z" />
@@ -132,11 +130,13 @@ const GLYPH: Partial<Record<Who, ReactNode>> = {
   signal: <path d="M9 1.8 4 9h4l-1 5.2L12 7H8z" />,
 }
 
-/** Who did something in a task's timeline: the pilot for Autopilot, a mark for the rest. */
+/** Who did something in a task's timeline: the pilot for Autopilot, Claude for its session, a mark for the rest. */
 export const Avatar = ({ who }: { who: Who }) => (
   <span className={`avatar ${who}`} aria-hidden="true">
     {who === 'system' || who === 'scout' ? (
       <Pilot pixel={1} />
+    ) : who === 'session' ? (
+      <Mascot art={claude} pixel={1} label="Claude" />
     ) : (
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
         {GLYPH[who]}
@@ -146,7 +146,7 @@ export const Avatar = ({ who }: { who: Who }) => (
 )
 
 /** A line of news over a screen: something failed, or something worked. */
-export const Banner = ({ tone = 'attention', children }: { tone?: Tone; children: ReactNode }) => (
+export const Banner = ({ tone = 'alert', children }: { tone?: Tone; children: ReactNode }) => (
   <div className={`banner tone-${tone}`} role="status">
     {children}
   </div>
@@ -206,15 +206,26 @@ export const Meta = ({
   </Element>
 )
 
-/** The pilot, Autopilot's mascot, drawn in squares. */
-export const Pilot = ({ pixel = 1.5 }: { pixel?: number }) => (
+/** Pixel art drawn in squares: the pilot, or Claude. */
+const Mascot = ({
+  art,
+  pixel,
+  label,
+}: {
+  art: { rows: readonly string[]; colours: Record<string, string> }
+  pixel: number
+  label: string
+}) => (
   <div
     role="img"
-    aria-label="Autopilot"
+    aria-label={label}
     style={{ display: 'grid', gridTemplateColumns: `repeat(16, ${pixel}px)`, gridAutoRows: `${pixel}px`, flex: 'none' }}
   >
-    {pilot.rows.flatMap((row, y) =>
-      [...row].map((cell, x) => <span key={`${y}-${x}`} style={{ background: pilot.colours[cell] ?? 'transparent' }} />),
+    {art.rows.flatMap((row, y) =>
+      [...row].map((cell, x) => <span key={`${y}-${x}`} style={{ background: art.colours[cell] ?? 'transparent' }} />),
     )}
   </div>
 )
+
+/** The pilot, Autopilot's mascot. */
+export const Pilot = ({ pixel = 1.5 }: { pixel?: number }) => <Mascot art={pilot} pixel={pixel} label="Autopilot" />

@@ -10,7 +10,7 @@ export default function TabStack() {
         headerStyle: { backgroundColor: colours.window },
         headerLargeTitleStyle: { fontFamily: fonts.serifNative, color: colours.text },
         headerTitleStyle: { color: colours.text },
-        headerTintColor: colours.clay,
+        headerTintColor: colours.pilot,
         contentStyle: { backgroundColor: colours.window },
       }}
     />

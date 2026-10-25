@@ -50,7 +50,7 @@ export const Nav = ({ view, go, items, workstreams, signals, onHide, overlay }: 
             onClick={() => go({ kind: 'queue', queue: q.id })}
           >
             {q.title}
-            {n > 0 && <span className={`count${q.id === 'needs_me' && yourTurn > 0 ? ' clay' : ''}`}>{n}</span>}
+            {n > 0 && <span className={`count${q.id === 'needs_me' && yourTurn > 0 ? ' you' : ''}`}>{n}</span>}
           </Button>
         )
       })}
@@ -74,7 +74,7 @@ export const Nav = ({ view, go, items, workstreams, signals, onHide, overlay }: 
       <span className="nav-fill" />
       <Button kind="nav" aria-current={current(view.kind === 'signals')} onClick={() => go({ kind: 'signals' })}>
         Signals
-        <span className="count">{failing && <Dot tone="attention" label="A signal is failing" />}</span>
+        <span className="count">{failing && <Dot tone="alert" label="A signal is failing" />}</span>
       </Button>
       <Button kind="nav" aria-current={current(view.kind === 'servers')} onClick={() => go({ kind: 'servers' })}>
         Servers

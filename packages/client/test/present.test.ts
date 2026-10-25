@@ -18,7 +18,7 @@ const decision = (open: boolean): Update => ({
 
 describe('how updates read', () => {
   it('shows an open ask as a call to act, and an answered one as history', () => {
-    expect([updateLabel(decision(true)), updateTone(decision(true))]).toEqual(['Needs your decision', 'attention'])
+    expect([updateLabel(decision(true)), updateTone(decision(true))]).toEqual(['Needs your decision', 'pilot'])
     expect([updateLabel(decision(false)), updateTone(decision(false))]).toEqual(['Asked for a decision', 'quiet'])
   })
   it('names where a link goes', () => {

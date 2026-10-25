@@ -16,12 +16,20 @@ screens to them. The look itself is in `PRODUCT.md`.
 
 ## What the colours mean
 
-| Colour | Means |
-| --- | --- |
-| Clay (orange) | The session acting, and what waits on you |
-| Green | Running, done, or something new from a signal |
-| Amber (yellow) | Paused on something: waiting on others, snoozed, a watcher |
-| White / grey | You, and everything neutral |
+Pilot green is Autopilot's own colour and leads; Claude's clay marks Claude at work. That keeps
+Autopilot recognisably itself beside Claude.
+
+| Colour | Tone | Means |
+| --- | --- | --- |
+| Pilot green | `pilot` | What needs you, the next step (primary buttons, send), healthy, new from a signal |
+| Clay (Claude orange) | `claude` | A Claude session at work: running tasks, Open session, the session's avatar |
+| Amber | `paused` | Waiting on something: others, a time, a watcher |
+| Warm red | `alert` | Something failed or was refused |
+| White / grey | `quiet` | You, and everything neutral |
+
+The pilot is Claude's pixel mascot in pilot green, with aviators and a cap whose badge is Claude's
+clay. In a task's timeline the session appears as Claude's own mascot in clay, Autopilot as the
+pilot.
 
 ## Building blocks
 
@@ -29,7 +37,7 @@ screens to them. The look itself is in `PRODUCT.md`.
 | --- | --- | --- |
 | Buttons | `Button` with a `kind`: primary, secondary, tool, quiet, link, chip, icon, send, nav, row, menu | `Button` (primary, secondary, option, destructive), `Chip` |
 | Status | `Dot`, `Banner`, `Pill`, by tone; `Tag` for properties | `Dot`, `Banner`, `Pill`, by tone; `Tag` for properties |
-| Who | `Avatar`: the pilot for Autopilot, a spark for the session, an eye for a watcher, you | `Avatar`, with SF Symbols |
+| Who | `Avatar`: the pilot for Autopilot, Claude for the session, an eye for a watcher, a bolt for a signal, you | `Avatar`, with SF Symbols |
 | Text | `Meta`; headings are `h1.serif`; section labels are small capitals (`.section-label`) | `type.title`, `heading`, `body`, `name`, `lead`, `meta`, `note`, `label` |
 | Layout | `Row`, `Column`, `Spacer` (spacing steps only) | `Card`, `CardHead` |
 | Mascot | `Pilot` | `Pilot` |

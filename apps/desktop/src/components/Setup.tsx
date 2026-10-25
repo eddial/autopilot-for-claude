@@ -361,7 +361,7 @@ export const Setup = ({ onDone }: Props) => {
 const Check = ({ ok, title, detail, children }: { ok: boolean | null; title: string; detail: string; children?: React.ReactNode }) => (
   <div className="card">
     <div className="card-head">
-      <Dot tone={ok === null ? 'quiet' : ok ? 'good' : 'attention'} label={ok === null ? 'checking' : ok ? 'ok' : 'needs attention'} />
+      <Dot tone={ok === null ? 'quiet' : ok ? 'pilot' : 'alert'} label={ok === null ? 'checking' : ok ? 'ok' : 'needs attention'} />
       <span className="name">{title}</span>
       <span className="meta">{detail}</span>
       {children && <div className="actions">{children}</div>}

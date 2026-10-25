@@ -7,7 +7,7 @@ import { useSyncInstance } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
 import { Card, CardHead, Dot, type } from '../../../src/ui.tsx'
 
-const HEALTH = { ok: 'good', failing: 'attention', paused: 'quiet' } as const
+const HEALTH = { ok: 'pilot', failing: 'alert', paused: 'paused' } as const
 
 /** What is listening, and whether it is healthy. Read-only here; changes happen on the Mac. */
 export default function SignalsScreen() {

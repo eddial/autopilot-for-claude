@@ -52,22 +52,28 @@
   color-scheme: dark;
 }
 
-.tone-attention {
-  --tone-fg: #E8A086;
-  --tone-bg: rgba(217, 119, 87, 0.12);
-  --tone-dot: #D97757;
-}
-
-.tone-good {
+.tone-pilot {
   --tone-fg: #8FCDB2;
   --tone-bg: rgba(93, 176, 143, 0.14);
   --tone-dot: #5DB08F;
+}
+
+.tone-claude {
+  --tone-fg: #E8A086;
+  --tone-bg: rgba(217, 119, 87, 0.12);
+  --tone-dot: #D97757;
 }
 
 .tone-paused {
   --tone-fg: #E8C47F;
   --tone-bg: rgba(217, 169, 78, 0.14);
   --tone-dot: #D9A94E;
+}
+
+.tone-alert {
+  --tone-fg: #E8A086;
+  --tone-bg: rgba(217, 119, 87, 0.12);
+  --tone-dot: #D97757;
 }
 
 .tone-quiet {

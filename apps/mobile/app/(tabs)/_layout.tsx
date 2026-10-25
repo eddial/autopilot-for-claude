@@ -9,7 +9,7 @@ import { colours } from '@autopilot/design'
 export default function TabsLayout() {
   const yours = useItems().filter((i) => i.band === 'your_turn').length
   return (
-    <NativeTabs tintColor={colours.clay}>
+    <NativeTabs tintColor={colours.pilot}>
       <NativeTabs.Trigger name="queue">
         <NativeTabs.Trigger.Icon sf="tray.full" />
         <NativeTabs.Trigger.Label>Queue</NativeTabs.Trigger.Label>

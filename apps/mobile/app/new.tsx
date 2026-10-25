@@ -61,7 +61,7 @@ export default function NewTaskScreen() {
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           variant="prominent"
-          tintColor={colours.clay}
+          tintColor={colours.pilot}
           icon="arrow.up"
           accessibilityLabel={start ? 'Create and start' : 'Save'}
           disabled={!title.trim()}
@@ -105,7 +105,7 @@ export default function NewTaskScreen() {
         </View>
         <View style={styles.switchRow}>
           <Text style={styles.switchText}>Start a session right away</Text>
-          <Switch value={start} onValueChange={setStart} trackColor={{ true: colours.clay }} />
+          <Switch value={start} onValueChange={setStart} trackColor={{ true: colours.pilot }} />
         </View>
       </ScrollView>
     </>

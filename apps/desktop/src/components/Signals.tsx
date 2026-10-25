@@ -10,7 +10,7 @@ const AUTONOMY = ['', 'Files only', 'Prepares when started', 'Starts by itself',
 
 const schedule = (s: Signal) => ('every' in s.schedule ? `Every ${s.schedule.every}` : `Cron ${s.schedule.cron}`)
 
-const HEALTH_TONE = { ok: 'good', failing: 'attention', paused: 'quiet' } as const
+const HEALTH_TONE = { ok: 'pilot', failing: 'alert', paused: 'paused' } as const
 
 export const Signals = ({ items, workstreams, onOpen }: Props) => {
   const [signals, setSignals] = useState<Signal[]>([])
@@ -51,7 +51,7 @@ export const Signals = ({ items, workstreams, onOpen }: Props) => {
         {health.map((i) => (
           <div key={i.task.id} className="card">
             <div className="card-head">
-              <Dot tone="attention" />
+              <Dot tone="alert" />
               <span className="name">{i.task.title}</span>
               <span className="meta">{age(i.task.createdAt)}</span>
               <div className="actions">

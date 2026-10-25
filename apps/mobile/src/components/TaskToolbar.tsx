@@ -46,7 +46,7 @@ export const TaskToolbar = ({ item, closeAfter }: { item: QueueItem; closeAfter:
       ) : item.band === 'new' ? (
         <Stack.Toolbar.Button
           variant="prominent"
-          tintColor={colours.clay}
+          tintColor={colours.pilot}
           icon="play.fill"
           accessibilityLabel="Start"
           onPress={() => void sync?.send({ kind: 'start', taskId: task.id })}

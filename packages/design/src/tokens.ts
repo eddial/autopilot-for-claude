@@ -23,8 +23,9 @@ export const colours = {
   text3: '#9C9A92',
   muted: '#6B6A65',
 
-  // Clay asks for you (and is the session acting); pilot green means running, well or new from a
-  // signal; amber means paused on something: waiting on others, snoozed, a watcher.
+  // Pilot green is Autopilot's own colour: what needs you, the primary action, what is well or new
+  // from a signal. Clay is Claude's: the session at work. Amber is paused on something: waiting on
+  // others, snoozed, a watcher.
   clay: '#D97757',
   claySoft: '#E8A086',
   clayTint: 'rgba(217, 119, 87, 0.12)',
@@ -45,11 +46,16 @@ export const colours = {
 
 export type Colour = keyof typeof colours
 
-/** What a dot, a banner or a label says about something. */
+/** What a dot, a banner, a pill or a button says about something. */
 export const tones = {
-  attention: { fg: colours.claySoft, bg: colours.clayTint, dot: colours.clay },
-  good: { fg: colours.pilotSoft, bg: colours.pilotTint, dot: colours.pilot },
+  /** Autopilot: needs you, the next step, healthy, new. */
+  pilot: { fg: colours.pilotSoft, bg: colours.pilotTint, dot: colours.pilot },
+  /** Claude at work: a running session. */
+  claude: { fg: colours.claySoft, bg: colours.clayTint, dot: colours.clay },
+  /** Waiting on something: others, a time, a watcher. */
   paused: { fg: colours.amberSoft, bg: colours.amberTint, dot: colours.amber },
+  /** Something failed or was refused. */
+  alert: { fg: colours.claySoft, bg: colours.clayTint, dot: colours.clay },
   quiet: { fg: colours.text3, bg: colours.hover, dot: colours.muted },
 } as const
 
@@ -70,7 +76,7 @@ export const space = { 0: 0, 1: 4, 2: 6, 3: 8, 4: 10, 5: 12, 6: 14, 7: 16, 8: 20
 
 export type Space = keyof typeof space
 
-/** The pilot, Autopilot's mascot, in pilot green with a captain's cap, gold wings and aviators. 16×12. */
+/** The pilot, Autopilot's mascot: Claude's pixel mascot in pilot green, with aviators and a captain's cap whose badge is Claude's clay. 16×12. */
 export const pilot = {
   rows: [
     '...NNNNNNNNNN...',
@@ -89,11 +95,26 @@ export const pilot = {
   colours: {
     B: colours.pilot,
     N: '#26303A',
-    G: '#E2B84B',
-    Y: '#F4D67E',
+    G: colours.clay,
+    Y: colours.claySoft,
     K: '#0E0E0E',
     V: '#1A1A1A',
     A: '#17262E',
     h: '#9CC3D2',
   } as Record<string, string>,
+} as const
+
+/** Claude's own pixel mascot, in clay, for what a Claude session did. 16×8. */
+export const claude = {
+  rows: [
+    '..CCCCCCCCCCCC..',
+    '..CCKCCCCCCKCC..',
+    '..CCKCCCCCCKCC..',
+    'CCCCCCCCCCCCCCCC',
+    '..CCCCCCCCCCCC..',
+    '..CCCCCCCCCCCC..',
+    '...C.C....C.C...',
+    '...C.C....C.C...',
+  ],
+  colours: { C: colours.clay, K: colours.well } as Record<string, string>,
 } as const

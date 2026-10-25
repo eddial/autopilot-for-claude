@@ -149,7 +149,7 @@ export const Servers = () => {
         {mac && (
           <div className="card">
             <div className="card-head">
-              <Dot tone="good" />
+              <Dot tone="pilot" />
               <span className="name">{mac.name}</span>
               <span className="meta">
                 Runs the queue and the sessions · {mac.running} of {mac.capacity} sessions running
@@ -170,7 +170,7 @@ export const Servers = () => {
         )}
 
         <h2>Devices</h2>
-        {paired && <Banner tone="good">Paired with {paired}.</Banner>}
+        {paired && <Banner tone="pilot">Paired with {paired}.</Banner>}
         {devices.length === 0 && !pairing && <Meta>No phone yet. Pair your iPhone to answer and add tasks from anywhere.</Meta>}
         {devices.map((d) => (
           <div key={d.id} className="card">

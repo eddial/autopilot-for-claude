@@ -111,7 +111,7 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
         ))}
         {ask && (
           <View style={styles.ask} accessibilityLabel="Needs you">
-            <Text style={[type.meta, { color: colours.clay }]}>
+            <Text style={[type.meta, { color: colours.pilot }]}>
               {updateLabel(ask)} · {age(ask.createdAt)}
             </Text>
             <Text style={type.body}>{ask.body}</Text>
@@ -214,12 +214,12 @@ const useOrder = (): [Order, (order: Order) => void] => {
 }
 
 const BAND_TONE: Record<QueueItem['band'], Tone> = {
-  your_turn: 'attention',
+  your_turn: 'pilot',
   new: 'quiet',
-  running: 'good',
+  running: 'claude',
   waiting: 'paused',
   snoozed: 'paused',
-  done: 'good',
+  done: 'quiet',
 }
 
 const Links = ({ update }: { update: Update }) =>
@@ -287,8 +287,8 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colours.clay,
-    backgroundColor: colours.clayTint,
+    borderColor: colours.pilot,
+    backgroundColor: colours.pilotTint,
   },
   linkRow: { flexDirection: 'row', gap: 10, paddingLeft: 16, paddingVertical: 4 },
   linkSource: { width: 80 },
@@ -322,6 +322,6 @@ const styles = StyleSheet.create({
     borderColor: colours.borderStrong,
   },
   input: { flex: 1, maxHeight: 140, fontSize: 16, color: colours.text, paddingVertical: 6 },
-  send: { width: 34, height: 34, borderRadius: 10, backgroundColor: colours.clay, alignItems: 'center', justifyContent: 'center' },
+  send: { width: 34, height: 34, borderRadius: 10, backgroundColor: colours.pilot, alignItems: 'center', justifyContent: 'center' },
   sendText: { fontSize: 18, fontWeight: '700', color: colours.well },
 })

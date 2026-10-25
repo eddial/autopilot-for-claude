@@ -31,7 +31,7 @@ button {
 }
 
 :focus-visible {
-  outline: 2px solid var(--clay);
+  outline: 2px solid var(--pilot);
   outline-offset: 1px;
 }
 
@@ -124,8 +124,8 @@ button {
   color: var(--text-3);
 }
 
-.nav-item .count.clay {
-  color: var(--clay);
+.nav-item .count.you {
+  color: var(--pilot);
 }
 
 .nav-item.new {
@@ -147,7 +147,7 @@ button {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: var(--clay);
+  background: var(--pilot);
   color: var(--well);
   display: flex;
   align-items: center;
@@ -275,7 +275,7 @@ button {
 }
 
 .group .name.your_turn {
-  color: var(--clay-soft);
+  color: var(--pilot-soft);
 }
 
 .row {
@@ -333,16 +333,16 @@ button {
 }
 
 .dot.your_turn {
-  background: var(--clay);
+  background: var(--pilot);
 }
 
 .dot.your_turn.read {
   background: transparent;
-  border: 1.5px solid var(--clay);
+  border: 1.5px solid var(--pilot);
 }
 
 .dot.running {
-  background: var(--pilot);
+  background: var(--clay);
 }
 
 .dot.waiting,
@@ -410,8 +410,8 @@ button {
 }
 
 .btn.primary {
-  background: var(--clay);
-  border-color: var(--clay);
+  background: var(--pilot);
+  border-color: var(--pilot);
   color: var(--well);
   font-weight: 500;
 }
@@ -679,14 +679,14 @@ button {
 .ask-card {
   padding: 16px 18px;
   border-radius: 14px;
-  border: 0.5px solid var(--clay);
-  background: linear-gradient(var(--clay-tint), var(--clay-tint)), var(--open);
+  border: 0.5px solid var(--pilot);
+  background: linear-gradient(var(--pilot-tint), var(--pilot-tint)), var(--open);
 }
 
 .ask-head {
   margin-bottom: 6px;
   font-size: 13px;
-  color: var(--clay);
+  color: var(--pilot-soft);
 }
 
 .ask-card .inline-reply {
@@ -734,7 +734,7 @@ button {
   color: var(--text-2);
 }
 
-/* Who acted: the session in clay, a watcher in amber (paused on something), a signal in green
+/* Who acted: the session as Claude, a watcher in amber (paused on something), a signal in green
    (something new came in), you in plain white. */
 .avatar.session {
   color: var(--clay);
@@ -857,7 +857,7 @@ button {
   margin-left: auto;
   border: 0;
   border-radius: 10px;
-  background: var(--clay);
+  background: var(--pilot);
   color: var(--well);
   display: flex;
   align-items: center;
@@ -1168,7 +1168,7 @@ textarea.inline-reply {
 }
 
 .card input[type='checkbox'] {
-  accent-color: var(--clay);
+  accent-color: var(--pilot);
 }
 
 /* ── servers ── */
