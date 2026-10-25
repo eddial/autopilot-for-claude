@@ -79,11 +79,21 @@ export const Setup = ({ onDone }: Props) => {
   const [runs, setRuns] = useState<Record<string, Run>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [undetected, setUndetected] = useState<string | null>(null)
 
   useEffect(() => {
     void api.setup.status().then(setStatus, (e: unknown) => setError(message(e)))
     void api.signals.examples().then(setExamples, () => {})
-    void api.connectors.detect().then(setDetected, (e: unknown) => setError(`Could not read your Claude connectors: ${message(e)}`))
+    // Said on its own check, in plain words, not as a banner over the page.
+    void api.connectors
+      .detect()
+      .then(setDetected, (e: unknown) =>
+        setUndetected(
+          /ENOENT|not found/i.test(message(e))
+            ? 'Claude Code was not found on this Mac'
+            : 'Claude Code did not answer; open this again in a minute',
+        ),
+      )
   }, [])
 
   const previewing = Object.values(runs).some((r) => r.finished === undefined)
@@ -222,14 +232,12 @@ export const Setup = ({ onDone }: Props) => {
               }
             />
             <Check
-              ok={detected ? listening.length > 0 : error ? false : null}
+              ok={detected ? listening.length > 0 : undetected ? false : null}
               title="Your Claude connectors are there"
               detail={
                 detected
                   ? `${plural(detected.connectors.length, 'connector', 'connectors')}; I can listen to ${listening.length > 0 ? list(listening) : 'none of them yet'}`
-                  : error
-                    ? 'Could not ask Claude Code'
-                    : 'Asking Claude Code…'
+                  : (undetected ?? 'Asking Claude Code…')
               }
             />
             <Check
