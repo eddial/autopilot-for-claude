@@ -44,6 +44,19 @@ const useAttention = (items: QueueItem[], open: (id: string) => void) => {
   }, [])
 }
 
+/** The list a view shows, if it shows one. */
+const listOf = (view: View, items: QueueItem[], done: QueueItem[]) => {
+  if (view.kind === 'workstream')
+    return { title: titleCase(view.name), items: items.filter((i) => i.task.workstream === view.name), grouped: true }
+  if (view.kind === 'queue') {
+    const q = QUEUE_VIEWS.find((v) => v.id === view.queue) ?? QUEUE_VIEWS[0]
+    if (!q) return null
+    const source = q.id === 'done' ? done : items
+    return { title: q.title, items: source.filter((i) => q.bands.includes(i.band)), grouped: q.id === 'needs_me' }
+  }
+  return null
+}
+
 export const App = () => {
   const items = useQueueItems()
   const { connection, error, queue } = useStore()
@@ -94,17 +107,7 @@ export const App = () => {
   const selectTask = useCallback((id: string) => setSelected(id), [])
   useAttention(items, openTask)
 
-  const list = useMemo(() => {
-    if (view.kind === 'workstream')
-      return { title: titleCase(view.name), items: items.filter((i) => i.task.workstream === view.name), grouped: true }
-    if (view.kind === 'queue') {
-      const q = QUEUE_VIEWS.find((v) => v.id === view.queue) ?? QUEUE_VIEWS[0]
-      if (!q) return null
-      const source = q.id === 'done' ? done : items
-      return { title: q.title, items: source.filter((i) => q.bands.includes(i.band)), grouped: q.id === 'needs_me' }
-    }
-    return null
-  }, [view, items, done])
+  const list = useMemo(() => listOf(view, items, done), [view, items, done])
 
   const current = [...items, ...done].find((i) => i.task.id === selected) ?? null
   const banner = connection === 'offline' ? `Not connected to the Autopilot server${error ? `: ${error}` : ''}. Retrying…` : null
@@ -145,6 +148,9 @@ export const App = () => {
             setView(v)
             setShowingTask(false)
             setNavOverlay(false)
+            // Moving to another list leaves no task open from the last one. Only here: a task opened
+            // for you (just created, from a notification) stays open wherever it is.
+            if (selected && !listOf(v, items, done)?.items.some((i) => i.task.id === selected)) setSelected(null)
           }}
           overlay={navOverlay}
           items={items}

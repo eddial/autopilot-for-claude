@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { PostUpdate } from '@autopilot/contracts'
+import { CreateTask, PostUpdate } from '@autopilot/contracts'
 import { startTestServer, type TestServer } from '@autopilot/testkit'
 import { chromium, type Browser, type Page } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -79,6 +79,16 @@ describe('the Mac app window', () => {
     await shot('beside-claude-list')
     await page.setViewportSize({ width: 1440, height: 900 })
   }, 60_000)
+
+  it('closes the open task when moving to a list without it', async () => {
+    server.service.createTask(CreateTask.parse({ idempotencyKey: 'ui-create-2', title: 'Renew the office lease', start: false }), 'owner')
+    await page.getByRole('button', { name: 'Needs me' }).click()
+    await page.getByRole('option', { name: /Renew the office lease/ }).click()
+    const heading = page.getByRole('heading', { level: 2, name: 'Renew the office lease' })
+    await expect.poll(() => heading.count()).toBe(1)
+    await page.getByRole('button', { name: 'Snoozed' }).click()
+    await expect.poll(() => heading.count()).toBe(0)
+  }, 30_000)
 
   it('shows signals and walks into set-up', async () => {
     await page.getByRole('button', { name: 'Signals' }).click()
