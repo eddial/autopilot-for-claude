@@ -26,6 +26,7 @@ work, answer what is waiting on you, and jump into a session when you want to wo
 | **Signal** | A source Autopilot watches (Gmail, Slack, GitHub, Linear, Fathom, Lleverage …) |
 | **Workstream** | An area of work: where tasks land, how sessions run, and how much they may do alone |
 | **Watcher** | A periodic check on what a waiting task depends on |
+| **Lay of the land** | What Autopilot finds about a new task before anyone starts it: what it really is, related threads, tickets and code, a likely approach, and what to decide first |
 | **Routing review** | The nightly run (today's "dream") that proposes routing fixes from what you corrected |
 
 ## The queue and the attention model

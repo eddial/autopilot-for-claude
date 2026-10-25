@@ -1,0 +1,150 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import type { Link, Task, Workstream } from '@autopilot/contracts'
+import { z } from 'zod'
+import { readSignals } from './home.ts'
+import type { Paths } from './paths.ts'
+import type { Service } from './service.ts'
+import type { RunClaude } from './signals.ts'
+
+/** What a scout returns: the lay of the land around one new task. */
+export const ScoutOutput = z.object({
+  summary: z.string(),
+  related: z.array(z.object({ url: z.string(), title: z.string() })),
+  approach: z.array(z.string()),
+  questions: z.array(z.string()),
+})
+export type ScoutOutput = z.infer<typeof ScoutOutput>
+
+export type ScoutOptions = {
+  service: Service
+  paths: Paths
+  workstreams: () => Workstream[]
+  runClaude: RunClaude
+  prompts: string
+  owner: string
+  model?: string
+  log?: (message: string) => void
+}
+
+/** Tasks older than this when first seen are left as they are: no scouting a backlog. */
+const FRESH_MS = 2 * 86_400_000
+/** Reading files in the workstream's repository or folder; never writing or running anything. */
+const FILE_TOOLS = ['Read', 'Grep', 'Glob']
+
+const expand = (path: string): string => (path.startsWith('~/') ? join(homedir(), path.slice(2)) : path)
+
+/**
+ * Gives every new task the lay of the land before anyone looks at it: one read-only `claude -p`
+ * over the owner's connectors and the workstream's code, posted as an update. A started task does
+ * this itself in its session, so only tasks waiting in New are scouted, once each.
+ */
+export class Scout {
+  private readonly o: Required<ScoutOptions>
+  private running = false
+
+  constructor(options: ScoutOptions) {
+    this.o = { model: 'sonnet', log: () => {}, ...options }
+  }
+
+  async tick(): Promise<void> {
+    if (this.running) return
+    this.running = true
+    try {
+      const { service } = this.o
+      const now = service.now().getTime()
+      const waiting = service
+        .queue({ band: 'new' })
+        .items.map((i) => i.task)
+        .filter((t) => t.createdBy !== 'system' && t.workstream !== 'autopilot' && !service.jobRanAt(this.job(t.id)))
+        .toSorted((a, b) => a.createdAt.localeCompare(b.createdAt))
+      for (const task of waiting) {
+        // Recorded first: a run that fails is not retried at every tick.
+        service.jobRan(this.job(task.id), service.now().toISOString())
+        if (now - Date.parse(task.createdAt) > FRESH_MS) continue
+        await this.scout(task).catch((error: unknown) => this.o.log(`scout ${task.id}: ${String(error)}`))
+      }
+    } finally {
+      this.running = false
+    }
+  }
+
+  private job(taskId: string): string {
+    return `scout:${taskId}`
+  }
+
+  async scout(task: Task): Promise<void> {
+    const workstream = this.o.workstreams().find((w) => w.name === task.workstream)
+    const place = [workstream?.repo, workstream?.folder].map((p) => (p ? expand(p) : null)).find((p) => p && existsSync(p)) ?? null
+    // Every connector the signals read with, and the code when the workstream has some.
+    const connectors = [...new Set(readSignals(this.o.paths.home).flatMap((s) => s.tools))]
+    const tools = [...connectors, ...(place ? FILE_TOOLS : [])]
+    if (tools.length === 0) return
+    const output = await this.o.runClaude(this.prompt(task, workstream, place), {
+      tools,
+      model: this.o.model,
+      schema: z.toJSONSchema(ScoutOutput),
+      mcpConfig: this.mcpConfig(),
+      cwd: place ?? this.o.paths.home,
+    })
+    const result = ScoutOutput.parse(typeof output === 'string' ? JSON.parse(output) : output)
+    const { service } = this.o
+    // Started, closed or answered meanwhile: the session or the owner already has it.
+    if (service.queue({ band: 'new' }).items.every((i) => i.task.id !== task.id)) return
+    service.systemUpdate(task.id, 'info', scoutBody(result), scoutLinks(result))
+  }
+
+  private prompt(task: Task, workstream: Workstream | undefined, place: string | null): string {
+    const instructions = readFileSync(join(this.o.prompts, 'instructions.md'), 'utf8').replaceAll('{{owner}}', this.o.owner)
+    const links = task.links.map((l) => `- ${l.title}: ${l.url}`).join('\n')
+    return [
+      instructions,
+      [
+        `# New task ${task.id}: ${task.title}`,
+        `Workstream: ${task.workstream}${workstream ? `\nWhat lands here: ${workstream.routing}\nHow the work is done: ${workstream.work || 'not written down'}` : ''}`,
+        `Brief (context only):\n\n${task.brief.slice(0, 4000) || '(none)'}`,
+        links ? `Links:\n${links}` : '',
+        place ? `The workstream's code is in this folder: ${place}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
+      [
+        '# Task',
+        `Get the lay of the land so that ${this.o.owner}, or the session that later takes this on, does not start from a bare title.`,
+        'Read-only: search the connectors for the source thread or ticket, earlier conversations, tickets and pull requests about the same thing, and the people involved; look through the code when there is a folder. Create, change, send and comment on nothing. Spend a few minutes at most.',
+        'Return:',
+        '- summary: two to four sentences: what this really is, where it stands, and anything that changes how big or urgent it is',
+        '- related: up to 8 links that matter (thread, ticket, PR, document, file as file:///), each with a short title saying what and where',
+        '- approach: one to four short steps the work would likely take',
+        '- questions: up to 3 things only the owner can answer before work starts; [] when none',
+      ].join('\n\n'),
+    ].join('\n\n---\n\n')
+  }
+
+  /** Scouts read through the claude.ai connectors only; they get no Autopilot tools. */
+  private mcpConfig(): string {
+    const dir = join(this.o.paths.data, 'scout')
+    mkdirSync(dir, { recursive: true, mode: 0o700 })
+    const file = join(dir, 'mcp.json')
+    writeFileSync(file, JSON.stringify({ mcpServers: {} }), { mode: 0o600 })
+    return file
+  }
+}
+
+/** The update as the owner reads it on a phone. */
+export const scoutBody = (r: ScoutOutput): string =>
+  [
+    r.summary.trim(),
+    r.approach.length > 0 ? `Likely approach:\n${r.approach.map((s, i) => `${i + 1}. ${s}`).join('\n')}` : '',
+    r.questions.length > 0 ? `Before starting:\n${r.questions.map((q) => `- ${q}`).join('\n')}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+    .slice(0, 4000)
+
+const scoutLinks = (r: ScoutOutput): Link[] =>
+  r.related
+    .filter((l) => URL.canParse(l.url))
+    .slice(0, 8)
+    .map((l) => ({ url: l.url, title: l.title.slice(0, 200) || new URL(l.url).hostname }))

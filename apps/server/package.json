@@ -12,7 +12,8 @@
     "./paths": "./src/paths.ts",
     "./main": "./src/main.ts",
     "./service-install": "./src/service-install.ts",
-    "./launcher": "./src/launcher.ts"
+    "./launcher": "./src/launcher.ts",
+    "./scout": "./src/scout.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

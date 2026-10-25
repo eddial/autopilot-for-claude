@@ -1045,10 +1045,10 @@ export class Service {
     })
   }
 
-  systemUpdate(taskId: string, kind: 'blocked' | 'info', body: string): Update {
+  systemUpdate(taskId: string, kind: 'blocked' | 'info', body: string, attachments: Link[] = []): Update {
     return this.transaction(() => {
       const task = this.task(taskId)
-      const update = this.insertUpdate(task, { kind, body, author: 'system' })
+      const update = this.insertUpdate(task, { kind, body, author: 'system', attachments })
       this.touch(task, {})
       return update
     })

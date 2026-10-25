@@ -19,6 +19,7 @@ import type { Paths } from './paths.ts'
 import { Service } from './service.ts'
 import { claudeHeadless, Signals, type RunClaude } from './signals.ts'
 import { Routing } from './routing.ts'
+import { Scout } from './scout.ts'
 import { installService } from './service-install.ts'
 import { Setup } from './setup.ts'
 import { Watchers } from './watchers.ts'
@@ -89,6 +90,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   const signals = new Signals({ service, paths, workstreams, runClaude, prompts, owner, self: options.self, log })
   const watchers = new Watchers({ service, paths, workstreams, runClaude, prompts, owner, log })
   const routing = new Routing({ service, paths, runClaude, owner, log })
+  const scout = new Scout({ service, paths, workstreams, runClaude, prompts, owner, log })
 
   const machine = (): Machine => ({
     id: service.machineId,
@@ -147,11 +149,12 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   const drain = () => void launcher.drain().catch((error: unknown) => log(`outbox: ${String(error)}`))
   const unsubscribe = service.onChange(drain)
   const outbox = setInterval(drain, 2000)
-  // Signals and watchers each run one at a time, but beside each other.
+  // Signals, watchers, routing and the scout each run one at a time, but beside each other.
   const tick = setInterval(() => {
     void signals.tick()
     void watchers.tick()
     void routing.tick()
+    void scout.tick()
   }, 30_000)
   drain()
   log(`listening on ${paths.socket}`)

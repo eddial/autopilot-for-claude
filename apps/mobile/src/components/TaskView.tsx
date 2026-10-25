@@ -131,7 +131,7 @@ const Entry = ({ update, answered, onOption }: { update: Update; answered: boole
     <View style={{ gap: 6 }}>
       <Text style={[type.meta, asking && { color: colours.clay }]}>
         {updateLabel(update)}
-        {update.author === 'session' ? '' : ` · ${titleCase(update.author)}`} · {age(update.createdAt)}
+        {update.author === 'session' || update.author === 'system' ? '' : ` · ${titleCase(update.author)}`} · {age(update.createdAt)}
       </Text>
       <Text style={type.body}>{update.body}</Text>
       {update.attachments.length > 0 && (

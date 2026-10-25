@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { CreateTask, PostUpdate } from '@autopilot/contracts'
+import { scoutBody } from '@autopilot/server/scout'
 import { keys, startTestServer } from '@autopilot/testkit'
 import { chromium, type Page } from 'playwright-core'
 import { serveWeb } from './web-server.ts'
@@ -55,7 +56,26 @@ post(invoice.id, 'decision', 'The invoice is €412, up from €380 because of t
 
 // New, running, waiting, snoozed, done.
 task('Draft the Q4 hiring plan for two engineers', 'operations')
-task('Look into flaky e2e test on checkout', 'engineering', 'It fails about one run in ten on CI only.')
+const flaky = task('Look into flaky e2e test on checkout', 'engineering', 'It fails about one run in ten on CI only.')
+service.systemUpdate(
+  flaky.id,
+  'info',
+  scoutBody({
+    summary:
+      'The checkout e2e test failed 6 of the last 50 CI runs, always at the payment step and only on Linux runners. It started the day the Stripe mock moved to a shared container (PR #212).',
+    related: [],
+    approach: [
+      'Reproduce with the shared mock under load',
+      'Give each test file its own mock, or wait for its readiness',
+      'Run the suite 50 times to confirm',
+    ],
+    questions: ['Fix it in the test, or move the mock back per job?'],
+  }),
+  [
+    { url: 'https://github.com/acme/shop/pull/212', title: 'github: PR #212, shared Stripe mock' },
+    { url: 'https://github.com/acme/shop/actions', title: 'github: the 6 failed runs' },
+  ],
+)
 task('Summarise the customer interviews from last week', 'customers', '', true)
 task('Upgrade the Node runtime to 24 in the worker images', 'engineering', '', true)
 const waiting = task('Get the signed DPA back from Globex', 'customers', '', true)
@@ -86,8 +106,12 @@ await page.keyboard.press('Space')
 await shot('02-answer-in-place')
 await page.keyboard.press('Escape')
 
+await page.getByRole('option', { name: /flaky e2e/ }).click()
+await page.getByText('Lay of the land').waitFor()
+await shot('03-lay-of-the-land')
+
 await page.getByRole('button', { name: 'Running' }).click()
-await shot('03-running')
+await shot('03b-running')
 await page.getByRole('button', { name: 'Engineering' }).click()
 await shot('04-workstream')
 await page.getByRole('button', { name: 'New task' }).click()

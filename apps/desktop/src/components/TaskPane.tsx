@@ -131,7 +131,7 @@ const PendingEntry = ({ pending, options }: { pending: Pending; options: { id: s
 
 const Entry = ({ update, answered }: { update: Update; answered: boolean }) => {
   if (update.kind === 'instruction' && update.author === 'owner') return <div className="bubble">{update.body}</div>
-  const by = update.author === 'session' ? '' : ` · ${titleCase(update.author)}`
+  const by = update.author === 'session' || update.author === 'system' ? '' : ` · ${titleCase(update.author)}`
   const asking = update.open && !answered
   const answer = (optionId: string) => send({ kind: 'answer', taskId: update.taskId, updateId: update.id, optionId })
   return (
