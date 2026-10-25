@@ -1,4 +1,5 @@
-import type { QueueItem, Update } from '@autopilot/contracts'
+import { updateLabel } from '@autopilot/client'
+import type { QueueItem } from '@autopilot/contracts'
 
 /** `5m ago`, or `just now`. */
 export const ago = (iso: string): string => {
@@ -13,33 +14,6 @@ export const age = (iso: string, now = Date.now()): string => {
   const hours = Math.round(minutes / 60)
   if (hours < 24) return `${hours}h`
   return `${Math.round(hours / 24)}d`
-}
-
-const ASK_LABEL: Record<string, string> = {
-  decision: 'Needs your decision',
-  question: 'Asked you',
-  review: 'Ready to review',
-  blocked: 'Stuck',
-}
-
-export const updateLabel = (update: Update): string => {
-  switch (update.kind) {
-    case 'decision':
-    case 'question':
-    case 'review':
-    case 'blocked':
-      return ASK_LABEL[update.kind] ?? update.kind
-    case 'waiting':
-      return update.waitingOn ? `Waiting on ${update.waitingOn}` : 'Waiting'
-    case 'done':
-      return 'Done'
-    case 'info':
-      return update.author === 'watcher' ? 'News' : update.author === 'system' ? 'First look' : 'Update'
-    case 'signal':
-      return 'New on the thread'
-    case 'instruction':
-      return 'You'
-  }
 }
 
 export const titleCase = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)
@@ -61,3 +35,5 @@ export const rowMeta = (item: QueueItem): string => {
             : null
   return [what, titleCase(item.task.workstream), sourceOf(item)].filter(Boolean).join(' · ')
 }
+
+export { updateLabel }

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { pendingText, type Pending } from '@autopilot/client'
+import { useEffect, useState } from 'react'
+import { pendingText, updateAuthor, updateTone, type Pending } from '@autopilot/client'
 import type { QueueItem, Update } from '@autopilot/contracts'
 import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
@@ -41,22 +41,19 @@ const snoozeTimes = (): { label: string; until: Date }[] => {
 
 export const TaskPane = ({ item, onClose }: Props) => {
   const { task } = item
-  // The conversation comes from the window's store, kept current by the feed: no request on open
-  // once it has been seen. Until then, the ask from the queue shows straight away.
+  // The task comes from the window's store, kept current by the feed: no request on open once it
+  // has been seen. Until then, the ask from the queue shows straight away.
   const { detail, pending } = useDetail(task.id)
   const { refused } = useStore()
-  const timeline = useRef<HTMLDivElement>(null)
   const answered = new Set(pending.flatMap((p) => (p.command.kind === 'answer' ? [p.command.updateId] : [])))
   const updates = detail?.updates ?? (item.openAsk ? [item.openAsk] : [])
+  // What needs the owner goes on top; the activity below is everything else, oldest first.
+  const ask = updates.find((u) => u.open && !answered.has(u.id)) ?? null
+  const activity = updates.filter((u) => u !== ask)
 
   useEffect(() => {
     if (item.unread) markSeen(task.id)
   }, [task.id, item.unread])
-
-  const count = updates.length + pending.length
-  useEffect(() => {
-    if (count > 0) timeline.current?.scrollTo({ top: timeline.current.scrollHeight })
-  }, [count])
 
   const session = item.session
   const filed = task.source.signal
@@ -85,82 +82,145 @@ export const TaskPane = ({ item, onClose }: Props) => {
           </span>
         )}
       </div>
-      <div className="task-title">
-        <h2 className="serif">{task.title}</h2>
-        <div className="meta filed">
-          {filed} · {ago(task.createdAt)}
-          {task.links.map((l) => (
-            <Button key={l.url} kind="chip" onClick={() => open(l.url)}>
-              {l.title}
-            </Button>
-          ))}
-        </div>
-      </div>
-      <div className="timeline" ref={timeline}>
+      <div className="timeline">
+        <header className="task-title">
+          <h2 className="serif">{task.title}</h2>
+          <div className="meta filed">
+            {filed} · {ago(task.createdAt)}
+            {task.links.map((l) => (
+              <Button key={l.url} kind="chip" onClick={() => open(l.url)}>
+                {l.title}
+              </Button>
+            ))}
+          </div>
+          <Actions item={item} />
+        </header>
+        {task.brief && (
+          <section className="section">
+            <div className="section-label">Brief</div>
+            <Body text={task.brief} />
+          </section>
+        )}
         {refused && <Banner>{refused}</Banner>}
-        {task.brief && <Brief text={task.brief} mine={task.createdBy === 'owner'} />}
-        {updates.map((u) => (
-          <Entry key={u.id} update={u} answered={answered.has(u.id)} />
-        ))}
-        {pending.map((p) => (
-          <PendingEntry key={p.id} pending={p} options={updates.flatMap((u) => u.options)} />
-        ))}
-        {detail && updates.length === 0 && pending.length === 0 && !task.brief && <Meta>Nothing yet.</Meta>}
+        {ask && <AskCard update={ask} />}
+        {/* With only an ask so far, the card is the whole story. */}
+        {!(ask && activity.length === 0 && pending.length === 0) && (
+          <section className="section">
+            <div className="section-label">Activity</div>
+            {activity.length === 0 && pending.length === 0 ? (
+              <Meta>{detail ? 'Nothing yet.' : ''}</Meta>
+            ) : (
+              <ol className="feed">
+                {activity.map((u, i) => (
+                  <Entry key={u.id} update={u} latest={i === activity.length - 1 && pending.length === 0} />
+                ))}
+                {pending.map((p) => (
+                  <PendingEntry key={p.id} pending={p} options={updates.flatMap((u) => u.options)} />
+                ))}
+              </ol>
+            )}
+          </section>
+        )}
       </div>
-      <Composer item={item} />
+      {!ask && <Composer item={item} />}
     </section>
   )
 }
 
-const Brief = ({ text, mine }: { text: string; mine: boolean }) =>
-  mine ? (
-    <div className="bubble">{text}</div>
-  ) : (
-    <div>
-      <div className="label">Filed</div>
-      <div className="msg filed">{text}</div>
-    </div>
+/** Long text shows its first lines; a click shows the rest. */
+const Body = ({ text, full = false }: { text: string; full?: boolean }) => {
+  const long = !full && (text.length > 360 || text.split('\n').length > 6)
+  const [more, setMore] = useState(false)
+  return (
+    <>
+      <div className={`msg${long && !more ? ' clamped' : ''}`}>{text}</div>
+      {long && (
+        <Button kind="link" onClick={() => setMore((m) => !m)}>
+          {more ? 'Show less' : 'Show more'}
+        </Button>
+      )}
+    </>
   )
-
-/** What the person just did, shown at once while it reaches the server. */
-const PendingEntry = ({ pending, options }: { pending: Pending; options: { id: string; label: string }[] }) => {
-  const { command } = pending
-  const words = pendingText(command) ?? (command.kind === 'answer' ? options.find((o) => o.id === command.optionId)?.label : undefined)
-  return words ? <div className="bubble">{words}</div> : null
 }
 
-const Entry = ({ update, answered }: { update: Update; answered: boolean }) => {
-  if (update.kind === 'instruction' && update.author === 'owner') return <div className="bubble">{update.body}</div>
-  const by = update.author === 'session' || update.author === 'system' ? '' : ` · ${titleCase(update.author)}`
-  const asking = update.open && !answered
-  const answer = (optionId: string) => send({ kind: 'answer', taskId: update.taskId, updateId: update.id, optionId })
+const Attachments = ({ links }: { links: Update['attachments'] }) =>
+  links.length > 0 ? (
+    <div className="attachments">
+      {links.map((a) => (
+        <Button key={a.url} kind="chip" onClick={() => open(a.url)}>
+          {a.title}
+        </Button>
+      ))}
+    </div>
+  ) : null
+
+/** The one thing waiting on the owner, with its answers. */
+const AskCard = ({ update }: { update: Update }) => {
+  const [text, setText] = useState('')
+  const answer = (reply: { optionId: string } | { text: string }) =>
+    send({ kind: 'answer', taskId: update.taskId, updateId: update.id, ...reply })
   return (
-    <div>
-      <div className={`label${asking ? ' ask' : ''}`}>
-        {updateLabel(update)}
-        {by} · {age(update.createdAt)}
+    <section className="ask-card" aria-label="Needs you">
+      <div className="ask-head">
+        {updateLabel(update)} · {age(update.createdAt)}
       </div>
       <div className="msg">{update.body}</div>
-      {update.attachments.length > 0 && (
-        <div className="attachments">
-          {update.attachments.map((a) => (
-            <Button key={a.url} kind="chip" onClick={() => open(a.url)}>
-              {a.title}
-            </Button>
-          ))}
-        </div>
-      )}
-      {asking && update.options.length > 0 && (
+      <Attachments links={update.attachments} />
+      {update.options.length > 0 && (
         <div className="options">
           {update.options.map((o) => (
-            <Button key={o.id} onClick={() => answer(o.id)}>
+            <Button key={o.id} onClick={() => answer({ optionId: o.id })}>
               {o.label}
             </Button>
           ))}
         </div>
       )}
-    </div>
+      <input
+        className="inline-reply"
+        aria-label="Reply to Autopilot"
+        placeholder={update.options.length > 0 ? 'Or answer in words…' : 'Answer…'}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && text.trim()) {
+            answer({ text: text.trim() })
+            setText('')
+          }
+        }}
+      />
+    </section>
   )
+}
+
+/** The latest entry shows in full; older long ones fold. */
+const Entry = ({ update, latest }: { update: Update; latest: boolean }) => {
+  const by = updateAuthor(update)
+  return (
+    <li className={`entry tone-${updateTone(update)}`}>
+      <span className="mark" aria-hidden="true" />
+      <div className="entry-head">
+        <span className="entry-label">{updateLabel(update)}</span>
+        {by ? ` · ${by}` : ''} · {age(update.createdAt)}
+      </div>
+      <Body text={update.body} full={latest} />
+      <Attachments links={update.attachments} />
+    </li>
+  )
+}
+
+/** What the person just did, shown at once while it reaches the server. */
+const PendingEntry = ({ pending, options }: { pending: Pending; options: { id: string; label: string }[] }) => {
+  const { command } = pending
+  const words = pendingText(command) ?? (command.kind === 'answer' ? options.find((o) => o.id === command.optionId)?.label : undefined)
+  return words ? (
+    <li className="entry tone-quiet sending">
+      <span className="mark" aria-hidden="true" />
+      <div className="entry-head">
+        <span className="entry-label">You</span> · sending
+      </div>
+      <div className="msg">{words}</div>
+    </li>
+  ) : null
 }
 
 const Menu = ({ label, items }: { label: string; items: { label: string; run: () => void }[] }) => {
@@ -191,28 +251,59 @@ const Menu = ({ label, items }: { label: string; items: { label: string; run: ()
   )
 }
 
-const Composer = ({ item }: { item: QueueItem }) => {
-  const { task, openAsk, session } = item
-  const [text, setText] = useState('')
-  const reply = () => {
-    const body = text.trim()
-    if (!body) return
-    setText('')
-    send(openAsk ? { kind: 'answer', taskId: task.id, updateId: openAsk.id, text: body } : { kind: 'instruct', taskId: task.id, body })
-  }
+/** What can be done with the task as a whole. */
+const Actions = ({ item }: { item: QueueItem }) => {
+  const { task, session } = item
   const live = session && session.state !== 'ended' ? session : null
   const sessionLinks = [
     ...(live?.resumeUrl ? [{ label: 'In Claude on this Mac', run: () => open(live.resumeUrl ?? '') }] : []),
     ...(live?.remoteControlUrl ? [{ label: 'Through Remote Control', run: () => open(live.remoteControlUrl ?? '') }] : []),
   ]
-  const placeholder = openAsk ? 'Answer…' : live ? 'Tell the session…' : 'Reply to Autopilot; starts a session…'
+  return (
+    <div className="task-actions">
+      {item.band === 'new' && !live && (
+        <Button kind="primary" onClick={() => send({ kind: 'start', taskId: task.id })}>
+          Start
+        </Button>
+      )}
+      {sessionLinks.length > 0 && <Menu label="Open session" items={sessionLinks} />}
+      <Menu
+        label="Snooze"
+        items={snoozeTimes().map((t) => ({
+          label: t.label,
+          run: () => send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() }),
+        }))}
+      />
+      <Button kind="tool" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'done' })}>
+        Mark done
+      </Button>
+      {item.band === 'new' && (
+        <Button kind="quiet" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'canceled' })}>
+          Not for me
+        </Button>
+      )}
+    </div>
+  )
+}
+
+/** A line for telling the session something; it grows while you write. */
+const Composer = ({ item }: { item: QueueItem }) => {
+  const { task, session } = item
+  const [text, setText] = useState('')
+  const reply = () => {
+    const body = text.trim()
+    if (!body) return
+    setText('')
+    send({ kind: 'instruct', taskId: task.id, body })
+  }
+  const live = session && session.state !== 'ended'
   return (
     <div className="composer-wrap">
-      <div className="composer">
+      <div className="composer compact">
         <textarea
           aria-label="Reply to Autopilot"
           rows={Math.min(8, Math.max(1, text.split('\n').length))}
-          placeholder={placeholder}
+          placeholder={live ? 'Tell the session…' : 'Tell Autopilot what to do; starts a session…'}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -222,32 +313,9 @@ const Composer = ({ item }: { item: QueueItem }) => {
             }
           }}
         />
-        <div className="composer-bar">
-          {sessionLinks.length > 0 && <Menu label="Open session" items={sessionLinks} />}
-          {item.band === 'new' && !live && (
-            <Button kind="tool" onClick={() => send({ kind: 'start', taskId: task.id })}>
-              Start
-            </Button>
-          )}
-          <Menu
-            label="Snooze"
-            items={snoozeTimes().map((t) => ({
-              label: t.label,
-              run: () => send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() }),
-            }))}
-          />
-          <Button kind="tool" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'done' })}>
-            Mark done
-          </Button>
-          {item.band === 'new' && (
-            <Button kind="quiet" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'canceled' })}>
-              Not for me
-            </Button>
-          )}
-          <Button kind="send" aria-label="Send" disabled={!text.trim()} onClick={reply}>
-            <ArrowUp />
-          </Button>
-        </div>
+        <Button kind="send" aria-label="Send" disabled={!text.trim()} onClick={reply}>
+          <ArrowUp />
+        </Button>
       </div>
     </div>
   )

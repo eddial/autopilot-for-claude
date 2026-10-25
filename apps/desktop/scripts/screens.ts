@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { CreateTask, PostUpdate } from '@autopilot/contracts'
+import { AnswerUpdate, CreateTask, PostUpdate } from '@autopilot/contracts'
 import { scoutBody } from '@autopilot/server/scout'
 import { keys, startTestServer } from '@autopilot/testkit'
 import { chromium, type Page } from 'playwright-core'
@@ -46,6 +46,13 @@ post(
   'Sarah at Acme asks whether SSO ships before their 1 December audit. Engineering says the 24th. Can I promise that?',
 )
 const pr = task('Review the retry fix for the webhook worker', 'engineering', '', true)
+post(
+  pr.id,
+  'info',
+  'Found the cause: the worker retried immediately and hit the rate limit again, so one slow minute cascaded into an hour of failures.',
+)
+const how = post(pr.id, 'decision', 'Back off exponentially, or queue the retries for the next minute?', ['Back off', 'Queue them'])
+service.answerUpdate(AnswerUpdate.parse({ idempotencyKey: key(), updateId: how.id, optionId: 'o0' }))
 post(
   pr.id,
   'review',
@@ -105,6 +112,10 @@ await page.getByRole('option', { name: /Hetzner/ }).click()
 await page.keyboard.press('Space')
 await shot('02-answer-in-place')
 await page.keyboard.press('Escape')
+
+await page.getByRole('option', { name: /retry fix/ }).click()
+await page.getByText('Found the cause').waitFor()
+await shot('02b-history')
 
 await page.getByRole('option', { name: /flaky e2e/ }).click()
 await page.getByText('First look').waitFor()

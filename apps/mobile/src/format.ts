@@ -1,4 +1,5 @@
-import type { Band, QueueItem, Update } from '@autopilot/contracts'
+import { updateLabel } from '@autopilot/client'
+import type { Band, QueueItem } from '@autopilot/contracts'
 
 export const age = (iso: string, now = Date.now()): string => {
   const minutes = Math.max(0, Math.round((now - Date.parse(iso)) / 60_000))
@@ -19,29 +20,6 @@ export const BAND_TITLE: Record<Band, string> = {
   done: 'Done',
 }
 
-export const updateLabel = (update: Update): string => {
-  switch (update.kind) {
-    case 'decision':
-      return 'Needs your decision'
-    case 'question':
-      return 'Asked you'
-    case 'review':
-      return 'Ready to review'
-    case 'blocked':
-      return 'Stuck'
-    case 'waiting':
-      return update.waitingOn ? `Waiting on ${update.waitingOn}` : 'Waiting'
-    case 'done':
-      return 'Done'
-    case 'info':
-      return update.author === 'watcher' ? 'News' : update.author === 'system' ? 'First look' : 'Update'
-    case 'signal':
-      return 'New on the thread'
-    case 'instruction':
-      return 'You'
-  }
-}
-
 export const rowMeta = (item: QueueItem): string => {
   const what = item.openAsk
     ? updateLabel(item.openAsk)
@@ -53,3 +31,5 @@ export const rowMeta = (item: QueueItem): string => {
   const source = item.task.source.signal ? titleCase(item.task.source.signal) : item.task.createdBy === 'system' ? 'Autopilot' : 'You'
   return [what, titleCase(item.task.workstream), source].filter(Boolean).join(' · ')
 }
+
+export { updateLabel }
