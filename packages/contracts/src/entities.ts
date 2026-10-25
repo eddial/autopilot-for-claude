@@ -137,6 +137,21 @@ export const Workstream = z.object({
 })
 export type Workstream = z.infer<typeof Workstream>
 
+/** A workstream the sweep of your sources proposes, for you to keep, change or drop. */
+export const SuggestedWorkstream = z.object({
+  name: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]*$/)
+    .max(40),
+  routing: z.string().describe('What lands here'),
+  urgent: z.string().describe('When it is urgent'),
+  /** Titles of real items from the sweep that belong here. */
+  evidence: z.array(z.string()),
+  /** Roughly how many items in the sweep. */
+  count: z.int().min(0),
+})
+export type SuggestedWorkstream = z.infer<typeof SuggestedWorkstream>
+
 /** One way to reach a server: a socket path, or `host:port` on the LAN or the tailnet. */
 export const Route = z.object({
   kind: z.enum(['socket', 'lan', 'tailscale']),

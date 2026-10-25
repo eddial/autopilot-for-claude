@@ -2,7 +2,7 @@ import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { claudeInit, connectorsOf } from '../src/detect.ts'
+import { claudeInit, connectorsOf, keepFor } from '../src/detect.ts'
 
 describe('connector detection', () => {
   it('reads the connectors from the init event and stops Claude Code before it calls the model', async () => {
@@ -31,5 +31,26 @@ describe('connector detection', () => {
       },
       { name: 'claude.ai Gmail', status: 'needs-auth', tools: [], signal: 'gmail' },
     ])
+  })
+
+  it('asks Claude Code once in five minutes, and again after a failure', async () => {
+    let clock = 0
+    let asked = 0
+    let fail = true
+    const detect = keepFor(
+      5 * 60_000,
+      () => {
+        asked++
+        return fail ? Promise.reject(new Error('no')) : Promise.resolve(asked)
+      },
+      () => clock,
+    )
+    await expect(detect()).rejects.toThrow('no')
+    fail = false
+    expect(await Promise.all([detect(), detect()])).toEqual([2, 2])
+    clock += 4 * 60_000
+    expect(await detect()).toBe(2)
+    clock += 2 * 60_000
+    expect(await detect()).toBe(3)
   })
 })

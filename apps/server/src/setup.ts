@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -10,11 +10,46 @@ import { DomainError } from './service.ts'
 
 const PLACEHOLDER = /YOUR_[A-Z_]+/g
 
+/** Placeholders the server fills in itself: the connector knows the answer, so nobody types it. */
+const LOOKUPS: Record<string, { tool: string; ask: string; answer: RegExp; what: string }> = {
+  YOUR_SLACK_USER_ID: {
+    tool: 'mcp__claude_ai_Slack__slack_read_user_profile',
+    ask: 'Call slack_read_user_profile with no user_id; it returns the signed-in user. Reply with only their user id.',
+    answer: /\b[UW][A-Z0-9]{6,}\b/,
+    what: 'your Slack user id',
+  },
+}
+
+/** Finds a placeholder's value, or null when the connector cannot say. */
+export type Lookup = (field: string) => Promise<string | null>
+
+/** One short `claude -p` with only the tool that knows the answer. */
+export const lookupWithClaude =
+  (claude: string): Lookup =>
+  (field) =>
+    new Promise((resolve) => {
+      const lookup = LOOKUPS[field]
+      if (!lookup) return resolve(null)
+      const child = spawn(claude, ['-p', '--model', 'haiku', '--permission-mode', 'dontAsk', '--allowedTools', lookup.tool], {
+        stdio: ['pipe', 'pipe', 'ignore'],
+      })
+      const timer = setTimeout(() => child.kill(), 90_000)
+      let out = ''
+      child.stdout.on('data', (d: Buffer) => (out += d.toString()))
+      child.on('error', () => resolve(null))
+      child.on('close', () => {
+        clearTimeout(timer)
+        resolve(lookup.answer.exec(out)?.[0] ?? null)
+      })
+      child.stdin.end(lookup.ask)
+    })
+
 export type SetupOptions = {
   paths: Paths
   /** The repository's `examples/home/`. */
   examples: string
   claude: string
+  lookup?: Lookup
 }
 
 /** What onboarding reads and writes in the person's home. */
@@ -52,19 +87,32 @@ export class Setup {
             .split(/\n\s*\n/)[0]
             ?.replace(/\s+/g, ' ') ?? '',
         tools: Array.isArray(meta.tools) ? meta.tools.map(String) : [],
-        fields: [...new Set(text.match(PLACEHOLDER) ?? [])],
+        fields: [...new Set(text.match(PLACEHOLDER) ?? [])].filter((field) => !(field in LOOKUPS)),
         added: existsSync(join(this.o.paths.home, 'signals', file)),
       }
     })
   }
 
-  /** Copies an example in, placeholders filled, paused until the person switches it on. */
-  addSignal(name: string, values: Record<string, string>): void {
+  /**
+   * Copies an example in, placeholders filled, paused until the person switches it on. What a
+   * connector can tell (your own Slack user id) is looked up rather than asked for.
+   */
+  async addSignal(name: string, given: Record<string, string>): Promise<void> {
     const example = join(this.o.examples, 'signals', `${name}.md`)
     if (!existsSync(example)) throw new DomainError('NOT_FOUND', { entity: 'signal example', id: name })
     const target = join(this.o.paths.home, 'signals', `${name}.md`)
     if (existsSync(target)) return
     let text = readFileSync(example, 'utf8')
+    const values = { ...given }
+    const lookup = this.o.lookup ?? lookupWithClaude(this.o.claude)
+    for (const field of new Set(text.match(PLACEHOLDER) ?? [])) {
+      const known = LOOKUPS[field]
+      if (!known || values[field]?.trim()) continue
+      const found = await lookup(field)
+      if (!found)
+        throw new DomainError('BAD_REQUEST', { field }, `Could not find ${known.what} through the connector. Is it connected in Claude?`)
+      values[field] = found
+    }
     const missing = [...new Set(text.match(PLACEHOLDER) ?? [])].filter((field) => !values[field]?.trim())
     if (missing.length > 0) throw new DomainError('BAD_REQUEST', { field: missing[0] }, `Fill in ${missing.join(', ')}`)
     for (const [field, value] of Object.entries(values)) text = text.replaceAll(field, value.trim())

@@ -40,6 +40,7 @@ beforeAll(async () => {
       list: () => [],
       run: () => Promise.resolve([]),
       importOpen: () => Promise.resolve([]),
+      sweep: () => Promise.resolve([]),
       pause: () => {
         throw new Error('no signals')
       },

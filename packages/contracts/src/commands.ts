@@ -131,6 +131,12 @@ export const AddSignal = command({
   values: z.record(z.string(), z.string().max(200)).default({}),
 })
 
+/** Reads the last days of the named signals' sources and proposes workstreams. Files nothing. */
+export const SweepWorkstreams = command({
+  signals: z.array(z.string()).min(1).max(10),
+  days: z.int().min(1).max(30).default(14),
+})
+
 export const SaveWorkstream = command({
   name: z
     .string()

@@ -9,14 +9,17 @@ import { Setup } from '../src/setup.ts'
 const EXAMPLES = join(import.meta.dirname, '..', '..', '..', 'examples', 'home')
 
 describe('onboarding set-up', () => {
-  it('adds an example signal with its placeholders filled, and saves a workstream beside its Work section', () => {
+  it('adds an example signal with its placeholders filled, and saves a workstream beside its Work section', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'ap-setup-'))
     const paths = resolvePaths({ AUTOPILOT_DATA: join(dir, 'data'), AUTOPILOT_HOME: join(dir, 'home') })
-    const setup = new Setup({ paths, examples: EXAMPLES, claude: 'claude' })
+    let known: string | null = null
+    const setup = new Setup({ paths, examples: EXAMPLES, claude: 'claude', lookup: () => Promise.resolve(known) })
 
-    expect(setup.signalExamples().find((s) => s.name === 'slack')).toMatchObject({ fields: ['YOUR_SLACK_USER_ID'], added: false })
-    expect(() => setup.addSignal('slack', {})).toThrow(DomainError)
-    setup.addSignal('slack', { YOUR_SLACK_USER_ID: 'U0123' })
+    // Your own Slack user id comes from the connector; nobody is asked to copy it.
+    expect(setup.signalExamples().find((s) => s.name === 'slack')).toMatchObject({ fields: [], added: false })
+    await expect(setup.addSignal('slack', {})).rejects.toThrow(DomainError)
+    known = 'U0123'
+    await setup.addSignal('slack', {})
     const slack = readFileSync(join(paths.home, 'signals', 'slack.md'), 'utf8')
     expect(slack).toContain('<@U0123>')
     expect(slack).toMatch(/^paused: true$/m)

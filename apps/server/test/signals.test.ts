@@ -111,6 +111,22 @@ describe('importing what is still open', () => {
   })
 })
 
+describe('the onboarding sweep', () => {
+  it('reads the sources over the days asked, with their own tools, and files nothing', async () => {
+    let asked = { prompt: '', tools: [] as string[] }
+    const suggestion = { name: 'customers', routing: 'Questions from customers.', urgent: '', evidence: ['Acme asks about SSO'], count: 4 }
+    const { service, signals } = setup((prompt, options) => {
+      asked = { prompt, tools: options.tools }
+      return Promise.resolve({ workstreams: [suggestion] })
+    })
+    expect(await signals.sweep(['slack'], 14)).toEqual([suggestion])
+    expect(asked.tools).toEqual(['mcp__claude_ai_Slack__slack_read_thread'])
+    expect(asked.prompt).toContain('# Source: slack')
+    expect(asked.prompt).toContain('from 2026-10-11T10:00:00.000Z')
+    expect(service.queue().items).toEqual([])
+  })
+})
+
 describe('switching a signal on', () => {
   it('takes the paused line out of a signal file that starts paused', () => {
     const { signals, dir } = setup(() => Promise.resolve({ items: [] }))

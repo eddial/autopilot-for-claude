@@ -81,3 +81,21 @@ export const detect = async (claude: string): Promise<Detected> => {
   const [init, github] = await Promise.all([claudeInit(claude), githubCli()])
   return { connectors: connectorsOf(init), github }
 }
+
+/**
+ * Keeps an answer for `ms`: asking again within that time, or while the first ask is still going,
+ * gets the same answer. A failure is not kept.
+ */
+export const keepFor = <T>(ms: number, get: () => Promise<T>, now: () => number = Date.now): (() => Promise<T>) => {
+  let kept: { at: number; value: Promise<T> } | null = null
+  return () => {
+    if (kept && now() - kept.at < ms) return kept.value
+    const value = get()
+    const entry = { at: now(), value }
+    kept = entry
+    value.catch(() => {
+      if (kept === entry) kept = null
+    })
+    return value
+  }
+}

@@ -3,6 +3,7 @@ import {
   contract,
   type Author,
   type Decision,
+  type SuggestedWorkstream,
   type Detected,
   type Machine,
   type Pairing,
@@ -23,6 +24,7 @@ export type SignalsApi = {
   list(): Signal[]
   run(name: string, dryMinutes?: number): Promise<Decision[]>
   importOpen(name: string, dry: boolean): Promise<Decision[]>
+  sweep(names: string[], days: number): Promise<SuggestedWorkstream[]>
   pause(name: string, paused: boolean): Signal
 }
 
@@ -238,8 +240,8 @@ export const createRouter = ({
       import: guarded.signals.import.handler(({ input }) => signals.importOpen(input.name, input.dry)),
       pause: guarded.signals.pause.handler(({ input }) => signals.pause(input.name, input.paused)),
       examples: guarded.signals.examples.handler(() => setup.signalExamples()),
-      add: guarded.signals.add.handler(({ input }) => {
-        setup.addSignal(input.name, input.values)
+      add: guarded.signals.add.handler(async ({ input }) => {
+        await setup.addSignal(input.name, input.values)
         const added = signals.list().find((s) => s.name === input.name)
         if (!added) throw new DomainError('NOT_FOUND', { entity: 'signal', id: input.name })
         return added
@@ -268,6 +270,7 @@ export const createRouter = ({
     workstreams: {
       list: guarded.workstreams.list.handler(() => workstreams()),
       examples: guarded.workstreams.examples.handler(() => setup.workstreamExamples()),
+      sweep: guarded.workstreams.sweep.handler(({ input }) => signals.sweep(input.signals, input.days)),
       save: guarded.workstreams.save.handler(({ input }) => setup.saveWorkstream(input)),
     },
 

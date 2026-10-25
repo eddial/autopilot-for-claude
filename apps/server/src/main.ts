@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import type { Server } from 'node:http'
 import type { Machine } from '@autopilot/contracts'
 import { createRouter } from './api.ts'
-import { detect } from './detect.ts'
+import { detect, keepFor } from './detect.ts'
 import { openDatabase } from './db.ts'
 import { readWorkstreams } from './home.ts'
 import { listen } from './http.ts'
@@ -119,11 +119,13 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
       list: () => signals.list(),
       run: (name, dryMinutes) => signals.run(name, dryMinutes),
       importOpen: (name, dry) => signals.importOpen(name, dry),
+      sweep: (names, days) => signals.sweep(names, days),
       pause: (name, paused) => signals.pause(name, paused),
     },
     machine,
     applyRouting: (changes) => routing.apply(changes),
-    detect: () => detect(options.claude ?? 'claude'),
+    // Claude Code takes seconds to report its connectors, and they rarely change within minutes.
+    detect: keepFor(5 * 60_000, () => detect(options.claude ?? 'claude')),
     setup: new Setup({ paths, examples: join(ROOT, 'examples', 'home'), claude: options.claude ?? 'claude' }),
     installService: () => void installService({ ...options.self, paths }),
     startPairing: async () => {

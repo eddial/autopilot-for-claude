@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { FileItem, type Decision, type Signal, type Workstream } from '@autopilot/contracts'
+import { FileItem, SuggestedWorkstream, type Decision, type Signal, type Workstream } from '@autopilot/contracts'
 import { z } from 'zod'
 import { lastCronMatch } from './cron.ts'
 import { scoutJob } from './scout.ts'
@@ -12,6 +12,9 @@ import type { Paths } from './paths.ts'
 import { DomainError, type Service } from './service.ts'
 
 /** What a signal run returns: every item it looked at, with the decision for each. */
+/** What a sweep returns: the workstreams it sees in the sources. */
+const SweepOutput = z.object({ workstreams: z.array(SuggestedWorkstream).max(8) })
+
 export const SignalOutput = z.object({
   items: z.array(
     z.object({
@@ -354,6 +357,36 @@ export class Signals {
       throw error
     } finally {
       service.db.prepare('update tokens set revoked_at = ? where id = ?').run(end.toISOString(), token.id)
+    }
+  }
+
+  /**
+   * Onboarding's broad read: the last `days` of the named signals' sources, read the way each
+   * signal's rules describe but grouped instead of filed, into suggested workstreams. Files nothing.
+   */
+  async sweep(names: string[], days: number): Promise<SuggestedWorkstream[]> {
+    const { service } = this.o
+    const files = names.map((name) => this.file(name))
+    const end = service.now()
+    const from = new Date(end.getTime() - days * 24 * 60 * 60_000)
+    const read = (f: string) => readFileSync(join(this.o.prompts, f), 'utf8').replaceAll('{{owner}}', this.o.owner)
+    const prompt = [
+      read('sweep.md'),
+      ...files.map((file) => `# Source: ${file.name}\n\n${file.rules}`),
+      `# Window\n\nRead from ${from.toISOString()} up to ${end.toISOString()} (Unix seconds ${Math.floor(from.getTime() / 1000)} to ${Math.floor(end.getTime() / 1000)}).`,
+    ].join('\n\n---\n\n')
+    const { secret, token } = service.issueToken('sweep', 'signal', null)
+    try {
+      const output = await this.o.runClaude(prompt, {
+        tools: [...new Set(files.flatMap((file) => file.tools))],
+        model: 'sonnet',
+        schema: z.toJSONSchema(SweepOutput),
+        mcpConfig: this.mcpConfig('sweep', secret),
+        cwd: this.o.paths.home,
+      })
+      return SweepOutput.parse(typeof output === 'string' ? JSON.parse(output) : output).workstreams
+    } finally {
+      service.db.prepare('update tokens set revoked_at = ? where id = ?').run(service.now().toISOString(), token.id)
     }
   }
 
