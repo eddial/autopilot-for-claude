@@ -18,7 +18,8 @@
       "error",
       {
         "allow": [
-          "**/*.css"
+          "**/*.css",
+          "@fontsource-variable/*"
         ]
       }
     ],

@@ -29,6 +29,23 @@ jobs:
       - name: JSON Schema is up to date
         run: pnpm schema && git diff --exit-code -- packages/contracts/schema
 
+  # The numbers behind "it should feel like the text is hardcoded": docs/PERFORMANCE.md.
+  perf:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: pnpm --filter @autopilot/desktop exec playwright-core install chromium-headless-shell
+      - run: pnpm perf
+
   # The Mac app as a real Electron app: it starts the server and the window goes live on its feed.
   desktop:
     runs-on: macos-latest

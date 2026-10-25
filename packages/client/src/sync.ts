@@ -4,11 +4,10 @@ import {
   queueItems,
   type LiveQueue,
   type QueueItem,
-  type Task,
   type TaskDetail,
-  type Update,
 } from '@autopilot/contracts'
 import { isDefinedError, ORPCError } from '@orpc/client'
+import { execute, overlay, PENDING_PREFIX, type Command, type Conflict, type Pending } from './commands.ts'
 import { Link, Offline, timeoutSignal, type Api, type Connection, type PinnedFetch } from './connection.ts'
 
 /** Key-value storage that survives the app being closed: expo-sqlite's kv-store on the phone. */
@@ -27,21 +26,6 @@ export const memoryStorage = (): Storage => {
     },
   }
 }
-
-/** What the phone can do while the server is out of reach. */
-export type Command =
-  | { kind: 'answer'; taskId: string; updateId: string; optionId?: string; text?: string }
-  | { kind: 'instruct'; taskId: string; body: string }
-  | { kind: 'create'; title: string; brief: string; workstream?: string; priority?: number; start: boolean }
-  | { kind: 'start'; taskId: string }
-  | { kind: 'snooze'; taskId: string; until: string }
-  | { kind: 'close'; taskId: string; outcome: 'done' | 'canceled' }
-
-/** A command waiting to be sent. Its id is the idempotency key, so sending it twice applies it once. */
-export type Pending = { id: string; n: number; at: string; command: Command }
-
-/** A command the server refused; the person decides what happens to it. */
-export type Conflict = { id: string; command: Command; reason: 'already_answered' | 'task_closed' | 'rejected'; message: string }
 
 export type Status = 'connecting' | 'online' | 'offline'
 
@@ -66,8 +50,6 @@ export type SyncOptions = {
   /** How long a catch-up holds the call open when nothing is new. */
   waitSeconds?: number
 }
-
-const PENDING_PREFIX = 'NEW-'
 
 /**
  * The phone's copy of the queue: a cached snapshot kept current from the change feed, and an
@@ -157,7 +139,7 @@ export class Sync {
       const next = this.state.outbox[0]
       if (!next) return
       try {
-        await this.call(next)
+        await execute(this.link.api, next)
       } catch (error) {
         // The network failed, or the server did: keep it and try again next round.
         if (!(error instanceof ORPCError) || error.status >= 500) throw error
@@ -166,32 +148,6 @@ export class Sync {
       }
       this.set({ outbox: this.state.outbox.filter((p) => p.id !== next.id) })
       await this.save()
-    }
-  }
-
-  private async call({ id, command: c }: Pending): Promise<unknown> {
-    const { api } = this.link
-    const idempotencyKey = id
-    switch (c.kind) {
-      case 'answer':
-        return api.updates.answer({ idempotencyKey, updateId: c.updateId, ...(c.optionId ? { optionId: c.optionId } : {}), ...(c.text ? { text: c.text } : {}) })
-      case 'instruct':
-        return api.updates.instruct({ idempotencyKey, taskId: c.taskId, body: c.body })
-      case 'create':
-        return api.tasks.create({
-          idempotencyKey,
-          title: c.title,
-          brief: c.brief,
-          start: c.start,
-          ...(c.workstream ? { workstream: c.workstream } : {}),
-          ...(c.priority ? { priority: c.priority } : {}),
-        })
-      case 'start':
-        return api.tasks.start({ idempotencyKey, id: c.taskId })
-      case 'snooze':
-        return api.tasks.snooze({ idempotencyKey, id: c.taskId, until: c.until })
-      case 'close':
-        return api.tasks.close({ idempotencyKey, id: c.taskId, outcome: c.outcome })
     }
   }
 
@@ -310,67 +266,3 @@ export class Sync {
   }
 }
 
-/** Applies what is still in the outbox to the server's queue, so the screen shows it at once. */
-export const overlay = (queue: LiveQueue, outbox: Pending[], now: Date): LiveQueue => {
-  if (outbox.length === 0) return queue
-  const tasks = { ...queue.tasks }
-  const asks = { ...queue.asks }
-  const at = now.toISOString()
-  const touch = (id: string, changes: Partial<Task>) => {
-    const task = tasks[id]
-    if (task) tasks[id] = { ...task, ...changes, updatedAt: at, seenAt: at }
-  }
-  for (const { n, command: c } of outbox) {
-    switch (c.kind) {
-      case 'answer':
-        if (asks[c.taskId]?.id === c.updateId) delete asks[c.taskId]
-        touch(c.taskId, { state: 'running', snoozedUntil: null })
-        break
-      case 'instruct':
-      case 'start':
-        touch(c.taskId, { state: 'running', snoozedUntil: null })
-        break
-      case 'snooze':
-        touch(c.taskId, { state: 'snoozed', snoozedUntil: c.until })
-        break
-      case 'close':
-        touch(c.taskId, { state: c.outcome })
-        break
-      case 'create': {
-        const id = `${PENDING_PREFIX}${n}`
-        tasks[id] = {
-          id,
-          title: c.title,
-          brief: c.brief,
-          workstream: c.workstream ?? 'inbox',
-          priority: c.priority ?? 3,
-          state: c.start ? 'running' : 'new',
-          snoozedUntil: null,
-          source: { signal: null, url: null, mirrors: null },
-          links: [],
-          sessionId: null,
-          createdBy: 'owner',
-          createdAt: at,
-          updatedAt: at,
-          seenAt: at,
-        }
-        break
-      }
-    }
-  }
-  return { ...queue, tasks, asks }
-}
-
-/** A pending command as it reads in a conversation. */
-export const pendingText = (command: Command): string | null => {
-  switch (command.kind) {
-    case 'answer':
-      return command.text ?? null
-    case 'instruct':
-      return command.body
-    default:
-      return null
-  }
-}
-
-export type { Update }

@@ -1,4 +1,5 @@
-import type { QueueEvent } from './changes.ts'
+import type { Change, QueueEvent } from './changes.ts'
+import type { TaskDetail } from './contract.ts'
 import type { QueueItem, Session, Task, Update } from './entities.ts'
 import { bandOf, compareQueue } from './queue.ts'
 
@@ -76,4 +77,25 @@ export const queueItems = (state: LiveQueue, now: Date): QueueItem[] => {
   // A fresh array, sorted in place: Hermes on older iPhones has no toSorted.
   items.sort(compareQueue)
   return items
+}
+
+/**
+ * Keeps a cached task, conversation included, current from the change feed, so a task opened once
+ * opens again with no request and shows what happens to it live.
+ */
+export const applyToDetail = (detail: TaskDetail, change: Change): TaskDetail => {
+  switch (change.type) {
+    case 'task.upserted':
+      return change.task.id === detail.task.id ? { ...detail, task: change.task } : detail
+    case 'update.added':
+      return change.update.taskId === detail.task.id && !detail.updates.some((u) => u.id === change.update.id)
+        ? { ...detail, updates: [...detail.updates, change.update] }
+        : detail
+    case 'update.changed':
+      return change.update.taskId === detail.task.id ? { ...detail, updates: detail.updates.map((u) => (u.id === change.update.id ? change.update : u)) } : detail
+    case 'session.changed':
+      return change.session.taskId === detail.task.id ? { ...detail, session: change.session } : detail
+    default:
+      return detail
+  }
 }

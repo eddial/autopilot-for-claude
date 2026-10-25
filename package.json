@@ -15,7 +15,8 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "autopilot": "node apps/server/bin/autopilot.js",
     "desktop": "pnpm --filter @autopilot/desktop start",
-    "mac-check": "bash scripts/mac-check.sh"
+    "mac-check": "bash scripts/mac-check.sh",
+    "perf": "pnpm --filter @autopilot/desktop perf"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

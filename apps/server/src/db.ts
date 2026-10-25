@@ -181,6 +181,10 @@ const MIGRATIONS = [
     used_at text
   );
   `,
+  `
+  -- The queue reads every open ask at once.
+  create index updates_open on updates(task_id) where open = 1;
+  `,
 ]
 
 export const openDatabase = (file: string): DatabaseSync => {

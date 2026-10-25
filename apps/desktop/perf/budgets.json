@@ -1,0 +1,14 @@
+{
+  "$comment": "Milliseconds unless the name says otherwise. docs/PERFORMANCE.md explains each one. Budgets only go down: never raise one to make a change pass.",
+  "server.snapshot.1000": 25,
+  "server.taskDetail": 2,
+  "server.write": 2,
+  "server.changesSince": 2,
+  "window.firstRows": 400,
+  "window.firstRows.cached": 150,
+  "window.openTask": 20,
+  "window.answer": 20,
+  "window.switchView": 20,
+  "window.longTasks.count": 0,
+  "window.js.gzipKB": 200
+}

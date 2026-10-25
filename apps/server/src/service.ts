@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto'
-import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
+import type { DatabaseSync, SQLInputValue, StatementSync } from 'node:sqlite'
 import {
   bandOf,
   compareQueue,
@@ -100,6 +100,18 @@ export class Service {
 
   // ── plumbing ──────────────────────────────────────────────────────────────
 
+  /** Prepared once per distinct SQL text: preparing is most of the cost of a small query. */
+  private readonly statements = new Map<string, StatementSync>()
+
+  private sql(text: string): StatementSync {
+    let statement = this.statements.get(text)
+    if (!statement) {
+      statement = this.db.prepare(text)
+      this.statements.set(text, statement)
+    }
+    return statement
+  }
+
   private iso(): string {
     return this.now().toISOString()
   }
@@ -132,7 +144,7 @@ export class Service {
   /** `stored` is what a replay gets back; secrets are left out of it, so they never sit in the database. */
   idempotent<T>(key: string, procedure: string, fn: () => T, stored: (result: T) => T = (result) => result): T {
     return this.transaction(() => {
-      const done = this.db.prepare('select procedure, result from applied where key = ?').get(key) as Row | undefined
+      const done = this.sql('select procedure, result from applied where key = ?').get(key) as Row | undefined
       if (done) {
         if (done.procedure !== procedure) throw new DomainError('CONFLICT', { reason: 'version_mismatch' }, 'Key reused')
         return parse<T>(done.result)
@@ -147,16 +159,16 @@ export class Service {
 
   private emit(change: NewChange): void {
     const { type, ...payload } = change
-    this.db.prepare('insert into changes (at, type, payload) values (?, ?, ?)').run(this.iso(), type, json(payload))
+    this.sql('insert into changes (at, type, payload) values (?, ?, ?)').run(this.iso(), type, json(payload))
     this.wrote = true
   }
 
   private enqueue(kind: OutboxKind, payload: OutboxItem['payload']): void {
-    this.db.prepare('insert into outbox (kind, payload, created_at) values (?, ?, ?)').run(kind, json(payload), this.iso())
+    this.sql('insert into outbox (kind, payload, created_at) values (?, ?, ?)').run(kind, json(payload), this.iso())
   }
 
   latestSeq(): number {
-    const row = this.db.prepare('select coalesce(max(seq), 0) as seq from changes').get() as { seq: number }
+    const row = this.sql('select coalesce(max(seq), 0) as seq from changes').get() as { seq: number }
     return Number(row.seq)
   }
 
@@ -249,13 +261,13 @@ export class Service {
   // ── reads ─────────────────────────────────────────────────────────────────
 
   task(id: string): Task {
-    const row = this.db.prepare('select * from tasks where id = ?').get(id) as Row | undefined
+    const row = this.sql('select * from tasks where id = ?').get(id) as Row | undefined
     if (!row) throw new DomainError('NOT_FOUND', { entity: 'task', id })
     return this.toTask(row)
   }
 
   private update(id: string): Update {
-    const row = this.db.prepare('select * from updates where id = ?').get(id) as Row | undefined
+    const row = this.sql('select * from updates where id = ?').get(id) as Row | undefined
     if (!row) throw new DomainError('NOT_FOUND', { entity: 'update', id })
     return this.toUpdate(row)
   }
@@ -269,7 +281,7 @@ export class Service {
 
   session(id: string | null): Session | null {
     if (id === null) return null
-    const row = this.db.prepare('select * from sessions where id = ?').get(id) as Row | undefined
+    const row = this.sql('select * from sessions where id = ?').get(id) as Row | undefined
     return row ? this.toSession(row) : null
   }
 
@@ -288,21 +300,38 @@ export class Service {
   getTask(id: string): TaskDetail {
     const task = this.task(id)
     const item = this.item(task)
-    const updates = (this.db.prepare('select * from updates where task_id = ? order by created_at, id').all(id) as Row[]).map(
+    const updates = (this.sql('select * from updates where task_id = ? order by created_at, id').all(id) as Row[]).map(
       (r) => this.toUpdate(r),
     )
-    const watchers = (this.db.prepare('select * from watchers where task_id = ?').all(id) as Row[]).map((r) =>
+    const watchers = (this.sql('select * from watchers where task_id = ?').all(id) as Row[]).map((r) =>
       this.toWatcher(r),
     )
     return { task, band: item.band, updates, session: item.session, watchers }
   }
 
   queue(filter: { band?: QueueItem['band'] | undefined; workstream?: string | undefined; filter?: string | undefined } = {}): QueueSnapshot {
-    const where = filter.band === 'done' ? `state in ('done', 'canceled')` : ACTIVE
-    const rows = this.db.prepare(`select * from tasks where ${where}`).all() as Row[]
+    const done = filter.band === 'done'
+    // Done is history: the most recent two hundred are enough to look back on.
+    const rows = this.sql(
+      done ? `select * from tasks where state in ('done', 'canceled') order by updated_at desc limit 200` : `select * from tasks where ${ACTIVE}`,
+    ).all() as Row[]
+    // Three queries for the whole queue, not two per task: open asks and sessions come in bulk.
+    const asks = new Map<string, Update>()
+    for (const r of this.sql(`select * from updates where open = 1 order by created_at`).all() as Row[]) asks.set(str(r.task_id), this.toUpdate(r))
+    const sessions = new Map<string, Session>()
+    const sessionRows = this.sql(
+      done ? `select s.* from sessions s join tasks t on t.session_id = s.id where t.state in ('done', 'canceled')` : `select s.* from sessions s join tasks t on t.session_id = s.id where t.${ACTIVE}`,
+    ).all() as Row[]
+    for (const r of sessionRows) sessions.set(str(r.id), this.toSession(r))
+    const now = this.now()
     const needle = filter.filter?.toLowerCase()
     const items = rows
-      .map((r) => this.item(this.toTask(r)))
+      .map((r) => {
+        const task = this.toTask(r)
+        const openAsk = asks.get(task.id) ?? null
+        const session = task.sessionId ? (sessions.get(task.sessionId) ?? null) : null
+        return { task, band: bandOf({ task, openAsk, session }, now), openAsk, session, unread: task.seenAt === null || task.updatedAt > task.seenAt }
+      })
       .filter((i) => (filter.band ? i.band === filter.band : true))
       .filter((i) => (filter.workstream ? i.task.workstream === filter.workstream : true))
       .filter((i) => (needle ? i.task.title.toLowerCase().includes(needle) : true))
@@ -313,7 +342,7 @@ export class Service {
   // ── tasks ─────────────────────────────────────────────────────────────────
 
   private nextTaskId(): { id: string; num: number } {
-    const row = this.db.prepare('select coalesce(max(num), 0) + 1 as num from tasks').get() as { num: number }
+    const row = this.sql('select coalesce(max(num), 0) + 1 as num from tasks').get() as { num: number }
     const num = Number(row.num)
     return { id: `AP-${num}`, num }
   }
@@ -493,7 +522,7 @@ export class Service {
       before: strOrNull(r.before),
       after: strOrNull(r.after),
     }))
-    const decisions = (this.db.prepare('select * from decisions where at > ? order by at').all(since) as Row[]).map((r) => ({
+    const decisions = (this.sql('select * from decisions where at > ? order by at').all(since) as Row[]).map((r) => ({
       at: str(r.at),
       signal: str(r.signal),
       action: str(r.action),
@@ -502,7 +531,7 @@ export class Service {
       title: parse<{ title?: string }>(r.item).title ?? '',
     }))
     const byHand = (
-      this.db.prepare(`select * from tasks where created_by = 'owner' and created_at > ? order by created_at`).all(since) as Row[]
+      this.sql(`select * from tasks where created_by = 'owner' and created_at > ? order by created_at`).all(since) as Row[]
     ).map((r) => ({ taskId: str(r.id), title: str(r.title), workstream: str(r.workstream), createdAt: str(r.created_at) }))
     return { corrections, decisions, byHand }
   }
@@ -518,7 +547,7 @@ export class Service {
   }
 
   proposals(): RoutingProposal[] {
-    return (this.db.prepare(`select * from routing_proposals order by created_at desc limit 100`).all() as Row[]).map((r) =>
+    return (this.sql(`select * from routing_proposals order by created_at desc limit 100`).all() as Row[]).map((r) =>
       this.toProposal(r),
     )
   }
@@ -532,20 +561,20 @@ export class Service {
       this.db
         .prepare('insert into routing_proposals (id, created_at, reason, changes, state, task_id) values (?, ?, ?, ?, ?, ?)')
         .run(id, this.iso(), reason, json(changes), 'open', task.id)
-      return this.toProposal(this.db.prepare('select * from routing_proposals where id = ?').get(id) as Row)
+      return this.toProposal(this.sql('select * from routing_proposals where id = ?').get(id) as Row)
     })
   }
 
   /** `apply` writes the change to the home files; it runs inside the transaction, so a failure keeps the proposal open. */
   decideProposal(input: In<typeof DecideRouting>, apply: (changes: RoutingProposal['changes']) => void): RoutingProposal {
     return this.idempotent(input.idempotencyKey, 'routing.decide', () => {
-      const row = this.db.prepare('select * from routing_proposals where id = ?').get(input.proposalId) as Row | undefined
+      const row = this.sql('select * from routing_proposals where id = ?').get(input.proposalId) as Row | undefined
       if (!row) throw new DomainError('NOT_FOUND', { entity: 'routing proposal', id: input.proposalId })
       const proposal = this.toProposal(row)
       if (proposal.state !== 'open') throw new DomainError('CONFLICT', { reason: 'already_answered' }, 'Already decided')
       if (input.accept) apply(proposal.changes)
       const state = input.accept ? 'accepted' : 'rejected'
-      this.db.prepare('update routing_proposals set state = ? where id = ?').run(state, proposal.id)
+      this.sql('update routing_proposals set state = ? where id = ?').run(state, proposal.id)
       const taskId = strOrNull(row.task_id)
       if (taskId) this.close(this.task(taskId), input.accept ? 'done' : 'canceled')
       return { ...proposal, state }
@@ -554,12 +583,12 @@ export class Service {
 
   /** When one of Autopilot's own jobs last ran. */
   jobRanAt(name: string): string | null {
-    const row = this.db.prepare('select last_run_at from jobs where name = ?').get(name) as Row | undefined
+    const row = this.sql('select last_run_at from jobs where name = ?').get(name) as Row | undefined
     return row ? str(row.last_run_at) : null
   }
 
   jobRan(name: string, at: string): void {
-    this.db.prepare('insert into jobs (name, last_run_at) values (?, ?) on conflict(name) do update set last_run_at = excluded.last_run_at').run(name, at)
+    this.sql('insert into jobs (name, last_run_at) values (?, ?) on conflict(name) do update set last_run_at = excluded.last_run_at').run(name, at)
   }
 
   /** Closing ends the session and the watchers with it. */
@@ -567,7 +596,7 @@ export class Service {
     if (task.state === 'done' || task.state === 'canceled') return task
     this.closeAsks(task.id)
     if (this.liveSession(task)) this.enqueue('end_session', { taskId: task.id })
-    this.db.prepare('delete from watchers where task_id = ?').run(task.id)
+    this.sql('delete from watchers where task_id = ?').run(task.id)
     return this.touch(task, { state: outcome })
   }
 
@@ -611,9 +640,9 @@ export class Service {
   // ── updates ───────────────────────────────────────────────────────────────
 
   private closeAsks(taskId: string): void {
-    const open = this.db.prepare('select * from updates where task_id = ? and open = 1').all(taskId) as Row[]
+    const open = this.sql('select * from updates where task_id = ? and open = 1').all(taskId) as Row[]
     for (const row of open) {
-      this.db.prepare('update updates set open = 0 where id = ?').run(str(row.id))
+      this.sql('update updates set open = 0 where id = ?').run(str(row.id))
       this.emit({ type: 'update.changed', update: { ...this.toUpdate(row), open: false } })
     }
   }
@@ -716,7 +745,7 @@ export class Service {
     this.db
       .prepare('insert into watchers (id, task_id, what, every, until, tools) values (?, ?, ?, ?, ?, ?)')
       .run(id, taskId, spec.what, spec.every ?? '30m', until, json(spec.tools ?? []))
-    return this.toWatcher(this.db.prepare('select * from watchers where id = ?').get(id) as Row)
+    return this.toWatcher(this.sql('select * from watchers where id = ?').get(id) as Row)
   }
 
   addWatcher(input: In<typeof AddWatcher>): Watcher {
@@ -727,21 +756,21 @@ export class Service {
   }
 
   watcherTask(id: string): string {
-    const row = this.db.prepare('select task_id from watchers where id = ?').get(id) as Row | undefined
+    const row = this.sql('select task_id from watchers where id = ?').get(id) as Row | undefined
     if (!row) throw new DomainError('NOT_FOUND', { entity: 'watcher', id })
     return str(row.task_id)
   }
 
   removeWatcher(input: { idempotencyKey: string; id: string }): Record<string, never> {
     return this.idempotent(input.idempotencyKey, 'watchers.remove', () => {
-      this.db.prepare('delete from watchers where id = ?').run(input.id)
+      this.sql('delete from watchers where id = ?').run(input.id)
       return {}
     })
   }
 
   /** Every watcher with what the runner needs: its last fingerprint and its task. */
   watcherRuns(): { watcher: Watcher; fingerprint: string | null; task: Task; band: QueueItem['band'] }[] {
-    const rows = this.db.prepare('select * from watchers').all() as Row[]
+    const rows = this.sql('select * from watchers').all() as Row[]
     return rows.map((r) => {
       const task = this.task(str(r.task_id))
       return { watcher: this.toWatcher(r), fingerprint: strOrNull(r.fingerprint), task, band: this.item(task).band }
@@ -782,11 +811,11 @@ export class Service {
   /** `until` has passed with nothing new: the watcher goes, and a waiting task becomes the owner's call. */
   watcherExpired(id: string): void {
     this.transaction(() => {
-      const row = this.db.prepare('select * from watchers where id = ?').get(id) as Row | undefined
+      const row = this.sql('select * from watchers where id = ?').get(id) as Row | undefined
       if (!row) return
       const watcher = this.toWatcher(row)
       const task = this.task(watcher.taskId)
-      this.db.prepare('delete from watchers where id = ?').run(id)
+      this.sql('delete from watchers where id = ?').run(id)
       const waiting = task.state === 'waiting'
       this.insertUpdate(task, {
         kind: waiting ? 'question' : 'info',
@@ -834,8 +863,8 @@ export class Service {
       // Never file the same thread or team ticket twice: an active task with it becomes an update.
       const existing = (
         item.ticket
-          ? this.db.prepare(`select id from tasks where ${ACTIVE} and mirrors = ?`).get(item.ticket.id)
-          : this.db.prepare(`select id from tasks where ${ACTIVE} and source_url = ?`).get(item.url)
+          ? this.sql(`select id from tasks where ${ACTIVE} and mirrors = ?`).get(item.ticket.id)
+          : this.sql(`select id from tasks where ${ACTIVE} and source_url = ?`).get(item.url)
       ) as Row | undefined
       if (existing && (action === 'create' || item.ticket)) {
         action = action === 'drop' && !item.ticket?.closed ? 'drop' : 'update'
@@ -950,7 +979,7 @@ export class Service {
 
   /** Sessions whose process is gone (e.g. after a restart) are marked ended. Returns their tasks. */
   endOrphanedSessions(alive: (session: Session) => boolean): string[] {
-    const rows = this.db.prepare(`select * from sessions where state != 'ended'`).all() as Row[]
+    const rows = this.sql(`select * from sessions where state != 'ended'`).all() as Row[]
     const ended: string[] = []
     for (const row of rows) {
       const session = this.toSession(row)
@@ -983,17 +1012,17 @@ export class Service {
   /** Reports a problem once; it stays reported (even if the owner closes the task) until it clears. */
   openHealth(key: string, title: string, body: string): void {
     this.transaction(() => {
-      if (this.db.prepare('select 1 from health where key = ?').get(key)) return
+      if (this.sql('select 1 from health where key = ?').get(key)) return
       const task = this.systemTask(title, body)
-      this.db.prepare('insert into health (key, task_id, opened_at) values (?, ?, ?)').run(key, task.id, this.iso())
+      this.sql('insert into health (key, task_id, opened_at) values (?, ?, ?)').run(key, task.id, this.iso())
     })
   }
 
   closeHealth(key: string, body: string): void {
     this.transaction(() => {
-      const row = this.db.prepare('select task_id from health where key = ?').get(key) as Row | undefined
+      const row = this.sql('select task_id from health where key = ?').get(key) as Row | undefined
       if (!row) return
-      this.db.prepare('delete from health where key = ?').run(key)
+      this.sql('delete from health where key = ?').run(key)
       const task = this.task(str(row.task_id))
       if (task.state === 'done' || task.state === 'canceled') return
       this.insertUpdate(task, { kind: 'done', body, author: 'system' })
@@ -1026,15 +1055,15 @@ export class Service {
 
   finishOutbox(id: number, error?: string): void {
     if (error === undefined) {
-      this.db.prepare('update outbox set done_at = ?, error = null where id = ?').run(this.iso(), id)
+      this.sql('update outbox set done_at = ?, error = null where id = ?').run(this.iso(), id)
     } else {
-      this.db.prepare('update outbox set attempts = attempts + 1, error = ? where id = ?').run(error, id)
+      this.sql('update outbox set attempts = attempts + 1, error = ? where id = ?').run(error, id)
     }
   }
 
   /** Leave an item for a later pass without counting it as a failure (e.g. the session is busy). */
   deferOutbox(id: number): void {
-    this.db.prepare('update outbox set error = ? where id = ?').run('deferred', id)
+    this.sql('update outbox set error = ? where id = ?').run('deferred', id)
   }
 
   // ── tokens ────────────────────────────────────────────────────────────────
@@ -1055,7 +1084,7 @@ export class Service {
     this.db
       .prepare('insert into tokens (id, name, scope, task_id, secret_hash, created_at) values (?, ?, ?, ?, ?, ?)')
       .run(id, name, scope, taskId, hashSecret(secret), this.iso())
-    return { token: this.toToken(this.db.prepare('select * from tokens where id = ?').get(id) as Row), secret }
+    return { token: this.toToken(this.sql('select * from tokens where id = ?').get(id) as Row), secret }
   }
 
   // ── devices ───────────────────────────────────────────────────────────────
@@ -1074,7 +1103,7 @@ export class Service {
   }
 
   listDevices(): Device[] {
-    return (this.db.prepare('select * from devices order by created_at').all() as Row[]).map((r) => this.toDevice(r))
+    return (this.sql('select * from devices order by created_at').all() as Row[]).map((r) => this.toDevice(r))
   }
 
   /** A code of eight letters and digits without look-alikes, valid five minutes, usable once. */
@@ -1082,7 +1111,7 @@ export class Service {
     const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
     const code = [...randomBytes(8)].map((b) => alphabet[b % alphabet.length]).join('')
     const expiresAt = new Date(this.now().getTime() + 5 * 60_000).toISOString()
-    this.db.prepare('insert into pairing_codes (code_hash, expires_at) values (?, ?)').run(hashSecret(code), expiresAt)
+    this.sql('insert into pairing_codes (code_hash, expires_at) values (?, ?)').run(hashSecret(code), expiresAt)
     this.pairingFailures = 0
     return { code, expiresAt }
   }
@@ -1097,43 +1126,43 @@ export class Service {
         .prepare('select * from pairing_codes where code_hash = ? and used_at is null and expires_at > ?')
         .get(hashSecret(input.code.trim().toUpperCase()), this.iso()) as Row | undefined
       if (!row) return null
-      this.db.prepare('update pairing_codes set used_at = ? where code_hash = ?').run(this.iso(), str(row.code_hash))
+      this.sql('update pairing_codes set used_at = ? where code_hash = ?').run(this.iso(), str(row.code_hash))
       const { token, secret } = this.issueToken(`${input.name} (${input.kind})`, 'owner', null)
       const id = newId()
       this.db
         .prepare('insert into devices (id, name, kind, token_id, created_at) values (?, ?, ?, ?, ?)')
         .run(id, input.name, input.kind, token.id, this.iso())
-      return { device: this.toDevice(this.db.prepare('select * from devices where id = ?').get(id) as Row), token: secret }
+      return { device: this.toDevice(this.sql('select * from devices where id = ?').get(id) as Row), token: secret }
     })
     if (paired) return paired
     // Codes are 40 bits; twenty wrong guesses close every open code all the same.
-    if (++this.pairingFailures >= 20) this.db.prepare('update pairing_codes set used_at = ? where used_at is null').run(this.iso())
+    if (++this.pairingFailures >= 20) this.sql('update pairing_codes set used_at = ? where used_at is null').run(this.iso())
     throw new DomainError('FORBIDDEN', { needs: ['owner'], has: null }, 'That pairing code is wrong or has expired')
   }
 
   removeDevice(input: { idempotencyKey: string; id: string }): Record<string, never> {
     return this.idempotent(input.idempotencyKey, 'devices.remove', () => {
-      const row = this.db.prepare('select token_id from devices where id = ?').get(input.id) as Row | undefined
+      const row = this.sql('select token_id from devices where id = ?').get(input.id) as Row | undefined
       if (!row) return {}
-      this.db.prepare('update tokens set revoked_at = ? where id = ?').run(this.iso(), str(row.token_id))
-      this.db.prepare('delete from devices where id = ?').run(input.id)
+      this.sql('update tokens set revoked_at = ? where id = ?').run(this.iso(), str(row.token_id))
+      this.sql('delete from devices where id = ?').run(input.id)
       return {}
     })
   }
 
   revokeToken(input: { idempotencyKey: string; id: string }): Record<string, never> {
     return this.idempotent(input.idempotencyKey, 'tokens.revoke', () => {
-      this.db.prepare('update tokens set revoked_at = ? where id = ?').run(this.iso(), input.id)
+      this.sql('update tokens set revoked_at = ? where id = ?').run(this.iso(), input.id)
       return {}
     })
   }
 
   revokeTaskTokens(taskId: string): void {
-    this.db.prepare('update tokens set revoked_at = ? where task_id = ? and revoked_at is null').run(this.iso(), taskId)
+    this.sql('update tokens set revoked_at = ? where task_id = ? and revoked_at is null').run(this.iso(), taskId)
   }
 
   listTokens(): Token[] {
-    return (this.db.prepare('select * from tokens where revoked_at is null order by created_at').all() as Row[]).map((r) =>
+    return (this.sql('select * from tokens where revoked_at is null order by created_at').all() as Row[]).map((r) =>
       this.toToken(r),
     )
   }
@@ -1143,8 +1172,8 @@ export class Service {
       .prepare('select * from tokens where secret_hash = ? and revoked_at is null')
       .get(hashSecret(secret)) as Row | undefined
     if (!row) return null
-    this.db.prepare('update tokens set last_used_at = ? where id = ?').run(this.iso(), str(row.id))
-    this.db.prepare('update devices set last_seen_at = ? where token_id = ?').run(this.iso(), str(row.id))
+    this.sql('update tokens set last_used_at = ? where id = ?').run(this.iso(), str(row.id))
+    this.sql('update devices set last_seen_at = ? where token_id = ?').run(this.iso(), str(row.id))
     return { tokenId: str(row.id), name: str(row.name), scope: str(row.scope) as Scope, taskId: strOrNull(row.task_id) }
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem, Signal, Workstream } from '@autopilot/contracts'
 import { api, shell } from './api.ts'
 import { Nav } from './components/Nav.tsx'
@@ -10,7 +10,7 @@ import { Signals } from './components/Signals.tsx'
 import { TaskPane } from './components/TaskPane.tsx'
 import { Pilot } from './components/Pilot.tsx'
 import { titleCase } from './format.ts'
-import { useLive, useQueueItems } from './live.ts'
+import { useQueueItems, useStore } from './store.ts'
 import { QUEUE_VIEWS, type View } from './view.ts'
 
 const stored = (name: string, fallback: number): number => {
@@ -24,7 +24,7 @@ const stored = (name: string, fallback: number): number => {
 /** Notifies when a task comes to your turn, and keeps the menu bar count. */
 const useAttention = (items: QueueItem[], open: (id: string) => void) => {
   const seen = useRef<Set<string> | null>(null)
-  const { connection } = useLive()
+  const { connection } = useStore()
   useEffect(() => {
     const yours = items.filter((i) => i.band === 'your_turn')
     shell?.setBadge(yours.length)
@@ -46,7 +46,7 @@ const useAttention = (items: QueueItem[], open: (id: string) => void) => {
 
 export const App = () => {
   const items = useQueueItems()
-  const { connection, error, queue } = useLive()
+  const { connection, error, queue } = useStore()
   const [view, setView] = useState<View>({ kind: 'queue', queue: 'needs_me' })
   const [selected, setSelected] = useState<string | null>(null)
   const [showingTask, setShowingTask] = useState(false)
@@ -81,11 +81,13 @@ export const App = () => {
     document.body.dataset.connection = connection
   }, [connection])
 
-  const openTask = (id: string) => {
-    if (view.kind !== 'queue' && view.kind !== 'workstream') setView({ kind: 'queue', queue: 'needs_me' })
+  // Stable, so list rows that did not change skip rendering.
+  const openTask = useCallback((id: string) => {
+    setView((v) => (v.kind === 'queue' || v.kind === 'workstream' ? v : { kind: 'queue', queue: 'needs_me' }))
     setSelected(id)
     setShowingTask(true)
-  }
+  }, [])
+  const selectTask = useCallback((id: string) => setSelected(id), [])
   useAttention(items, openTask)
 
   const list = useMemo(() => {
@@ -153,7 +155,7 @@ export const App = () => {
             items={list.items}
             grouped={list.grouped}
             selected={selected}
-            onSelect={(id) => setSelected(id)}
+            onSelect={selectTask}
             onOpen={openTask}
             width={listWidth}
             banner={banner}

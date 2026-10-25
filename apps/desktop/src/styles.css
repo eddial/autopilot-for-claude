@@ -14,7 +14,7 @@
   --pilot: #5db08f;
   --border: rgba(222, 220, 209, 0.15);
   --border-strong: rgba(222, 220, 209, 0.22);
-  --serif: 'Anthropic Serif', 'Source Serif 4', Georgia, serif;
+  --serif: 'Anthropic Serif', 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif;
   --sans: 'Anthropic Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   color-scheme: dark;
 }

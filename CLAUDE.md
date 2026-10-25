@@ -34,6 +34,7 @@ Node 24 (`.nvmrc`), pnpm.
 pnpm install
 pnpm check        # lint, typecheck, test
 pnpm schema       # regenerate packages/contracts/schema after changing the contract
+pnpm perf         # performance budgets (server and window)
 pnpm autopilot    # the CLI (serve, new, ls, show, answer, signal, status, mcp)
 ```
 
@@ -51,3 +52,7 @@ CI runs the same and fails when the generated schema is stale.
 - Tests: one per rule that matters, no permutation matrices, no real sleeps. `test/e2e.test.ts`
   runs a real pty and the real MCP bridge with `test/fixtures/fake-claude.ts` standing in for Claude.
 - `node-pty` is native: prebuilt on macOS; elsewhere it builds with node-gyp.
+- Performance is a feature (`docs/PERFORMANCE.md`): every interaction paints on the next frame.
+  Apps draw from their store, never `await` the server in an event handler (use `send`), lists
+  are virtualised, nothing before the first frame touches the network. `pnpm perf` checks the
+  budgets in `apps/desktop/perf/budgets.json`, which only go down.

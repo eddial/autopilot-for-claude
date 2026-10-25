@@ -9,18 +9,21 @@
     "dev": "node scripts/build.ts --dev",
     "start": "node scripts/build.ts && electron .",
     "typecheck": "tsc --noEmit",
-    "web": "node scripts/web.ts"
+    "web": "node scripts/web.ts",
+    "perf": "node scripts/build.ts && node perf/run.ts"
   },
   "dependencies": {
+    "@autopilot/client": "workspace:*",
     "@autopilot/contracts": "workspace:*",
     "@autopilot/server": "workspace:*",
+    "@fontsource-variable/source-serif-4": "^5.3.1",
     "@orpc/client": "^1.16.1",
     "@orpc/contract": "^1.16.1",
     "@orpc/server": "^1.16.1",
+    "@tanstack/react-virtual": "3.14.22",
     "qrcode": "1.5.4",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "@autopilot/client": "workspace:*"
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@types/qrcode": "1.5.6",

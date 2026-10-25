@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import type { QueueItem, TaskDetail, Update } from '@autopilot/contracts'
-import { api, key, shell } from '../api.ts'
+import { pendingText, type Pending } from '@autopilot/client'
+import type { QueueItem, Update } from '@autopilot/contracts'
+import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
+import { markSeen, send, useDetail, useStore } from '../store.ts'
 
 type Props = { item: QueueItem; onClose: () => void }
 
@@ -38,31 +40,19 @@ const snoozeTimes = (): { label: string; until: Date }[] => {
 
 export const TaskPane = ({ item, onClose }: Props) => {
   const { task } = item
-  const [loaded, setLoaded] = useState<{ version: string; detail: TaskDetail } | null>(null)
-  const detail = loaded?.detail ?? null
-  const [error, setError] = useState<string | null>(null)
+  // The conversation comes from the window's store, kept current by the feed: no request on open
+  // once it has been seen. Until then, the ask from the queue shows straight away.
+  const { detail, pending } = useDetail(task.id)
+  const { refused } = useStore()
   const timeline = useRef<HTMLDivElement>(null)
-
-  // Refetch whenever the queue says the task, its ask or its session changed.
-  const version = `${task.id}|${task.updatedAt}|${item.openAsk?.id ?? ''}|${item.session?.state ?? ''}`
-  useEffect(() => {
-    let cancelled = false
-    api.tasks
-      .get({ id: task.id })
-      .then((d) => {
-        if (!cancelled) setLoaded({ version, detail: d })
-      })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
-    return () => {
-      cancelled = true
-    }
-  }, [task.id, version])
+  const answered = new Set(pending.flatMap((p) => (p.command.kind === 'answer' ? [p.command.updateId] : [])))
+  const updates = detail?.updates ?? (item.openAsk ? [item.openAsk] : [])
 
   useEffect(() => {
-    if (item.unread) void api.tasks.markSeen({ idempotencyKey: key(), id: task.id }).catch(() => {})
+    if (item.unread) markSeen(task.id)
   }, [task.id, item.unread])
 
-  const count = detail?.updates.length ?? 0
+  const count = updates.length + pending.length
   useEffect(() => {
     if (count > 0) timeline.current?.scrollTo({ top: timeline.current.scrollHeight })
   }, [count])
@@ -102,10 +92,15 @@ export const TaskPane = ({ item, onClose }: Props) => {
         </div>
       </div>
       <div className="timeline" ref={timeline}>
-        {error && <div className="banner">{error}</div>}
+        {refused && <div className="banner">{refused}</div>}
         {task.brief && <Brief text={task.brief} mine={task.createdBy === 'owner'} />}
-        {detail?.updates.map((u) => <Entry key={u.id} update={u} />)}
-        {detail && detail.updates.length === 0 && !task.brief && <div className="meta">Nothing yet.</div>}
+        {updates.map((u) => (
+          <Entry key={u.id} update={u} answered={answered.has(u.id)} />
+        ))}
+        {pending.map((p) => (
+          <PendingEntry key={p.id} pending={p} options={updates.flatMap((u) => u.options)} />
+        ))}
+        {detail && updates.length === 0 && pending.length === 0 && !task.brief && <div className="meta">Nothing yet.</div>}
       </div>
       <Composer item={item} />
     </section>
@@ -124,13 +119,21 @@ const Brief = ({ text, mine }: { text: string; mine: boolean }) =>
     </div>
   )
 
-const Entry = ({ update }: { update: Update }) => {
+/** What the person just did, shown at once while it reaches the server. */
+const PendingEntry = ({ pending, options }: { pending: Pending; options: { id: string; label: string }[] }) => {
+  const { command } = pending
+  const words = pendingText(command) ?? (command.kind === 'answer' ? options.find((o) => o.id === command.optionId)?.label : undefined)
+  return words ? <div className="bubble">{words}</div> : null
+}
+
+const Entry = ({ update, answered }: { update: Update; answered: boolean }) => {
   if (update.kind === 'instruction' && update.author === 'owner') return <div className="bubble">{update.body}</div>
   const by = update.author === 'session' ? '' : ` · ${titleCase(update.author)}`
-  const answer = (optionId: string) => void api.updates.answer({ idempotencyKey: key(), updateId: update.id, optionId })
+  const asking = update.open && !answered
+  const answer = (optionId: string) => send({ kind: 'answer', taskId: update.taskId, updateId: update.id, optionId })
   return (
     <div>
-      <div className={`label${update.open ? ' ask' : ''}`}>
+      <div className={`label${asking ? ' ask' : ''}`}>
         {updateLabel(update)}
         {by} · {age(update.createdAt)}
       </div>
@@ -144,7 +147,7 @@ const Entry = ({ update }: { update: Update }) => {
           ))}
         </div>
       )}
-      {update.open && update.options.length > 0 && (
+      {asking && update.options.length > 0 && (
         <div className="options">
           {update.options.map((o) => (
             <button key={o.id} className="btn" onClick={() => answer(o.id)}>
@@ -187,27 +190,11 @@ const Menu = ({ label, items }: { label: string; items: { label: string; run: ()
 const Composer = ({ item }: { item: QueueItem }) => {
   const { task, openAsk, session } = item
   const [text, setText] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const run = async (action: () => Promise<unknown>) => {
-    setBusy(true)
-    setError(null)
-    try {
-      await action()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBusy(false)
-    }
-  }
-  const send = () => {
+  const reply = () => {
     const body = text.trim()
     if (!body) return
-    void run(async () => {
-      if (openAsk) await api.updates.answer({ idempotencyKey: key(), updateId: openAsk.id, text: body })
-      else await api.updates.instruct({ idempotencyKey: key(), taskId: task.id, body })
-      setText('')
-    })
+    setText('')
+    send(openAsk ? { kind: 'answer', taskId: task.id, updateId: openAsk.id, text: body } : { kind: 'instruct', taskId: task.id, body })
   }
   const live = session && session.state !== 'ended' ? session : null
   const sessionLinks = [
@@ -217,7 +204,6 @@ const Composer = ({ item }: { item: QueueItem }) => {
   const placeholder = openAsk ? 'Answer…' : live ? 'Tell the session…' : 'Reply to Autopilot; starts a session…'
   return (
     <div className="composer-wrap">
-      {error && <div className="banner" style={{ margin: '0 0 8px' }}>{error}</div>}
       <div className="composer">
         <textarea
           aria-label="Reply to Autopilot"
@@ -228,14 +214,14 @@ const Composer = ({ item }: { item: QueueItem }) => {
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
-              send()
+              reply()
             }
           }}
         />
         <div className="composer-bar">
           {sessionLinks.length > 0 && <Menu label="Open session" items={sessionLinks} />}
           {item.band === 'new' && !live && (
-            <button className="tool" onClick={() => void run(() => api.tasks.start({ idempotencyKey: key(), id: task.id }))}>
+            <button className="tool" onClick={() => send({ kind: 'start', taskId: task.id })}>
               Start
             </button>
           )}
@@ -243,18 +229,18 @@ const Composer = ({ item }: { item: QueueItem }) => {
             label="Snooze"
             items={snoozeTimes().map((t) => ({
               label: t.label,
-              run: () => void run(() => api.tasks.snooze({ idempotencyKey: key(), id: task.id, until: t.until.toISOString() })),
+              run: () => send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() }),
             }))}
           />
-          <button className="tool" onClick={() => void run(() => api.tasks.close({ idempotencyKey: key(), id: task.id, outcome: 'done' }))}>
+          <button className="tool" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'done' })}>
             Mark done
           </button>
           {item.band === 'new' && (
-            <button className="tool bare" onClick={() => void run(() => api.tasks.close({ idempotencyKey: key(), id: task.id, outcome: 'canceled' }))}>
+            <button className="tool bare" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'canceled' })}>
               Not for me
             </button>
           )}
-          <button className="send" aria-label="Send" disabled={busy || !text.trim()} onClick={send}>
+          <button className="send" aria-label="Send" disabled={!text.trim()} onClick={reply}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#141413" strokeWidth="1.8" aria-hidden="true">
               <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" />
             </svg>

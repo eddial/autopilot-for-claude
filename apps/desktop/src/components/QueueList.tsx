@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { Band, QueueItem } from '@autopilot/contracts'
-import { api, key } from '../api.ts'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
 import { BAND_TITLE } from '../view.ts'
 
@@ -30,17 +31,33 @@ const matches = (item: QueueItem, filter: string): boolean =>
       return item.task.title.toLowerCase().includes(word) || item.task.id.toLowerCase() === word
     })
 
+type Entry = { kind: 'group'; band: Band; count: number } | { kind: 'item'; item: QueueItem }
+
 export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, width, banner, onMenu }: Props) => {
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const visible = useMemo(() => items.filter((i) => matches(i, filter)), [items, filter])
-  const groups = useMemo(() => {
-    if (!grouped) return [{ band: null, items: visible }]
+  // One flat list of group headers and rows, so only what is on screen is rendered.
+  const entries = useMemo((): Entry[] => {
+    if (!grouped) return visible.map((item) => ({ kind: 'item', item }))
     const bands: Band[] = ['your_turn', 'new', 'running', 'waiting', 'snoozed', 'done']
-    return bands.map((band) => ({ band, items: visible.filter((i) => i.band === band) })).filter((g) => g.items.length > 0)
+    return bands.flatMap((band) => {
+      const inBand = visible.filter((i) => i.band === band)
+      return inBand.length === 0 ? [] : [{ kind: 'group' as const, band, count: inBand.length }, ...inBand.map((item) => ({ kind: 'item' as const, item }))]
+    })
   }, [visible, grouped])
-  const order = groups.flatMap((g) => g.items.map((i) => i.task.id))
+  const order = useMemo(() => entries.flatMap((e) => (e.kind === 'item' ? [e.item.task.id] : [])), [entries])
   const rows = useRef<HTMLDivElement>(null)
+  const virtual = useVirtualizer({
+    count: entries.length,
+    getScrollElement: () => rows.current,
+    estimateSize: (i) => (entries[i]?.kind === 'group' ? 46 : 72),
+    getItemKey: (i) => {
+      const e = entries[i]
+      return e?.kind === 'item' ? e.item.task.id : `group-${e?.band ?? i}`
+    },
+    overscan: 10,
+  })
 
   const move = (delta: number) => {
     const index = selected ? order.indexOf(selected) : -1
@@ -49,7 +66,11 @@ export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, w
   }
 
   useEffect(() => {
-    if (selected) rows.current?.querySelector<HTMLElement>(`[data-task="${selected}"]`)?.scrollIntoView({ block: 'nearest' })
+    if (!selected) return
+    const index = entries.findIndex((e) => e.kind === 'item' && e.item.task.id === selected)
+    if (index >= 0) virtual.scrollToIndex(index, { align: 'auto' })
+    // Only when the selection moves, not on every change to the list.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [selected])
 
   const onKeyDown = (event: React.KeyboardEvent) => {
@@ -87,53 +108,71 @@ export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, w
       {banner && <div className="banner">{banner}</div>}
       <div className="rows" ref={rows} role="listbox" aria-label="Tasks" tabIndex={0} onKeyDown={onKeyDown}>
         {visible.length === 0 && <div className="empty">{filter ? 'Nothing matches the filter.' : 'Nothing here. Autopilot fills this as signals file and sessions hand over.'}</div>}
-        {groups.map((group) => (
-          <div key={group.band ?? 'all'}>
-            {group.band && (
-              <div className="group">
-                <span className={`name ${group.band}`}>{BAND_TITLE[group.band]}</span>
-                <span>{group.items.length}</span>
+        <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
+          {virtual.getVirtualItems().map((v) => {
+            const entry = entries[v.index]
+            if (!entry) return null
+            return (
+              <div key={v.key} data-index={v.index} ref={virtual.measureElement} style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }}>
+                {entry.kind === 'group' ? (
+                  <div className="group">
+                    <span className={`name ${entry.band}`}>{BAND_TITLE[entry.band]}</span>
+                    <span>{entry.count}</span>
+                  </div>
+                ) : expanded === entry.item.task.id ? (
+                  <Expanded item={entry.item} selected={selected === entry.item.task.id} onOpen={onOpen} onDone={() => setExpanded(null)} />
+                ) : (
+                  <Row item={entry.item} selected={selected === entry.item.task.id} onSelect={onSelect} onOpen={onOpen} />
+                )}
               </div>
-            )}
-            {group.items.map((item) =>
-              expanded === item.task.id ? (
-                <Expanded key={item.task.id} item={item} selected={selected === item.task.id} onOpen={onOpen} onDone={() => setExpanded(null)} />
-              ) : (
-                <Row key={item.task.id} item={item} selected={selected === item.task.id} onClick={() => onSelect(item.task.id)} onOpen={onOpen} />
-              ),
-            )}
-          </div>
-        ))}
+            )
+          })}
+        </div>
       </div>
     </section>
   )
 }
 
-const Row = ({ item, selected, onClick, onOpen }: { item: QueueItem; selected: boolean; onClick?: () => void; onOpen: (id: string) => void }) => (
-  <button
-    className={`row${item.unread ? '' : ' read'}`}
-    role="option"
-    data-task={item.task.id}
-    aria-selected={selected}
-    onClick={onClick}
-    onDoubleClick={() => onOpen(item.task.id)}
-  >
-    <span className={`dot ${item.band}${item.unread ? '' : ' read'}`} aria-hidden="true" />
-    <div style={{ minWidth: 0 }}>
-      <div className="title">{item.task.title}</div>
-      <div className="meta">{rowMeta(item)}</div>
-    </div>
-    <span className="age">{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</span>
-  </button>
+type RowProps = { item: QueueItem; selected: boolean; onSelect?: (id: string) => void; onOpen: (id: string) => void }
+
+/** Rerenders only when what it shows changed: the store keeps unchanged tasks and asks as the same objects. */
+const Row = memo(
+  ({ item, selected, onSelect, onOpen }: RowProps) => (
+    <button
+      className={`row${item.unread ? '' : ' read'}`}
+      role="option"
+      data-task={item.task.id}
+      aria-selected={selected}
+      onClick={() => onSelect?.(item.task.id)}
+      onMouseEnter={() => prefetch(item.task.id)}
+      onDoubleClick={() => onOpen(item.task.id)}
+    >
+      <span className={`dot ${item.band}${item.unread ? '' : ' read'}`} aria-hidden="true" />
+      <div style={{ minWidth: 0 }}>
+        <div className="title">{item.task.title}</div>
+        <div className="meta">{rowMeta(item)}</div>
+      </div>
+      <span className="age">{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</span>
+    </button>
+  ),
+  (a, b) =>
+    a.selected === b.selected &&
+    a.item.task === b.item.task &&
+    a.item.openAsk === b.item.openAsk &&
+    a.item.session === b.item.session &&
+    a.item.band === b.item.band &&
+    a.item.unread === b.item.unread &&
+    a.onSelect === b.onSelect &&
+    a.onOpen === b.onOpen,
 )
 
 /** A row opened in place with Space: answer it without opening the task. */
 const Expanded = ({ item, selected, onOpen, onDone }: { item: QueueItem; selected: boolean; onOpen: (id: string) => void; onDone: () => void }) => {
   const [text, setText] = useState('')
   const ask = item.openAsk
-  const answer = async (reply: { optionId: string } | { text: string }) => {
+  const answer = (reply: { optionId: string } | { text: string }) => {
     if (!ask) return
-    await api.updates.answer({ idempotencyKey: key(), updateId: ask.id, ...reply })
+    send({ kind: 'answer', taskId: item.task.id, updateId: ask.id, ...reply })
     onDone()
   }
   return (
@@ -145,7 +184,7 @@ const Expanded = ({ item, selected, onOpen, onDone }: { item: QueueItem; selecte
             <div className="ask-body">{ask.body}</div>
             <div className="options">
               {ask.options.map((o) => (
-                <button key={o.id} className="btn" onClick={() => void answer({ optionId: o.id })}>
+                <button key={o.id} className="btn" onClick={() => answer({ optionId: o.id })}>
                   {o.label}
                 </button>
               ))}
@@ -161,7 +200,7 @@ const Expanded = ({ item, selected, onOpen, onDone }: { item: QueueItem; selecte
               autoFocus
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && text.trim()) void answer({ text: text.trim() })
+                if (e.key === 'Enter' && text.trim()) answer({ text: text.trim() })
                 if (e.key === 'Escape') onDone()
               }}
             />
@@ -169,7 +208,10 @@ const Expanded = ({ item, selected, onOpen, onDone }: { item: QueueItem; selecte
         ) : (
           <div className="options">
             {item.band === 'new' && (
-              <button className="btn primary" onClick={() => void api.tasks.start({ idempotencyKey: key(), id: item.task.id }).then(onDone)}>
+              <button className="btn primary" onClick={() => {
+                  send({ kind: 'start', taskId: item.task.id })
+                  onDone()
+                }}>
                 Start
               </button>
             )}
