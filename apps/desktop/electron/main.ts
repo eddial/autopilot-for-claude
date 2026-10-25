@@ -122,6 +122,25 @@ const start = async (): Promise<void> => {
   // Over any app, like Spotlight: the New task box.
   globalShortcut.register('Control+Alt+Space', () => show('new'))
   show()
+  if (process.env.AUTOPILOT_SMOKE) void smoke()
+}
+
+/**
+ * `AUTOPILOT_SMOKE=1`: open the window, wait until it is live on the server's feed, print the
+ * result and quit. CI and scripts/mac-check.sh use it to prove the packaged pieces fit together.
+ */
+const smoke = async (): Promise<void> => {
+  let last = ''
+  for (const deadline = Date.now() + 60_000; Date.now() < deadline; await sleep(500)) {
+    last = String(await window?.webContents.executeJavaScript('document.body.dataset.connection ?? ""').catch(() => ''))
+    if (last === 'live') {
+      console.log('AUTOPILOT SMOKE OK: the window is live on the server')
+      app.exit(0)
+      return
+    }
+  }
+  console.log(`AUTOPILOT SMOKE FAILED: connection is "${last}" after 60 seconds`)
+  app.exit(1)
 }
 
 if (!app.requestSingleInstanceLock()) app.quit()

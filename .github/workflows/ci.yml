@@ -28,3 +28,46 @@ jobs:
         run: cd apps/mobile && CI=1 npx expo export --platform ios --output-dir "$RUNNER_TEMP/ios-bundle"
       - name: JSON Schema is up to date
         run: pnpm schema && git diff --exit-code -- packages/contracts/schema
+
+  # The Mac app as a real Electron app: it starts the server and the window goes live on its feed.
+  desktop:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @autopilot/desktop build
+      - name: Smoke test
+        run: cd apps/desktop && AUTOPILOT_SMOKE=1 AUTOPILOT_DATA="$RUNNER_TEMP/ap" AUTOPILOT_SOCKET=/tmp/ap-smoke.sock npx electron .
+      - name: Server log
+        if: always()
+        run: cat "$RUNNER_TEMP/ap/logs/server.log" || true
+
+  # The iPhone app compiled for the simulator: the Swift module and the native configuration.
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - name: Generate the native project
+        run: cd apps/mobile && CI=1 npx expo prebuild --platform ios --clean
+      - name: Build for the simulator
+        run: |
+          cd apps/mobile/ios
+          set -o pipefail
+          xcodebuild -workspace Autopilot.xcworkspace -scheme Autopilot -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -80

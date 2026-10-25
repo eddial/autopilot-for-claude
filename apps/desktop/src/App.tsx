@@ -76,6 +76,10 @@ export const App = () => {
   }, [showingDone, queue.seq])
 
   useEffect(() => shell?.onNavigate((to) => to === 'new' && setView({ kind: 'new' })), [])
+  // For the smoke test and anyone looking: whether the window is live on the server.
+  useEffect(() => {
+    document.body.dataset.connection = connection
+  }, [connection])
 
   const openTask = (id: string) => {
     if (view.kind !== 'queue' && view.kind !== 'workstream') setView({ kind: 'queue', queue: 'needs_me' })
