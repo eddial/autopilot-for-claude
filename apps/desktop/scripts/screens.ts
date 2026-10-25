@@ -107,8 +107,8 @@ await shot('02-answer-in-place')
 await page.keyboard.press('Escape')
 
 await page.getByRole('option', { name: /flaky e2e/ }).click()
-await page.getByText('Lay of the land').waitFor()
-await shot('03-lay-of-the-land')
+await page.getByText('First look').waitFor()
+await shot('03-first-look')
 
 await page.getByRole('button', { name: 'Running' }).click()
 await shot('03b-running')

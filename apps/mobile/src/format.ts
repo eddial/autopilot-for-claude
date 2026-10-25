@@ -34,7 +34,7 @@ export const updateLabel = (update: Update): string => {
     case 'done':
       return 'Done'
     case 'info':
-      return update.author === 'watcher' ? 'News' : update.author === 'system' ? 'Lay of the land' : 'Update'
+      return update.author === 'watcher' ? 'News' : update.author === 'system' ? 'First look' : 'Update'
     case 'signal':
       return 'New on the thread'
     case 'instruction':

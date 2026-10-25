@@ -40,7 +40,7 @@ const setup = (onRun: () => void = () => {}) => {
 }
 
 describe('scout', () => {
-  it('gives each new task the lay of the land once, and leaves started tasks to their session', async () => {
+  it('gives each new task a first look once, and leaves started tasks to their session', async () => {
     const { service, scout, calls, create } = setup()
     const waiting = create('Reply to Acme about SSO', false)
     const started = create('Upgrade Node', true)

@@ -8,7 +8,7 @@ import type { Paths } from './paths.ts'
 import type { Service } from './service.ts'
 import type { RunClaude } from './signals.ts'
 
-/** What a scout returns: the lay of the land around one new task. */
+/** What a scout returns: a first look at one new task. */
 export const ScoutOutput = z.object({
   summary: z.string(),
   related: z.array(z.object({ url: z.string(), title: z.string() })),
@@ -36,7 +36,7 @@ const FILE_TOOLS = ['Read', 'Grep', 'Glob']
 const expand = (path: string): string => (path.startsWith('~/') ? join(homedir(), path.slice(2)) : path)
 
 /**
- * Gives every new task the lay of the land before anyone looks at it: one read-only `claude -p`
+ * Gives every new task a first look before anyone looks at it: one read-only `claude -p`
  * over the owner's connectors and the workstream's code, posted as an update. A started task does
  * this itself in its session, so only tasks waiting in New are scouted, once each.
  */
@@ -111,7 +111,7 @@ export class Scout {
         .join('\n\n'),
       [
         '# Task',
-        `Get the lay of the land so that ${this.o.owner}, or the session that later takes this on, does not start from a bare title.`,
+        `Take a first look so that ${this.o.owner}, or the session that later takes this on, does not start from a bare title.`,
         'Read-only: search the connectors for the source thread or ticket, earlier conversations, tickets and pull requests about the same thing, and the people involved; look through the code when there is a folder. Create, change, send and comment on nothing. Spend a few minutes at most.',
         'Return:',
         '- summary: two to four sentences: what this really is, where it stands, and anything that changes how big or urgent it is',

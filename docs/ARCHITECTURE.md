@@ -71,7 +71,7 @@ One language and one contract across the server, the Mac app, the iPhone app and
 | Jobs | A small scheduler for the tick (signals, watchers, health, routing review) with timeouts and cancellation through `AbortSignal` |
 | Sessions | `claude --remote-control` in a pseudo-terminal owned by the server (`node-pty`); no tmux |
 | Signals and watchers | `claude -p --json-schema` with the signal's read-only tools, as today |
-| Scout | Once per task waiting in New: a read-only `claude -p` over the signals' connectors and the workstream's code, posted as a "Lay of the land" update (summary, related links, likely approach, questions). Started tasks get this from their session |
+| Scout | Once per task waiting in New: a read-only `claude -p` over the signals' connectors and the workstream's code, posted as a "First look" update (summary, related links, likely approach, questions). Started tasks get this from their session |
 | MCP | `@modelcontextprotocol/sdk`: streamable HTTP on the server, `autopilot mcp` as a stdio bridge |
 | Desktop | Electron, React 19, Vite, Tailwind 4, TanStack Router, TanStack Query, Legend List; signed and notarised, electron-updater |
 | Mobile | Expo with a dev client and EAS builds to TestFlight, React Native, React Navigation native stack and native tabs, Legend List, `@expo/ui`, `expo-secure-store`, `expo-sqlite`, `expo-notifications`, a share extension |
