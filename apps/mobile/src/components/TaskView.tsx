@@ -128,6 +128,11 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
               </Text>
               <Markdown text={ask.body} onLink={open} />
               <Links update={ask} />
+              {ask.kind === 'done' && (
+                <View style={styles.row}>
+                  <Button kind="primary" label="Close it" onPress={() => void send({ kind: 'close', taskId: task.id, outcome: 'done' })} />
+                </View>
+              )}
               {ask.options.length > 0 && (
                 <View style={styles.row}>
                   {ask.options.map((o, i) => (
@@ -167,7 +172,7 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
         <View style={styles.composer}>
           <TextInput
             style={styles.input}
-            placeholder={ask ? 'Or answer in words…' : 'Tell the session…'}
+            placeholder={ask?.kind === 'done' ? 'Or ask for more…' : ask ? 'Or answer in words…' : 'Tell the session…'}
             placeholderTextColor={colours.text3}
             value={text}
             onChangeText={setText}
@@ -281,16 +286,23 @@ const BAND_TONE: Record<QueueItem['band'], Tone> = {
 const Links = ({ update }: { update: Update }) =>
   update.attachments.length > 0 ? (
     <View style={styles.row}>
-      {update.attachments.map((a) => (
-        <Chip
-          key={a.url}
-          icon={<LinkIcon link={a} size={12} />}
-          label={
-            update.kind === 'event' ? `Open in ${linkSource(a.url)}` : a.title.replace(/^(file|gmail|slack|github|linear|drive):\s*/i, '')
-          }
-          onPress={() => open(a.url)}
-        />
-      ))}
+      {update.attachments.map((a) =>
+        // A file on the Mac cannot open here: it reads in place instead.
+        a.url.startsWith('file:') ? (
+          <View key={a.url} style={styles.fullWidth}>
+            <LinkRow taskId={update.taskId} link={a} />
+          </View>
+        ) : (
+          <Chip
+            key={a.url}
+            icon={<LinkIcon link={a} size={12} />}
+            label={
+              update.kind === 'event' ? `Open in ${linkSource(a.url)}` : a.title.replace(/^(file|gmail|slack|github|linear|drive):\s*/i, '')
+            }
+            onPress={() => open(a.url)}
+          />
+        ),
+      )}
     </View>
   ) : null
 
@@ -351,6 +363,7 @@ const styles = StyleSheet.create({
   },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
   linkText: { flex: 1, gap: 2 },
+  fullWidth: { width: '100%' },
   linkTitle: { fontSize: 15, color: colours.text },
   preview: { marginLeft: 26, marginBottom: 6, padding: 12, borderRadius: 10, backgroundColor: colours.window },
   mono: { fontFamily: 'Menlo', fontSize: 13, lineHeight: 19 },

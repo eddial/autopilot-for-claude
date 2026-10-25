@@ -36,4 +36,12 @@ describe('onboarding set-up', () => {
     // Every home gets the autopilot workstream, for health and routing proposals.
     expect(readFileSync(join(paths.home, 'workstreams', 'autopilot.md'), 'utf8')).toContain('## Routing')
   })
+
+  it('reads an Urgent line that wraps, without leaving its end in the routing', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ap-setup-'))
+    const paths = resolvePaths({ AUTOPILOT_DATA: join(dir, 'data'), AUTOPILOT_HOME: join(dir, 'home') })
+    const company = new Setup({ paths, examples: EXAMPLES, claude: 'claude' }).workstreamExamples().find((w) => w.name === 'company')
+    expect(company?.urgent).toBe('an investor, board or legal deadline within 24 hours, or a candidate offer about to lapse.')
+    expect(company?.routing).not.toContain('lapse')
+  })
 })

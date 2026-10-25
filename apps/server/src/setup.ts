@@ -135,7 +135,7 @@ export class Setup {
     const dir = join(this.o.paths.home, 'workstreams')
     mkdirSync(dir, { recursive: true })
     const file = join(dir, `${input.name}.md`)
-    const routing = `## Routing\n${input.routing.trim()}\n${input.urgent.trim() ? `Urgent: ${input.urgent.trim()}\n` : ''}`
+    const routing = `## Routing\n${input.routing.trim()}\n${input.urgent.trim() ? `Urgent: ${input.urgent.replace(/\s+/g, ' ').trim()}\n` : ''}`
     if (existsSync(file)) {
       const { meta, body } = splitFrontmatter(readFileSync(file, 'utf8'))
       const next = { ...meta, ...(input.repo ? { repo: input.repo } : {}) }

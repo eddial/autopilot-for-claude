@@ -44,11 +44,16 @@ export const readWorkstreams = (home: string): Workstream[] =>
   markdownFiles(join(home, 'workstreams')).map((file) => {
     const { meta, body } = splitFrontmatter(readFileSync(join(home, 'workstreams', file), 'utf8'))
     const routing = section(body, 'Routing')
-    const urgent = /^Urgent:\s*(.*)$/m.exec(routing)?.[1]?.trim() ?? ''
+    // "Urgent:" runs to the next blank line, so it may wrap like the rest of the file.
+    const urgentBlock = /^Urgent:[\s\S]*?(?=\n\s*\n|$(?![\s\S]))/m.exec(routing)?.[0] ?? ''
+    const urgent = urgentBlock
+      .replace(/^Urgent:/, '')
+      .replace(/\s+/g, ' ')
+      .trim()
     const autonomy = Number(meta.autonomy ?? 2)
     return {
       name: file.replace(/\.md$/, ''),
-      routing: routing.replace(/^Urgent:.*$/m, '').trim(),
+      routing: (urgentBlock ? routing.replace(urgentBlock, '') : routing).trim(),
       urgent,
       work: section(body, 'Work'),
       autonomy: autonomy >= 1 && autonomy <= 4 ? Math.trunc(autonomy) : 2,
