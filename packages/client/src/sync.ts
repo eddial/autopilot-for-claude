@@ -32,7 +32,8 @@ export const memoryStorage = (): Storage => {
   }
 }
 
-export type Status = 'connecting' | 'online' | 'offline'
+/** `unpaired`: the Mac answered, but no longer knows this device (it was removed under Servers). */
+export type Status = 'connecting' | 'online' | 'offline' | 'unpaired'
 
 export type SyncState = {
   status: Status
@@ -223,7 +224,14 @@ export class Sync {
       await this.catchUp(waitSeconds)
       this.set({ status: 'online', lastSyncedAt: this.o.now().toISOString() })
       this.saveQueueSoon()
-    } catch {
+    } catch (error) {
+      // The Mac refused the token (the feed is always this device's to read, so a refusal means
+      // it was removed): retrying will not help, pairing again will.
+      if (error instanceof ORPCError && (error.status === 401 || error.status === 403)) {
+        this.running = false
+        this.set({ status: 'unpaired', routeKind: null })
+        return
+      }
       // No route, or a call failed on the way: the next round probes the routes again.
       this.link.lost()
       this.set({ status: 'offline', routeKind: null })
@@ -320,6 +328,7 @@ export class Sync {
     void (async () => {
       while (this.running && this.generation === generation) {
         await this.syncOnce(this.state.status === 'online' ? this.o.waitSeconds : 0)
+        if (this.state.status === 'unpaired') return
         if (this.state.status !== 'online') await this.pause(5_000)
       }
     })()

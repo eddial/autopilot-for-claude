@@ -2,7 +2,17 @@ import { useEffect, useState } from 'react'
 import { router, Stack } from 'expo-router'
 import * as Notifications from 'expo-notifications'
 import { StatusBar } from 'expo-status-bar'
-import { booted, connectTo, loadConnection, registerBackgroundSync, useItems, useSyncInstance, useWakeUps } from '../src/store.ts'
+import {
+  booted,
+  connectTo,
+  forgetPairing,
+  loadConnection,
+  registerBackgroundSync,
+  useItems,
+  useSyncInstance,
+  useSyncState,
+  useWakeUps,
+} from '../src/store.ts'
 import { colours } from '@autopilot/design'
 
 export default function Root() {
@@ -26,6 +36,12 @@ export default function Root() {
     })
     return () => tapped.remove()
   }, [])
+
+  // Removed on the Mac under Servers: back to pairing, with a word on why.
+  const { status } = useSyncState()
+  useEffect(() => {
+    if (status === 'unpaired') void forgetPairing()
+  }, [status])
 
   // Asked once paired, when there is something to be told about, rather than at first launch.
   const paired = sync !== null

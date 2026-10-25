@@ -79,6 +79,16 @@ boot()
 /** The sync started at launch, if the pairing could be read before the first frame. */
 export const booted = (): Sync | null => current?.sync ?? null
 
+/** Why the phone is back at pairing, when it did not choose to be; the pair screen says so. */
+let forgottenBy: string | null = null
+export const forgotten = (): string | null => forgottenBy
+
+/** The Mac no longer knows this phone: drop the pairing, and say why on the pair screen. */
+export const forgetPairing = async (): Promise<void> => {
+  forgottenBy = current?.connection.server ?? 'Your Mac'
+  await unpair()
+}
+
 export const unpair = async (): Promise<void> => {
   current?.sync.stop()
   current = null

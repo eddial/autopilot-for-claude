@@ -1,5 +1,6 @@
 import type { Update } from '@autopilot/contracts'
 import { describe, expect, it } from 'vitest'
+import { parseMarkdown } from '../src/markdown.ts'
 import { linkSource, updateLabel, updateTone } from '../src/present.ts'
 
 const decision = (open: boolean): Update => ({
@@ -30,5 +31,30 @@ describe('how updates read', () => {
         'https://www.example.com/a',
       ].map(linkSource),
     ).toEqual(['Gmail', 'Slack', 'File', 'example.com'])
+  })
+})
+
+describe('markdown', () => {
+  it('reads headings, lists and paragraphs, with bold, code and links inside a line', () => {
+    expect(parseMarkdown('# Reply\n\nHi **Sofie**, see `docs`.\n\n- [Trust page](https://trust.example.com)\n- Two')).toEqual([
+      { kind: 'heading', level: 1, inlines: [{ kind: 'text', text: 'Reply' }] },
+      {
+        kind: 'paragraph',
+        lines: [
+          [
+            { kind: 'text', text: 'Hi ' },
+            { kind: 'strong', text: 'Sofie' },
+            { kind: 'text', text: ', see ' },
+            { kind: 'code', text: 'docs' },
+            { kind: 'text', text: '.' },
+          ],
+        ],
+      },
+      {
+        kind: 'list',
+        ordered: false,
+        items: [[{ kind: 'link', text: 'Trust page', url: 'https://trust.example.com' }], [{ kind: 'text', text: 'Two' }]],
+      },
+    ])
   })
 })

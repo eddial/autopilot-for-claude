@@ -1665,3 +1665,9 @@ textarea.inline-reply {
 .ask-card .questions .md p {
   margin: 0;
 }
+
+.md .md-rule {
+  margin: 12px 0;
+  border: 0;
+  border-top: 0.5px solid var(--border);
+}

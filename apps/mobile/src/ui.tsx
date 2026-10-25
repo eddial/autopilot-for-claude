@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import { claude, colours, fonts, pilot, radius, space, tones, type Tone } from '@autopilot/design'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { linkKind, parseMarkdown, type Inline, type LinkKind } from '@autopilot/client'
 
 /**
  * The phone's building blocks, the same kinds as the Mac window's `src/ui.tsx` and from the same
@@ -60,6 +62,98 @@ export const Avatar = ({ who }: { who: Who }) => {
   )
 }
 
+/**
+ * A screen's content kept clear of what sits at its sides: on the Duo's outer display, and on the
+ * inner one in landscape, the vertical bar takes the hardware edge. Top and bottom are the scroll
+ * view's (contentInsetAdjustmentBehavior); the sides are measured where this view sits.
+ */
+export const Sides = ({ children }: { children: ReactNode }) => (
+  <SafeAreaView edges={['left', 'right']} style={styles.sides}>
+    {children}
+  </SafeAreaView>
+)
+
+const Inlines = ({ inlines, onLink }: { inlines: Inline[]; onLink: (url: string) => void }) =>
+  inlines.map((n, i) => {
+    switch (n.kind) {
+      case 'text':
+        return n.text
+      case 'strong':
+        return (
+          <Text key={i} style={styles.strong}>
+            {n.text}
+          </Text>
+        )
+      case 'em':
+        return (
+          <Text key={i} style={styles.em}>
+            {n.text}
+          </Text>
+        )
+      case 'code':
+        return (
+          <Text key={i} style={styles.code}>
+            {n.text}
+          </Text>
+        )
+      case 'link':
+        return (
+          <Text key={i} style={styles.link} onPress={() => onLink(n.url)} accessibilityRole="link">
+            {n.text}
+          </Text>
+        )
+    }
+  })
+
+/** Markdown as sessions write it (`parseMarkdown`, shared with the Mac), in native text. */
+export const Markdown = ({ text, onLink }: { text: string; onLink: (url: string) => void }) => (
+  <View style={styles.md}>
+    {parseMarkdown(text).map((b, i) =>
+      b.kind === 'rule' ? (
+        <View key={i} style={styles.mdRule} />
+      ) : b.kind === 'heading' ? (
+        <Text key={i} style={[type.body, styles.mdHeading]}>
+          <Inlines inlines={b.inlines} onLink={onLink} />
+        </Text>
+      ) : b.kind === 'list' ? (
+        <View key={i} style={styles.mdList}>
+          {b.items.map((item, j) => (
+            <View key={j} style={styles.mdItem}>
+              <Text style={[type.body, styles.mdMark]}>{b.ordered ? `${j + 1}.` : '•'}</Text>
+              <Text style={[type.body, styles.mdItemText]}>
+                <Inlines inlines={item} onLink={onLink} />
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Text key={i} style={type.body}>
+          {b.lines.map((line, j) => (
+            <Text key={j}>
+              {j > 0 ? '\n' : ''}
+              <Inlines inlines={line} onLink={onLink} />
+            </Text>
+          ))}
+        </Text>
+      ),
+    )}
+  </View>
+)
+
+const KIND_SYMBOL: Record<LinkKind['icon'], SFSymbol> = {
+  document: 'doc.text',
+  code: 'chevron.left.forwardslash.chevron.right',
+  mail: 'envelope',
+  link: 'link',
+  image: 'photo',
+  table: 'tablecells',
+}
+
+/** What kind of thing a link is, as the system draws it. */
+export const LinkIcon = ({ link, size = 14 }: { link: { url: string; title: string }; size?: number }) => (
+  <SymbolView name={KIND_SYMBOL[linkKind(link).icon]} size={size} tintColor={colours.text3} />
+)
+
 export const Card = ({ children }: { children: ReactNode }) => <View style={styles.card}>{children}</View>
 
 /** A card's first line: a dot, a name, and whatever goes at the end. */
@@ -77,14 +171,17 @@ export const Banner = ({ tone = 'alert', children }: { tone?: Tone; children: Re
 export const bannerText = (tone: Tone = 'alert') => [styles.bannerText, { color: tones[tone].fg }]
 
 /** A small choice or link; `on` when it is the chosen one. */
-export const Chip = ({ label, on, onPress }: { label: string; on?: boolean; onPress: () => void }) => (
+export const Chip = ({ label, on, icon, onPress }: { label: string; on?: boolean; icon?: ReactNode; onPress: () => void }) => (
   <Pressable
-    style={[styles.chip, on && styles.chipOn]}
+    style={[styles.chip, on && styles.chipOn, icon ? styles.chipWithIcon : null]}
     onPress={onPress}
     accessibilityRole="button"
     accessibilityState={on === undefined ? undefined : { selected: on }}
   >
-    <Text style={[styles.chipText, on && { color: colours.text }]}>{label}</Text>
+    {icon}
+    <Text style={[styles.chipText, on && { color: colours.text }]} numberOfLines={1}>
+      {label}
+    </Text>
   </Pressable>
 )
 
@@ -140,6 +237,19 @@ const Mascot = ({
 export const Pilot = ({ pixel = 3 }: { pixel?: number }) => <Mascot art={pilot} pixel={pixel} label="Autopilot" />
 
 const styles = StyleSheet.create({
+  sides: { flex: 1 },
+  chipWithIcon: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' },
+  md: { gap: space[2] },
+  mdHeading: { fontWeight: '600', color: colours.text },
+  mdList: { gap: 3 },
+  mdRule: { height: StyleSheet.hairlineWidth, backgroundColor: colours.border, marginVertical: space[2] },
+  mdItem: { flexDirection: 'row', gap: 8 },
+  mdMark: { color: colours.text3, minWidth: 14 },
+  mdItemText: { flex: 1 },
+  strong: { fontWeight: '600', color: colours.text },
+  em: { fontStyle: 'italic' },
+  code: { fontFamily: 'Menlo', fontSize: 14, color: colours.text },
+  link: { color: colours.pilotSoft, textDecorationLine: 'underline' },
   card: {
     padding: space[6],
     borderRadius: radius.lg,

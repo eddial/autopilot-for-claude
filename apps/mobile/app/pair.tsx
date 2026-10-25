@@ -8,7 +8,7 @@ import { randomUUID } from 'expo-crypto'
 import * as Device from 'expo-device'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { pinnedFetch } from '../src/pinned.ts'
-import { connectTo } from '../src/store.ts'
+import { connectTo, forgotten } from '../src/store.ts'
 import { colours, radius } from '@autopilot/design'
 import { Button, Pilot, bannerText, type } from '../src/ui.tsx'
 
@@ -71,6 +71,11 @@ export default function PairScreen() {
         )}
         {busy && <ActivityIndicator style={StyleSheet.absoluteFill} color={colours.pilot} size="large" />}
       </View>
+      {!error && forgotten() && (
+        <Text style={[bannerText('paused'), styles.error]}>
+          {forgotten()} no longer knows this iPhone; it was removed under Servers. Pair again to carry on.
+        </Text>
+      )}
       {error && <Text style={[bannerText(), styles.error]}>{error}</Text>}
     </SafeAreaView>
   )

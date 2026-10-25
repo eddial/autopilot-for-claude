@@ -1,13 +1,24 @@
 import { useState, type ReactNode } from 'react'
 import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { createdText, eventText, linkSource, nowText, nowTone, pendingText, shortDate, updateAuthor, updateLabel } from '@autopilot/client'
+import {
+  createdText,
+  eventText,
+  linkKind,
+  linkSource,
+  nowText,
+  nowTone,
+  pendingText,
+  shortDate,
+  updateAuthor,
+  updateLabel,
+} from '@autopilot/client'
 import type { QueueItem, Update } from '@autopilot/contracts'
 import * as Haptics from 'expo-haptics'
 import KV from 'expo-sqlite/kv-store'
 import { age, BAND_TITLE, titleCase } from '../format.ts'
 import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
 import { colours, radius, tones, type Tone } from '@autopilot/design'
-import { Avatar, Banner, Button, Chip, Pill, Tag, bannerText, type } from '../ui.tsx'
+import { Avatar, Banner, Button, Chip, LinkIcon, Markdown, Pill, Sides, Tag, bannerText, type } from '../ui.tsx'
 
 /** A task: its brief, what waits on you, and its activity; the same in a pushed screen and in the wide split. */
 export const TaskView = ({ item }: { item: QueueItem }) => {
@@ -65,136 +76,181 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
-      <ScrollView contentContainerStyle={styles.page} contentInsetAdjustmentBehavior="automatic">
-        <View style={styles.head}>
-          <Text style={type.meta}>
-            {task.id}
-            {task.source.mirrors ? ` · ${task.source.mirrors}` : ''}
-          </Text>
-          <Text style={type.title}>{task.title}</Text>
-          <View style={styles.row}>
-            <Pill tone={BAND_TONE[item.band]} label={BAND_TITLE[item.band]} />
-            <Tag label={titleCase(task.workstream)} />
-            {task.priority <= 2 && <Tag label={task.priority === 1 ? 'Urgent' : 'High priority'} />}
-          </View>
-        </View>
-        {task.brief ? (
-          <View style={styles.section}>
-            <Text style={type.label}>Brief</Text>
-            <Text style={type.body}>{task.brief}</Text>
-          </View>
-        ) : null}
-        {task.links.length > 0 && <Linked links={task.links} />}
-        {refused.map((c) => (
-          <Banner key={c.id}>
-            <Text style={bannerText()}>
-              {c.reason === 'already_answered'
-                ? 'Answered on the Mac before this arrived.'
-                : c.reason === 'task_closed'
-                  ? 'The task was closed meanwhile.'
-                  : c.message}
+      <Sides>
+        <ScrollView contentContainerStyle={styles.page} contentInsetAdjustmentBehavior="automatic">
+          <View style={styles.head}>
+            <Text style={type.meta}>
+              {task.id}
+              {task.source.mirrors ? ` · ${task.source.mirrors}` : ''}
             </Text>
+            <Text style={type.title}>{task.title}</Text>
             <View style={styles.row}>
-              {c.command.kind === 'answer' && c.command.text ? (
-                <Chip
-                  label="Send as a new instruction"
-                  onPress={() => {
-                    const body = c.command.kind === 'answer' ? (c.command.text ?? '') : ''
-                    sync?.dismissConflict(c.id)
-                    void send({ kind: 'instruct', taskId: task.id, body })
-                  }}
-                />
-              ) : null}
-              <Chip label="Dismiss" onPress={() => sync?.dismissConflict(c.id)} />
+              <Pill tone={BAND_TONE[item.band]} label={BAND_TITLE[item.band]} />
+              <Tag label={titleCase(task.workstream)} />
+              {task.priority <= 2 && <Tag label={task.priority === 1 ? 'Urgent' : 'High priority'} />}
             </View>
-          </Banner>
-        ))}
-        {ask && (
-          <View style={styles.ask} accessibilityLabel="Needs you">
-            <Text style={[type.meta, { color: colours.pilot }]}>
-              {updateLabel(ask)} · {age(ask.createdAt)}
-            </Text>
-            <Text style={type.body}>{ask.body}</Text>
-            <Links update={ask} />
-            {ask.options.length > 0 && (
+          </View>
+          {task.brief ? (
+            <View style={styles.section}>
+              <Text style={type.label}>Brief</Text>
+              <Markdown text={task.brief} onLink={open} />
+            </View>
+          ) : null}
+          {task.links.length > 0 && <Linked taskId={task.id} links={task.links} />}
+          {refused.map((c) => (
+            <Banner key={c.id}>
+              <Text style={bannerText()}>
+                {c.reason === 'already_answered'
+                  ? 'Answered on the Mac before this arrived.'
+                  : c.reason === 'task_closed'
+                    ? 'The task was closed meanwhile.'
+                    : c.message}
+              </Text>
               <View style={styles.row}>
-                {ask.options.map((o, i) => (
-                  <Button
-                    key={o.id}
-                    kind={i === 0 ? 'primary' : 'option'}
-                    label={o.label}
-                    onPress={() => void send({ kind: 'answer', taskId: task.id, updateId: ask.id, optionId: o.id })}
+                {c.command.kind === 'answer' && c.command.text ? (
+                  <Chip
+                    label="Send as a new instruction"
+                    onPress={() => {
+                      const body = c.command.kind === 'answer' ? (c.command.text ?? '') : ''
+                      sync?.dismissConflict(c.id)
+                      void send({ kind: 'instruct', taskId: task.id, body })
+                    }}
                   />
+                ) : null}
+                <Chip label="Dismiss" onPress={() => sync?.dismissConflict(c.id)} />
+              </View>
+            </Banner>
+          ))}
+          {ask && (
+            <View style={styles.ask} accessibilityLabel="Needs you">
+              <Text style={[type.meta, { color: colours.pilot }]}>
+                {updateLabel(ask)} · {age(ask.createdAt)}
+              </Text>
+              <Markdown text={ask.body} onLink={open} />
+              <Links update={ask} />
+              {ask.options.length > 0 && (
+                <View style={styles.row}>
+                  {ask.options.map((o, i) => (
+                    <Button
+                      key={o.id}
+                      kind={i === 0 ? 'primary' : 'option'}
+                      label={o.label}
+                      onPress={() => void send({ kind: 'answer', taskId: task.id, updateId: ask.id, optionId: o.id })}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+          {/* With only an ask so far, the card is the whole story. */}
+          {!(ask && activity.length === 0 && pending.length === 0) && (
+            <View style={styles.section}>
+              <View style={styles.sectionHead}>
+                <Text style={type.label}>Activity</Text>
+                <Chip
+                  label={order === 'newest' ? 'Newest first' : 'Oldest first'}
+                  onPress={() => setOrder(order === 'newest' ? 'oldest' : 'newest')}
+                />
+              </View>
+              <View style={styles.feed}>
+                {/* The rail runs from one avatar to the next; the last entry has none below it. */}
+                {shown.map((entry, i) => (
+                  <View key={entry.key} style={styles.slot}>
+                    {i < shown.length - 1 && <View style={styles.rail} />}
+                    {entry}
+                  </View>
                 ))}
               </View>
-            )}
-          </View>
-        )}
-        {/* With only an ask so far, the card is the whole story. */}
-        {!(ask && activity.length === 0 && pending.length === 0) && (
-          <View style={styles.section}>
-            <View style={styles.sectionHead}>
-              <Text style={type.label}>Activity</Text>
-              <Chip
-                label={order === 'newest' ? 'Newest first' : 'Oldest first'}
-                onPress={() => setOrder(order === 'newest' ? 'oldest' : 'newest')}
-              />
             </View>
-            <View style={styles.feed}>
-              {/* The rail runs from one avatar to the next; the last entry has none below it. */}
-              {shown.map((entry, i) => (
-                <View key={entry.key} style={styles.slot}>
-                  {i < shown.length - 1 && <View style={styles.rail} />}
-                  {entry}
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-      </ScrollView>
-      <View style={styles.composer}>
-        <TextInput
-          style={styles.input}
-          placeholder={ask ? 'Or answer in words…' : 'Tell the session…'}
-          placeholderTextColor={colours.text3}
-          value={text}
-          onChangeText={setText}
-          multiline
-          accessibilityLabel="Reply to Autopilot"
-        />
-        <Pressable
-          style={[styles.send, !text.trim() && { opacity: 0.4 }]}
-          onPress={reply}
-          disabled={!text.trim()}
-          accessibilityLabel="Send"
-        >
-          <Text style={styles.sendText}>↑</Text>
-        </Pressable>
-      </View>
+          )}
+        </ScrollView>
+        <View style={styles.composer}>
+          <TextInput
+            style={styles.input}
+            placeholder={ask ? 'Or answer in words…' : 'Tell the session…'}
+            placeholderTextColor={colours.text3}
+            value={text}
+            onChangeText={setText}
+            multiline
+            accessibilityLabel="Reply to Autopilot"
+          />
+          <Pressable
+            style={[styles.send, !text.trim() && { opacity: 0.4 }]}
+            onPress={reply}
+            disabled={!text.trim()}
+            accessibilityLabel="Send"
+          >
+            <Text style={styles.sendText}>↑</Text>
+          </Pressable>
+        </View>
+      </Sides>
     </KeyboardAvoidingView>
   )
 }
 
-/** What the task points to outside Autopilot: one quiet line until opened. */
-const Linked = ({ links }: { links: QueueItem['task']['links'] }) => {
+/** Links open where they live; a file on the Mac cannot open here, so the phone reads it instead. */
+const open = (url: string) => {
+  if (!url.startsWith('file:')) void Linking.openURL(url)
+}
+
+/** What the task points to: one quiet line naming the kinds; each link in its kind once opened. */
+const Linked = ({ taskId, links }: { taskId: string; links: QueueItem['task']['links'] }) => {
   const [shown, setShown] = useState(false)
-  const sources = [...new Set(links.map((l) => linkSource(l.url)))]
+  const kinds = [...new Set(links.map((l) => linkKind(l).label))]
   return (
     <View style={styles.section}>
       <Pressable onPress={() => setShown((s) => !s)} accessibilityRole="button" accessibilityState={{ expanded: shown }}>
         <Text style={type.meta}>
-          {shown ? '▾' : '▸'} {links.length} linked · {sources.join(', ')}
+          {shown ? '▾' : '▸'} {links.length} linked · {kinds.join(', ')}
         </Text>
       </Pressable>
-      {shown &&
-        links.map((l) => (
-          <Pressable key={l.url} onPress={() => void Linking.openURL(l.url)} accessibilityRole="link" style={styles.linkRow}>
-            <Text style={[type.meta, styles.linkSource]}>{linkSource(l.url)}</Text>
-            <Text style={styles.linkTitle} numberOfLines={1}>
-              {l.title}
-            </Text>
-          </Pressable>
-        ))}
+      {shown && [...links].reverse().map((l) => <LinkRow key={l.url} taskId={taskId} link={l} />)}
+    </View>
+  )
+}
+
+/** One link: its kind and title; a file on the Mac unfolds to read in place. */
+const LinkRow = ({ taskId, link }: { taskId: string; link: QueueItem['task']['links'][number] }) => {
+  const sync = useSyncInstance()
+  const file = link.url.startsWith('file:')
+  const [text, setText] = useState<string | null | undefined>(undefined)
+  const [reading, setReading] = useState(false)
+  const kind = linkKind(link)
+  const press = () => {
+    if (!file) return void Linking.openURL(link.url)
+    setReading((r) => !r)
+    if (text === undefined)
+      void sync
+        ?.online((api) => api.links.preview({ taskId, url: link.url }))
+        .then((p) => setText(p.text))
+        .catch(() => setText(null))
+  }
+  return (
+    <View>
+      <Pressable onPress={press} accessibilityRole={file ? 'button' : 'link'} style={styles.linkRow}>
+        <LinkIcon link={link} />
+        <View style={styles.linkText}>
+          <Text style={styles.linkTitle} numberOfLines={2}>
+            {link.title.replace(/^(file|gmail|slack|github|linear|drive):\s*/i, '')}
+          </Text>
+          <Text style={type.meta} numberOfLines={1}>
+            {[kind.label, link.subtitle ?? (file ? 'On your Mac' : linkSource(link.url))].filter(Boolean).join(' · ')}
+          </Text>
+        </View>
+      </Pressable>
+      {reading && (
+        <View style={styles.preview}>
+          {text === undefined ? (
+            <Text style={type.meta}>Reading…</Text>
+          ) : text === null ? (
+            <Text style={type.meta}>Only readable on the Mac, or the Mac is out of reach.</Text>
+          ) : /\.(md|markdown)$/i.test(link.url) ? (
+            <Markdown text={text} onLink={open} />
+          ) : (
+            <Text style={[type.body, styles.mono]}>{text}</Text>
+          )}
+        </View>
+      )}
     </View>
   )
 }
@@ -228,8 +284,11 @@ const Links = ({ update }: { update: Update }) =>
       {update.attachments.map((a) => (
         <Chip
           key={a.url}
-          label={update.kind === 'event' ? `Open in ${linkSource(a.url)}` : a.title}
-          onPress={() => void Linking.openURL(a.url)}
+          icon={<LinkIcon link={a} size={12} />}
+          label={
+            update.kind === 'event' ? `Open in ${linkSource(a.url)}` : a.title.replace(/^(file|gmail|slack|github|linear|drive):\s*/i, '')
+          }
+          onPress={() => open(a.url)}
         />
       ))}
     </View>
@@ -271,7 +330,7 @@ const Entry = ({
       <Text style={{ color: colours.text2 }}>{label}</Text>
       {event ? (body ? ` ${body}` : '') : by ? ` · ${by}` : ''} · {at}
     </Text>
-    {event ? null : <Text style={type.body}>{body}</Text>}
+    {event ? null : <Markdown text={body} onLink={open} />}
     {children}
   </View>
 )
@@ -290,9 +349,11 @@ const styles = StyleSheet.create({
     borderColor: colours.pilot,
     backgroundColor: colours.pilotTint,
   },
-  linkRow: { flexDirection: 'row', gap: 10, paddingLeft: 16, paddingVertical: 4 },
-  linkSource: { width: 80 },
-  linkTitle: { flex: 1, fontSize: 14, color: colours.text2 },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
+  linkText: { flex: 1, gap: 2 },
+  linkTitle: { fontSize: 15, color: colours.text },
+  preview: { marginLeft: 26, marginBottom: 6, padding: 12, borderRadius: 10, backgroundColor: colours.window },
+  mono: { fontFamily: 'Menlo', fontSize: 13, lineHeight: 19 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   feed: { paddingLeft: 36 },
   slot: { paddingBottom: 20 },

@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
+import { parseMarkdown, type Inline } from '@autopilot/client'
 import { claude, pilot, space, type Space, type Tone } from '@autopilot/design'
 
 /**
@@ -344,69 +345,58 @@ export const Pilot = ({ pixel = 1.5 }: { pixel?: number }) => <Mascot art={pilot
 /** Claude, the mark of a session wherever one is shown or opened. */
 export const Claude = ({ pixel = 1 }: { pixel?: number }) => <Mascot art={claude} pixel={pixel} label="Claude" />
 
-/** `**bold**`, `*em*`, `` `code` `` and `[text](url)` within a line. */
-const inline = (text: string, onLink: (url: string) => void): ReactNode[] => {
-  const out: ReactNode[] = []
-  const pattern = /(\*\*([^*]+)\*\*|__([^_]+)__|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)|\*([^*\s][^*]*)\*|_([^_\s][^_]*)_)/g
-  let last = 0
-  for (const m of text.matchAll(pattern)) {
-    const at = m.index
-    if (at > last) out.push(text.slice(last, at))
-    const k = `${at}`
-    if (m[2] ?? m[3]) out.push(<strong key={k}>{m[2] ?? m[3]}</strong>)
-    else if (m[4]) out.push(<code key={k}>{m[4]}</code>)
-    else if (m[5] && m[6]) {
-      const url = m[6]
-      out.push(
-        <Button key={k} kind="link" className="md-link" onClick={() => onLink(url)}>
-          {m[5]}
-        </Button>,
-      )
-    } else out.push(<em key={k}>{m[7] ?? m[8]}</em>)
-    last = at + m[0].length
-  }
-  if (last < text.length) out.push(text.slice(last))
-  return out
-}
+const Inlines = ({ inlines, onLink }: { inlines: Inline[]; onLink: (url: string) => void }) => (
+  <>
+    {inlines.map((n, i) => {
+      switch (n.kind) {
+        case 'text':
+          return n.text
+        case 'strong':
+          return <strong key={i}>{n.text}</strong>
+        case 'em':
+          return <em key={i}>{n.text}</em>
+        case 'code':
+          return <code key={i}>{n.text}</code>
+        case 'link':
+          return (
+            <Button key={i} kind="link" className="md-link" onClick={() => onLink(n.url)}>
+              {n.text}
+            </Button>
+          )
+      }
+    })}
+  </>
+)
 
-/**
- * Markdown as sessions write it: headings, lists, paragraphs and the inline marks above. Drawn as
- * elements, never as HTML, so nothing in a message can run.
- */
-export const Markdown = ({ text, onLink }: { text: string; onLink: (url: string) => void }) => {
-  const blocks: ReactNode[] = []
-  const lines = text.replace(/\r\n/g, '\n').split('\n')
-  let i = 0
-  while (i < lines.length) {
-    const line = lines[i] ?? ''
-    const heading = /^(#{1,3})\s+(.*)$/.exec(line)
-    if (line.trim() === '') {
-      i++
-    } else if (heading) {
-      blocks.push(
-        <div key={i} className={`md-h md-h${heading[1]?.length ?? 1}`}>
-          {inline(heading[2] ?? '', onLink)}
-        </div>,
-      )
-      i++
-    } else if (/^\s*([-*•]|\d+[.)])\s+/.test(line)) {
-      const ordered = /^\s*\d+[.)]\s+/.test(line)
-      const items: ReactNode[] = []
-      const start = i
-      while (i < lines.length && /^\s*([-*•]|\d+[.)])\s+/.test(lines[i] ?? '')) {
-        items.push(<li key={i}>{inline((lines[i] ?? '').replace(/^\s*([-*•]|\d+[.)])\s+/, ''), onLink)}</li>)
-        i++
-      }
-      blocks.push(ordered ? <ol key={start}>{items}</ol> : <ul key={start}>{items}</ul>)
-    } else {
-      const start = i
-      const para: string[] = []
-      while (i < lines.length && (lines[i] ?? '').trim() !== '' && !/^(#{1,3}\s|\s*([-*•]|\d+[.)])\s+)/.test(lines[i] ?? '')) {
-        para.push(lines[i] ?? '')
-        i++
-      }
-      blocks.push(<p key={start}>{para.flatMap((p, j) => (j === 0 ? inline(p, onLink) : [<br key={`b${j}`} />, ...inline(p, onLink)]))}</p>)
-    }
-  }
-  return <div className="md">{blocks}</div>
-}
+/** Markdown as sessions write it (`parseMarkdown`, shared with the phone), drawn as elements. */
+export const Markdown = ({ text, onLink }: { text: string; onLink: (url: string) => void }) => (
+  <div className="md">
+    {parseMarkdown(text).map((b, i) =>
+      b.kind === 'rule' ? (
+        <hr key={i} className="md-rule" />
+      ) : b.kind === 'heading' ? (
+        <div key={i} className={`md-h md-h${b.level}`}>
+          <Inlines inlines={b.inlines} onLink={onLink} />
+        </div>
+      ) : b.kind === 'list' ? (
+        (() => {
+          const items = b.items.map((item, j) => (
+            <li key={j}>
+              <Inlines inlines={item} onLink={onLink} />
+            </li>
+          ))
+          return b.ordered ? <ol key={i}>{items}</ol> : <ul key={i}>{items}</ul>
+        })()
+      ) : (
+        <p key={i}>
+          {b.lines.map((line, j) => (
+            <span key={j}>
+              {j > 0 && <br />}
+              <Inlines inlines={line} onLink={onLink} />
+            </span>
+          ))}
+        </p>
+      ),
+    )}
+  </div>
+)

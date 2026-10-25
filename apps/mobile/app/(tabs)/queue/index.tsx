@@ -8,6 +8,7 @@ import { TaskView } from '../../../src/components/TaskView.tsx'
 import { age, BAND_TITLE, rowMeta } from '../../../src/format.ts'
 import { useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
+import { Sides } from '../../../src/ui.tsx'
 
 type QueueView = 'needs_me' | 'all' | 'running' | 'waiting' | 'snoozed'
 const VIEWS: { id: QueueView; title: string; bands: Band[] }[] = [
@@ -56,26 +57,30 @@ export default function QueueScreen() {
   }, [sync, status, top])
 
   const list = (
-    <SectionList
-      style={{ flex: 1 }}
-      contentInsetAdjustmentBehavior="automatic"
-      sections={sections}
-      keyExtractor={(i) => i.task.id}
-      stickySectionHeadersEnabled={false}
-      refreshControl={<RefreshControl refreshing={false} tintColor={colours.text3} onRefresh={() => void sync?.syncOnce(0)} />}
-      ListHeaderComponent={<StatusLine />}
-      ListEmptyComponent={
-        <Text style={styles.empty}>
-          {status === 'online' ? 'Nothing needs you. Autopilot fills this as signals file and sessions hand over.' : 'Nothing cached yet.'}
-        </Text>
-      }
-      renderSectionHeader={({ section }) => (
-        <Text style={[styles.section, section.band === 'your_turn' && { color: colours.pilotSoft }]}>
-          {section.title} <Text style={{ color: colours.text3 }}>{section.data.length}</Text>
-        </Text>
-      )}
-      renderItem={({ item }) => <Row item={item} selected={split && item.task.id === selected} onPress={() => open(item.task.id)} />}
-    />
+    <Sides>
+      <SectionList
+        style={{ flex: 1 }}
+        contentInsetAdjustmentBehavior="automatic"
+        sections={sections}
+        keyExtractor={(i) => i.task.id}
+        stickySectionHeadersEnabled={false}
+        refreshControl={<RefreshControl refreshing={false} tintColor={colours.text3} onRefresh={() => void sync?.syncOnce(0)} />}
+        ListHeaderComponent={<StatusLine />}
+        ListEmptyComponent={
+          <Text style={styles.empty}>
+            {status === 'online'
+              ? 'Nothing needs you. Autopilot fills this as signals file and sessions hand over.'
+              : 'Nothing cached yet.'}
+          </Text>
+        }
+        renderSectionHeader={({ section }) => (
+          <Text style={[styles.section, section.band === 'your_turn' && { color: colours.pilotSoft }]}>
+            {section.title} <Text style={{ color: colours.text3 }}>{section.data.length}</Text>
+          </Text>
+        )}
+        renderItem={({ item }) => <Row item={item} selected={split && item.task.id === selected} onPress={() => open(item.task.id)} />}
+      />
+    </Sides>
   )
 
   return (

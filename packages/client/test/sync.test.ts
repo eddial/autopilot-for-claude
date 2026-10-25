@@ -153,4 +153,17 @@ describe('the phone against the Mac', () => {
     const wrong = { ...invite, fingerprint: invite.fingerprint.replace(/^../, invite.fingerprint.startsWith('00') ? '11' : '00') }
     await expect(pair(wrong, { name: 'Test iPhone', kind: 'iphone' }, pinned, key())).rejects.toThrow(/cannot be reached/)
   }, 30_000)
+
+  it('says it is unpaired, and stops trying, once the Mac has removed it', async () => {
+    const { invite, owner } = await setup()
+    const connection = await pair(invite, { name: 'Test iPhone', kind: 'iphone' }, pinned, key())
+    const sync = new Sync({ newKey: randomUUID, connection, pinned, storage: memoryStorage() })
+    await sync.syncOnce()
+    expect(sync.getState().status).toBe('online')
+    const [device] = await owner.devices.list()
+    await owner.devices.remove({ idempotencyKey: key(), id: device?.id ?? '' })
+    await sync.syncOnce()
+    // Not offline: the Mac answered and refused, so retrying cannot help; pairing again can.
+    expect(sync.getState().status).toBe('unpaired')
+  }, 30_000)
 })
