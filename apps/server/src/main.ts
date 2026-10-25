@@ -68,6 +68,29 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   chmodSync(paths.db, 0o600)
   ensureOwnerToken(paths, service)
 
+  // The log tells a task's story: what each one posted, and when its session changed state.
+  let logged = service.latestSeq()
+  const sessionStates = new Map<string, string>()
+  const taskStates = new Map<string, string>()
+  service.onChange(() => {
+    const { changes, latest } = service.changesSince(logged, 500)
+    logged = latest
+    for (const c of changes) {
+      if (c.type === 'update.added')
+        log(
+          `${c.update.taskId} ${c.update.author}/${c.update.kind}${c.update.open ? ' (open)' : ''}: ${c.update.body.split('\n')[0]?.slice(0, 100) ?? ''}`,
+        )
+      if (c.type === 'session.changed' && sessionStates.get(c.session.id) !== c.session.state) {
+        sessionStates.set(c.session.id, c.session.state)
+        log(`${c.session.taskId} session ${c.session.state}`)
+      }
+      if (c.type === 'task.upserted' && taskStates.get(c.task.id) !== c.task.state) {
+        if (taskStates.has(c.task.id) || c.task.state === 'new') log(`${c.task.id} ${c.task.state}: ${c.task.title.slice(0, 80)}`)
+        taskStates.set(c.task.id, c.task.state)
+      }
+    }
+  })
+
   const workstreams = () => readWorkstreams(paths.home)
   const spawn = options.spawn ?? (await loadPty().catch(() => missingPty))
   const launcher = new Launcher({
@@ -87,7 +110,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   })
   launcher.reconcile()
 
-  const runClaude = options.runClaude ?? claudeHeadless(options.claude ?? 'claude')
+  const runClaude = options.runClaude ?? claudeHeadless(options.claude ?? 'claude', undefined, log)
   const prompts = join(ROOT, 'prompts')
   const owner = options.owner ?? 'the owner'
   const signals = new Signals({ service, paths, workstreams, runClaude, prompts, owner, self: options.self, log })

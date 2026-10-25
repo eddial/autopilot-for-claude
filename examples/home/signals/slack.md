@@ -13,23 +13,17 @@ explicit question. So does a reply in a thread I started.
 
 My Slack user id: <@YOUR_SLACK_USER_ID>. Run these searches with
 slack_search_public_and_private, each with `after` and `before` set to
-the window (Unix seconds), `sort: timestamp` and `include_bots: true`:
+the window (Unix seconds), `sort: timestamp`, `include_bots: true`,
+`response_format: "concise"`, `include_context: false` and `limit: 20`:
 1. DMs and group DMs: `{"filters": "is:dm"}`.
 2. Messages that mention me, in any channel:
    `{"query": "<@YOUR_SLACK_USER_ID>"}`. The query is the bare mention,
    with nothing around it (`from:<@…>` would find my own messages).
 3. Replies in threads I started or replied to:
    `{"filters": "is:thread with:<@YOUR_SLACK_USER_ID>"}`.
-4. Optional, delete if you have none: shared customer channels I am a
-   member of, named `<customer>-acme`. List them with
-   slack_search_channels (query `acme`, keep names ending in `-acme`),
-   keep those whose slack_list_channel_members (`response_format:
-   ids_only`, every page) includes my id, then search
-   `{"filters": "in:<#id1> in:<#id2> …"}` with no query. In these
-   channels a request counts when it is addressed to me, or to the team
-   with nobody from Acme picking it up.
-Page until results are older than the window. Read the whole thread for
-each hit.
+Page until results are older than the window. Read a thread only when
+the hit does not show who asks what of me, newest first and at most five
+threads a run; the rest wait for the next run.
 
 People in shared channels can show up as bots (user `U00`, or an app
 posting for them): treat those as people. Skip real automation (alerts,

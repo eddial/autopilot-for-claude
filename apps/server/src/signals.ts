@@ -40,7 +40,7 @@ export type SignalOutput = z.infer<typeof SignalOutput>
 
 export type RunClaude = (
   prompt: string,
-  options: { tools: string[]; model: string; schema: object; mcpConfig: string; cwd: string },
+  options: { tools: string[]; model: string; schema: object; mcpConfig: string; cwd: string; label?: string },
 ) => Promise<unknown>
 
 /** Subagents and wake-ups would end the run in several results and lose the structured output. */
@@ -52,7 +52,7 @@ const NEVER = ['Agent', 'Task', 'ScheduleWakeup', 'CronCreate', 'Monitor', 'Work
  * after a minute before it fails (a slow connector usually passes on its own).
  */
 export const claudeHeadless =
-  (claude = 'claude', wait: (ms: number) => Promise<unknown> = sleep): RunClaude =>
+  (claude = 'claude', wait: (ms: number) => Promise<unknown> = sleep, log: (line: string) => void = () => {}): RunClaude =>
   async (prompt, options) => {
     // Claude Code refuses the draft 2020-12 `$schema` line `z.toJSONSchema` writes; the rest it takes.
     const { $schema: _, ...schema } = options.schema as Record<string, unknown>
@@ -80,28 +80,62 @@ export const claudeHeadless =
         MCP_CONNECTION_NONBLOCKING: '0',
         CLAUDE_CODE_MCP_STARTUP_WAIT_MS: '30000',
         MAX_MCP_OUTPUT_TOKENS: '60000',
+        // The allowed tools load at the start, rather than through a search turn first.
+        ENABLE_TOOL_SEARCH: 'false',
       }
-      const raw = await new Promise<string>((resolve, reject) => {
+      const started = Date.now()
+      const events: Record<string, unknown>[] = []
+      let initAt: number | null = null
+      const missing = await new Promise<string[]>((resolve, reject) => {
         const child = spawn(claude, args, { cwd: options.cwd, env, stdio: ['pipe', 'pipe', 'pipe'] })
-        let out = ''
+        let buffer = ''
         let err = ''
-        child.stdout.on('data', (d: Buffer) => (out += d.toString()))
+        let settled = false
+        const settle = (value: string[]) => {
+          if (settled) return
+          settled = true
+          resolve(value)
+          // Done once the result is in; a process slow to exit is not waited for.
+          setTimeout(() => child.kill(), 2000).unref()
+        }
+        child.stdout.on('data', (d: Buffer) => {
+          buffer += d.toString()
+          const lines = buffer.split('\n')
+          buffer = lines.pop() ?? ''
+          for (const line of lines) {
+            let event: Record<string, unknown>
+            try {
+              event = JSON.parse(line) as Record<string, unknown>
+            } catch {
+              continue
+            }
+            events.push(event)
+            if (event.type === 'system' && event.subtype === 'init') {
+              initAt = Date.now()
+              const tools = (event as { tools?: string[] }).tools ?? []
+              const absent = options.tools.filter((t) => t.startsWith('mcp__') && !tools.includes(t))
+              // A connector that is not there yet: stop before any model turn, and try again later.
+              if (absent.length > 0) settle(absent)
+            }
+            if (event.type === 'result') settle([])
+          }
+        })
         child.stderr.on('data', (d: Buffer) => (err += d.toString()))
         child.on('error', reject)
-        child.on('close', (code) =>
-          code === 0 ? resolve(out) : reject(new Error(`claude exited ${code}: ${(err || out).trim().slice(-1500)}`)),
-        )
+        child.on('close', (code) => {
+          if (settled) return
+          settled = true
+          if (code === 0) resolve([])
+          else reject(new Error(`claude exited ${code}: ${(err || buffer).trim().slice(-1500)}`))
+        })
         child.stdin.end(prompt)
       })
-      const events = raw.split('\n').flatMap((line) => {
-        try {
-          return [JSON.parse(line) as Record<string, unknown>]
-        } catch {
-          return []
-        }
-      })
-      const init = events.find((e) => e.type === 'system' && e.subtype === 'init') as { tools?: string[] } | undefined
-      const missing = options.tools.filter((t) => t.startsWith('mcp__') && !init?.tools?.includes(t))
+      const result = events.findLast((e) => e.type === 'result') as { num_turns?: number; total_cost_usd?: number } | undefined
+      log(
+        `claude ${options.label ?? options.model}: ${missing.length > 0 ? `missing ${missing.join(', ')}` : 'done'} in ${((Date.now() - started) / 1000).toFixed(1)} s` +
+          (initAt ? ` (ready after ${((initAt - started) / 1000).toFixed(1)} s)` : '') +
+          (result ? `, ${result.num_turns ?? '?'} turns, $${(result.total_cost_usd ?? 0).toFixed(3)}` : ''),
+      )
       return { events, missing }
     }
 
@@ -308,6 +342,7 @@ export class Signals {
     const { secret, token } = service.issueToken(`signal ${name}`, 'signal', null)
     try {
       const output = await this.o.runClaude(this.prompt(file, from, end, dry), {
+        label: `signal ${name}${dry ? ' (dry)' : ''}`,
         tools: [...file.tools, 'mcp__autopilot__match_items', 'mcp__autopilot__list_workstreams'],
         model: file.model,
         schema: z.toJSONSchema(SignalOutput),
@@ -378,6 +413,7 @@ export class Signals {
     const { secret, token } = service.issueToken('sweep', 'signal', null)
     try {
       const output = await this.o.runClaude(prompt, {
+        label: 'sweep',
         tools: [...new Set(files.flatMap((file) => file.tools))],
         model: 'sonnet',
         schema: z.toJSONSchema(SweepOutput),
@@ -402,6 +438,7 @@ export class Signals {
     const { secret, token } = service.issueToken(`signal ${name}`, 'signal', null)
     try {
       const output = await this.o.runClaude(this.prompt(file, null, service.now(), dry), {
+        label: `import ${name}`,
         tools: [...file.tools, 'mcp__autopilot__match_items', 'mcp__autopilot__list_workstreams'],
         model: file.model,
         schema: z.toJSONSchema(SignalOutput),

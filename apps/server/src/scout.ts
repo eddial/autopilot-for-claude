@@ -14,6 +14,8 @@ export const ScoutOutput = z.object({
   related: z.array(z.object({ url: z.string(), title: z.string() })),
   approach: z.array(z.string()),
   questions: z.array(z.string()),
+  /** Where it belongs, when it came without one of the owner's workstreams; "" otherwise. */
+  workstream: z.string(),
 })
 export type ScoutOutput = z.infer<typeof ScoutOutput>
 
@@ -80,7 +82,10 @@ export class Scout {
     const connectors = [...new Set(readSignals(this.o.paths.home).flatMap((s) => s.tools))]
     const tools = [...connectors, ...(place ? FILE_TOOLS : [])]
     if (tools.length === 0) return
-    const output = await this.o.runClaude(this.prompt(task, workstream, place), {
+    const workstreams = this.o.workstreams()
+    const unplaced = workstream === undefined && workstreams.length > 0
+    const output = await this.o.runClaude(this.prompt(task, workstream, place, unplaced ? workstreams : []), {
+      label: `first look ${task.id}`,
       tools,
       model: this.o.model,
       schema: z.toJSONSchema(ScoutOutput),
@@ -91,10 +96,11 @@ export class Scout {
     const { service } = this.o
     // Started, closed or answered meanwhile: the session or the owner already has it.
     if (service.queue({ band: 'new' }).items.every((i) => i.task.id !== task.id)) return
+    if (unplaced && workstreams.some((w) => w.name === result.workstream)) service.placeTask(task.id, result.workstream)
     service.systemUpdate(task.id, 'info', scoutBody(result), scoutLinks(result), 'scout')
   }
 
-  private prompt(task: Task, workstream: Workstream | undefined, place: string | null): string {
+  private prompt(task: Task, workstream: Workstream | undefined, place: string | null, choices: Workstream[]): string {
     const instructions = readFileSync(join(this.o.prompts, 'instructions.md'), 'utf8').replaceAll('{{owner}}', this.o.owner)
     const links = task.links.map((l) => `- ${l.title}: ${l.url}`).join('\n')
     return [
@@ -105,6 +111,9 @@ export class Scout {
         `Brief (context only):\n\n${task.brief.slice(0, 4000) || '(none)'}`,
         links ? `Links:\n${links}` : '',
         place ? `The workstream's code is in this folder: ${place}` : '',
+        choices.length > 0
+          ? `It came without a workstream. Pick the one it belongs in:\n\n${choices.map((w) => `- ${w.name}: ${w.routing.replace(/\s+/g, ' ').slice(0, 300)}`).join('\n')}`
+          : '',
       ]
         .filter(Boolean)
         .join('\n\n'),
@@ -117,6 +126,7 @@ export class Scout {
         '- related: up to 8 links that matter (thread, ticket, PR, document, file as file:///), each with a short title saying what and where',
         '- approach: one to four short steps the work would likely take',
         '- questions: up to 3 things only the owner can answer before work starts; [] when none',
+        `- workstream: ${choices.length > 0 ? 'the name of the workstream above it belongs in' : '""'}`,
       ].join('\n\n'),
     ].join('\n\n---\n\n')
   }
@@ -132,7 +142,7 @@ export class Scout {
 }
 
 /** The update as the owner reads it on a phone. */
-export const scoutBody = (r: ScoutOutput): string =>
+export const scoutBody = (r: Omit<ScoutOutput, 'workstream'>): string =>
   [
     r.summary.trim(),
     r.approach.length > 0 ? `Likely approach:\n${r.approach.map((s, i) => `${i + 1}. ${s}`).join('\n')}` : '',

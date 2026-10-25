@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { CreateTask, TaskRef } from '@autopilot/contracts'
 import { openDatabase } from '../src/db.ts'
 import { resolvePaths } from '../src/paths.ts'
+import type { Workstream } from '@autopilot/contracts'
 import { Scout, type ScoutOutput } from '../src/scout.ts'
 import { Service } from '../src/service.ts'
 import type { RunClaude } from '../src/signals.ts'
@@ -19,9 +20,21 @@ const REPLY: ScoutOutput = {
   ],
   approach: ['Check the PR review state', 'Draft a reply with the date'],
   questions: ['Promise the 24th, or a range?'],
+  workstream: 'customers',
 }
 
-const setup = (onRun: () => void = () => {}) => {
+const ws = (name: string): Workstream => ({
+  name,
+  routing: name,
+  urgent: '',
+  work: '',
+  autonomy: 2,
+  repo: null,
+  folder: null,
+  machineId: null,
+})
+
+const setup = (onRun: () => void = () => {}, workstreams: Workstream[] = []) => {
   const dir = mkdtempSync(join(tmpdir(), 'ap-scout-'))
   const paths = resolvePaths({ AUTOPILOT_DATA: join(dir, 'data'), AUTOPILOT_HOME: join(dir, 'home') })
   mkdirSync(join(paths.home, 'signals'), { recursive: true })
@@ -33,9 +46,9 @@ const setup = (onRun: () => void = () => {}) => {
     onRun()
     return Promise.resolve(REPLY)
   }
-  const scout = new Scout({ service, paths, workstreams: () => [], runClaude, prompts: PROMPTS, owner: 'Badr' })
-  const create = (title: string, start: boolean) =>
-    service.createTask(CreateTask.parse({ idempotencyKey: `create-${title}`, title, workstream: 'customers', start }), 'owner')
+  const scout = new Scout({ service, paths, workstreams: () => workstreams, runClaude, prompts: PROMPTS, owner: 'Badr' })
+  const create = (title: string, start: boolean, workstream = 'customers') =>
+    service.createTask(CreateTask.parse({ idempotencyKey: `create-${title}`, title, workstream, start }), 'owner')
   return { service, scout, calls, create }
 }
 
@@ -65,5 +78,19 @@ describe('scout', () => {
     id = create('Reply to Acme about SSO', false).id
     await scout.tick()
     expect(service.getTask(id).updates.filter((u) => u.author === 'scout')).toEqual([])
+  })
+
+  it('files a task that came without one of the workstreams where the first look says it belongs', async () => {
+    const { service, scout, create } = setup(() => {}, [ws('customers'), ws('engineering')])
+    const task = create('Reply to Acme about SSO', false, 'inbox')
+    await scout.tick()
+    expect(service.getTask(task.id).task.workstream).toBe('customers')
+    // Posted in the same instant, so in either order.
+    expect(
+      service
+        .getTask(task.id)
+        .updates.map((u) => `${u.author}/${u.kind}`)
+        .toSorted(),
+    ).toEqual(['scout/event', 'scout/info'])
   })
 })

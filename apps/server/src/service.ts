@@ -650,6 +650,19 @@ export class Service {
     )
   }
 
+  /**
+   * The first look files a task that came without a workstream of the owner's. Not a correction:
+   * the nightly routing review learns only from what the owner moves.
+   */
+  placeTask(taskId: string, workstream: string): Task {
+    return this.transaction(() => {
+      const task = this.task(taskId)
+      if (task.workstream === workstream) return task
+      this.insertUpdate(task, { kind: 'event', body: `Filed in ${workstream}`, author: 'scout' })
+      return this.touch(task, { workstream })
+    })
+  }
+
   /** A link joins the task's list, and the timeline says who linked it and when. */
   attachLink(input: In<typeof AttachLink>, by: Author = 'session'): Task {
     return this.idempotent(input.idempotencyKey, 'links.attach', () => {

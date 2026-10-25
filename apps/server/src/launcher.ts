@@ -142,8 +142,10 @@ export class Launcher {
           : item.kind === 'deliver_answer'
             ? this.deliver(item.payload.taskId, item.payload.updateId ?? '')
             : this.end(item.payload.taskId)
-      if (outcome === 'done') service.finishOutbox(item.id)
-      else service.deferOutbox(item.id)
+      if (outcome === 'done') {
+        service.finishOutbox(item.id)
+        if (item.kind !== 'start_session') log(`${item.kind.replace('_', ' ')} ${item.payload.taskId}`)
+      } else service.deferOutbox(item.id)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       log(`${item.kind} ${item.payload.taskId} failed: ${message}`)
