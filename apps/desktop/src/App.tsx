@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem, Signal, Workstream } from '@autopilot/contracts'
 import { api, shell } from './api.ts'
+import { ArtifactsView } from './components/Artifacts.tsx'
 import { Nav, NavRail } from './components/Nav.tsx'
 import { NewTask } from './components/NewTask.tsx'
 import { QueueList } from './components/QueueList.tsx'
@@ -189,6 +190,8 @@ export const App = () => {
       )}
       {view.kind === 'new' ? (
         <NewTask workstreams={workstreams} onCreated={openTask} />
+      ) : view.kind === 'artifacts' ? (
+        <ArtifactsView items={items} onOpen={openTask} />
       ) : view.kind === 'signals' ? (
         <Signals items={items} workstreams={workstreams} onOpen={openTask} />
       ) : view.kind === 'servers' ? (

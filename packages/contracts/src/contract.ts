@@ -6,6 +6,7 @@ import {
   AddWatcher,
   AnswerUpdate,
   AttachLink,
+  PreviewLink,
   BulkTasks,
   CloseTask,
   CreateTask,
@@ -38,6 +39,7 @@ import {
   Pairing,
   SetupStatus,
   SignalExample,
+  ArtifactPreview,
   SuggestedWorkstream,
   Device,
   Machine,
@@ -165,6 +167,11 @@ export const contract = {
       .meta({ scopes: ['owner', 'session'], ownTask: true })
       .input(AttachLink)
       .output(Task),
+    /** The start of a text file the task links to: what a session made, readable in place. */
+    preview: base
+      .meta({ scopes: [...READERS] })
+      .input(PreviewLink)
+      .output(ArtifactPreview),
   },
 
   watchers: {

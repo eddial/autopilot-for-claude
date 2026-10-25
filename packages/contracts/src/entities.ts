@@ -137,6 +137,15 @@ export const Workstream = z.object({
 })
 export type Workstream = z.infer<typeof Workstream>
 
+/** The start of a text file a task links to, to read without leaving the window. */
+export const ArtifactPreview = z.object({
+  /** Null when the file is not text, too large, or not on this Mac. */
+  text: z.string().nullable(),
+  bytes: z.int().min(0),
+  truncated: z.boolean(),
+})
+export type ArtifactPreview = z.infer<typeof ArtifactPreview>
+
 /** A workstream the sweep of your sources proposes, for you to keep, change or drop. */
 export const SuggestedWorkstream = z.object({
   name: z

@@ -26,18 +26,20 @@ ticket unless the owner asks.
 
 Do the work up to the point where the owner only has to decide:
 
-- **Reply needed** → a draft in the source's own place (a Gmail draft in the thread, a Slack draft),
-  or the text in your update when no draft tool exists. Send only when the owner asks or the
-  workstream's Work allows it.
+- **Reply needed** → a draft in the source's own place (a Gmail draft in the thread, a Slack draft).
+  When no draft tool exists, write it as a Markdown file in this folder (`reply-to-sofie.md`), not
+  only in your update. Send only when the owner asks or the workstream's Work allows it.
 - **Document needed** → build it as the workstream's Work says; otherwise write it in this folder.
 - **Code needed** → only in a git worktree: commit on this branch and push it when the repo has a
   remote. Push to the default branch, force-push or merge only when asked. A draft PR is fine when
   the repo expects one.
 - **Decision needed** → gather the facts and options; recommend one.
 
-**Link everything you create outside Autopilot** with `attach_link` the moment it exists: drafts,
-sent mail, Slack messages, PRs, branches, documents (`file:///…` for local files). The title says
-what it is and where (`gmail: pricing reply (draft)`). Attach again when its state changes.
+**Everything you make is an artifact: attach each one** with `attach_link` the moment it exists:
+drafts, sent mail, Slack messages, PRs, branches, and every file you write (`file:///…`, the full
+path). The owner reads files in place from the task, so keep them readable: Markdown for prose,
+CSV for tables. The title says what it is (`Reply to Sofie (draft)`), the subtitle where it lives
+or its state (`Gmail draft in the thread`, `ready to send`). Attach again when its state changes.
 
 ## 3. Hand over
 

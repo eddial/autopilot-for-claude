@@ -13,6 +13,8 @@ export type Shell = {
   connectLocal(): Promise<Mode>
   setBadge(count: number): void
   openExternal(url: string): void
+  /** Shows a local file in Finder. */
+  reveal(url: string): void
   onNavigate(listener: (to: string) => void): void
 }
 
@@ -29,6 +31,7 @@ const shell: Shell = {
   connectLocal: () => ipcRenderer.invoke('autopilot:use-local') as Promise<Mode>,
   setBadge: (count) => ipcRenderer.send('autopilot:badge', count),
   openExternal: (url) => ipcRenderer.send('autopilot:open', url),
+  reveal: (url) => ipcRenderer.send('autopilot:reveal', url),
   onNavigate: (listener) => {
     ipcRenderer.on('autopilot:navigate', (_event, to: string) => listener(to))
   },

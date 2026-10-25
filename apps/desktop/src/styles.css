@@ -715,24 +715,6 @@ button {
   margin-bottom: 8px;
 }
 
-.linked ul {
-  margin: 6px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.linked-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--text-3);
-}
-
-.linked-toggle:hover {
-  color: var(--text-2);
-}
-
 .chevron {
   transition: transform 0.12s ease;
 }
@@ -1468,4 +1450,82 @@ textarea.inline-reply {
 .left-alone summary {
   cursor: pointer;
   margin-bottom: 6px;
+}
+
+/* ── artifacts: what sessions make, as things in their own right ── */
+
+.artifact {
+  margin-top: 8px;
+  border-radius: 12px;
+  border: 0.5px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.artifact-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.artifact-icon {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--raised);
+  color: var(--text-2);
+}
+
+.artifact-title {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.artifact-title .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14.5px;
+  color: var(--text);
+}
+
+.artifact-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.artifact-preview {
+  padding: 12px 16px 14px;
+  border-top: 0.5px solid var(--border);
+  background: var(--window);
+}
+
+.artifact-preview pre {
+  margin: 0 0 6px;
+  max-height: 420px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-body);
+}
+
+.artifact-group {
+  margin-top: 22px;
+}
+
+.artifact-task {
+  font-size: 14px;
+  color: var(--text);
 }

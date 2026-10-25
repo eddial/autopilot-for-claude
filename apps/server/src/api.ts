@@ -16,6 +16,7 @@ import {
 } from '@autopilot/contracts'
 import { implement, ORPCError } from '@orpc/server'
 import { DomainError, type Principal, type Service } from './service.ts'
+import { previewArtifact } from './artifacts.ts'
 import type { Setup } from './setup.ts'
 
 export type Context = { principal: Principal | null }
@@ -217,6 +218,7 @@ export const createRouter = ({
 
     links: {
       attach: guarded.links.attach.handler(({ input, context }) => service.attachLink(input, authorOf(context.principal))),
+      preview: guarded.links.preview.handler(({ input }) => previewArtifact(service.task(input.taskId), input.url)),
     },
 
     watchers: {

@@ -16,7 +16,8 @@ import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
 import type { Tone } from '@autopilot/design'
-import { ArrowUp, Avatar, Banner, Button, Chevron, Claude, Dot, Icon, Meta, Pill, Spacer, Tag } from '../ui.tsx'
+import { ArrowUp, Avatar, Banner, Button, Claude, Dot, Icon, Meta, Pill, Spacer, Tag } from '../ui.tsx'
+import { TaskArtifacts } from './Artifacts.tsx'
 import { BAND_TITLE } from '../view.ts'
 
 type Props = { item: QueueItem; onClose: () => void }
@@ -150,9 +151,9 @@ export const TaskPane = ({ item, onClose }: Props) => {
             <Body text={task.brief} />
           </section>
         )}
-        {task.links.length > 0 && <Linked links={task.links} />}
         {refused && <Banner>{refused}</Banner>}
         {ask && <AskCard update={ask} />}
+        <TaskArtifacts taskId={task.id} links={task.links} />
         <section className="section">
           <div className="section-head">
             <div className="section-label">Activity</div>
@@ -331,33 +332,6 @@ const PendingEntry = ({ pending, options }: { pending: Pending; options: { id: s
       <div className="msg">{words}</div>
     </li>
   ) : null
-}
-
-/** What the task points to outside Autopilot: one quiet line until opened. */
-const Linked = ({ links }: { links: QueueItem['task']['links'] }) => {
-  const [shown, setShown] = useState(false)
-  const sources = [...new Set(links.map((l) => linkSource(l.url)))]
-  return (
-    <section className="linked">
-      <Button kind="link" className="linked-toggle" aria-expanded={shown} onClick={() => setShown((s) => !s)}>
-        <Chevron open={shown} />
-        {links.length} linked · {sources.join(', ')}
-      </Button>
-      {shown && (
-        <ul>
-          {links.map((l) => (
-            <li key={l.url}>
-              <Button kind="item" onClick={() => open(l.url)}>
-                <span className="source">{linkSource(l.url)}</span>
-                <span className="title">{l.title}</span>
-                {l.subtitle && <span className="meta">{l.subtitle}</span>}
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  )
 }
 
 /** A choice in a menu; `detail` is lined up in columns beside the labels. */

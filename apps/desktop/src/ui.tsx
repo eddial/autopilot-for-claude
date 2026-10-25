@@ -134,6 +134,42 @@ const NAV_ICONS = {
       <circle cx="7.5" cy="13.5" r="2" />
     </>
   ),
+  /** Two cards, one over the other, as the Claude app draws its Artifacts. */
+  artifacts: (
+    <>
+      <rect x="7.5" y="3.5" width="9" height="11" rx="1.75" />
+      <path d="M5.25 6.5h-.5A1.25 1.25 0 0 0 3.5 7.75v7.5a1.25 1.25 0 0 0 1.25 1.25h6.5a1.25 1.25 0 0 0 1.25-1.25v-.5" />
+    </>
+  ),
+  document: (
+    <>
+      <path d="M11.5 3.25H6.25A1.5 1.5 0 0 0 4.75 4.75v10.5a1.5 1.5 0 0 0 1.5 1.5h7.5a1.5 1.5 0 0 0 1.5-1.5V7z" />
+      <path d="M11.5 3.25V7h3.75M7.75 10.5h4.5M7.75 13.25h3" />
+    </>
+  ),
+  code: <path d="M7.5 6 3.5 10l4 4M12.5 6l4 4-4 4" />,
+  mail: (
+    <>
+      <rect x="3" y="5" width="14" height="10.5" rx="1.75" />
+      <path d="m3.5 6 6.5 5 6.5-5" />
+    </>
+  ),
+  link: (
+    <path d="M8.75 11.25a3 3 0 0 0 4.25 0l2.5-2.5a3 3 0 0 0-4.25-4.25l-.75.75M11.25 8.75a3 3 0 0 0-4.25 0l-2.5 2.5a3 3 0 0 0 4.25 4.25l.75-.75" />
+  ),
+  image: (
+    <>
+      <rect x="3.25" y="4.25" width="13.5" height="11.5" rx="1.75" />
+      <circle cx="7.5" cy="8.25" r="1.25" />
+      <path d="m3.75 14 4-3.75 3 2.75 2-1.75 3.5 3" />
+    </>
+  ),
+  table: (
+    <>
+      <rect x="3.25" y="4.25" width="13.5" height="11.5" rx="1.75" />
+      <path d="M3.25 8.25h13.5M3.25 12h13.5M8.25 8.25v7.5" />
+    </>
+  ),
 } as const
 
 export type NavIconName = keyof typeof NAV_ICONS

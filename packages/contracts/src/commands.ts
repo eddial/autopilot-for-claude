@@ -85,6 +85,9 @@ export const Instruct = command({ taskId: TaskId, body: z.string().min(1).max(20
 
 export const AttachLink = command({ taskId: TaskId, link: Link })
 
+/** A read: one of the task's own links, nothing else. */
+export const PreviewLink = z.object({ taskId: TaskId, url: z.url() })
+
 export const AddWatcher = command({ taskId: TaskId, ...WatcherSpec.shape })
 
 export const RemoveWatcher = command({ id: Id })

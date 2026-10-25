@@ -12,10 +12,14 @@ import { connect, type Client } from '@autopilot/server/client'
 import { readOwnerToken } from '@autopilot/server/owner'
 import { resolvePaths } from '@autopilot/server/paths'
 import { RPCHandler } from '@orpc/server/message-port'
+import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, safeStorage, shell, Tray } from 'electron'
 import { proxyRouter } from './proxy.ts'
 import { pilotBitmap } from './pilot.ts'
 import type { Mode } from './preload.ts'
+
+/** What a file link may open directly: documents, never anything that runs. */
+const DOCUMENT = /\.(md|markdown|txt|csv|json|ya?ml|html?|eml|pdf|docx?|xlsx?|pptx?|key|pages|numbers|rtf|png|jpe?g|gif|svg|webp)$/i
 
 const paths = resolvePaths()
 /** The checkout this runs from: apps/desktop, so the server is next door. */
@@ -160,7 +164,17 @@ const start = async (): Promise<void> => {
     app.dock?.setBadge(text)
   })
   ipcMain.on('autopilot:open', (_event, url: unknown) => {
-    if (typeof url === 'string' && /^(https?|claude):/.test(url)) void shell.openExternal(url)
+    if (typeof url !== 'string') return
+    if (/^(https?|claude):/.test(url)) void shell.openExternal(url)
+    else if (url.startsWith('file:')) {
+      // A document opens in its app; anything else, which could run, is only shown in Finder.
+      const path = fileURLToPath(url)
+      if (DOCUMENT.test(path)) void shell.openPath(path)
+      else shell.showItemInFolder(path)
+    }
+  })
+  ipcMain.on('autopilot:reveal', (_event, url: unknown) => {
+    if (typeof url === 'string' && url.startsWith('file:')) shell.showItemInFolder(fileURLToPath(url))
   })
 
   Menu.setApplicationMenu(menu())

@@ -91,7 +91,15 @@ const entries = ({ view, go, items, workstreams, signals }: Props) => {
       open: () => go({ kind: 'setup' }),
     },
   ]
-  return { queues, streams, places }
+  const artifacts: Entry = {
+    key: 'artifacts',
+    label: 'Artifacts',
+    mark: <NavIcon name="artifacts" />,
+    count: 0,
+    current: view.kind === 'artifacts',
+    open: () => go({ kind: 'artifacts' }),
+  }
+  return { queues, streams, places, artifacts }
 }
 
 const Row = ({ entry }: { entry: Entry }) => (
@@ -109,7 +117,7 @@ const Row = ({ entry }: { entry: Entry }) => (
 
 /** The sidebar: every place by name. */
 export const Nav = ({ onHide, overlay, ...props }: Props & { onHide: () => void; overlay: boolean }) => {
-  const { queues, streams, places } = entries(props)
+  const { queues, streams, places, artifacts } = entries(props)
   return (
     <nav className={`nav collapsible${overlay ? ' overlay' : ''}`} aria-label="Autopilot">
       {/* Beside the window's own buttons, as in the Claude app. */}
@@ -128,6 +136,7 @@ export const Nav = ({ onHide, overlay, ...props }: Props & { onHide: () => void;
         </span>
         New task
       </Button>
+      <Row entry={artifacts} />
 
       <div className="nav-heading">Queue</div>
       {queues.map((e) => (
@@ -188,7 +197,7 @@ const Spot = ({ entry }: { entry: Entry }) => (
 
 /** The sidebar folded away: the same places as icons, named on hover. */
 export const NavRail = (props: Props) => {
-  const { queues, streams, places } = entries(props)
+  const { queues, streams, places, artifacts } = entries(props)
   return (
     <nav className="rail" aria-label="Autopilot">
       {/* The window's own buttons and the sidebar button sit here. */}
@@ -207,6 +216,7 @@ export const NavRail = (props: Props) => {
         </span>
         <Flyout entry={{ label: 'New task', count: 0 }} />
       </Button>
+      <Spot entry={artifacts} />
       <span className="rail-gap" />
       {queues.map((e) => (
         <Spot key={e.key} entry={e} />
