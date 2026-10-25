@@ -94,9 +94,10 @@ const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 
 /**
- * Clicks the element `target` (a JS expression) inside the page and checks `done` at each frame;
- * the time is from input to the frame that paints the result, without Playwright's round trips.
- * One frame (about 16 ms) is as fast as anything can be on screen.
+ * Clicks the element `target` (a JS expression) inside the page and returns the time until the
+ * DOM shows `done`, without Playwright's round trips. That is the work the app does; a real screen
+ * paints it on the next frame. Frames are not waited for: headless Chromium without a display
+ * makes them irregularly, which would measure the test machine rather than the app.
  */
 const interaction = (p: Page, target: string, done: string): Promise<number> =>
   p.evaluate(
@@ -104,20 +105,27 @@ const interaction = (p: Page, target: string, done: string): Promise<number> =>
       const element = (new Function(`return (${spec.target})`) as () => HTMLElement | null)()
       if (!element) throw new Error(`nothing matches ${spec.target}`)
       const holds = new Function(`return (${spec.done})`) as () => boolean
+      let finished = 0
+      const settled = new Promise<void>((resolve, reject) => {
+        const watch = new MutationObserver(() => {
+          if (!holds()) return
+          finished = performance.now()
+          watch.disconnect()
+          clearTimeout(timer)
+          resolve()
+        })
+        watch.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true })
+        const timer = setTimeout(() => {
+          watch.disconnect()
+          reject(new Error(`timed out waiting for ${spec.done}`))
+        }, 5000)
+      })
       const started = performance.now()
       element.click()
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(`timed out waiting for ${spec.done}`)), 5000)
-        const check = () => {
-          if (holds()) {
-            clearTimeout(timer)
-            resolve()
-          } else requestAnimationFrame(check)
-        }
-        check()
-      })
-      // The change is in the DOM at the start of this frame, so this frame paints it.
-      return performance.now() - started
+      // Already true once the click returns (React rendered synchronously): no mutation will follow.
+      if (holds()) return performance.now() - started
+      await settled
+      return finished - started
     },
     { target, done },
   )

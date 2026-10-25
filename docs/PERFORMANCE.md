@@ -32,7 +32,7 @@ run's summary.
 
 | Measure | Budget | What it is |
 | --- | --- | --- |
-| `window.openTask`, `window.answer`, `window.switchView` | 20 ms | From input to the frame that paints the result. One frame is 16.7 ms at 60 Hz; nothing can be faster |
+| `window.openTask`, `window.answer`, `window.switchView` | 16 ms | From input to the result in the DOM; the next frame paints it. Within one frame (16.7 ms at 60 Hz) means it shows on the very next one |
 | `window.longTasks.count` | 0 | Main-thread tasks over 50 ms during those interactions |
 | `window.firstRows.cached` | 150 ms | Opening the window again: page start to the first row, from the saved queue |
 | `window.firstRows` | 400 ms | The very first start, with nothing saved yet |

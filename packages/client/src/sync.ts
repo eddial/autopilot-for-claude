@@ -1,4 +1,13 @@
-import { applyEvent, applyToDetail, emptyQueue, queueItems, type LiveQueue, type QueueItem, type TaskDetail } from '@autopilot/contracts'
+import {
+  applyEvent,
+  applyToDetail,
+  emptyQueue,
+  queueItems,
+  type Change,
+  type LiveQueue,
+  type QueueItem,
+  type TaskDetail,
+} from '@autopilot/contracts'
 import { isDefinedError, ORPCError } from '@orpc/client'
 import { execute, overlay, PENDING_PREFIX, type Command, type Conflict, type Pending } from './commands.ts'
 import { Link, Offline, timeoutSignal, type Api, type Connection, type PinnedFetch } from './connection.ts'
@@ -66,7 +75,8 @@ export class Sync {
     details: {},
   }
   private saveTimer: ReturnType<typeof setTimeout> | null = null
-  private readonly fetching = new Set<string>()
+  /** Conversations being fetched, with the feed changes that arrived meanwhile (see `detail`). */
+  private readonly fetching = new Map<string, Change[]>()
   private readonly listeners = new Set<() => void>()
   private running = false
   /** Each start gets a number; a loop from before a stop ends instead of running beside the new one. */
@@ -237,6 +247,7 @@ export class Sync {
         const page = await this.link.api.changes.since({ after: queue.seq, wait }, { signal: timeoutSignal((wait + 15) * 1000) })
         for (const change of page.changes) {
           queue = applyEvent(queue, change)
+          for (const missed of this.fetching.values()) missed.push(change)
           if (Object.keys(details).length > 0)
             details = Object.fromEntries(Object.entries(details).map(([id, d]) => [id, applyToDetail(d, change)]))
         }
@@ -274,10 +285,12 @@ export class Sync {
     if (taskId.startsWith(PENDING_PREFIX)) return null
     if (this.state.details[taskId]) return this.state.details[taskId] ?? null
     if (this.fetching.has(taskId)) return this.cachedDetail(taskId)
-    this.fetching.add(taskId)
+    const missed: Change[] = []
+    this.fetching.set(taskId, missed)
     try {
       if (!this.link.route() && !(await this.link.probe())) throw new Error('offline')
-      const detail = await this.link.api.tasks.get({ id: taskId }, { signal: timeoutSignal(10_000) })
+      // The feed may move on while this is in flight; what it brought meanwhile is applied on top.
+      const detail = missed.reduce(applyToDetail, await this.link.api.tasks.get({ id: taskId }, { signal: timeoutSignal(10_000) }))
       this.set({ details: { ...this.state.details, [taskId]: detail } })
       void this.o.storage.set(`task:${taskId}`, JSON.stringify(detail)).catch(() => {})
       return detail

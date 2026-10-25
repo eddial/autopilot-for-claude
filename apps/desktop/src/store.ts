@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { execute, overlay, type Command, type Pending } from '@autopilot/client'
-import { applyEvent, applyToDetail, emptyQueue, queueItems, type LiveQueue, type QueueItem, type TaskDetail } from '@autopilot/contracts'
+import {
+  applyEvent,
+  applyToDetail,
+  emptyQueue,
+  queueItems,
+  type Change,
+  type LiveQueue,
+  type QueueItem,
+  type TaskDetail,
+} from '@autopilot/contracts'
 import { api, key } from './api.ts'
 
 /**
@@ -79,6 +88,7 @@ const run = async (): Promise<void> => {
       set({ connection: 'live', error: null })
       for await (const event of stream) {
         if (event.type === 'snapshot') performance.mark('autopilot:snapshot')
+        else for (const missed of loading.values()) missed.push(event)
         const details =
           event.type === 'snapshot'
             ? {}
@@ -119,15 +129,20 @@ export const useQueueItems = (): QueueItem[] => {
 
 // ── details ──
 
-const loading = new Set<string>()
+/**
+ * Conversations being fetched, with the feed changes that arrived meanwhile: the fetch may have been
+ * answered before them, so they are applied to it when it lands (applying one twice is harmless).
+ */
+const loading = new Map<string, Change[]>()
 
 /** Fetches a task's conversation once; the feed keeps it current from then on. */
 export const prefetch = (taskId: string): void => {
   if (state.details[taskId] || loading.has(taskId) || taskId.startsWith('NEW-')) return
-  loading.add(taskId)
+  const missed: Change[] = []
+  loading.set(taskId, missed)
   api.tasks
     .get({ id: taskId })
-    .then((detail) => set({ details: { ...state.details, [taskId]: detail } }))
+    .then((detail) => set({ details: { ...state.details, [taskId]: missed.reduce(applyToDetail, detail) } }))
     .catch(() => {})
     .finally(() => loading.delete(taskId))
 }

@@ -115,6 +115,37 @@ describe('the phone against the Mac', () => {
     expect(sync.cachedDetail(task.id)?.updates.map((u) => `${u.kind}:${String(u.open)}`)).toEqual(['question:false', 'instruction:false'])
   }, 30_000)
 
+  it('keeps what the feed brought while a conversation was being fetched', async () => {
+    const { handle, invite } = await setup()
+    // The server answers the fetch at once, but the answer reaches the phone only when released.
+    const gate: { release?: () => void } = {}
+    const held = new Promise<void>((resolve) => {
+      gate.release = resolve
+    })
+    const slow: typeof pinned = async (url, init, fingerprint) => {
+      const response = await pinned(url, init, fingerprint)
+      if (url.includes('/tasks/get')) await held
+      return response
+    }
+    const connection = await pair(invite, { name: 'Test iPhone', kind: 'iphone' }, slow, key())
+    const sync = new Sync({ connection, pinned: slow, storage: memoryStorage() })
+    const task = handle.service.createTask(CreateTask.parse({ idempotencyKey: key(), title: 'Pick a colour', start: false }))
+    await sync.syncOnce()
+
+    const served = vi.spyOn(handle.service, 'getTask')
+    const fetching = sync.detail(task.id)
+    // The server has answered with the conversation as it was; then the session asks.
+    await vi.waitFor(() => expect(served).toHaveBeenCalled())
+    handle.service.postUpdate(
+      PostUpdate.parse({ idempotencyKey: key(), taskId: task.id, kind: 'question', body: 'Red or blue?' }),
+      'session',
+    )
+    await sync.syncOnce()
+    gate.release?.()
+    await fetching
+    expect(sync.cachedDetail(task.id)?.updates.map((u) => u.kind)).toEqual(['question'])
+  }, 30_000)
+
   it('will not talk to a server whose certificate is not the paired one', async () => {
     const { invite } = await setup()
     const wrong = { ...invite, fingerprint: invite.fingerprint.replace(/^../, invite.fingerprint.startsWith('00') ? '11' : '00') }

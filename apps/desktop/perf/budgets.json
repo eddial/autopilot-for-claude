@@ -7,9 +7,9 @@
   "client.queueItems.1000": 4,
   "window.firstRows": 400,
   "window.firstRows.cached": 150,
-  "window.openTask": 20,
-  "window.answer": 20,
-  "window.switchView": 20,
+  "window.openTask": 16,
+  "window.answer": 16,
+  "window.switchView": 16,
   "window.longTasks.count": 0,
   "window.js.gzipKB": 200,
   "phone.bundle.MB": 8
