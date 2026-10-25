@@ -154,6 +154,7 @@ export const TaskPane = ({ item, onClose }: Props) => {
         <Linked taskId={task.id} links={task.links} />
         {refused && <Banner>{refused}</Banner>}
         {ask && <AskCard update={ask} />}
+        {!ask && item.band === 'new' && <BeforeStart taskId={task.id} updates={updates} />}
         <section className="section">
           <div className="section-head">
             <div className="section-label">Activity</div>
@@ -221,6 +222,52 @@ const Attachments = ({ links }: { links: Update['attachments'] }) =>
       ))}
     </div>
   ) : null
+
+/** What the first look asked before anyone starts: its "Before starting" lines. */
+const firstLookQuestions = (updates: Update[]): string[] => {
+  const look = updates.findLast((u) => u.author === 'scout')
+  const after = look?.body.split(/^Before starting:\s*$/m)[1]
+  return after ? after.split('\n').flatMap((l) => (/^\s*[-*]\s+/.test(l) ? [l.replace(/^\s*[-*]\s+/, '').trim()] : [])) : []
+}
+
+/**
+ * A new task whose first look has questions: asked here, before the start, so the session begins
+ * with the answers instead of guessing. Answering is optional; Start goes either way.
+ */
+const BeforeStart = ({ taskId, updates }: { taskId: string; updates: Update[] }) => {
+  const [text, setText] = useState('')
+  const questions = firstLookQuestions(updates)
+  if (questions.length === 0) return null
+  const start = () =>
+    text.trim()
+      ? send({ kind: 'instruct', taskId, body: `Answers to the first look's questions:\n\n${text.trim()}` })
+      : send({ kind: 'start', taskId })
+  return (
+    <section className="ask-card" aria-label="Before starting">
+      <div className="ask-head">Before I start</div>
+      <ul className="questions">
+        {questions.map((q) => (
+          <li key={q}>
+            <Markdown text={q} onLink={open} />
+          </li>
+        ))}
+      </ul>
+      <textarea
+        className="inline-reply"
+        rows={3}
+        aria-label="Your answers"
+        placeholder="Answer what you know; leave the rest to the session…"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <div className="options">
+        <Button kind="primary" onClick={start}>
+          {text.trim() ? 'Start with these answers' : 'Start without answering'}
+        </Button>
+      </div>
+    </section>
+  )
+}
 
 /** The one thing waiting on the owner, with its answers. */
 const AskCard = ({ update }: { update: Update }) => {

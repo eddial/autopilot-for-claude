@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import type { QueueItem, TaskDetail } from '@autopilot/contracts'
 import { ORPCError } from '@orpc/client'
+import { activityOf } from './activity.ts'
 import { connect } from './client.ts'
 import { runMcpBridge } from './mcp-bridge.ts'
 import { readOwnerToken } from './owner.ts'
@@ -231,30 +232,41 @@ const main = async (argv: string[]): Promise<void> => {
 const hook = async (event: string): Promise<void> => {
   const taskId = process.env.AUTOPILOT_TASK
   if (!taskId || !process.env.AUTOPILOT_TOKEN) return
-  let state: 'working' | 'idle' | 'waiting_permission' | 'ended'
-  if (event === 'notification') {
+  const read = async () => {
     const input = await new Promise<string>((resolve) => {
       let data = ''
       process.stdin.on('data', (d: Buffer) => (data += d.toString()))
       process.stdin.on('end', () => resolve(data))
       setTimeout(() => resolve(data), 1000)
     })
-    const payload = (() => {
-      try {
-        return JSON.parse(input) as { notification_type?: string; message?: string }
-      } catch {
-        return {}
-      }
-    })()
+    try {
+      return JSON.parse(input) as { notification_type?: string; message?: string; tool_name?: string; tool_input?: Record<string, unknown> }
+    } catch {
+      return {}
+    }
+  }
+  let state: 'working' | 'idle' | 'waiting_permission' | 'ended'
+  // What it is doing, for the running task's line; cleared when it stops.
+  let activity: string | null = null
+  if (event === 'notification') {
+    const payload = await read()
     if (payload.notification_type !== 'permission_prompt' && !/permission/i.test(payload.message ?? '')) return
     state = 'waiting_permission'
-  } else if (event === 'working' || event === 'idle' || event === 'ended') {
+  } else if (event === 'tool') {
+    const payload = await read()
+    if (!payload.tool_name) return
+    state = 'working'
+    activity = activityOf(payload.tool_name, payload.tool_input ?? {})
+  } else if (event === 'working') {
+    state = 'working'
+    activity = 'Reading your message'
+  } else if (event === 'idle' || event === 'ended') {
     state = event
   } else {
     return
   }
   try {
-    await client().api.sessions.report({ idempotencyKey: key(), taskId, state })
+    await client().api.sessions.report({ idempotencyKey: key(), taskId, state, ...(activity ? { activity } : {}) })
   } catch {
     // The server being down must not break the session.
   }

@@ -185,7 +185,9 @@ export class Launcher {
       JSON.stringify({ mcpServers: { autopilot: { type: 'stdio', command: node, args: [script, 'mcp'], env } } }, null, 2),
       { mode: 0o600 },
     )
-    const hook = (state: string) => [{ hooks: [{ type: 'command', command: autopilot(`hook ${state}`) }] }]
+    const hook = (state: string, async = false) => [
+      { hooks: [{ type: 'command', command: autopilot(`hook ${state}`), ...(async ? { async: true } : {}) }] },
+    ]
     const settings = join(dir, 'settings.json')
     writeFileSync(
       settings,
@@ -193,6 +195,8 @@ export class Launcher {
         {
           hooks: {
             UserPromptSubmit: hook('working'),
+            // What it is about to do, for the running task's line; in the background, so no tool waits.
+            PreToolUse: hook('tool', true),
             Stop: hook('idle'),
             Notification: hook('notification'),
             SessionEnd: hook('ended'),

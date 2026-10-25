@@ -1023,9 +1023,11 @@ export class Service {
     return this.idempotent(input.idempotencyKey, 'sessions.report', () => {
       const task = this.task(input.taskId)
       if (!task.sessionId) throw new DomainError('NOT_FOUND', { entity: 'session', id: task.id })
+      // What it was doing no longer holds once it stops.
+      const activity = input.activity ?? (input.state === 'working' ? undefined : null)
       const session = this.setSession(task.sessionId, {
         state: input.state,
-        ...(input.activity === undefined ? {} : { activity: input.activity }),
+        ...(activity === undefined ? {} : { activity }),
       })
       this.endIfFinished(task)
       return session
