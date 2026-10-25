@@ -22,7 +22,15 @@
         ]
       }
     ],
-    "react/react-in-jsx-scope": "off"
+    "react/react-in-jsx-scope": "off",
+    "react/style-prop-object": [
+      "error",
+      {
+        "allow": [
+          "StatusBar"
+        ]
+      }
+    ]
   },
   "ignorePatterns": [
     "**/schema/**",

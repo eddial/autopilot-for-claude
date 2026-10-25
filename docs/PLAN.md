@@ -83,6 +83,17 @@ Keychain; Servers; saved views; bulk actions; ⌘K; the light theme.
 
 ## Phase 3 · iPhone
 
+**Status:** built; the server side and the sync engine are tested against a real server over TLS,
+and the iOS bundle compiles, but the app has not run on an iPhone yet. Built: the device listener
+(TLS, pinned by fingerprint, LAN and Tailscale only), pairing by QR code from the Mac app's Servers
+screen, `packages/client` (routes, cached queue, offline outbox with conflicts), and the Expo app
+(pairing, queue, task with answering and replies, New task, Signals, Servers) with native tabs and
+native toolbar items for the Duo's vertical bar, the wide split on the inner display, local
+notifications and the icon badge, and background sync. Still to do: run it on the Duo and fix what
+that shows; the share extension; TestFlight once the developer account is there; try
+`expo-router/unstable-split-view` for a native split so only the task column joins the vertical
+bar.
+
 - Server: network listener with TLS, pairing codes and QR, device keys, routes (LAN, Tailscale),
   API version handshake.
 - Expo app: queue, task, reply, New task, share extension, the iPhone Duo layouts and vertical bar
@@ -127,6 +138,7 @@ Designed for, not planned:
 
 ## Open questions
 
-- Bundle id (for example `ai.lleverage.autopilot` or a personal one), needed for signing in phase 2.
+- Bundle id: `com.eddial.autopilot` for now (in `apps/mobile/app.json`); change it before the first
+  TestFlight build if it should be another.
 - Signals: keep `claude -p`, or move to the Claude Agent SDK once it is clear claude.ai connectors
   are available through it.

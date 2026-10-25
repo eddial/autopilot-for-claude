@@ -17,7 +17,13 @@ product, architecture, API and plan; `docs/decisions/` records why things are th
   which keeps the queue with `applyEvent` from the contracts. `pnpm desktop` runs it;
   `pnpm --filter @autopilot/desktop web` serves the window in a browser against the running server.
   `test/ui.test.ts` drives the real window in Chromium against a real server.
-- `apps/mobile` (the iPhone) arrives in phase 3.
+- `packages/client`: what a paired device runs: routes probed LAN first, TLS pinned to the Mac's
+  certificate, the queue cached from the change feed, and the offline outbox. Tested against a
+  real server over TLS.
+- `apps/mobile`: the Expo iPhone app. Native stack and native tabs (the iPhone Duo moves only
+  native bars), a Swift module in `modules/pinned-fetch` for pinned TLS, `src/store.ts` wiring
+  `Sync` to the Keychain, SQLite, notifications and background sync. Check bundling with
+  `npx expo export --platform ios` (Hermes rejects some syntax tsc accepts).
 - How to run it on a Mac: `docs/RUNNING.md`.
 
 ## Commands

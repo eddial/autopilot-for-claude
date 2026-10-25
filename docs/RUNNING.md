@@ -84,6 +84,25 @@ anywhere. **Set up** in the sidebar walks through onboarding: it checks Claude C
 Claude connectors, adds the signals you pick from `examples/home/`, previews yesterday, saves your
 workstreams and switches the signals on. Prefer it over copying files by hand.
 
+## The iPhone
+
+The app has native code (pinned TLS), so it runs as a development build, not in Expo Go. With
+Xcode and the iPhone connected by cable, a free Apple account is enough for your own phone (the
+build expires after seven days):
+
+```sh
+cd apps/mobile
+npx expo run:ios --device     # builds with Xcode and installs on the phone
+```
+
+With the paid developer account, `eas build --profile production` and `eas submit` put it on
+TestFlight instead.
+
+Pair it: on the Mac, Servers → Pair an iPhone, then scan the code with the app. The phone needs
+the same Wi-Fi as the Mac, or Tailscale on both (free; sign in with the same account and turn on
+VPN On Demand on the phone). Answers, replies and new tasks made while the Mac is out of reach
+wait on the phone and arrive when it is back.
+
 ## Everyday commands
 
 | Command | Does |

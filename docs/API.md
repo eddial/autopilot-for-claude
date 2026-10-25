@@ -49,7 +49,9 @@ Every command takes an `idempotencyKey` and is authorised by scope.
 | `items.file { item }` | `signal` | Creates a task or adds a `signal` update; logs a `Decision`. An item with `ticket { id, closed }` mirrors a team ticket: one task per ticket, closed when the ticket closes |
 | `routing.decide { proposalId, accept }` | `owner` | Accepting writes the edit into the home files (`CONFLICT` with `version_mismatch` when the file changed since) and closes the proposal's task |
 | `signals.run { name, dryMinutes? }`, `signals.pause` | `owner` | |
-| `devices.pair { code, publicKey, name }`, `devices.remove` | pairing / `owner` | |
+| `devices.startPairing` | `owner` | A one-time invite (routes, certificate fingerprint, an eight-character code valid five minutes) for the QR code; opens the device listener if it is not open yet |
+| `devices.pair { code, name, kind }` | the code | Returns the device and its own `owner` token, once; the token is never stored on the server, only its hash. Twenty wrong codes close every open code |
+| `devices.remove` | `owner` | Revokes the device's token |
 | `tokens.create { name, scope }`, `tokens.revoke` | `owner` | |
 
 ## Queries and subscriptions
@@ -58,7 +60,8 @@ Every command takes an `idempotencyKey` and is authorised by scope.
 - `queue.subscribe { after? }`: a snapshot (unless resuming from `after`), then every change
   (`task.upserted`, `task.removed`, `update.added`, `update.changed`, `session.changed`,
   `signal.changed`, `workstream.changed`) as it happens.
-- `changes.since { after, limit }`: catch up after being offline, page by page.
+- `changes.since { after, limit, wait? }`: catch up after being offline, page by page. With `wait`
+  (up to 25 seconds) the call is held open until something changes: the phone's long poll.
 - `tasks.get { id }`: the task with its updates, session and watchers.
 - `signals.list`, `workstreams.list`, `routing.list`, `machines.list`, `devices.list`, `tokens.list`.
 - `connectors.detect`: the MCP servers Claude Code has on this Mac (claude.ai connectors included)

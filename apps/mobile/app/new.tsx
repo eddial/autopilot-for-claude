@@ -1,0 +1,106 @@
+import { useEffect, useState } from 'react'
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import type { Workstream } from '@autopilot/contracts'
+import { router, Stack } from 'expo-router'
+import KV from 'expo-sqlite/kv-store'
+import { titleCase } from '../src/format.ts'
+import { useSyncInstance } from '../src/store.ts'
+import { colours } from '../src/theme.ts'
+
+const PRIORITIES = [
+  { value: 1, label: 'Urgent' },
+  { value: 2, label: 'High' },
+  { value: 3, label: 'Normal' },
+  { value: 4, label: 'Low' },
+]
+
+/** New task, as a sheet. Works offline: it waits in the outbox and reaches the Mac later. */
+export default function NewTaskScreen() {
+  const sync = useSyncInstance()
+  const [title, setTitle] = useState('')
+  const [brief, setBrief] = useState('')
+  const [workstream, setWorkstream] = useState<string | null>(null)
+  const [priority, setPriority] = useState(3)
+  const [start, setStart] = useState(true)
+  const [workstreams, setWorkstreams] = useState<Workstream[]>([])
+
+  // The last list seen online, so picking a workstream works offline too.
+  useEffect(() => {
+    void KV.getItem('autopilot.workstreams').then((cached) => cached && setWorkstreams(JSON.parse(cached) as Workstream[]))
+    void sync
+      ?.online((api) => api.workstreams.list())
+      .then((list) => {
+        setWorkstreams(list)
+        void KV.setItem('autopilot.workstreams', JSON.stringify(list))
+      })
+      .catch(() => {})
+  }, [sync])
+
+  const create = () => {
+    if (!sync || !title.trim()) return
+    void sync.send({ kind: 'create', title: title.trim().slice(0, 120), brief: brief.trim(), start, priority, ...(workstream ? { workstream } : {}) })
+    router.back()
+  }
+
+  return (
+    <>
+      <Stack.Screen options={{ title: 'New task', headerStyle: { backgroundColor: colours.surface }, headerTitleStyle: { color: colours.text } }} />
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button icon="xmark" accessibilityLabel="Cancel" onPress={() => router.back()} />
+      </Stack.Toolbar>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button variant="prominent" tintColor={colours.clay} icon="arrow.up" accessibilityLabel={start ? 'Create and start' : 'Save'} disabled={!title.trim()} onPress={create} />
+      </Stack.Toolbar>
+      <ScrollView style={{ backgroundColor: colours.surface }} contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+        <TextInput style={styles.title} placeholder="What needs doing, starting with a verb" placeholderTextColor={colours.text3} value={title} onChangeText={setTitle} maxLength={120} autoFocus accessibilityLabel="Title" />
+        <TextInput
+          style={styles.brief}
+          placeholder="The brief: what you know, what to use, what not to do."
+          placeholderTextColor={colours.text3}
+          value={brief}
+          onChangeText={setBrief}
+          multiline
+          accessibilityLabel="Brief"
+        />
+        <Text style={styles.label}>Workstream</Text>
+        <View style={styles.chips}>
+          <Chip label="Inbox" on={workstream === null} onPress={() => setWorkstream(null)} />
+          {workstreams
+            .filter((w) => w.name !== 'autopilot')
+            .map((w) => (
+              <Chip key={w.name} label={titleCase(w.name)} on={workstream === w.name} onPress={() => setWorkstream(w.name)} />
+            ))}
+        </View>
+        <Text style={styles.label}>Priority</Text>
+        <View style={styles.chips}>
+          {PRIORITIES.map((p) => (
+            <Chip key={p.value} label={p.label} on={priority === p.value} onPress={() => setPriority(p.value)} />
+          ))}
+        </View>
+        <View style={styles.switchRow}>
+          <Text style={styles.switchText}>Start a session right away</Text>
+          <Switch value={start} onValueChange={setStart} trackColor={{ true: colours.clay }} />
+        </View>
+      </ScrollView>
+    </>
+  )
+}
+
+const Chip = ({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) => (
+  <Pressable style={[styles.chip, on && styles.chipOn]} onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }}>
+    <Text style={[styles.chipText, on && { color: colours.text }]}>{label}</Text>
+  </Pressable>
+)
+
+const styles = StyleSheet.create({
+  form: { padding: 20, gap: 12 },
+  title: { fontSize: 18, fontWeight: '600', color: colours.text, paddingVertical: 8 },
+  brief: { minHeight: 120, fontSize: 16, lineHeight: 22, color: colours.text2, textAlignVertical: 'top' },
+  label: { marginTop: 12, fontSize: 13, color: colours.text3 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, borderWidth: StyleSheet.hairlineWidth, borderColor: colours.borderStrong },
+  chipOn: { backgroundColor: colours.raised, borderColor: colours.clay },
+  chipText: { fontSize: 14, color: colours.text2 },
+  switchRow: { marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  switchText: { fontSize: 15, color: colours.body },
+})

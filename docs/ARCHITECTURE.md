@@ -66,7 +66,7 @@ One language and one contract across the server, the Mac app, the iPhone app and
 | --- | --- |
 | Language | TypeScript, strict; Node LTS (24) |
 | Schema | Zod 4 for every contract; JSON Schema exported from it; the MCP SDK takes the same schemas |
-| RPC | oRPC, contract-first: the contract lives in `packages/contracts`, the server implements it, the desktop and mobile apps get typed clients. WebSocket for live updates; Unix socket locally, TLS for paired devices |
+| RPC | oRPC, contract-first: the contract lives in `packages/contracts`, the server implements it, the desktop and mobile apps get typed clients. a streamed subscription for the Mac app and a long poll on the change feed for the phone; Unix socket locally, TLS for paired devices |
 | Store | SQLite through Node's built-in `node:sqlite`; normal tables, an append-only updates table, a numbered change feed, one transaction per command |
 | Jobs | A small scheduler for the tick (signals, watchers, health, routing review) with timeouts and cancellation through `AbortSignal` |
 | Sessions | `claude --remote-control` in a pseudo-terminal owned by the server (`node-pty`); no tmux |
@@ -83,14 +83,12 @@ This repository (`autopilot-for-claude`) is new; the Linear-based engine stays i
 
 ```
 apps/
-  server/          the autopilot server and CLI: store, tick, launcher, watchers, health, routing review, API, MCP
-  desktop/         Electron shell: window, tray, notifications, global shortcut, updater, agent install
-  web/             the React UI rendered by desktop (and a browser client later)
-  mobile/          Expo app for iPhone
+  server/          the autopilot server and CLI: store, tick, launcher, watchers, health, routing review, API, MCP, device listener
+  desktop/         the Mac app: Electron main process (token, tray, shortcuts) and the React window
+  mobile/          Expo app for iPhone, with a Swift module for pinned TLS
 packages/
-  contracts/       Zod schemas and the oRPC contract: entities, commands, changes, update kinds, MCP tool definitions
-  client-runtime/  connection, routes, auth, snapshot + deltas, cache, offline outbox; shared by web and mobile
-  shared/          small utilities used everywhere
+  contracts/       Zod schemas and the oRPC contract: entities, commands, changes, update kinds, MCP tool definitions, the live queue reducer
+  client/          a paired device's engine: routes, pinned TLS, cached queue from the change feed, offline outbox
 prompts/           the signal, workstream, routing-review and session instructions (moved from autopilot-for-linear)
 plugin/            the Claude Code plugin: the work skill, /ticket, and the MCP declaration
 home/              a person's config (workstreams and signals as Markdown, same format as today), read by the server
@@ -167,8 +165,10 @@ recorded on the task, then typed into the live session.
 
 - **No open ports by default.** Locally a Unix socket only the user can open; for devices,
   loopback, LAN and Tailscale only, with TLS.
-- **Pairing**: one-time code or QR, valid five minutes; each device creates its own key, kept in
-  the Keychain or secure storage, and can be removed from Servers.
+- **Pairing**: a QR code with the routes, the server certificate's fingerprint and a one-time code
+  valid five minutes. The phone pins the fingerprint (TLS that trusts exactly that certificate, see
+  [decision 7](decisions/0007-pinned-tls.md)) and trades the code for its own token, kept in the
+  Keychain; the server keeps only its hash. Removing the device in Servers revokes it.
 - **Scoped access**: `owner`, `read`, `create`, `session` (its own task only), `signal` (match and
   file only). Every RPC and MCP tool declares the scope it needs.
 - **Source content is data**: mail, messages and tickets never become instructions; only `owner`

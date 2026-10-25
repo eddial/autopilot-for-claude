@@ -59,8 +59,8 @@ export const applyEvent = (state: LiveQueue, event: QueueEvent): LiveQueue => {
 }
 
 /** The queue's items, as `queue.list` would return them; closed tasks drop out. */
-export const queueItems = (state: LiveQueue, now: Date): QueueItem[] =>
-  Object.values(state.tasks)
+export const queueItems = (state: LiveQueue, now: Date): QueueItem[] => {
+  const items = Object.values(state.tasks)
     .map((task) => {
       const openAsk = state.asks[task.id] ?? null
       const session = task.sessionId && state.sessions[task.id]?.id === task.sessionId ? (state.sessions[task.id] ?? null) : null
@@ -73,4 +73,7 @@ export const queueItems = (state: LiveQueue, now: Date): QueueItem[] =>
       }
     })
     .filter((item) => item.band !== 'done')
-    .toSorted(compareQueue)
+  // A fresh array, sorted in place: Hermes on older iPhones has no toSorted.
+  items.sort(compareQueue)
+  return items
+}

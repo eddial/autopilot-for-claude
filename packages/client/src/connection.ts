@@ -33,6 +33,15 @@ export class Offline extends Error {
 
 const PROBE_MS = 3_000
 
+/** `AbortSignal.timeout`, which React Native does not have everywhere. */
+export const timeoutSignal = (ms: number): AbortSignal => {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(new Error('Timed out')), ms)
+  // In Node, a pending timeout must not keep the process alive; React Native timers are numbers.
+  if (typeof timer === 'object' && 'unref' in timer) timer.unref()
+  return controller.signal
+}
+
 const clientFor = (pinned: PinnedFetch, fingerprint: string, address: () => string | null, token: string | null): Api =>
   createORPCClient(
     new RPCLink({
@@ -78,7 +87,7 @@ export class Link {
       if (route.kind === 'socket') continue
       const api = clientFor(this.pinned, this.connection.fingerprint, () => route.address, null)
       try {
-        await api.meta.version(undefined, { signal: AbortSignal.timeout(PROBE_MS) })
+        await api.meta.version(undefined, { signal: timeoutSignal(PROBE_MS) })
         this.current = route
         return route
       } catch {

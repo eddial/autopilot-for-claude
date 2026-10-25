@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Autopilot",
+    "slug": "autopilot",
+    "scheme": "autopilot",
+    "version": "0.1.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "backgroundColor": "#1F1E1D",
+    "ios": {
+      "bundleIdentifier": "com.eddial.autopilot",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Autopilot talks to your Mac on your home network.",
+        "NSCameraUsageDescription": "Autopilot scans the pairing code your Mac shows.",
+        "NSAppTransportSecurity": { "NSAllowsLocalNetworking": true },
+        "UIBackgroundModes": ["fetch", "processing"],
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-secure-store",
+      ["expo-camera", { "cameraPermission": "Autopilot scans the pairing code your Mac shows.", "recordAudioAndroid": false }],
+      ["expo-notifications", { "color": "#5DB08F" }],
+      "expo-background-task",
+      ["expo-splash-screen", { "image": "./assets/splash.png", "backgroundColor": "#1F1E1D", "resizeMode": "contain" }],
+      ["expo-build-properties", { "ios": { "deploymentTarget": "16.4" } }]
+    ],
+    "experiments": { "typedRoutes": true }
+  }
+}

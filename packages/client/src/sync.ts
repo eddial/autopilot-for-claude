@@ -9,7 +9,7 @@ import {
   type Update,
 } from '@autopilot/contracts'
 import { isDefinedError, ORPCError } from '@orpc/client'
-import { Link, type Connection, type PinnedFetch } from './connection.ts'
+import { Link, Offline, timeoutSignal, type Api, type Connection, type PinnedFetch } from './connection.ts'
 
 /** Key-value storage that survives the app being closed: expo-sqlite's kv-store on the phone. */
 export type Storage = {
@@ -59,6 +59,7 @@ export type SyncOptions = {
   pinned: PinnedFetch
   storage: Storage
   now?: () => Date
+  /** Idempotency keys; the phone passes expo-crypto's, as Hermes has no global crypto. */
   newKey?: () => string
   /** Tasks that came to the owner's turn since the last sync, for a local notification. */
   onYourTurn?: (items: QueueItem[]) => void
@@ -78,6 +79,8 @@ export class Sync {
   private state: SyncState = { status: 'connecting', routeKind: null, lastSyncedAt: null, queue: emptyQueue, outbox: [], conflicts: [] }
   private readonly listeners = new Set<() => void>()
   private running = false
+  /** Each start gets a number; a loop from before a stop ends instead of running beside the new one. */
+  private generation = 0
   private wake: (() => void) | null = null
   private flushing: Promise<void> | null = null
 
@@ -230,7 +233,7 @@ export class Sync {
       for (let wait = waitSeconds; ; wait = 0) {
         const page = await this.link.api.changes.since(
           { after: queue.seq, wait },
-          { signal: AbortSignal.timeout((wait + 15) * 1000) },
+          { signal: timeoutSignal((wait + 15) * 1000) },
         )
         for (const change of page.changes) queue = applyEvent(queue, change)
         if (!page.more) break
@@ -243,12 +246,23 @@ export class Sync {
     }
   }
 
+  /** A read that only makes sense online (signals, devices): throws `Offline` when no route answers. */
+  async online<T>(read: (api: Api) => Promise<T>): Promise<T> {
+    if (!this.link.route() && !(await this.link.probe())) throw new Offline()
+    try {
+      return await read(this.link.api)
+    } catch (error) {
+      if (!(error instanceof ORPCError)) this.link.lost()
+      throw error
+    }
+  }
+
   /** A task with its conversation; the cached copy when the server is out of reach. */
   async detail(taskId: string): Promise<TaskDetail | null> {
     if (taskId.startsWith(PENDING_PREFIX)) return null
     try {
       if (!this.link.route() && !(await this.link.probe())) throw new Error('offline')
-      const detail = await this.link.api.tasks.get({ id: taskId }, { signal: AbortSignal.timeout(10_000) })
+      const detail = await this.link.api.tasks.get({ id: taskId }, { signal: timeoutSignal(10_000) })
       await this.o.storage.set(`task:${taskId}`, JSON.stringify(detail))
       return detail
     } catch {
@@ -263,8 +277,9 @@ export class Sync {
   start(): void {
     if (this.running) return
     this.running = true
+    const generation = ++this.generation
     void (async () => {
-      while (this.running) {
+      while (this.running && this.generation === generation) {
         await this.syncOnce(this.state.status === 'online' ? this.o.waitSeconds : 0)
         if (this.state.status !== 'online') await this.pause(5_000)
       }
