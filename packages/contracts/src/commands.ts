@@ -47,8 +47,8 @@ export const BulkTasks = command({
   workstream: z.string().optional(),
 })
 
-/** Kinds a session or watcher may post; `instruction` comes only from answering, `signal` only from filing. */
-export const PostableKind = UpdateKind.exclude(['instruction', 'signal'])
+/** Kinds a session or watcher may post; `instruction` comes only from answering, `signal` only from filing, `event` only from Autopilot. */
+export const PostableKind = UpdateKind.exclude(['instruction', 'signal', 'event'])
 
 export const PostUpdateFields = {
   taskId: TaskId,

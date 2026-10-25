@@ -213,7 +213,7 @@ export const createRouter = ({
     },
 
     links: {
-      attach: guarded.links.attach.handler(({ input }) => service.attachLink(input)),
+      attach: guarded.links.attach.handler(({ input, context }) => service.attachLink(input, authorOf(context.principal))),
     },
 
     watchers: {

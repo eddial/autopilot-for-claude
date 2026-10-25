@@ -82,6 +82,10 @@ const ACTIVE = `state not in ('done', 'canceled')`
  * transaction that also appends to the change feed and records the
  * idempotency key, so a replayed command returns the first result.
  */
+/** `Tue 27 Oct, 10:00` in the Mac's own time zone, for timeline lines. */
+const shortDate = (iso: string): string =>
+  new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+
 export class Service {
   readonly db: DatabaseSync
   readonly now: () => Date
@@ -646,10 +650,12 @@ export class Service {
     )
   }
 
-  attachLink(input: In<typeof AttachLink>): Task {
+  /** A link joins the task's list, and the timeline says who linked it and when. */
+  attachLink(input: In<typeof AttachLink>, by: Author = 'session'): Task {
     return this.idempotent(input.idempotencyKey, 'links.attach', () => {
       const task = this.task(input.taskId)
       if (task.links.some((l) => l.url === input.link.url)) return task
+      this.insertUpdate(task, { kind: 'event', body: `Linked ${input.link.title}`, author: by, attachments: [input.link] })
       return this.touch(task, { links: [...task.links, input.link] })
     })
   }
@@ -759,9 +765,15 @@ export class Service {
   ): Watcher {
     const id = newId()
     const until = spec.until ?? new Date(this.now().getTime() + 14 * 86_400_000).toISOString()
+    const every = spec.every ?? '30m'
     this.db
       .prepare('insert into watchers (id, task_id, what, every, until, tools) values (?, ?, ?, ?, ?, ?)')
-      .run(id, taskId, spec.what, spec.every ?? '30m', until, json(spec.tools ?? []))
+      .run(id, taskId, spec.what, every, until, json(spec.tools ?? []))
+    this.insertUpdate(this.task(taskId), {
+      kind: 'event',
+      body: `Watching ${spec.what}, every ${every} until ${shortDate(until)}`,
+      author: 'watcher',
+    })
     return this.toWatcher(this.sql('select * from watchers where id = ?').get(id) as Row)
   }
 
@@ -780,7 +792,11 @@ export class Service {
 
   removeWatcher(input: { idempotencyKey: string; id: string }): Record<string, never> {
     return this.idempotent(input.idempotencyKey, 'watchers.remove', () => {
+      const row = this.sql('select * from watchers where id = ?').get(input.id) as Row | undefined
+      if (!row) return {}
+      const watcher = this.toWatcher(row)
       this.sql('delete from watchers where id = ?').run(input.id)
+      this.insertUpdate(this.task(watcher.taskId), { kind: 'event', body: `Stopped watching ${watcher.what}`, author: 'watcher' })
       return {}
     })
   }
@@ -833,13 +849,17 @@ export class Service {
       const watcher = this.toWatcher(row)
       const task = this.task(watcher.taskId)
       this.sql('delete from watchers where id = ?').run(id)
-      const waiting = task.state === 'waiting'
-      this.insertUpdate(task, {
-        kind: waiting ? 'question' : 'info',
-        body: `The watcher on "${watcher.what}" expired with nothing new.${waiting ? ' Chase, wait longer (a new watcher), or close?' : ''}`,
-        author: 'system',
-      })
-      this.touch(task, {})
+      // Waiting on it: the owner decides what next. Otherwise it is only a line in the timeline.
+      if (task.state === 'waiting') {
+        this.insertUpdate(task, {
+          kind: 'question',
+          body: `The watcher on "${watcher.what}" expired with nothing new. Chase, wait longer (a new watcher), or close?`,
+          author: 'system',
+        })
+        this.touch(task, {})
+      } else {
+        this.insertUpdate(task, { kind: 'event', body: `Stopped watching ${watcher.what}: nothing new by the deadline`, author: 'watcher' })
+      }
     })
   }
 
@@ -1045,10 +1065,16 @@ export class Service {
     })
   }
 
-  systemUpdate(taskId: string, kind: 'blocked' | 'info', body: string, attachments: Link[] = []): Update {
+  systemUpdate(
+    taskId: string,
+    kind: 'blocked' | 'info',
+    body: string,
+    attachments: Link[] = [],
+    author: 'system' | 'scout' = 'system',
+  ): Update {
     return this.transaction(() => {
       const task = this.task(taskId)
-      const update = this.insertUpdate(task, { kind, body, author: 'system', attachments })
+      const update = this.insertUpdate(task, { kind, body, author, attachments })
       this.touch(task, {})
       return update
     })

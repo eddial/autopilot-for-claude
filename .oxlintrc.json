@@ -200,7 +200,9 @@
             "property": "randomUUID",
             "message": "Hermes has no crypto.randomUUID: use expo-crypto on the phone."
           }
-        ]
+        ],
+        "unicorn/no-array-reverse": "off",
+        "unicorn/no-array-sort": "off"
       }
     }
   ]

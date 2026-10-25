@@ -130,7 +130,8 @@
             "session",
             "signal",
             "watcher",
-            "system"
+            "system",
+            "scout"
           ]
         },
         "createdAt": {
@@ -214,7 +215,8 @@
                 "done",
                 "info",
                 "signal",
-                "instruction"
+                "instruction",
+                "event"
               ]
             },
             "body": {
@@ -284,7 +286,8 @@
                 "session",
                 "signal",
                 "watcher",
-                "system"
+                "system",
+                "scout"
               ]
             },
             "answers": {

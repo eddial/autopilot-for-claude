@@ -92,7 +92,7 @@ export class Scout {
     const { service } = this.o
     // Started, closed or answered meanwhile: the session or the owner already has it.
     if (service.queue({ band: 'new' }).items.every((i) => i.task.id !== task.id)) return
-    service.systemUpdate(task.id, 'info', scoutBody(result), scoutLinks(result))
+    service.systemUpdate(task.id, 'info', scoutBody(result), scoutLinks(result), 'scout')
   }
 
   private prompt(task: Task, workstream: Workstream | undefined, place: string | null): string {

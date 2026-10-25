@@ -50,7 +50,7 @@ describe('scout', () => {
 
     expect(calls).toEqual([{ tools: ['mcp__slack__search'] }])
     const update = service.getTask(waiting.id).updates.at(-1)
-    expect(update).toMatchObject({ author: 'system', kind: 'info', open: false })
+    expect(update).toMatchObject({ author: 'scout', kind: 'info', open: false })
     expect(update?.body).toContain('Likely approach:\n1. Check the PR review state')
     expect(update?.body).toContain('Before starting:\n- Promise the 24th, or a range?')
     expect(update?.attachments.map((a) => a.title)).toEqual(['slack: Sarah in #acme-support', 'github: SSO pull request'])
@@ -64,6 +64,6 @@ describe('scout', () => {
     const { service, scout, create } = setup(() => service.startTask(TaskRef.parse({ idempotencyKey: 'start-1', id })))
     id = create('Reply to Acme about SSO', false).id
     await scout.tick()
-    expect(service.getTask(id).updates.filter((u) => u.author === 'system')).toEqual([])
+    expect(service.getTask(id).updates.filter((u) => u.author === 'scout')).toEqual([])
   })
 })

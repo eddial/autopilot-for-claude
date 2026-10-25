@@ -2,9 +2,10 @@ import { z } from 'zod'
 
 /**
  * What an update on a task is. The kind decides where the task goes next;
- * see docs/PRODUCT.md, "A task is a list of updates".
+ * see docs/PRODUCT.md, "A task is a list of updates". An `event` is a line in the
+ * timeline that moves nothing: a link attached, a watcher started or stopped.
  */
-export const UpdateKind = z.enum(['decision', 'question', 'review', 'blocked', 'waiting', 'done', 'info', 'signal', 'instruction'])
+export const UpdateKind = z.enum(['decision', 'question', 'review', 'blocked', 'waiting', 'done', 'info', 'signal', 'instruction', 'event'])
 export type UpdateKind = z.infer<typeof UpdateKind>
 
 /** The kinds that put a task on your turn. A task has at most one open ask. */
@@ -25,7 +26,8 @@ export type Band = z.infer<typeof Band>
 export const Scope = z.enum(['owner', 'read', 'create', 'session', 'signal', 'watcher'])
 export type Scope = z.infer<typeof Scope>
 
-export const Author = z.enum(['owner', 'session', 'signal', 'watcher', 'system'])
+/** Who posted an update. `scout` is the first look a new task gets before anyone starts it. */
+export const Author = z.enum(['owner', 'session', 'signal', 'watcher', 'system', 'scout'])
 export type Author = z.infer<typeof Author>
 
 export const SessionState = z.enum(['starting', 'working', 'idle', 'waiting_permission', 'ended'])

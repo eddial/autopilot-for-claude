@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { pendingText, updateAuthor, updateTone, type Pending } from '@autopilot/client'
+import { eventText, linkSource, pendingText, updateAuthor, updateTone, type Pending } from '@autopilot/client'
 import type { QueueItem, Update } from '@autopilot/contracts'
 import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
@@ -55,6 +55,13 @@ export const TaskPane = ({ item, onClose }: Props) => {
     if (item.unread) markSeen(task.id)
   }, [task.id, item.unread])
 
+  const [order, setOrder] = useOrder()
+  // Oldest first as they happened; the newest one shows in full.
+  const entries = [
+    ...activity.map((u, i) => <Entry key={u.id} update={u} latest={i === activity.length - 1 && pending.length === 0} />),
+    ...pending.map((p) => <PendingEntry key={p.id} pending={p} options={updates.flatMap((u) => u.options)} />),
+  ]
+
   const session = item.session
   const filed = task.source.signal
     ? `From ${titleCase(task.source.signal)}`
@@ -87,11 +94,6 @@ export const TaskPane = ({ item, onClose }: Props) => {
           <h2 className="serif">{task.title}</h2>
           <div className="meta filed">
             {filed} · {ago(task.createdAt)}
-            {task.links.map((l) => (
-              <Button key={l.url} kind="chip" onClick={() => open(l.url)}>
-                {l.title}
-              </Button>
-            ))}
           </div>
           <Actions item={item} />
         </header>
@@ -101,23 +103,37 @@ export const TaskPane = ({ item, onClose }: Props) => {
             <Body text={task.brief} />
           </section>
         )}
+        {task.links.length > 0 && (
+          <section className="section">
+            <div className="section-label">Linked</div>
+            <ul className="linked">
+              {task.links.map((l) => (
+                <li key={l.url}>
+                  <Button kind="item" onClick={() => open(l.url)}>
+                    <span className="source">{linkSource(l.url)}</span>
+                    <span className="title">{l.title}</span>
+                    {l.subtitle && <span className="meta">{l.subtitle}</span>}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {refused && <Banner>{refused}</Banner>}
         {ask && <AskCard update={ask} />}
         {/* With only an ask so far, the card is the whole story. */}
         {!(ask && activity.length === 0 && pending.length === 0) && (
           <section className="section">
-            <div className="section-label">Activity</div>
+            <div className="section-head">
+              <div className="section-label">Activity</div>
+              <Button kind="quiet" aria-label="Order of the activity" onClick={() => setOrder(order === 'newest' ? 'oldest' : 'newest')}>
+                {order === 'newest' ? 'Newest first' : 'Oldest first'}
+              </Button>
+            </div>
             {activity.length === 0 && pending.length === 0 ? (
               <Meta>{detail ? 'Nothing yet.' : ''}</Meta>
             ) : (
-              <ol className="feed">
-                {activity.map((u, i) => (
-                  <Entry key={u.id} update={u} latest={i === activity.length - 1 && pending.length === 0} />
-                ))}
-                {pending.map((p) => (
-                  <PendingEntry key={p.id} pending={p} options={updates.flatMap((u) => u.options)} />
-                ))}
-              </ol>
+              <ol className="feed">{order === 'newest' ? entries.toReversed() : entries}</ol>
             )}
           </section>
         )}
@@ -125,6 +141,29 @@ export const TaskPane = ({ item, onClose }: Props) => {
       {!ask && <Composer item={item} />}
     </section>
   )
+}
+
+type Order = 'newest' | 'oldest'
+const ORDER_KEY = 'autopilot.order'
+
+/** Newest first unless the person chose otherwise; remembered in this window. */
+const useOrder = (): [Order, (order: Order) => void] => {
+  const [order, setOrder] = useState<Order>(() => {
+    try {
+      return localStorage.getItem(ORDER_KEY) === 'oldest' ? 'oldest' : 'newest'
+    } catch {
+      return 'newest'
+    }
+  })
+  const choose = (next: Order) => {
+    setOrder(next)
+    try {
+      localStorage.setItem(ORDER_KEY, next)
+    } catch {
+      // Not remembered; the choice still holds for now.
+    }
+  }
+  return [order, choose]
 }
 
 /** Long text shows its first lines; a click shows the rest. */
@@ -194,6 +233,7 @@ const AskCard = ({ update }: { update: Update }) => {
 
 /** The latest entry shows in full; older long ones fold. */
 const Entry = ({ update, latest }: { update: Update; latest: boolean }) => {
+  if (update.kind === 'event') return <EventEntry update={update} />
   const by = updateAuthor(update)
   return (
     <li className={`entry tone-${updateTone(update)}`}>
@@ -207,6 +247,21 @@ const Entry = ({ update, latest }: { update: Update; latest: boolean }) => {
     </li>
   )
 }
+
+/** A line that moves nothing: a link attached, a watcher started or stopped. */
+const EventEntry = ({ update }: { update: Update }) => (
+  <li className="entry event tone-quiet">
+    <span className="mark" aria-hidden="true" />
+    <div className="entry-head">
+      <span className="entry-label">{updateLabel(update)}</span> {eventText(update)} · {age(update.createdAt)}
+      {update.attachments.map((a) => (
+        <Button key={a.url} kind="chip" onClick={() => open(a.url)}>
+          Open in {linkSource(a.url)}
+        </Button>
+      ))}
+    </div>
+  </li>
+)
 
 /** What the person just did, shown at once while it reaches the server. */
 const PendingEntry = ({ pending, options }: { pending: Pending; options: { id: string; label: string }[] }) => {

@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { AnswerUpdate, CreateTask, PostUpdate } from '@autopilot/contracts'
+import { AnswerUpdate, AttachLink, CreateTask, PostUpdate } from '@autopilot/contracts'
 import { scoutBody } from '@autopilot/server/scout'
 import { keys, startTestServer } from '@autopilot/testkit'
 import { chromium, type Page } from 'playwright-core'
@@ -53,6 +53,27 @@ post(
 )
 const how = post(pr.id, 'decision', 'Back off exponentially, or queue the retries for the next minute?', ['Back off', 'Queue them'])
 service.answerUpdate(AnswerUpdate.parse({ idempotencyKey: key(), updateId: how.id, optionId: 'o0' }))
+service.attachLink(
+  AttachLink.parse({
+    idempotencyKey: key(),
+    taskId: pr.id,
+    link: { url: 'https://github.com/acme/webhooks/pull/88', title: 'Retry with backoff (draft PR #88)', subtitle: 'CI passing' },
+  }),
+)
+service.attachLink(
+  AttachLink.parse({
+    idempotencyKey: key(),
+    taskId: pr.id,
+    link: { url: 'https://acme.slack.com/archives/C042/p1729850000', title: 'Incident thread in #eng-alerts' },
+  }),
+)
+service.addWatcher({
+  idempotencyKey: key(),
+  taskId: pr.id,
+  what: 'reviews on PR #88',
+  every: '30m',
+  until: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+})
 post(
   pr.id,
   'review',
@@ -82,6 +103,7 @@ service.systemUpdate(
     { url: 'https://github.com/acme/shop/pull/212', title: 'github: PR #212, shared Stripe mock' },
     { url: 'https://github.com/acme/shop/actions', title: 'github: the 6 failed runs' },
   ],
+  'scout',
 )
 task('Summarise the customer interviews from last week', 'customers', '', true)
 task('Upgrade the Node runtime to 24 in the worker images', 'engineering', '', true)

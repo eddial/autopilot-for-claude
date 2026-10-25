@@ -21,7 +21,8 @@ work, answer what is waiting on you, and jump into a session when you want to wo
 | Concept | Meaning |
 | --- | --- |
 | **Task** | One thing that needs you: a thread, a request, a ticket, or something you asked for yourself |
-| **Update** | One typed entry on a task, posted by a session, a signal, a watcher or you |
+| **Update** | One typed entry on a task, posted by a session, a signal, a watcher or you. An *event* is a one-line entry that moves nothing: a link attached, a watcher started or stopped |
+| **Linked** | What a task points to outside Autopilot (drafts, threads, pull requests, documents), listed on the task with where each lives |
 | **Session** | A Claude Code session working on one task, started with Remote Control so it opens anywhere |
 | **Signal** | A source Autopilot watches (Gmail, Slack, GitHub, Linear, Fathom, Lleverage …) |
 | **Workstream** | An area of work: where tasks land, how sessions run, and how much they may do alone |

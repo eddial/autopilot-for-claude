@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from 'react'
 import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { pendingText, updateAuthor, updateLabel, updateTone } from '@autopilot/client'
+import { eventText, linkSource, pendingText, updateAuthor, updateLabel, updateTone } from '@autopilot/client'
 import type { QueueItem, Update } from '@autopilot/contracts'
 import * as Haptics from 'expo-haptics'
+import KV from 'expo-sqlite/kv-store'
 import { age, titleCase } from '../format.ts'
 import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
 import { colours, radius, tones, type Tone } from '@autopilot/design'
@@ -24,6 +25,26 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
   const ask = updates.find((u) => u.open && !answered.has(u.id)) ?? null
   const activity = updates.filter((u) => u !== ask)
   const options = updates.flatMap((u) => u.options)
+  const [order, setOrder] = useOrder()
+  // Oldest first as they happened.
+  const entries = [
+    ...activity.map((u) =>
+      u.kind === 'event' ? (
+        <Entry key={u.id} label={updateLabel(u)} by={null} at={age(u.createdAt)} tone="quiet" body={eventText(u)} event>
+          <Links update={u} />
+        </Entry>
+      ) : (
+        <Entry key={u.id} label={updateLabel(u)} by={updateAuthor(u)} at={age(u.createdAt)} tone={updateTone(u)} body={u.body}>
+          <Links update={u} />
+        </Entry>
+      ),
+    ),
+    ...pending.flatMap((p) => {
+      const { command } = p
+      const words = pendingText(command) ?? (command.kind === 'answer' ? options.find((o) => o.id === command.optionId)?.label : undefined)
+      return words ? [<Entry key={p.id} label="You" by={null} at="waiting to reach your Mac" tone="quiet" body={words} sending />] : []
+    }),
+  ]
   const refused = conflicts.filter((c) => 'taskId' in c.command && c.command.taskId === task.id)
 
   const send = async (command: Parameters<NonNullable<typeof sync>['send']>[0]) => {
@@ -55,6 +76,16 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
             <Text style={type.body}>{task.brief}</Text>
           </View>
         ) : null}
+        {task.links.length > 0 && (
+          <View style={styles.section}>
+            <Text style={type.meta}>Linked</Text>
+            <View style={styles.row}>
+              {task.links.map((l) => (
+                <Chip key={l.url} label={`${linkSource(l.url)} · ${l.title}`} onPress={() => void Linking.openURL(l.url)} />
+              ))}
+            </View>
+          </View>
+        )}
         {refused.map((c) => (
           <Banner key={c.id}>
             <Text style={bannerText()}>
@@ -103,21 +134,15 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
         {/* With only an ask so far, the card is the whole story. */}
         {!(ask && activity.length === 0 && pending.length === 0) && (
           <View style={styles.section}>
-            <Text style={type.meta}>Activity</Text>
+            <View style={styles.sectionHead}>
+              <Text style={type.meta}>Activity</Text>
+              <Chip
+                label={order === 'newest' ? 'Newest first' : 'Oldest first'}
+                onPress={() => setOrder(order === 'newest' ? 'oldest' : 'newest')}
+              />
+            </View>
             <View style={styles.feed}>
-              {activity.map((u) => (
-                <Entry key={u.id} label={updateLabel(u)} by={updateAuthor(u)} at={age(u.createdAt)} tone={updateTone(u)} body={u.body}>
-                  <Links update={u} />
-                </Entry>
-              ))}
-              {pending.map((p) => {
-                const { command } = p
-                const words =
-                  pendingText(command) ?? (command.kind === 'answer' ? options.find((o) => o.id === command.optionId)?.label : undefined)
-                return words ? (
-                  <Entry key={p.id} label="You" by={null} at="waiting to reach your Mac" tone="quiet" body={words} sending />
-                ) : null
-              })}
+              {order === 'newest' ? [...entries].reverse() : entries}
               {activity.length === 0 && pending.length === 0 && <Text style={type.meta}>{detail ? 'Nothing yet.' : ''}</Text>}
             </View>
           </View>
@@ -146,11 +171,29 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
   )
 }
 
+type Order = 'newest' | 'oldest'
+
+/** Newest first unless the owner chose otherwise; remembered on the phone. */
+const useOrder = (): [Order, (order: Order) => void] => {
+  const [order, setOrder] = useState<Order>(() => (KV.getItemSync('autopilot.order') === 'oldest' ? 'oldest' : 'newest'))
+  return [
+    order,
+    (next) => {
+      setOrder(next)
+      void KV.setItem('autopilot.order', next)
+    },
+  ]
+}
+
 const Links = ({ update }: { update: Update }) =>
   update.attachments.length > 0 ? (
     <View style={styles.row}>
       {update.attachments.map((a) => (
-        <Chip key={a.url} label={a.title} onPress={() => void Linking.openURL(a.url)} />
+        <Chip
+          key={a.url}
+          label={update.kind === 'event' ? `Open in ${linkSource(a.url)}` : a.title}
+          onPress={() => void Linking.openURL(a.url)}
+        />
       ))}
     </View>
   ) : null
@@ -171,15 +214,17 @@ const Entry = ({
   tone: Tone
   body: string
   sending?: boolean
+  /** A one-line event: "Session linked …". */
+  event?: boolean
   children?: ReactNode
 }) => (
   <View style={[styles.entry, sending && { opacity: 0.6 }]}>
     <View style={[styles.mark, { backgroundColor: tones[tone].dot }]} />
     <Text style={type.meta}>
       <Text style={{ color: colours.text2 }}>{label}</Text>
-      {by ? ` · ${by}` : ''} · {at}
+      {event ? ` ${body}` : by ? ` · ${by}` : ''} · {at}
     </Text>
-    <Text style={type.body}>{body}</Text>
+    {event ? null : <Text style={type.body}>{body}</Text>}
     {children}
   </View>
 )
@@ -198,6 +243,7 @@ const styles = StyleSheet.create({
     borderColor: colours.clay,
     backgroundColor: colours.open,
   },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   feed: { marginLeft: 4, paddingLeft: 18, borderLeftWidth: 1, borderLeftColor: colours.borderStrong, gap: 20 },
   entry: { gap: 4 },
   mark: { position: 'absolute', left: -23, top: 4, width: 9, height: 9, borderRadius: 5, borderWidth: 2, borderColor: colours.surface },

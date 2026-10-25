@@ -25,6 +25,8 @@ const BUTTON_CLASS = {
   nav: 'nav-item',
   /** A row in a list; the list styles it. */
   row: 'row',
+  /** A row in a short list of things, such as what a task links to. */
+  item: 'item',
   /** An item in a menu; the menu styles it. */
   menu: '',
 } as const

@@ -27,6 +27,7 @@ export const effectOf = (kind: UpdateKind): UpdateEffect => {
       return 'new_if_asks'
     case 'done':
     case 'info':
+    case 'event':
       return 'unchanged'
   }
 }

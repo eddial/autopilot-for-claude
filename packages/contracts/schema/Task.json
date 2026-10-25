@@ -127,7 +127,8 @@
         "session",
         "signal",
         "watcher",
-        "system"
+        "system",
+        "scout"
       ]
     },
     "createdAt": {

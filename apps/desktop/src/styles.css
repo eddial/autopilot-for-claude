@@ -513,6 +513,76 @@ button {
   margin-top: 16px;
 }
 
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.section-head .section-label {
+  margin-bottom: 8px;
+}
+
+.linked {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.linked li + li {
+  border-top: 0.5px solid var(--border);
+}
+
+.item {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 14px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.item:hover {
+  background: var(--hover);
+}
+
+.item .source {
+  flex: none;
+  width: 96px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.item .title {
+  min-width: 0;
+  color: var(--text-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item .meta {
+  margin-left: auto;
+  flex: none;
+}
+
+.entry.event .entry-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-bottom: 0;
+}
+
+.entry.event .chip {
+  margin-left: 4px;
+}
+
 .section-label {
   margin-bottom: 8px;
   font-size: 13px;

@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Server } from 'node:http'
 import { ORPCError } from '@orpc/client'
 import type { QueueEvent } from '@autopilot/contracts'
+import { API_VERSION } from '@autopilot/contracts'
 import { createRouter } from '../src/api.ts'
 import { connect, type Client } from '../src/client.ts'
 import { openDatabase } from '../src/db.ts'
@@ -82,7 +83,7 @@ describe('API over the socket', () => {
 
   it('refuses calls without a token, except the version check', async () => {
     const anonymous = connect(socket, 'nope')
-    expect(await anonymous.meta.version()).toMatchObject({ version: 1 })
+    expect(await anonymous.meta.version()).toMatchObject({ version: API_VERSION })
     const error = await errorOf(anonymous.queue.list({}))
     expect(error.code).toBe('FORBIDDEN')
   })

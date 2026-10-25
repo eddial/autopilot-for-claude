@@ -200,7 +200,8 @@
                       "session",
                       "signal",
                       "watcher",
-                      "system"
+                      "system",
+                      "scout"
                     ]
                   },
                   "createdAt": {
@@ -284,7 +285,8 @@
                           "done",
                           "info",
                           "signal",
-                          "instruction"
+                          "instruction",
+                          "event"
                         ]
                       },
                       "body": {
@@ -354,7 +356,8 @@
                           "session",
                           "signal",
                           "watcher",
-                          "system"
+                          "system",
+                          "scout"
                         ]
                       },
                       "answers": {
@@ -728,7 +731,8 @@
                           "session",
                           "signal",
                           "watcher",
-                          "system"
+                          "system",
+                          "scout"
                         ]
                       },
                       "createdAt": {
@@ -858,7 +862,8 @@
                           "done",
                           "info",
                           "signal",
-                          "instruction"
+                          "instruction",
+                          "event"
                         ]
                       },
                       "body": {
@@ -928,7 +933,8 @@
                           "session",
                           "signal",
                           "watcher",
-                          "system"
+                          "system",
+                          "scout"
                         ]
                       },
                       "answers": {
@@ -1019,7 +1025,8 @@
                           "done",
                           "info",
                           "signal",
-                          "instruction"
+                          "instruction",
+                          "event"
                         ]
                       },
                       "body": {
@@ -1089,7 +1096,8 @@
                           "session",
                           "signal",
                           "watcher",
-                          "system"
+                          "system",
+                          "scout"
                         ]
                       },
                       "answers": {
@@ -1687,7 +1695,8 @@
                 "session",
                 "signal",
                 "watcher",
-                "system"
+                "system",
+                "scout"
               ]
             },
             "createdAt": {
@@ -1771,7 +1780,8 @@
                   "done",
                   "info",
                   "signal",
-                  "instruction"
+                  "instruction",
+                  "event"
                 ]
               },
               "body": {
@@ -1841,7 +1851,8 @@
                   "session",
                   "signal",
                   "watcher",
-                  "system"
+                  "system",
+                  "scout"
                 ]
               },
               "answers": {
@@ -2255,7 +2266,8 @@
             "session",
             "signal",
             "watcher",
-            "system"
+            "system",
+            "scout"
           ]
         },
         "createdAt": {
@@ -2472,7 +2484,8 @@
             "session",
             "signal",
             "watcher",
-            "system"
+            "system",
+            "scout"
           ]
         },
         "createdAt": {
@@ -2676,7 +2689,8 @@
             "session",
             "signal",
             "watcher",
-            "system"
+            "system",
+            "scout"
           ]
         },
         "createdAt": {
@@ -2887,7 +2901,8 @@
             "session",
             "signal",
             "watcher",
-            "system"
+            "system",
+            "scout"
           ]
         },
         "createdAt": {
@@ -3129,7 +3144,8 @@
             "session",
             "signal",
             "watcher",
-            "system"
+            "system",
+            "scout"
           ]
         },
         "createdAt": {
@@ -3341,7 +3357,8 @@
             "session",
             "signal",
             "watcher",
-            "system"
+            "system",
+            "scout"
           ]
         },
         "createdAt": {
@@ -3545,7 +3562,8 @@
             "session",
             "signal",
             "watcher",
-            "system"
+            "system",
+            "scout"
           ]
         },
         "createdAt": {
@@ -3775,7 +3793,8 @@
               "session",
               "signal",
               "watcher",
-              "system"
+              "system",
+              "scout"
             ]
           },
           "createdAt": {
@@ -3951,7 +3970,8 @@
             "done",
             "info",
             "signal",
-            "instruction"
+            "instruction",
+            "event"
           ]
         },
         "body": {
@@ -4021,7 +4041,8 @@
             "session",
             "signal",
             "watcher",
-            "system"
+            "system",
+            "scout"
           ]
         },
         "answers": {
@@ -4121,7 +4142,8 @@
             "done",
             "info",
             "signal",
-            "instruction"
+            "instruction",
+            "event"
           ]
         },
         "body": {
@@ -4191,7 +4213,8 @@
             "session",
             "signal",
             "watcher",
-            "system"
+            "system",
+            "scout"
           ]
         },
         "answers": {
@@ -4290,7 +4313,8 @@
             "done",
             "info",
             "signal",
-            "instruction"
+            "instruction",
+            "event"
           ]
         },
         "body": {
@@ -4360,7 +4384,8 @@
             "session",
             "signal",
             "watcher",
-            "system"
+            "system",
+            "scout"
           ]
         },
         "answers": {
@@ -4719,7 +4744,8 @@
             "session",
             "signal",
             "watcher",
-            "system"
+            "system",
+            "scout"
           ]
         },
         "createdAt": {
