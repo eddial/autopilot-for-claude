@@ -7,7 +7,13 @@ product, architecture, API and plan; `docs/decisions/` records why things are th
 
 - `packages/contracts`: Zod schemas, the oRPC contract, MCP tool definitions and the shared queue
   rules. Everything else is built against it. `schema/` is generated (`pnpm schema`); never edit it.
-- `apps/` (server, desktop, web, mobile), `prompts/` and `plugin/` arrive in later phases.
+- `apps/server`: the server and the `autopilot` CLI. `service.ts` holds every rule about tasks and
+  updates; `api.ts` checks tokens against the contract; `launcher.ts` runs Claude Code sessions in a
+  pty and delivers answers when they are idle; `signals.ts` runs `claude -p` for each signal.
+- `prompts/`: the shared and filing instructions signal runs get. `plugin/`: the Claude Code plugin
+  sessions load, with the `work` skill.
+- `apps/desktop`, `apps/web` and `apps/mobile` arrive in later phases.
+- How to run it on a Mac: `docs/RUNNING.md`.
 
 ## Commands
 
@@ -17,6 +23,7 @@ Node 24 (`.nvmrc`), pnpm.
 pnpm install
 pnpm check        # lint, typecheck, test
 pnpm schema       # regenerate packages/contracts/schema after changing the contract
+pnpm autopilot    # the CLI (serve, new, ls, show, answer, signal, status, mcp)
 ```
 
 CI runs the same and fails when the generated schema is stale.
@@ -30,4 +37,6 @@ CI runs the same and fails when the generated schema is stale.
   `ownTask` when a session token may call it. The contract tests enforce this.
 - Change the contract only together with `API_VERSION` when an older client could break.
 - British English in docs and product copy.
-- Tests: one per rule that matters, no permutation matrices, no real sleeps.
+- Tests: one per rule that matters, no permutation matrices, no real sleeps. `test/e2e.test.ts`
+  runs a real pty and the real MCP bridge with `test/fixtures/fake-claude.ts` standing in for Claude.
+- `node-pty` is native: prebuilt on macOS; elsewhere it builds with node-gyp.

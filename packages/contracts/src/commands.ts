@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { DecisionOption } from './entities.ts'
-import { Scope, UpdateKind } from './enums.ts'
+import { Scope, SessionState, UpdateKind } from './enums.ts'
 import { Duration, Id, IdempotencyKey, Link, Priority, TaskId, Timestamp } from './primitives.ts'
 
 /** Every write carries an idempotency key, so a retried or replayed command applies once. */
@@ -131,3 +131,10 @@ export const RemoveDevice = command({ id: Id })
 export const CreateToken = command({ name: z.string().min(1).max(60), scope: Scope, taskId: TaskId.optional() })
 
 export const RevokeToken = command({ id: Id })
+
+/** Sent by a session's Claude Code hooks: what it is doing now, so answers wait until it is idle. */
+export const ReportSession = command({
+  taskId: TaskId,
+  state: SessionState.exclude(['starting']),
+  activity: z.string().max(200).optional(),
+})

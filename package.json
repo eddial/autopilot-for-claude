@@ -12,12 +12,18 @@
     "test": "vitest run",
     "lint": "oxlint",
     "schema": "pnpm --filter @autopilot/contracts schema",
-    "check": "pnpm lint && pnpm typecheck && pnpm test"
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "autopilot": "node apps/server/bin/autopilot.js"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
     "oxlint": "^1.89.0",
     "typescript": "^5.9.3",
     "vitest": "^5.0.5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "node-pty"
+    ]
   }
 }

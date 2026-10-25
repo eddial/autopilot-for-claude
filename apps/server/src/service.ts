@@ -19,6 +19,7 @@ import {
   type Link,
   type MatchItems,
   type PostUpdate,
+  type ReportSession,
   type QueueItem,
   type QueueSnapshot,
   type Scope,
@@ -741,6 +742,41 @@ export class Service {
         .run(next.state, next.activity, next.remoteControlUrl, next.lastActivityAt, id)
       this.emit({ type: 'session.changed', session: next })
       return next
+    })
+  }
+
+  /** A session's hooks report what it is doing. */
+  reportSession(input: In<typeof ReportSession>): Session {
+    return this.idempotent(input.idempotencyKey, 'sessions.report', () => {
+      const task = this.task(input.taskId)
+      if (!task.sessionId) throw new DomainError('NOT_FOUND', { entity: 'session', id: task.id })
+      return this.setSession(task.sessionId, {
+        state: input.state,
+        ...(input.activity === undefined ? {} : { activity: input.activity }),
+      })
+    })
+  }
+
+  /** Sessions whose process is gone (e.g. after a restart) are marked ended. Returns their tasks. */
+  endOrphanedSessions(alive: (session: Session) => boolean): string[] {
+    const rows = this.db.prepare(`select * from sessions where state != 'ended'`).all() as Row[]
+    const ended: string[] = []
+    for (const row of rows) {
+      const session = this.toSession(row)
+      if (alive(session)) continue
+      this.setSession(session.id, { state: 'ended', activity: null })
+      ended.push(session.taskId)
+    }
+    return ended
+  }
+
+  /** Autopilot itself says something on a task, e.g. that a session could not start. */
+  systemUpdate(taskId: string, kind: 'blocked' | 'info', body: string): Update {
+    return this.transaction(() => {
+      const task = this.task(taskId)
+      const update = this.insertUpdate(task, { kind, body, author: 'system' })
+      this.touch(task, {})
+      return update
     })
   }
 

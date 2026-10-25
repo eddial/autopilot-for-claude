@@ -1,0 +1,5 @@
+{
+  "name": "autopilot",
+  "description": "Autopilot for Claude: the skill a session uses to work an Autopilot task and hand over through the Autopilot MCP tools.",
+  "author": { "name": "Badr Eddial", "url": "https://github.com/eddial" }
+}

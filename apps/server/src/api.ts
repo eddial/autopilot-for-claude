@@ -151,6 +151,10 @@ export const createRouter = ({ service, workstreams, signals, machine }: Deps) =
       answer: guarded.updates.answer.handler(({ input }) => service.answerUpdate(input)),
     },
 
+    sessions: {
+      report: guarded.sessions.report.handler(({ input }) => service.reportSession(input)),
+    },
+
     links: {
       attach: guarded.links.attach.handler(({ input }) => service.attachLink(input)),
     },

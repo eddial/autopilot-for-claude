@@ -17,6 +17,7 @@ import {
   PauseSignal,
   PostUpdate,
   RemoveDevice,
+  ReportSession,
   RemoveWatcher,
   RevokeToken,
   RunSignal,
@@ -120,6 +121,11 @@ export const contract = {
     post: base.meta({ scopes: ['session', 'watcher'], ownTask: true }).input(PostUpdate).output(Update),
     /** Records the answer as an `instruction` and delivers it into the session when it is idle. */
     answer: base.meta({ scopes: OWNER }).input(AnswerUpdate).output(Update),
+  },
+
+  sessions: {
+    /** From the session's own hooks: working, idle, waiting on a permission prompt, or ended. */
+    report: base.meta({ scopes: ['session'], ownTask: true }).input(ReportSession).output(Session),
   },
 
   links: {

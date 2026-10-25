@@ -129,6 +129,7 @@ const MIGRATIONS = [
   );
   create index outbox_pending on outbox(done_at, id);
   `,
+  `alter table signal_state add column paused integer not null default 0;`,
 ]
 
 export const openDatabase = (file: string): DatabaseSync => {

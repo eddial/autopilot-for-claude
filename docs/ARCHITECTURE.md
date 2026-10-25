@@ -67,7 +67,7 @@ One language and one contract across the server, the Mac app, the iPhone app and
 | Language | TypeScript, strict; Node LTS (24) |
 | Schema | Zod 4 for every contract; JSON Schema exported from it; the MCP SDK takes the same schemas |
 | RPC | oRPC, contract-first: the contract lives in `packages/contracts`, the server implements it, the desktop and mobile apps get typed clients. WebSocket for live updates; Unix socket locally, TLS for paired devices |
-| Store | SQLite with Drizzle; normal tables, an append-only updates table, a numbered change feed, one transaction per command |
+| Store | SQLite through Node's built-in `node:sqlite`; normal tables, an append-only updates table, a numbered change feed, one transaction per command |
 | Jobs | A small scheduler for the tick (signals, watchers, health, routing review) with timeouts and cancellation through `AbortSignal` |
 | Sessions | `claude --remote-control` in a pseudo-terminal owned by the server (`node-pty`); no tmux |
 | Signals and watchers | `claude -p --json-schema` with the signal's read-only tools, as today |

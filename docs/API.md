@@ -41,6 +41,7 @@ Every command takes an `idempotencyKey` and is authorised by scope.
 | `tasks.bulk { ids, action }` | `owner` | start, dismiss, move, snooze |
 | `updates.post { taskId, kind, body, options?, waitingOn?, attachments? }` | `session` (own), `watcher`, `signal` (`signal` kind only) | Opening an ask closes any previous open ask |
 | `updates.answer { updateId, option? , text? }` | `owner` | Records an `instruction`, delivers it into the live session (or starts one), task → Running |
+| `sessions.report { taskId, state, activity? }` | `session` (own task) | From the session's Claude Code hooks: working, idle, waiting on a permission prompt, ended. Answers are delivered only when idle |
 | `links.attach { taskId, url, title, subtitle? }` | `owner`, `session` (own) | |
 | `watchers.add { taskId, what, every?, until?, tools? }` / `watchers.remove` | `owner`, `session` (own) | |
 | `items.match { query }` | `signal` | The searches a signal run does before filing |

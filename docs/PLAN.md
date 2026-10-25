@@ -18,9 +18,13 @@ something usable. Everything else is listed under [Later](#later-out-of-scope).
 
 ## Phase 1a · The loop on the Mac, one signal
 
+**Status:** built and tested in the cloud, with a stand-in for Claude. Waiting on the two checks
+on a real Mac in [RUNNING.md](RUNNING.md): a session writing back through Remote Control, and
+Slack filing tasks.
+
 The smallest slice that replaces Linear end to end.
 
-- Store: SQLite with Drizzle, the change feed, idempotency keys, the outbox for side effects.
+- Store: SQLite (`node:sqlite`), the change feed, idempotency keys, the outbox for side effects.
 - API over a Unix socket with tokens; `autopilot` CLI (`new`, `ls`, `show`, `answer`, `status`,
   `service install`); `autopilot mcp`.
 - Launcher: sessions in a server-owned pseudo-terminal with `--remote-control` and `--mcp-config`;
