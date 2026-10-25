@@ -107,5 +107,11 @@ describe('starting Claude Code', () => {
     expect(stranded.band).toBe('your_turn')
     expect(stranded.updates.map((u) => `${u.author}/${u.kind}`)).toEqual(['system/blocked'])
     expect(stranded.updates[0]?.body).toContain('restarted')
+
+    // A task finished before done waited on the owner: its done was never open. A restart opens it.
+    service.db.prepare('update updates set open = 0 where task_id = ?').run(finished.id)
+    expect(service.getTask(finished.id).band).toBe('running')
+    new Launcher(options).reconcile()
+    expect(service.getTask(finished.id).band).toBe('your_turn')
   })
 })

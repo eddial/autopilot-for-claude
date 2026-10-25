@@ -662,6 +662,23 @@ export class Service {
 
   // ── updates ───────────────────────────────────────────────────────────────
 
+  /**
+   * Tasks a session finished before `done` waited on the owner sat in Running with nothing open.
+   * Their last `done` becomes the open ask, so they come to Your turn to close.
+   */
+  reopenFinished(): void {
+    const rows = this.sql(
+      `select u.* from updates u join tasks t on t.id = u.task_id
+       where t.state = 'running' and u.kind = 'done' and u.author = 'session'
+         and not exists (select 1 from updates o where o.task_id = t.id and o.open = 1)
+         and u.created_at = (select max(created_at) from updates l where l.task_id = t.id and l.kind != 'event' and l.kind != 'info')`,
+    ).all() as Row[]
+    for (const row of rows) {
+      this.sql('update updates set open = 1 where id = ?').run(str(row.id))
+      this.emit({ type: 'update.changed', update: { ...this.toUpdate(row), open: true } })
+    }
+  }
+
   private closeAsks(taskId: string): void {
     const open = this.sql('select * from updates where task_id = ? and open = 1').all(taskId) as Row[]
     for (const row of open) {

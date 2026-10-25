@@ -3,7 +3,7 @@ import { artifactKind, linkSource } from '@autopilot/client'
 import type { ArtifactPreview, Link, QueueItem } from '@autopilot/contracts'
 import { api, shell } from '../api.ts'
 import { ago } from '../format.ts'
-import { Button, Meta, NavIcon } from '../ui.tsx'
+import { Button, Markdown, Meta, NavIcon } from '../ui.tsx'
 
 /**
  * What sessions make (drafts, documents, branches, pull requests) shown as things in their own
@@ -30,7 +30,11 @@ const Preview = ({ taskId, url }: { taskId: string; url: string }) => {
   const folded = !all && lines.length > FOLDED
   return (
     <div className="artifact-preview">
-      <pre>{folded ? lines.slice(0, FOLDED).join('\n') : preview.text.trimEnd()}</pre>
+      {/\.(md|markdown)$/i.test(url) ? (
+        <Markdown text={folded ? lines.slice(0, FOLDED).join('\n') : preview.text} onLink={open} />
+      ) : (
+        <pre>{folded ? lines.slice(0, FOLDED).join('\n') : preview.text.trimEnd()}</pre>
+      )}
       {(folded || preview.truncated) && (
         <Button kind="link" onClick={() => (folded ? setAll(true) : open(url))}>
           {folded ? `Show all ${lines.length} lines` : 'Open to read the rest'}
@@ -52,7 +56,8 @@ export const ArtifactCard = ({ taskId, link, preview = true }: { taskId: string;
           <NavIcon name={kind.icon} size={18} />
         </span>
         <div className="artifact-title">
-          <span className="name">{link.title}</span>
+          {/* Older sessions began titles with where it lives (`file: …`); the card already says. */}
+          <span className="name">{link.title.replace(/^(file|gmail|slack|github|linear|drive):\s*/i, '')}</span>
           <Meta as="span">{[kind.label, link.subtitle ?? (file ? null : linkSource(link.url))].filter(Boolean).join(' · ')}</Meta>
         </div>
         <div className="artifact-actions">

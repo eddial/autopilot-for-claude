@@ -106,6 +106,7 @@ export class Launcher {
    */
   reconcile(): void {
     const { service } = this.opts
+    service.reopenFinished()
     for (const taskId of service.endOrphanedSessions((session) => this.live.has(session.taskId))) {
       const { task, updates } = service.getTask(taskId)
       if (task.state !== 'running' || updates.some((u) => u.open) || service.handedOver(taskId)) continue

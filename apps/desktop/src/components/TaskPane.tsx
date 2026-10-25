@@ -16,7 +16,7 @@ import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
 import type { Tone } from '@autopilot/design'
-import { ArrowUp, Avatar, Banner, Button, Claude, Dot, Icon, Meta, Pill, Spacer, Tag } from '../ui.tsx'
+import { ArrowUp, Avatar, Banner, Button, Claude, Dot, Icon, Markdown, Meta, Pill, Spacer, Tag } from '../ui.tsx'
 import { TaskArtifacts } from './Artifacts.tsx'
 import { BAND_TITLE } from '../view.ts'
 
@@ -198,7 +198,9 @@ const Body = ({ text, full = false }: { text: string; full?: boolean }) => {
   const [more, setMore] = useState(false)
   return (
     <>
-      <div className={`msg${long && !more ? ' clamped' : ''}`}>{text}</div>
+      <div className={`msg${long && !more ? ' clamped' : ''}`}>
+        <Markdown text={text} onLink={open} />
+      </div>
       {long && (
         <Button kind="link" onClick={() => setMore((m) => !m)}>
           {more ? 'Show less' : 'Show more'}
@@ -229,7 +231,7 @@ const AskCard = ({ update }: { update: Update }) => {
       <div className="ask-head">
         {updateLabel(update)} · {age(update.createdAt)}
       </div>
-      <div className="msg">{update.body}</div>
+      <Body text={update.body} />
       <Attachments links={update.attachments} />
       {update.kind === 'done' && (
         <div className="options">
