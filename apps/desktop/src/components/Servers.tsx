@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Device, Machine, Pairing, Token } from '@autopilot/contracts'
 import QRCode from 'qrcode'
-import { api, key } from '../api.ts'
+import type { Mode } from '../../electron/preload.ts'
+import { api, key, shell } from '../api.ts'
 import { ago } from '../format.ts'
 
 const ROUTE_LABEL = { socket: 'Socket', lan: 'Home network', tailscale: 'Tailscale' } as const
@@ -16,6 +17,27 @@ export const Servers = () => {
   const [pairing, setPairing] = useState<{ pairing: Pairing; svg: string; known: Set<string> } | null>(null)
   const [paired, setPaired] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [mode, setMode] = useState<Mode | null>(null)
+  const [invite, setInvite] = useState('')
+  const [switching, setSwitching] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    void shell?.mode().then(setMode)
+  }, [])
+
+  const switchToRemote = async () => {
+    if (!shell) return
+    setSwitching(true)
+    setError(null)
+    try {
+      setMode(await shell.connectRemote(invite))
+    } catch (e) {
+      // Errors from the main process arrive wrapped; keep the sentence that matters.
+      setError(message(e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''))
+      setSwitching(false)
+    }
+  }
 
   const load = useCallback(() => {
     Promise.all([api.machines.list(), api.devices.list(), api.tokens.list()])
@@ -70,6 +92,38 @@ export const Servers = () => {
       <div className="page" style={{ maxWidth: 760 }}>
         <h1 className="serif">Servers</h1>
         {error && <div className="banner" style={{ margin: '8px 0' }}>{error}</div>}
+
+        {shell && mode && (
+          <>
+            <h2>This app</h2>
+            <div className="card">
+              <div className="card-head">
+                <span className="name">{mode.kind === 'remote' ? `Uses ${mode.server}` : 'Uses this Mac'}</span>
+                <span className="meta">
+                  {mode.kind === 'remote' ? 'The queue and the sessions run on that Mac; this one shows them.' : 'The queue and the sessions run here.'}
+                </span>
+                {mode.kind === 'remote' && (
+                  <div className="actions">
+                    <button className="tool" onClick={() => void shell?.connectLocal().then(setMode)}>
+                      Use this Mac instead
+                    </button>
+                  </div>
+                )}
+              </div>
+              {mode.kind === 'local' && (
+                <>
+                  <div className="meta" style={{ marginTop: 10 }}>
+                    To use an always-on Mac instead: on that Mac open Servers, choose Pair a device, then Copy invite for a Mac, and paste it here.
+                  </div>
+                  <textarea className="inline-reply" rows={2} aria-label="Invite from another Mac" placeholder='{"v":1,"server":…}' value={invite} onChange={(e) => setInvite(e.target.value)} />
+                  <button className="btn" style={{ marginTop: 8 }} disabled={switching || !invite.trim()} onClick={() => void switchToRemote()}>
+                    {switching ? 'Connecting…' : 'Use that Mac'}
+                  </button>
+                </>
+              )}
+            </div>
+          </>
+        )}
 
         <h2>This Mac</h2>
         {mac && (
@@ -128,12 +182,25 @@ export const Servers = () => {
               <div className="meta">
                 Or type the code: <span style={{ color: 'var(--text)', letterSpacing: 2, fontFamily: 'ui-monospace, Menlo, monospace' }}>{pairing.pairing.invite.code}</span>
               </div>
-              <div className="meta" style={{ marginTop: 10 }}>Waiting for your phone…</div>
+              <div className="meta" style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+                Waiting for your phone…
+                <button
+                  className="tool"
+                  onClick={() =>
+                    void navigator.clipboard.writeText(JSON.stringify(pairing.pairing.invite)).then(() => {
+                      setCopied(true)
+                      setTimeout(() => setCopied(false), 2000)
+                    })
+                  }
+                >
+                  {copied ? 'Copied' : 'Copy invite for a Mac'}
+                </button>
+              </div>
             </div>
           </div>
         ) : (
           <button className="btn primary" style={{ marginTop: 8 }} onClick={() => void startPairing()}>
-            Pair an iPhone
+            Pair a device
           </button>
         )}
 

@@ -19,7 +19,8 @@
     "@orpc/server": "^1.16.1",
     "qrcode": "1.5.4",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "@autopilot/client": "workspace:*"
   },
   "devDependencies": {
     "@types/qrcode": "1.5.6",

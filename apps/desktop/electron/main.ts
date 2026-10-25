@@ -1,14 +1,20 @@
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, openSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
+import { existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { hostname } from 'node:os'
 import { join } from 'node:path'
+import { Link, pair, type Connection } from '@autopilot/client'
+import { nodePinnedFetch } from '@autopilot/client/node'
+import { Invite } from '@autopilot/contracts'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { connect, type Client } from '@autopilot/server/client'
 import { readOwnerToken } from '@autopilot/server/owner'
 import { resolvePaths } from '@autopilot/server/paths'
 import { RPCHandler } from '@orpc/server/message-port'
-import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, shell, Tray } from 'electron'
+import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, safeStorage, shell, Tray } from 'electron'
 import { proxyRouter } from './proxy.ts'
 import { pilotBitmap } from './pilot.ts'
+import type { Mode } from './preload.ts'
 
 const paths = resolvePaths()
 /** The checkout this runs from: apps/desktop, so the server is next door. */
@@ -16,6 +22,24 @@ const SERVER_BIN = join(app.getAppPath(), '..', 'server', 'bin', 'autopilot.js')
 
 let window: BrowserWindow | null = null
 let tray: Tray | null = null
+
+/** Which server the window talks to: this Mac's own, or another Mac's this one paired with (phase 4). */
+let mode: Mode = { kind: 'local' }
+let handler: RPCHandler<Record<never, never>> | null = null
+
+// The pairing with another Mac, token included, encrypted with the Keychain.
+const remoteFile = () => join(app.getPath('userData'), 'remote-server.bin')
+
+const readRemote = (): Connection | null => {
+  if (!existsSync(remoteFile()) || !safeStorage.isEncryptionAvailable()) return null
+  try {
+    return JSON.parse(safeStorage.decryptString(readFileSync(remoteFile()))) as Connection
+  } catch {
+    return null
+  }
+}
+
+const pinned = nodePinnedFetch()
 
 const reachable = async (): Promise<Client | null> => {
   const token = readOwnerToken(paths)
@@ -96,14 +120,42 @@ const menu = (): Menu =>
     { role: 'windowMenu' },
   ])
 
+/** Serves the window from another Mac when this one is paired with it, else from this Mac's server. */
+const connectServer = async (): Promise<void> => {
+  const remote = readRemote()
+  const client: Client = remote ? new Link(remote, pinned).api : await ensureServer()
+  mode = remote ? { kind: 'remote', server: remote.server } : { kind: 'local' }
+  handler = new RPCHandler(proxyRouter(client))
+}
+
+/** After switching servers the window reloads, and its new port is served by the new handler. */
+const switched = async (): Promise<void> => {
+  await connectServer()
+  window?.webContents.reload()
+}
+
 const start = async (): Promise<void> => {
-  const client = await ensureServer()
-  const handler = new RPCHandler(proxyRouter(client))
+  await connectServer()
   ipcMain.on('autopilot:port', (event) => {
     const [port] = event.ports
-    if (!port) return
+    if (!port || !handler) return
     handler.upgrade(port)
     port.start()
+  })
+  ipcMain.handle('autopilot:mode', () => mode)
+  ipcMain.handle('autopilot:use-remote', async (_event, text: unknown) => {
+    const invite = Invite.safeParse(typeof text === 'string' ? JSON.parse(text.trim()) : null)
+    if (!invite.success) throw new Error('That is not an Autopilot invite. Copy it from Servers on the other Mac.')
+    if (!safeStorage.isEncryptionAvailable()) throw new Error('The Keychain is not available to keep the pairing.')
+    const connection = await pair(invite.data, { name: hostname().split('.')[0] ?? 'Mac', kind: 'mac' }, pinned, randomUUID())
+    writeFileSync(remoteFile(), safeStorage.encryptString(JSON.stringify(connection)), { mode: 0o600 })
+    await switched()
+    return mode
+  })
+  ipcMain.handle('autopilot:use-local', async () => {
+    rmSync(remoteFile(), { force: true })
+    await switched()
+    return mode
   })
   ipcMain.on('autopilot:badge', (_event, count: unknown) => {
     const text = typeof count === 'number' && count > 0 ? String(count) : ''

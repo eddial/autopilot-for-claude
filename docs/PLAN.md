@@ -108,6 +108,14 @@ the Mac is unreachable, and everything arrives once it is back.
 
 ## Phase 4 · MacBook as a client of an always-on Mac
 
+**Status:** the connection is built and tested (a second Mac pairs over pinned TLS and its window
+is live on the first Mac's queue). On the always-on Mac: Servers → Pair a device → Copy invite for
+a Mac; on the MacBook: Servers → This app → paste it → Use that Mac. The pairing is kept encrypted
+with the Keychain (Electron `safeStorage`). Still to do: moving the data from the MacBook to the
+Mac mini (today the Mac mini starts with its own queue), and offering the choice in first-run
+setup. The MacBook's own server keeps running if its launchd agent is installed; uninstall it with
+`autopilot service uninstall`.
+
 - An always-on Mac (a Mac mini) runs the main server; the MacBook's app pairs with it like the
   iPhone does, and stops running its own server.
 - First-run setup offers "This Mac" or "Connect to another Mac"; Servers gets a way to move the data

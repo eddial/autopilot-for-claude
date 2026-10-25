@@ -109,7 +109,7 @@ describe('the Mac app window', () => {
 
   it('pairs an iPhone from the Servers screen', async () => {
     await page.getByRole('button', { name: 'Servers' }).click()
-    await page.getByRole('button', { name: 'Pair an iPhone' }).click()
+    await page.getByRole('button', { name: 'Pair a device' }).click()
     await expect.poll(() => page.getByText('Waiting for your phone').isVisible()).toBe(true)
     await shot('pairing')
     const code = (await page.getByText(/^Or type the code:/).textContent())?.replace('Or type the code:', '').trim() ?? ''

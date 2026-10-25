@@ -11,7 +11,7 @@ import { pinnedFetch } from '../src/pinned.ts'
 import { connectTo } from '../src/store.ts'
 import { colours, serif } from '../src/theme.ts'
 
-/** First run: scan the QR code the Mac app shows under Servers → Pair an iPhone. */
+/** First run: scan the QR code the Mac app shows under Servers → Pair a device. */
 export default function PairScreen() {
   const [permission, requestPermission] = useCameraPermissions()
   const [busy, setBusy] = useState(false)
@@ -43,7 +43,7 @@ export default function PairScreen() {
         <Pilot pixel={4} />
         <Text style={styles.title}>Pair with your Mac</Text>
         <Text style={styles.lead}>
-          On the Mac, open Autopilot, go to Servers and choose Pair an iPhone. Be on the same Wi-Fi, or both on Tailscale, then scan the code.
+          On the Mac, open Autopilot, go to Servers and choose Pair a device. Be on the same Wi-Fi, or both on Tailscale, then scan the code.
         </Text>
       </View>
       <View style={styles.camera}>

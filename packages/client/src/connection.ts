@@ -42,12 +42,19 @@ export const timeoutSignal = (ms: number): AbortSignal => {
   return controller.signal
 }
 
-const clientFor = (pinned: PinnedFetch, fingerprint: string, address: () => string | null, token: string | null): Api =>
+type Target = {
+  /** The address to call, finding one first if need be; null when no route answers. */
+  address: () => Promise<string | null>
+  /** The call failed on the way (not an answer from the server): the route is in doubt. */
+  failed?: () => void
+}
+
+const clientFor = (pinned: PinnedFetch, fingerprint: string, target: Target, token: string | null): Api =>
   createORPCClient(
     new RPCLink({
       url: 'https://autopilot/rpc',
       fetch: async (request) => {
-        const host = address()
+        const host = await target.address()
         if (!host) throw new Offline()
         const url = new URL(request.url)
         const headers: Record<string, string> = {}
@@ -56,7 +63,12 @@ const clientFor = (pinned: PinnedFetch, fingerprint: string, address: () => stri
         })
         if (token) headers.authorization = `Bearer ${token}`
         const body = request.method === 'GET' ? undefined : await request.text()
-        return pinned(`https://${host}${url.pathname}${url.search}`, { method: request.method, headers, body, signal: request.signal }, fingerprint)
+        try {
+          return await pinned(`https://${host}${url.pathname}${url.search}`, { method: request.method, headers, body, signal: request.signal }, fingerprint)
+        } catch (error) {
+          target.failed?.()
+          throw error
+        }
       },
     }),
   )
@@ -74,7 +86,13 @@ export class Link {
   constructor(connection: Connection, pinned: PinnedFetch) {
     this.connection = connection
     this.pinned = pinned
-    this.api = clientFor(pinned, connection.fingerprint, () => this.current?.address ?? null, connection.token)
+    // A call with no route probes first, so a client that just keeps calling finds its way back.
+    this.api = clientFor(
+      pinned,
+      connection.fingerprint,
+      { address: async () => this.current?.address ?? (await this.probe())?.address ?? null, failed: () => this.lost() },
+      connection.token,
+    )
   }
 
   route(): Route | null {
@@ -85,7 +103,7 @@ export class Link {
   async probe(): Promise<Route | null> {
     for (const route of this.connection.routes) {
       if (route.kind === 'socket') continue
-      const api = clientFor(this.pinned, this.connection.fingerprint, () => route.address, null)
+      const api = clientFor(this.pinned, this.connection.fingerprint, { address: () => Promise.resolve(route.address) }, null)
       try {
         await api.meta.version(undefined, { signal: timeoutSignal(PROBE_MS) })
         this.current = route
