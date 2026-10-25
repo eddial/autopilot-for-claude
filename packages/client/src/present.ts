@@ -13,6 +13,7 @@ const ASKING: Partial<Record<Update['kind'], string>> = {
   question: 'Asked you',
   review: 'Ready to review',
   blocked: 'Stuck',
+  done: 'Finished',
 }
 
 /** The same asks once answered: history, not a call to act. */
@@ -21,6 +22,7 @@ const ASKED: Partial<Record<Update['kind'], string>> = {
   question: 'Asked a question',
   review: 'Asked for a review',
   blocked: 'Was stuck',
+  done: 'Finished',
 }
 
 export const updateLabel = (update: Update): string => {
@@ -98,13 +100,31 @@ export const nowText = (item: QueueItem): string => {
     case 'new':
       return 'Not started'
     case 'running':
-      return item.session?.activity ?? 'The session is working'
+      return runningText(item.session)
     case 'waiting':
       return 'Waiting on others'
     case 'snoozed':
       return item.task.snoozedUntil ? `Snoozed until ${shortDate(item.task.snoozedUntil)}` : 'Snoozed'
     case 'done':
       return item.task.state === 'canceled' ? 'Closed' : 'Done'
+  }
+}
+
+/** A task in Running says what its session is really doing, not that it works when it does not. */
+const runningText = (session: QueueItem['session']): string => {
+  switch (session?.state) {
+    case undefined:
+      return 'Waiting for a session to start'
+    case 'starting':
+      return 'Starting the session'
+    case 'working':
+      return session.activity ?? 'The session is working'
+    case 'idle':
+      return 'The session stopped without handing over'
+    case 'waiting_permission':
+      return 'The session waits for a permission'
+    case 'ended':
+      return 'The session ended'
   }
 }
 

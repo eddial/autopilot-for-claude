@@ -230,6 +230,13 @@ const AskCard = ({ update }: { update: Update }) => {
       </div>
       <div className="msg">{update.body}</div>
       <Attachments links={update.attachments} />
+      {update.kind === 'done' && (
+        <div className="options">
+          <Button kind="primary" onClick={() => send({ kind: 'close', taskId: update.taskId, outcome: 'done' })}>
+            Close it
+          </Button>
+        </div>
+      )}
       {update.options.length > 0 && (
         <div className="options">
           {/* Sessions put their recommendation first. */}
@@ -243,7 +250,7 @@ const AskCard = ({ update }: { update: Update }) => {
       <input
         className="inline-reply"
         aria-label="Reply to Autopilot"
-        placeholder={update.options.length > 0 ? 'Or answer in words…' : 'Answer…'}
+        placeholder={update.kind === 'done' ? 'Or ask for more…' : update.options.length > 0 ? 'Or answer in words…' : 'Answer…'}
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {

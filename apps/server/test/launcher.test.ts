@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { CreateTask } from '@autopilot/contracts'
+import { CreateTask, PostUpdate, ReportSession } from '@autopilot/contracts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { openDatabase } from '../src/db.ts'
 import { Launcher, trustFolder, type Pty } from '../src/launcher.ts'
@@ -57,5 +57,55 @@ describe('starting Claude Code', () => {
     expect(detail.session?.state).toBe('ended')
     expect(detail.updates.map((u) => `${u.author}/${u.kind}`)).toEqual(['system/blocked'])
     expect(detail.updates[0]?.body).toContain('Do you trust this folder?')
+  })
+
+  it('ends a finished session once it is idle, and says so when a restart stranded a task', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ap-launch-'))
+    const service = new Service({ db: openDatabase(':memory:') })
+    const exits: ((event: { exitCode: number }) => void)[] = []
+    const spawn = (): Pty => ({
+      pid: 1,
+      write: () => {},
+      kill: () => exits.shift()?.({ exitCode: 0 }),
+      onData: () => {},
+      onExit: (listener) => {
+        exits.push(listener)
+      },
+    })
+    const options = {
+      service,
+      paths: resolvePaths({ AUTOPILOT_DATA: join(dir, 'data') }),
+      workstreams: () => [],
+      spawn,
+      self: { node: process.execPath, script: 'autopilot.js' },
+    }
+    const launcher = new Launcher(options)
+    const report = (taskId: string, state: 'working' | 'idle', n: number) =>
+      service.reportSession(ReportSession.parse({ idempotencyKey: `report-${taskId}-${n}`, taskId, state }))
+
+    const finished = service.createTask(CreateTask.parse({ idempotencyKey: 'launch-0002', title: 'Draft the reply' }))
+    await launcher.drain()
+    report(finished.id, 'working', 1)
+    service.postUpdate(
+      PostUpdate.parse({ idempotencyKey: 'done-00001', taskId: finished.id, kind: 'done', body: 'The draft is in the folder.' }),
+      'session',
+    )
+    report(finished.id, 'idle', 2)
+    await launcher.drain()
+    const after = service.getTask(finished.id)
+    // Back to the owner to close; the session no longer holds a slot.
+    expect(after.band).toBe('your_turn')
+    expect(after.session?.state).toBe('ended')
+    expect(after.updates.map((u) => u.kind)).toEqual(['done'])
+
+    const working = service.createTask(CreateTask.parse({ idempotencyKey: 'launch-0003', title: 'Look into the bug' }))
+    await launcher.drain()
+    report(working.id, 'working', 1)
+    // The server restarts: the new launcher finds the session gone, before it handed over.
+    new Launcher(options).reconcile()
+    const stranded = service.getTask(working.id)
+    expect(stranded.band).toBe('your_turn')
+    expect(stranded.updates.map((u) => `${u.author}/${u.kind}`)).toEqual(['system/blocked'])
+    expect(stranded.updates[0]?.body).toContain('restarted')
   })
 })

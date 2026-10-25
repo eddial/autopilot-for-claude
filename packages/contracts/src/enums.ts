@@ -9,7 +9,8 @@ export const UpdateKind = z.enum(['decision', 'question', 'review', 'blocked', '
 export type UpdateKind = z.infer<typeof UpdateKind>
 
 /** The kinds that put a task on your turn. A task has at most one open ask. */
-export const ASK_KINDS = ['decision', 'question', 'review', 'blocked'] as const satisfies readonly UpdateKind[]
+/** What waits on the owner. `done` too: the session has finished, and the owner closes the task. */
+export const ASK_KINDS = ['decision', 'question', 'review', 'blocked', 'done'] as const satisfies readonly UpdateKind[]
 export type AskKind = (typeof ASK_KINDS)[number]
 
 export const TaskState = z.enum(['new', 'running', 'waiting', 'snoozed', 'done', 'canceled'])

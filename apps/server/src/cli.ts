@@ -18,6 +18,8 @@ const HELP = `autopilot <command>
                                  create a task; starts a session unless --save
   ls [--band <band>]             the queue, ordered by whose turn it is
   show <task>                    a task with its updates
+  start <task>                   start a session on a task saved in New
+  close <task> [--cancel]        close a task (done, or not for you)
   answer <task> <option id | text>
                                  answer the task's open decision or question
   signal <name> [--dry <minutes>]
@@ -112,6 +114,18 @@ const main = async (argv: string[]): Promise<void> => {
     }
     case 'show': {
       console.log(showTask(await client().api.tasks.get({ id: rest[0] ?? '' })))
+      return
+    }
+    case 'start': {
+      const task = await client().api.tasks.start({ idempotencyKey: key(), id: rest[0] ?? '' })
+      console.log(`Starting ${task.id}: ${task.title}`)
+      return
+    }
+    case 'close': {
+      const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: { cancel: { type: 'boolean' } } })
+      const outcome = values.cancel ? 'canceled' : 'done'
+      await client().api.tasks.close({ idempotencyKey: key(), id: positionals[0] ?? '', outcome })
+      console.log(`Closed ${positionals[0] ?? ''} (${outcome}).`)
       return
     }
     case 'answer': {

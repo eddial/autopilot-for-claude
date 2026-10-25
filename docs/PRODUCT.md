@@ -64,12 +64,12 @@ bottom. Each update has a kind, and the kind decides where the task goes.
 | `review` | Ready to review | A draft, document or pull request to read | Your turn |
 | `blocked` | Stuck | A permission prompt, a missing tool, a failure | Your turn, first |
 | `waiting` | Waiting on someone | Who and what it waits on | Waiting |
-| `done` | Done | An outcome: a branch, a sent reply, a file | unchanged |
+| `done` | Finished | An outcome: a branch, a draft, a file. The session ends; you close the task, or reply for more | Your turn |
 | `info` | Update | Progress worth keeping; never notifies | unchanged |
 | `signal` | New message | A new source message on this task | New, if it asks you something |
 | `instruction` | You | Your instruction or answer | Running |
 
-A task has at most one open ask (`decision`, `question`, `review`, `blocked`). It closes when you
+A task has at most one open ask (`decision`, `question`, `review`, `blocked`, `done`). It closes when you
 answer, and the answer stays attached to it.
 
 ## Onboarding

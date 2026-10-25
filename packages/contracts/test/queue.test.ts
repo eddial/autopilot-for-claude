@@ -39,6 +39,8 @@ describe('bandOf', () => {
 describe('effectOf', () => {
   it('maps every update kind to where it sends the task', () => {
     expect(effectOf('review')).toBe('your_turn')
+    // Finished: the owner closes it, or asks for more.
+    expect(effectOf('done')).toBe('your_turn')
     expect(effectOf('waiting')).toBe('waiting')
     expect(effectOf('instruction')).toBe('running')
     expect(effectOf('signal')).toBe('new_if_asks')

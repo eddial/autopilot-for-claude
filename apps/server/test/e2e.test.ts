@@ -84,7 +84,8 @@ describe('a task from start to finish', () => {
     const detail = await owner.tasks.get({ id: task.id })
     expect(detail.updates.map((u) => `${u.author}/${u.kind}`)).toEqual(['session/decision', 'owner/instruction', 'session/done'])
     expect(detail.session?.remoteControlUrl).toBe('https://claude.ai/code/session_fake123')
-    expect(detail.band).toBe('running')
+    // Finished: back to the owner to close.
+    expect(detail.band).toBe('your_turn')
     controller.abort()
   }, 30_000)
 })

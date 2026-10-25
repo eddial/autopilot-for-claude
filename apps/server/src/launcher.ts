@@ -100,9 +100,21 @@ export class Launcher {
     }
   }
 
-  /** On start-up: sessions whose process is gone are ended. */
+  /**
+   * On start-up: sessions whose process is gone are ended, and a task left running without a
+   * handover says so, instead of sitting in Running with nobody working on it.
+   */
   reconcile(): void {
-    this.opts.service.endOrphanedSessions((session) => this.live.has(session.taskId))
+    const { service } = this.opts
+    for (const taskId of service.endOrphanedSessions((session) => this.live.has(session.taskId))) {
+      const { task, updates } = service.getTask(taskId)
+      if (task.state !== 'running' || updates.some((u) => u.open) || service.handedOver(taskId)) continue
+      service.systemUpdate(
+        taskId,
+        'blocked',
+        'Autopilot restarted while the session was working, which stopped it before it handed over. Reply to start it again where it left off, or close the task.',
+      )
+    }
   }
 
   async drain(): Promise<void> {
@@ -273,10 +285,7 @@ export class Launcher {
     // Stopped at a startup screen: that was already reported.
     if (live?.sessionId === sessionId && live.stuck) return
     const detail = service.getTask(taskId)
-    // A session that posted anything but `info` since the owner's last instruction has handed over.
-    const sinceOwner = detail.updates.slice(detail.updates.findLastIndex((u) => u.author === 'owner') + 1)
-    const handedOver = sinceOwner.some((u) => u.author === 'session' && u.kind !== 'info')
-    if (detail.task.state === 'running' && !handedOver) {
+    if (detail.task.state === 'running' && !service.handedOver(taskId)) {
       service.systemUpdate(
         taskId,
         'blocked',

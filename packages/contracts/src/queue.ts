@@ -19,13 +19,15 @@ export const effectOf = (kind: UpdateKind): UpdateEffect => {
     case 'review':
     case 'blocked':
       return 'your_turn'
+    case 'done':
+      // Finished: back to the owner to close, or to ask for more.
+      return 'your_turn'
     case 'waiting':
       return 'waiting'
     case 'instruction':
       return 'running'
     case 'signal':
       return 'new_if_asks'
-    case 'done':
     case 'info':
     case 'event':
       return 'unchanged'
