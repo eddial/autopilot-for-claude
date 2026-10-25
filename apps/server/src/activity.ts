@@ -55,6 +55,10 @@ export const activityOf = (tool: string, input: Record<string, unknown>): string
         return 'Working with a helper'
       case 'TodoWrite':
         return 'Planning the next steps'
+      case 'Skill':
+        return 'Reading how to do the work'
+      case 'ToolSearch':
+        return 'Finding the tools it needs'
     }
     if (tool.startsWith('mcp__autopilot__')) return AUTOPILOT[tool.slice('mcp__autopilot__'.length)] ?? 'Talking to Autopilot'
     if (tool.startsWith('mcp__')) return `Using ${connector(tool)}`

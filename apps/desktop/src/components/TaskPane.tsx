@@ -225,7 +225,7 @@ const Attachments = ({ links }: { links: Update['attachments'] }) =>
 
 /** What the first look asked before anyone starts: its "Before starting" lines. */
 const firstLookQuestions = (updates: Update[]): string[] => {
-  const look = updates.findLast((u) => u.author === 'scout')
+  const look = updates.findLast((u) => u.author === 'scout' && u.kind === 'info')
   const after = look?.body.split(/^Before starting:\s*$/m)[1]
   return after ? after.split('\n').flatMap((l) => (/^\s*[-*]\s+/.test(l) ? [l.replace(/^\s*[-*]\s+/, '').trim()] : [])) : []
 }
