@@ -8,8 +8,8 @@ import { Servers } from './components/Servers.tsx'
 import { Setup } from './components/Setup.tsx'
 import { Signals } from './components/Signals.tsx'
 import { TaskPane } from './components/TaskPane.tsx'
-import { Pilot } from './components/Pilot.tsx'
 import { titleCase } from './format.ts'
+import { Button, Pilot } from './ui.tsx'
 import { useQueueItems, useStore } from './store.ts'
 import { QUEUE_VIEWS, type View } from './view.ts'
 
@@ -133,10 +133,10 @@ export const App = () => {
     <div className={`app${showingTask || !list ? ' showing-task' : ''}${navHidden ? ' nav-hidden' : ''}`}>
       {navOverlay && <div className="scrim" onClick={() => setNavOverlay(false)} aria-hidden="true" />}
       {navHidden ? (
-        <div className="drag" style={{ width: 120, flex: 'none', paddingTop: 12, paddingLeft: 78 }}>
-          <button className="icon-button" aria-label="Show sidebar" onClick={() => setNavHidden(false)}>
+        <div className="drag nav-closed">
+          <Button kind="icon" aria-label="Show sidebar" onClick={() => setNavHidden(false)}>
             <Pilot />
-          </button>
+          </Button>
         </div>
       ) : (
         <Nav
@@ -184,8 +184,8 @@ export const App = () => {
       ) : (
         <section className="pane task">
           <div className="task-head drag" />
-          <div className="empty" style={{ margin: 'auto', textAlign: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <div className="empty centred">
+            <div className="empty-pilot">
               <Pilot pixel={3} />
             </div>
             Pick a task, or press Space on one to answer it in place.

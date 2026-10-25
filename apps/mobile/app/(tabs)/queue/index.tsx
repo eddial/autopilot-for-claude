@@ -7,7 +7,7 @@ import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
 import { age, BAND_TITLE, rowMeta } from '../../../src/format.ts'
 import { useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
-import { colours } from '../../../src/theme.ts'
+import { colours } from '@autopilot/design'
 
 type QueueView = 'needs_me' | 'all' | 'running' | 'waiting' | 'snoozed'
 const VIEWS: { id: QueueView; title: string; bands: Band[] }[] = [
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   dot: { width: 9, height: 9, borderRadius: 5, marginTop: 7 },
-  title: { fontSize: 16, lineHeight: 22, color: colours.body },
+  title: { fontSize: 16, lineHeight: 22, color: colours.textBody },
   meta: { marginTop: 3, fontSize: 13, color: colours.text3 },
   empty: { padding: 28, fontSize: 15, lineHeight: 22, color: colours.text3, textAlign: 'center' },
   placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: colours.surface },

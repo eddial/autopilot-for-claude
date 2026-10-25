@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { AnswerUpdate, CreateTask, PostUpdate } from '@autopilot/contracts'
 import { keys, localInvite, startTestServer, type TestServer, type TestServerOptions } from '@autopilot/testkit'
 import { afterAll, describe, expect, it, vi } from 'vitest'
@@ -40,6 +41,7 @@ describe('the phone against the Mac', () => {
 
     const turns: string[] = []
     const sync = new Sync({
+      newKey: randomUUID,
       connection,
       pinned,
       storage: memoryStorage(),
@@ -61,7 +63,7 @@ describe('the phone against the Mac', () => {
     const { paths, handle, invite, port } = await setup()
     const connection: Connection = await pair(invite, { name: 'Test iPhone', kind: 'iphone' }, pinned, key())
     const storage = memoryStorage()
-    const sync = new Sync({ connection, pinned, storage })
+    const sync = new Sync({ newKey: randomUUID, connection, pinned, storage })
     const task = handle.service.createTask(CreateTask.parse({ idempotencyKey: key(), title: 'Backport the fix?', start: false }))
     const ask = handle.service.postUpdate(
       PostUpdate.parse({ idempotencyKey: key(), taskId: task.id, kind: 'question', body: 'Backport?' }),
@@ -83,7 +85,7 @@ describe('the phone against the Mac', () => {
     ])
 
     // The app was closed meanwhile: a new Sync reads the outbox back from storage.
-    const reopened = new Sync({ connection, pinned, storage })
+    const reopened = new Sync({ newKey: randomUUID, connection, pinned, storage })
     await reopened.load()
     const back = await start({ paths, devicePort: port })
     await reopened.syncOnce()
@@ -95,7 +97,7 @@ describe('the phone against the Mac', () => {
   it('sends a command at once even during a long poll, and keeps an opened conversation current', async () => {
     const { handle, invite } = await setup()
     const connection = await pair(invite, { name: 'Test iPhone', kind: 'iphone' }, pinned, key())
-    const sync = new Sync({ connection, pinned, storage: memoryStorage() })
+    const sync = new Sync({ newKey: randomUUID, connection, pinned, storage: memoryStorage() })
     const task = handle.service.createTask(CreateTask.parse({ idempotencyKey: key(), title: 'Pick a colour', start: false }))
     const ask = handle.service.postUpdate(
       PostUpdate.parse({ idempotencyKey: key(), taskId: task.id, kind: 'question', body: 'Red or blue?' }),
@@ -128,7 +130,7 @@ describe('the phone against the Mac', () => {
       return response
     }
     const connection = await pair(invite, { name: 'Test iPhone', kind: 'iphone' }, slow, key())
-    const sync = new Sync({ connection, pinned: slow, storage: memoryStorage() })
+    const sync = new Sync({ newKey: randomUUID, connection, pinned: slow, storage: memoryStorage() })
     const task = handle.service.createTask(CreateTask.parse({ idempotencyKey: key(), title: 'Pick a colour', start: false }))
     await sync.syncOnce()
 

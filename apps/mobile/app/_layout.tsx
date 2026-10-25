@@ -3,7 +3,7 @@ import { router, Stack } from 'expo-router'
 import * as Notifications from 'expo-notifications'
 import { StatusBar } from 'expo-status-bar'
 import { booted, connectTo, loadConnection, registerBackgroundSync, useItems, useSyncInstance, useWakeUps } from '../src/store.ts'
-import { colours } from '../src/theme.ts'
+import { colours } from '@autopilot/design'
 
 export default function Root() {
   // Ready at once when the pairing and cache were read before the first frame (the usual case).

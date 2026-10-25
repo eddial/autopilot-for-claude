@@ -2,7 +2,7 @@ import { Linking } from 'react-native'
 import type { QueueItem } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
 import { useSyncInstance } from '../store.ts'
-import { colours } from '../theme.ts'
+import { colours } from '@autopilot/design'
 
 const snoozeTimes = (): { label: string; until: Date }[] => {
   const now = new Date()

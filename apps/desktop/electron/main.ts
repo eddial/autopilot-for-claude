@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { Link, pair, type Connection } from '@autopilot/client'
 import { nodePinnedFetch } from '@autopilot/client/node'
 import { Invite } from '@autopilot/contracts'
+import { colours } from '@autopilot/design'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { connect, type Client } from '@autopilot/server/client'
 import { readOwnerToken } from '@autopilot/server/owner'
@@ -79,7 +80,7 @@ const createWindow = (): BrowserWindow => {
     height: 860,
     minWidth: 380,
     minHeight: 480,
-    backgroundColor: '#1F1E1D',
+    backgroundColor: colours.window,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 18, y: 18 },
     webPreferences: { preload: join(import.meta.dirname, 'preload.cjs'), contextIsolation: true, sandbox: true },

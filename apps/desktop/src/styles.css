@@ -1,24 +1,3 @@
-:root {
-  --window: #1f1e1d;
-  --surface: #262624;
-  --raised: #30302e;
-  --well: #141413;
-  --open: #2b2a28;
-  --button: #3d3d3a;
-  --text: #faf9f5;
-  --text-body: #f0eee6;
-  --text-2: #c2c0b6;
-  --text-3: #9c9a92;
-  --clay: #d97757;
-  --clay-soft: #e8a086;
-  --pilot: #5db08f;
-  --border: rgba(222, 220, 209, 0.15);
-  --border-strong: rgba(222, 220, 209, 0.22);
-  --serif: 'Anthropic Serif', 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif;
-  --sans: 'Anthropic Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  color-scheme: dark;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -64,6 +43,11 @@ button {
 .meta {
   font-size: 13px;
   color: var(--text-3);
+}
+
+.meta.prose {
+  white-space: pre-wrap;
+  line-height: 1.6;
 }
 
 /* ── layout ── */
@@ -126,7 +110,7 @@ button {
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--hover);
 }
 
 .nav-item[aria-current='page'] {
@@ -142,6 +126,15 @@ button {
 
 .nav-item .count.clay {
   color: var(--clay);
+}
+
+.nav-item.new {
+  color: var(--text);
+}
+
+.nav-fill {
+  flex: 1;
+  min-height: 24px;
 }
 
 .nav-heading {
@@ -165,9 +158,11 @@ button {
 
 .health-dot {
   display: inline-block;
+  flex: none;
   width: 7px;
   height: 7px;
   border-radius: 50%;
+  background: var(--tone-dot);
 }
 
 .pane {
@@ -179,7 +174,7 @@ button {
 
 .list {
   flex: none;
-  border-left: 0.5px solid rgba(222, 220, 209, 0.12);
+  border-left: 0.5px solid var(--border);
 }
 
 .task {
@@ -200,7 +195,7 @@ button {
   width: 3px;
   height: 36px;
   border-radius: 2px;
-  background: #4d4c48;
+  background: var(--grip);
 }
 
 .icon-button {
@@ -217,7 +212,7 @@ button {
 }
 
 .icon-button:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover);
 }
 
 /* ── list ── */
@@ -235,6 +230,12 @@ button {
   font-size: 26px;
 }
 
+.list-head .count {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--text-3);
+}
+
 .filter {
   display: flex;
   align-items: center;
@@ -243,6 +244,10 @@ button {
   padding: 7px 12px;
   border-radius: 9px;
   background: var(--window);
+}
+
+.filter svg {
+  color: var(--text-3);
 }
 
 .filter input {
@@ -288,11 +293,15 @@ button {
 }
 
 .row:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--hover);
 }
 
 .row[aria-selected='true'] {
   background: var(--raised);
+}
+
+.row .text {
+  min-width: 0;
 }
 
 .row .title {
@@ -339,7 +348,7 @@ button {
 .dot.waiting,
 .dot.snoozed,
 .dot.done {
-  background: #6b6a65;
+  background: var(--muted);
 }
 
 .expanded {
@@ -365,7 +374,7 @@ button {
 .ask-body {
   font-size: 14.5px;
   line-height: 1.55;
-  color: #e8e6dc;
+  color: var(--text-soft);
   white-space: pre-wrap;
 }
 
@@ -387,7 +396,7 @@ button {
 }
 
 .btn:hover {
-  background: #474744;
+  background: var(--button-hover);
 }
 
 .btn:disabled,
@@ -408,14 +417,14 @@ button {
   white-space: nowrap;
   padding: 5px 10px;
   border-radius: 8px;
-  border: 0.5px solid rgba(222, 220, 209, 0.18);
+  border: 0.5px solid var(--border);
   background: transparent;
   color: var(--text-2);
   font-size: 13px;
 }
 
 .tool:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover);
 }
 
 .tool.bare {
@@ -440,6 +449,23 @@ button {
   line-height: 1.6;
 }
 
+.empty.centred {
+  margin: auto;
+  text-align: center;
+}
+
+.empty-pilot {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.nav-closed {
+  width: 120px;
+  flex: none;
+  padding: 12px 0 0 78px;
+}
+
 /* ── task ── */
 
 .task-head {
@@ -458,6 +484,24 @@ button {
   margin: 0;
   font-size: 24px;
   line-height: 1.25;
+}
+
+.task-head .session {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-title .filed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.msg.filed {
+  color: var(--text-2);
 }
 
 .timeline {
@@ -553,6 +597,7 @@ button {
   border: 0;
   border-radius: 10px;
   background: var(--clay);
+  color: var(--well);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -577,7 +622,7 @@ button {
   border-radius: 10px;
   border: 0.5px solid var(--border-strong);
   background: var(--raised);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px var(--shadow);
 }
 
 .menu-items button {
@@ -592,7 +637,7 @@ button {
 }
 
 .menu-items button:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--press);
 }
 
 /* ── new task ── */
@@ -609,7 +654,7 @@ button {
 .start h1 {
   margin: 0;
   font-size: 34px;
-  color: #e8e6dc;
+  color: var(--text-soft);
 }
 
 .start .composer {
@@ -664,6 +709,10 @@ button {
   padding: 18px 32px 40px;
 }
 
+.page.narrow {
+  max-width: 760px;
+}
+
 .page h1 {
   margin: 0 0 4px;
   font-size: 26px;
@@ -711,7 +760,7 @@ button {
   padding: 10px 12px;
   border-radius: 9px;
   background: var(--well);
-  font-family: ui-monospace, Menlo, monospace;
+  font-family: var(--mono);
   font-size: 12.5px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -719,20 +768,29 @@ button {
 }
 
 .diff .del {
-  color: #e8a086;
+  color: var(--clay-soft);
 }
 
 .diff .add {
-  color: #8fcdb2;
+  color: var(--pilot-soft);
 }
 
 .banner {
-  margin: 8px 20px 0;
+  margin: 8px 0;
   padding: 8px 12px;
   border-radius: 9px;
-  background: rgba(217, 119, 87, 0.12);
-  color: var(--clay-soft);
+  background: var(--tone-bg);
+  color: var(--tone-fg);
   font-size: 13px;
+}
+
+.list .banner {
+  margin: 8px 20px 0;
+}
+
+.start .banner {
+  width: 100%;
+  max-width: 640px;
 }
 
 /* ── narrow: beside Claude Code ── */
@@ -745,7 +803,7 @@ button {
   position: fixed;
   inset: 0;
   z-index: 19;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--scrim);
 }
 
 @media (max-width: 1080px) {
@@ -760,7 +818,7 @@ button {
     bottom: 0;
     left: 0;
     z-index: 20;
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 40px var(--shadow);
   }
 
   .narrow-only {
@@ -814,6 +872,14 @@ button {
   color: var(--pilot);
 }
 
+.page h1.step-title {
+  margin-top: 24px;
+}
+
+.card-head.pickable {
+  cursor: pointer;
+}
+
 .lead {
   max-width: 620px;
   margin: 12px 0 22px;
@@ -848,6 +914,26 @@ textarea.inline-reply {
   display: flex;
   gap: 20px;
   align-items: flex-start;
+}
+
+.pairing .name {
+  font-size: 15px;
+  color: var(--text-body);
+}
+
+.steps-list {
+  line-height: 1.7;
+  padding-left: 18px;
+}
+
+.code {
+  color: var(--text);
+  letter-spacing: 2px;
+  font-family: var(--mono);
+}
+
+.meta.intro {
+  margin-bottom: 8px;
 }
 
 .qr {

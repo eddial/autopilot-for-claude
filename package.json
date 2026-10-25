@@ -17,7 +17,8 @@
     "desktop": "pnpm --filter @autopilot/desktop start",
     "mac-check": "bash scripts/mac-check.sh",
     "perf": "pnpm --filter @autopilot/desktop perf",
-    "format": "prettier --write --log-level warn \"**/*.{ts,tsx,js,mjs,cjs,json,css,yml,yaml}\""
+    "format": "prettier --write --log-level warn \"**/*.{ts,tsx,js,mjs,cjs,json,css,yml,yaml}\"",
+    "tokens": "pnpm --filter @autopilot/design tokens"
   },
   "devDependencies": {
     "@types/node": "catalog:",

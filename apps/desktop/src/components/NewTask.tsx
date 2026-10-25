@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Workstream } from '@autopilot/contracts'
 import { api, key } from '../api.ts'
 import { titleCase } from '../format.ts'
-import { Pilot } from './Pilot.tsx'
+import { ArrowUp, Banner, Button, Meta, Pilot, Row } from '../ui.tsx'
 
 type Props = { workstreams: Workstream[]; onCreated: (id: string) => void }
 
@@ -48,10 +48,10 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
     <section className="pane task" aria-label="New task">
       <div className="task-head drag" />
       <div className="start">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <Row gap={6}>
           <Pilot pixel={3} />
           <h1 className="serif">What should I take on?</h1>
-        </div>
+        </Row>
         <form
           className="composer"
           onSubmit={(e) => {
@@ -94,24 +94,18 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
                 </option>
               ))}
             </select>
-            <button type="submit" className="send" aria-label="Create and start" disabled={busy || !title.trim()}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#141413" strokeWidth="1.8" aria-hidden="true">
-                <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" />
-              </svg>
-            </button>
+            <Button kind="send" type="submit" aria-label="Create and start" disabled={busy || !title.trim()}>
+              <ArrowUp />
+            </Button>
           </div>
         </form>
         <div className="below">
-          <span className="meta">Starts a session with this brief right away. ⌘↩ from the brief.</span>
-          <button className="link" disabled={busy || !title.trim()} onClick={() => void create(false)}>
+          <Meta as="span">Starts a session with this brief right away. ⌘↩ from the brief.</Meta>
+          <Button kind="link" disabled={busy || !title.trim()} onClick={() => void create(false)}>
             Save without starting
-          </button>
+          </Button>
         </div>
-        {error && (
-          <div className="banner" style={{ width: '100%', maxWidth: 640 }}>
-            {error}
-          </div>
-        )}
+        {error && <Banner>{error}</Banner>}
       </div>
     </section>
   )

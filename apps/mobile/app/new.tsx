@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import type { Workstream } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
 import KV from 'expo-sqlite/kv-store'
 import { titleCase } from '../src/format.ts'
 import { useSyncInstance } from '../src/store.ts'
-import { colours } from '../src/theme.ts'
+import { colours } from '@autopilot/design'
+import { Chip, type } from '../src/ui.tsx'
 
 const PRIORITIES = [
   { value: 1, label: 'Urgent' },
@@ -87,7 +88,7 @@ export default function NewTaskScreen() {
           multiline
           accessibilityLabel="Brief"
         />
-        <Text style={styles.label}>Workstream</Text>
+        <Text style={[type.meta, styles.label]}>Workstream</Text>
         <View style={styles.chips}>
           <Chip label="Inbox" on={workstream === null} onPress={() => setWorkstream(null)} />
           {workstreams
@@ -96,7 +97,7 @@ export default function NewTaskScreen() {
               <Chip key={w.name} label={titleCase(w.name)} on={workstream === w.name} onPress={() => setWorkstream(w.name)} />
             ))}
         </View>
-        <Text style={styles.label}>Priority</Text>
+        <Text style={[type.meta, styles.label]}>Priority</Text>
         <View style={styles.chips}>
           {PRIORITIES.map((p) => (
             <Chip key={p.value} label={p.label} on={priority === p.value} onPress={() => setPriority(p.value)} />
@@ -111,27 +112,12 @@ export default function NewTaskScreen() {
   )
 }
 
-const Chip = ({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) => (
-  <Pressable style={[styles.chip, on && styles.chipOn]} onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }}>
-    <Text style={[styles.chipText, on && { color: colours.text }]}>{label}</Text>
-  </Pressable>
-)
-
 const styles = StyleSheet.create({
   form: { padding: 20, gap: 12 },
   title: { fontSize: 18, fontWeight: '600', color: colours.text, paddingVertical: 8 },
   brief: { minHeight: 120, fontSize: 16, lineHeight: 22, color: colours.text2, textAlignVertical: 'top' },
-  label: { marginTop: 12, fontSize: 13, color: colours.text3 },
+  label: { marginTop: 12 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 9,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colours.borderStrong,
-  },
-  chipOn: { backgroundColor: colours.raised, borderColor: colours.clay },
-  chipText: { fontSize: 14, color: colours.text2 },
   switchRow: { marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  switchText: { fontSize: 15, color: colours.body },
+  switchText: { fontSize: 15, color: colours.textBody },
 })

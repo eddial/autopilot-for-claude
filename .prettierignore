@@ -7,3 +7,4 @@ apps/mobile/android
 apps/mobile/.expo
 **/*.md
 **/perf/results.json
+apps/desktop/src/tokens.css

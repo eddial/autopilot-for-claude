@@ -20,6 +20,8 @@ product, architecture, API and plan; `docs/decisions/` records why things are th
 - `packages/client`: what a paired device runs: routes probed LAN first, TLS pinned to the Mac's
   certificate, the queue cached from the change feed, and the offline outbox. Tested against a
   real server over TLS.
+- `packages/design`: the tokens (colours, fonts, radii, spacing, tones, the pilot) both apps draw
+  with. `docs/DESIGN.md` says how the apps use them.
 - `packages/testkit`: what tests that need a real server share (`startTestServer`, `localInvite`,
   `keys`). Use it rather than setting up a server by hand.
 - `apps/mobile`: the Expo iPhone app. Native stack and native tabs (the iPhone Duo moves only
@@ -38,6 +40,7 @@ pnpm check        # lint (oxlint, package boundaries, formatting), typecheck, te
 pnpm format       # Prettier, the formatting CI checks
 pnpm schema       # regenerate packages/contracts/schema after changing the contract
 pnpm perf         # performance budgets (server and window)
+pnpm tokens       # regenerate apps/desktop/src/tokens.css after changing the design tokens
 pnpm autopilot    # the CLI (serve, new, ls, show, answer, signal, status, mcp)
 ```
 
@@ -61,6 +64,11 @@ apps without a new `API_VERSION` (`scripts/contract-compat.ts`).
 - Tests: one per rule that matters, no permutation matrices, no real sleeps. `test/e2e.test.ts`
   runs a real pty and the real MCP bridge with `test/fixtures/fake-claude.ts` standing in for Claude.
 - `node-pty` is native: prebuilt on macOS; elsewhere it builds with node-gyp.
+- UI goes through the building blocks (`docs/DESIGN.md`): `src/ui.tsx` in each app, colours only
+  from `@autopilot/design`. Lint refuses a raw `<button>` or `style` in the window's screens; a
+  test refuses a colour literal anywhere in the apps. Add a kind or a token rather than a one-off.
+- Code the phone runs (the contract, the client, the tokens, the app) avoids what Hermes lacks:
+  lint refuses `toSorted`, `toReversed`, `toSpliced`, `AbortSignal.timeout` and `crypto.randomUUID`.
 - Performance is a feature (`docs/PERFORMANCE.md`): every interaction paints on the next frame.
   Apps draw from their store, never `await` the server in an event handler (use `send`), lists
   are virtualised, nothing before the first frame touches the network. `pnpm perf` checks the

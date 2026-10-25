@@ -5,7 +5,8 @@ import type { QueueItem, TaskDetail, Update } from '@autopilot/contracts'
 import * as Haptics from 'expo-haptics'
 import { age, titleCase, updateLabel } from '../format.ts'
 import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
-import { colours, serif } from '../theme.ts'
+import { colours } from '@autopilot/design'
+import { Banner, Button, Chip, bannerText, type } from '../ui.tsx'
 
 /** A task's conversation with the reply box; the same in a pushed screen and in the wide split. */
 export const TaskView = ({ item }: { item: QueueItem }) => {
@@ -37,12 +38,12 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <ScrollView contentContainerStyle={styles.timeline} contentInsetAdjustmentBehavior="automatic">
-        <Text style={styles.meta}>
+        <Text style={type.meta}>
           {titleCase(task.workstream)} · {task.id}
           {task.source.mirrors ? ` · ${task.source.mirrors}` : ''}
         </Text>
-        <Text style={styles.title}>{task.title}</Text>
-        {task.brief ? <Text style={[styles.body, { color: colours.text2 }]}>{task.brief}</Text> : null}
+        <Text style={[type.title, styles.title]}>{task.title}</Text>
+        {task.brief ? <Text style={[type.body, { color: colours.text2 }]}>{task.brief}</Text> : null}
         {updates.map((u) => (
           <Entry
             key={u.id}
@@ -61,8 +62,8 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
           ) : null
         })}
         {refused.map((c) => (
-          <View key={c.id} style={styles.conflict}>
-            <Text style={styles.conflictText}>
+          <Banner key={c.id}>
+            <Text style={bannerText()}>
               {c.reason === 'already_answered'
                 ? 'Answered on the Mac before this arrived.'
                 : c.reason === 'task_closed'
@@ -82,7 +83,7 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
               ) : null}
               <Chip label="Dismiss" onPress={() => sync?.dismissConflict(c.id)} />
             </View>
-          </View>
+          </Banner>
         ))}
       </ScrollView>
       <View style={styles.composer}>
@@ -128,11 +129,11 @@ const Entry = ({ update, answered, onOption }: { update: Update; answered: boole
   }
   return (
     <View style={{ gap: 6 }}>
-      <Text style={[styles.label, asking && { color: colours.clay }]}>
+      <Text style={[type.meta, asking && { color: colours.clay }]}>
         {updateLabel(update)}
         {update.author === 'session' ? '' : ` · ${titleCase(update.author)}`} · {age(update.createdAt)}
       </Text>
-      <Text style={styles.body}>{update.body}</Text>
+      <Text style={type.body}>{update.body}</Text>
       {update.attachments.length > 0 && (
         <View style={styles.row}>
           {update.attachments.map((a) => (
@@ -143,9 +144,7 @@ const Entry = ({ update, answered, onOption }: { update: Update; answered: boole
       {asking && update.options.length > 0 && (
         <View style={styles.row}>
           {update.options.map((o) => (
-            <Pressable key={o.id} style={styles.option} onPress={() => onOption(o.id)} accessibilityRole="button">
-              <Text style={styles.optionText}>{o.label}</Text>
-            </Pressable>
+            <Button key={o.id} kind="option" label={o.label} onPress={() => onOption(o.id)} />
           ))}
         </View>
       )}
@@ -153,19 +152,10 @@ const Entry = ({ update, answered, onOption }: { update: Update; answered: boole
   )
 }
 
-const Chip = ({ label, onPress }: { label: string; onPress: () => void }) => (
-  <Pressable style={styles.chip} onPress={onPress} accessibilityRole="button">
-    <Text style={styles.chipText}>{label}</Text>
-  </Pressable>
-)
-
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colours.surface },
   timeline: { padding: 20, gap: 18, paddingBottom: 32 },
-  meta: { fontSize: 13, color: colours.text3 },
-  title: { fontFamily: serif, fontSize: 24, lineHeight: 30, color: colours.text, marginTop: -8 },
-  label: { fontSize: 13, color: colours.text3 },
-  body: { fontSize: 16, lineHeight: 24, color: colours.body },
+  title: { marginTop: -8 },
   bubble: {
     alignSelf: 'flex-end',
     maxWidth: '85%',
@@ -174,22 +164,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  bubbleText: { fontSize: 16, lineHeight: 22, color: colours.body },
+  bubbleText: { fontSize: 16, lineHeight: 22, color: colours.textBody },
   pending: { marginTop: 4, fontSize: 12, color: colours.text3 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  option: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: colours.button,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colours.borderStrong,
-  },
-  optionText: { fontSize: 15, color: colours.text },
-  chip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: colours.border },
-  chipText: { fontSize: 13, color: colours.text2 },
-  conflict: { padding: 12, borderRadius: 12, backgroundColor: 'rgba(217,119,87,0.12)', gap: 8 },
-  conflictText: { fontSize: 14, color: colours.claySoft },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',

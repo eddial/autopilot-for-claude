@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 // Pairing over this Mac's real network: every route in the invite (Bonjour name, LAN, Tailscale)
 // probed with pinned TLS, then a paired device syncing. Run by scripts/mac-check.sh.
 import type { Invite } from '../../packages/contracts/src/index.ts'
@@ -49,7 +50,7 @@ await run('Pairing over the real network', [
     async () => {
       if (!invite) throw new Error('no invite')
       const connection = await pair(invite, { name: 'mac-check', kind: 'iphone' }, pinned, key())
-      const sync = new Sync({ connection, pinned, storage: memoryStorage() })
+      const sync = new Sync({ newKey: randomUUID, connection, pinned, storage: memoryStorage() })
       await sync.syncOnce()
       const state = sync.getState()
       if (state.status !== 'online') throw new Error(`status ${state.status}`)

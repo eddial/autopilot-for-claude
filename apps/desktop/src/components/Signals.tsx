@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Decision, QueueItem, RoutingProposal, Signal, Workstream } from '@autopilot/contracts'
 import { api, key } from '../api.ts'
 import { age, ago, titleCase } from '../format.ts'
+import { Banner, Button, Dot, Meta } from '../ui.tsx'
 
 type Props = { items: QueueItem[]; workstreams: Workstream[]; onOpen: (id: string) => void }
 
@@ -9,7 +10,7 @@ const AUTONOMY = ['', 'Files only', 'Prepares when started', 'Starts by itself',
 
 const schedule = (s: Signal) => ('every' in s.schedule ? `Every ${s.schedule.every}` : `Cron ${s.schedule.cron}`)
 
-const HEALTH_COLOUR = { ok: 'var(--pilot)', failing: 'var(--clay)', paused: '#6b6a65' } as const
+const HEALTH_TONE = { ok: 'good', failing: 'attention', paused: 'quiet' } as const
 
 export const Signals = ({ items, workstreams, onOpen }: Props) => {
   const [signals, setSignals] = useState<Signal[]>([])
@@ -44,23 +45,19 @@ export const Signals = ({ items, workstreams, onOpen }: Props) => {
       <div className="task-head drag" />
       <div className="page">
         <h1 className="serif">Signals and workstreams</h1>
-        {error && (
-          <div className="banner" style={{ margin: '8px 0' }}>
-            {error}
-          </div>
-        )}
+        {error && <Banner>{error}</Banner>}
 
         {(health.length > 0 || proposals.length > 0) && <h2>Needs you</h2>}
         {health.map((i) => (
           <div key={i.task.id} className="card">
             <div className="card-head">
-              <span className="health-dot" style={{ background: 'var(--clay)' }} />
+              <Dot tone="attention" />
               <span className="name">{i.task.title}</span>
               <span className="meta">{age(i.task.createdAt)}</span>
               <div className="actions">
-                <button className="tool" onClick={() => onOpen(i.task.id)}>
+                <Button kind="tool" onClick={() => onOpen(i.task.id)}>
                   Open
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -70,8 +67,8 @@ export const Signals = ({ items, workstreams, onOpen }: Props) => {
             <div className="card-head">
               <span className="name">{p.reason}</span>
               <div className="actions">
-                <button
-                  className="btn primary"
+                <Button
+                  kind="primary"
                   onClick={() =>
                     void api.routing
                       .decide({ idempotencyKey: key(), proposalId: p.id, accept: true })
@@ -79,13 +76,13 @@ export const Signals = ({ items, workstreams, onOpen }: Props) => {
                   }
                 >
                   Accept
-                </button>
-                <button
-                  className="tool"
+                </Button>
+                <Button
+                  kind="tool"
                   onClick={() => void api.routing.decide({ idempotencyKey: key(), proposalId: p.id, accept: false }).then(load)}
                 >
                   Reject
-                </button>
+                </Button>
               </div>
             </div>
             {p.changes.map((c) => (
@@ -101,45 +98,37 @@ export const Signals = ({ items, workstreams, onOpen }: Props) => {
         ))}
 
         <h2>Signals</h2>
-        {signals.length === 0 && <div className="meta">No signals yet. Set up adds them from your Claude connectors.</div>}
+        {signals.length === 0 && <Meta>No signals yet. Set up adds them from your Claude connectors.</Meta>}
         {signals.map((s) => {
           const shown = previews[s.name]
           return (
             <div key={s.name} className="card">
               <div className="card-head">
-                <span className="health-dot" style={{ background: HEALTH_COLOUR[s.health.state] }} aria-label={s.health.state} />
+                <Dot tone={HEALTH_TONE[s.health.state]} label={s.health.state} />
                 <span className="name">{titleCase(s.name)}</span>
                 <span className="meta">
                   {schedule(s)} · last day {s.last24h.filed} filed, {s.last24h.updated} added, {s.last24h.dropped} dropped
                   {s.lastRunAt ? ` · ran ${ago(s.lastRunAt)}` : ''}
                 </span>
                 <div className="actions">
-                  <button className="tool" disabled={shown === 'running'} onClick={() => void preview(s.name)}>
+                  <Button kind="tool" disabled={shown === 'running'} onClick={() => void preview(s.name)}>
                     {shown === 'running' ? 'Previewing…' : 'Preview last day'}
-                  </button>
-                  <button
-                    className="tool"
+                  </Button>
+                  <Button
+                    kind="tool"
                     onClick={() => void api.signals.pause({ idempotencyKey: key(), name: s.name, paused: !s.paused }).then(load)}
                   >
                     {s.paused ? 'Resume' : 'Pause'}
-                  </button>
+                  </Button>
                 </div>
               </div>
-              {s.health.message && (
-                <div className="meta" style={{ marginTop: 8 }}>
-                  {s.health.message}
-                </div>
-              )}
+              {s.health.message && <Meta top={3}>{s.health.message}</Meta>}
               {Array.isArray(shown) && (
                 <pre className="diff">
                   {shown.length === 0 ? 'Nothing in the last day.' : shown.map((d) => `${d.action.padEnd(8)} ${d.reason}`).join('\n')}
                 </pre>
               )}
-              {typeof shown === 'string' && shown !== 'running' && (
-                <div className="banner" style={{ margin: '8px 0 0' }}>
-                  {shown}
-                </div>
-              )}
+              {typeof shown === 'string' && shown !== 'running' && <Banner>{shown}</Banner>}
             </div>
           )
         })}
@@ -154,10 +143,10 @@ export const Signals = ({ items, workstreams, onOpen }: Props) => {
                 {items.filter((i) => i.task.workstream === w.name).length} open
               </span>
             </div>
-            <div className="meta" style={{ marginTop: 8, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+            <Meta top={3} className="prose">
               {w.routing}
               {w.urgent ? `\nUrgent: ${w.urgent}` : ''}
-            </div>
+            </Meta>
           </div>
         ))}
       </div>

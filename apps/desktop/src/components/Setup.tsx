@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Decision, Detected, SetupStatus, SignalExample, Workstream } from '@autopilot/contracts'
 import { api, key } from '../api.ts'
 import { titleCase } from '../format.ts'
-import { Pilot } from './Pilot.tsx'
+import { Banner, Button, Dot, Meta, Pilot, Row } from '../ui.tsx'
 
 type Props = { onDone: () => void }
 
@@ -106,7 +106,7 @@ export const Setup = ({ onDone }: Props) => {
   return (
     <section className="pane task" aria-label="Set up">
       <div className="task-head drag" />
-      <div className="page" style={{ maxWidth: 760 }}>
+      <div className="page narrow">
         <ol className="steps" aria-label="Steps">
           {STEPS.map((s, i) => (
             <li key={s} aria-current={i === step ? 'step' : undefined} className={i < step ? 'done' : ''}>
@@ -114,18 +114,14 @@ export const Setup = ({ onDone }: Props) => {
             </li>
           ))}
         </ol>
-        {error && (
-          <div className="banner" style={{ margin: '12px 0' }}>
-            {error}
-          </div>
-        )}
+        {error && <Banner>{error}</Banner>}
 
         {step === 0 && (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 24 }}>
+            <Row gap={6} top={9}>
               <Pilot pixel={3} />
               <h1 className="serif">Hi, I'm your pilot.</h1>
-            </div>
+            </Row>
             <p className="lead">
               I watch where work arrives, collect what needs you, and prepare it in Claude Code. First, a quick check that everything I need
               is here.
@@ -150,30 +146,28 @@ export const Setup = ({ onDone }: Props) => {
               detail="Starts when you log in and keeps going when this window is closed."
             >
               {status && !status.service && (
-                <button
-                  className="tool"
+                <Button
+                  kind="tool"
                   onClick={() =>
                     void api.setup.installService({ idempotencyKey: key() }).then(setStatus, (e: unknown) => setError(message(e)))
                   }
                 >
                   Turn on
-                </button>
+                </Button>
               )}
             </Check>
             <div className="step-bar">
-              <span className="meta">About a minute. Nothing is filed until step 5.</span>
-              <button className="btn primary" disabled={!status?.claude.installed} onClick={() => setStep(1)}>
+              <Meta as="span">About a minute. Nothing is filed until step 5.</Meta>
+              <Button kind="primary" disabled={!status?.claude.installed} onClick={() => setStep(1)}>
                 Continue
-              </button>
+              </Button>
             </div>
           </>
         )}
 
         {step === 1 && (
           <>
-            <h1 className="serif" style={{ marginTop: 24 }}>
-              Where should I listen?
-            </h1>
+            <h1 className="serif step-title">Where should I listen?</h1>
             <p className="lead">
               These are the sources I can read with your Claude connectors. Pick one or two to start; I only ever read from them.
             </p>
@@ -182,7 +176,7 @@ export const Setup = ({ onDone }: Props) => {
               const can = available(example) || example.added
               return (
                 <div key={example.name} className="card">
-                  <label className="card-head" style={{ cursor: can ? 'pointer' : 'default' }}>
+                  <label className={can ? 'card-head pickable' : 'card-head'}>
                     <input
                       type="checkbox"
                       checked={on}
@@ -220,21 +214,19 @@ export const Setup = ({ onDone }: Props) => {
               )
             })}
             <div className="step-bar">
-              <button className="tool" onClick={() => setStep(0)}>
+              <Button kind="tool" onClick={() => setStep(0)}>
                 Back
-              </button>
-              <button className="btn primary" disabled={busy || chosen.size === 0} onClick={() => void step2()}>
+              </Button>
+              <Button kind="primary" disabled={busy || chosen.size === 0} onClick={() => void step2()}>
                 {busy ? 'Adding…' : 'Next: what I would have picked up yesterday'}
-              </button>
+              </Button>
             </div>
           </>
         )}
 
         {step === 2 && (
           <>
-            <h1 className="serif" style={{ marginTop: 24 }}>
-              Yesterday, I would have picked up these
-            </h1>
+            <h1 className="serif step-title">Yesterday, I would have picked up these</h1>
             {busy || Object.keys(previews).length < chosen.size ? (
               <p className="lead">Reading yesterday from {[...chosen].map(titleCase).join(' and ')}. This takes a minute or two…</p>
             ) : (
@@ -246,9 +238,9 @@ export const Setup = ({ onDone }: Props) => {
                 {Object.entries(previews)
                   .filter(([, p]) => typeof p === 'string')
                   .map(([name, p]) => (
-                    <div key={name} className="banner" style={{ margin: '8px 0' }}>
+                    <Banner key={name}>
                       {titleCase(name)}: {String(p)}
-                    </div>
+                    </Banner>
                   ))}
                 {byWorkstream.map(([ws, list]) => (
                   <div key={ws}>
@@ -266,21 +258,19 @@ export const Setup = ({ onDone }: Props) => {
               </>
             )}
             <div className="step-bar">
-              <button className="tool" onClick={() => setStep(1)}>
+              <Button kind="tool" onClick={() => setStep(1)}>
                 Back
-              </button>
-              <button className="btn primary" disabled={busy} onClick={() => setStep(3)}>
+              </Button>
+              <Button kind="primary" disabled={busy} onClick={() => setStep(3)}>
                 Looks right
-              </button>
+              </Button>
             </div>
           </>
         )}
 
         {step === 3 && (
           <>
-            <h1 className="serif" style={{ marginTop: 24 }}>
-              Where should work go?
-            </h1>
+            <h1 className="serif step-title">Where should work go?</h1>
             <p className="lead">Adjust the words if they're off; they're how I decide where things land. Everything else can wait.</p>
             {workstreams.map((w, i) => {
               const set = (patch: Partial<Workstream & { use: boolean }>) =>
@@ -322,23 +312,23 @@ export const Setup = ({ onDone }: Props) => {
               )
             })}
             <div className="step-bar">
-              <button className="tool" onClick={() => setStep(2)}>
+              <Button kind="tool" onClick={() => setStep(2)}>
                 Back
-              </button>
-              <span className="meta">Every workstream starts by preparing work, never sending it.</span>
-              <button className="btn primary" disabled={busy || !workstreams.some((w) => w.use)} onClick={() => void step4()}>
+              </Button>
+              <Meta as="span">Every workstream starts by preparing work, never sending it.</Meta>
+              <Button kind="primary" disabled={busy || !workstreams.some((w) => w.use)} onClick={() => void step4()}>
                 Continue
-              </button>
+              </Button>
             </div>
           </>
         )}
 
         {step === 4 && (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 24 }}>
+            <Row gap={6} top={9}>
               <Pilot pixel={3} />
               <h1 className="serif">Ready for take-off</h1>
-            </div>
+            </Row>
             <Check
               ok
               title={`Listening to ${[...chosen].map(titleCase).join(' and ')}, from now on`}
@@ -354,12 +344,12 @@ export const Setup = ({ onDone }: Props) => {
             />
             <Check ok title="Sessions prepare drafts and branches" detail="You send and merge." />
             <div className="step-bar">
-              <button className="tool" onClick={() => setStep(3)}>
+              <Button kind="tool" onClick={() => setStep(3)}>
                 Back
-              </button>
-              <button className="btn primary" disabled={busy} onClick={() => void switchOn()}>
+              </Button>
+              <Button kind="primary" disabled={busy} onClick={() => void switchOn()}>
                 Go to my queue
-              </button>
+              </Button>
             </div>
           </>
         )}
@@ -371,11 +361,7 @@ export const Setup = ({ onDone }: Props) => {
 const Check = ({ ok, title, detail, children }: { ok: boolean | null; title: string; detail: string; children?: React.ReactNode }) => (
   <div className="card">
     <div className="card-head">
-      <span
-        className="health-dot"
-        style={{ background: ok === null ? '#6b6a65' : ok ? 'var(--pilot)' : 'var(--clay)' }}
-        aria-label={ok === null ? 'checking' : ok ? 'ok' : 'needs attention'}
-      />
+      <Dot tone={ok === null ? 'quiet' : ok ? 'good' : 'attention'} label={ok === null ? 'checking' : ok ? 'ok' : 'needs attention'} />
       <span className="name">{title}</span>
       <span className="meta">{detail}</span>
       {children && <div className="actions">{children}</div>}

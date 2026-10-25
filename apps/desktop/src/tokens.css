@@ -1,0 +1,68 @@
+/* Generated from packages/design/src/tokens.ts by `pnpm tokens`. Do not edit. */
+
+:root {
+  --well: #141413;
+  --window: #1F1E1D;
+  --surface: #262624;
+  --open: #2B2A28;
+  --raised: #30302E;
+  --button: #3D3D3A;
+  --button-hover: #474744;
+  --grip: #4D4C48;
+  --text: #FAF9F5;
+  --text-body: #F0EEE6;
+  --text-soft: #E8E6DC;
+  --text-2: #C2C0B6;
+  --text-3: #9C9A92;
+  --muted: #6B6A65;
+  --clay: #D97757;
+  --clay-soft: #E8A086;
+  --clay-tint: rgba(217, 119, 87, 0.12);
+  --pilot: #5DB08F;
+  --pilot-soft: #8FCDB2;
+  --pilot-tint: rgba(93, 176, 143, 0.14);
+  --border: rgba(222, 220, 209, 0.15);
+  --border-strong: rgba(222, 220, 209, 0.22);
+  --hover: rgba(255, 255, 255, 0.04);
+  --press: rgba(255, 255, 255, 0.07);
+  --scrim: rgba(0, 0, 0, 0.35);
+  --shadow: rgba(0, 0, 0, 0.45);
+  --serif: 'Anthropic Serif', 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif;
+  --sans: 'Anthropic Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, Menlo, monospace;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 18px;
+  --radius-round: 999px;
+  --space-0: 0px;
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 14px;
+  --space-7: 16px;
+  --space-8: 20px;
+  --space-9: 24px;
+  --space-10: 32px;
+  color-scheme: dark;
+}
+
+.tone-attention {
+  --tone-fg: #E8A086;
+  --tone-bg: rgba(217, 119, 87, 0.12);
+  --tone-dot: #D97757;
+}
+
+.tone-good {
+  --tone-fg: #8FCDB2;
+  --tone-bg: rgba(93, 176, 143, 0.14);
+  --tone-dot: #5DB08F;
+}
+
+.tone-quiet {
+  --tone-fg: #9C9A92;
+  --tone-bg: rgba(255, 255, 255, 0.04);
+  --tone-dot: #6B6A65;
+}

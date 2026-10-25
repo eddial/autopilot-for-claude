@@ -1,8 +1,9 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, ScrollView, StyleSheet, Text } from 'react-native'
 import { Stack } from 'expo-router'
 import { age } from '../../../src/format.ts'
 import { serverName, unpair, useSyncInstance, useSyncState } from '../../../src/store.ts'
-import { colours } from '../../../src/theme.ts'
+import { colours } from '@autopilot/design'
+import { Button, Card, CardHead, Dot, type } from '../../../src/ui.tsx'
 
 const ROUTE = { lan: 'on your home network', tailscale: 'through Tailscale' } as const
 
@@ -16,59 +17,35 @@ export default function ServersScreen() {
     <>
       <Stack.Screen options={{ title: 'Servers' }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 16, gap: 10 }}>
-        <View style={styles.card}>
-          <View style={styles.head}>
-            <View style={[styles.dot, { backgroundColor: status === 'online' ? colours.pilot : colours.muted }]} />
-            <Text style={styles.name}>{serverName()}</Text>
-          </View>
-          <Text style={styles.meta}>{reached}</Text>
-          <Text style={styles.meta}>{lastSyncedAt ? `Last synced ${age(lastSyncedAt)} ago` : 'Not synced yet'}</Text>
-          {outbox.length > 0 && <Text style={[styles.meta, { color: colours.claySoft }]}>{outbox.length} waiting to send</Text>}
-          <Pressable style={styles.button} onPress={() => void sync?.syncOnce(0)}>
-            <Text style={styles.buttonText}>Sync now</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.note}>
+        <Card>
+          <CardHead>
+            <Dot tone={status === 'online' ? 'good' : 'quiet'} />
+            <Text style={type.name}>{serverName()}</Text>
+          </CardHead>
+          <Text style={type.meta}>{reached}</Text>
+          <Text style={type.meta}>{lastSyncedAt ? `Last synced ${age(lastSyncedAt)} ago` : 'Not synced yet'}</Text>
+          {outbox.length > 0 && <Text style={[type.meta, { color: colours.claySoft }]}>{outbox.length} waiting to send</Text>}
+          <Button label="Sync now" onPress={() => void sync?.syncOnce(0)} style={styles.gap} />
+        </Card>
+        <Text style={type.note}>
           Away from home, install Tailscale on this iPhone and your Mac with the same account and turn on VPN On Demand. Autopilot tries
           your home network first and Tailscale next.
         </Text>
-        <Pressable
-          style={[styles.button, { alignSelf: 'flex-start' }]}
+        <Button
+          kind="destructive"
+          label="Unpair"
           onPress={() =>
             Alert.alert('Unpair this iPhone?', 'Anything still waiting to send is lost. You can pair again from the Mac.', [
               { text: 'Cancel', style: 'cancel' },
               { text: 'Unpair', style: 'destructive', onPress: () => void unpair() },
             ])
           }
-        >
-          <Text style={[styles.buttonText, { color: colours.claySoft }]}>Unpair</Text>
-        </Pressable>
+        />
       </ScrollView>
     </>
   )
 }
 
 const styles = StyleSheet.create({
-  card: {
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: colours.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colours.border,
-    gap: 6,
-  },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  name: { flex: 1, fontSize: 17, color: colours.body },
-  meta: { fontSize: 13, color: colours.text3 },
-  note: { fontSize: 14, lineHeight: 20, color: colours.text3, padding: 4 },
-  button: {
-    marginTop: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: colours.raised,
-    alignSelf: 'flex-start',
-  },
-  buttonText: { fontSize: 15, color: colours.text },
+  gap: { marginTop: 6 },
 })

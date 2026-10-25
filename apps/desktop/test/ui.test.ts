@@ -34,6 +34,8 @@ const shot = async (name: string) => {
 describe('the Mac app window', () => {
   it('creates a task, shows the session asking, and answers it with one click', async () => {
     await expect.poll(() => page.getByRole('heading', { name: 'Needs me' }).isVisible()).toBe(true)
+    // The tokens reached the page: the window is its own dark colour, not the browser's white.
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(31, 30, 29)')
 
     await page.getByRole('button', { name: 'New task' }).click()
     await page.getByLabel('Title').fill('Decide on prompt caching for agent-service')

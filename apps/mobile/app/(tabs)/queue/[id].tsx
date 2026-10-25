@@ -3,7 +3,7 @@ import { Stack, useLocalSearchParams } from 'expo-router'
 import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
 import { useItems } from '../../../src/store.ts'
-import { colours } from '../../../src/theme.ts'
+import { colours } from '@autopilot/design'
 
 export default function TaskScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()

@@ -50,8 +50,8 @@ export type SyncOptions = {
   pinned: PinnedFetch
   storage: Storage
   now?: () => Date
-  /** Idempotency keys; the phone passes expo-crypto's, as Hermes has no global crypto. */
-  newKey?: () => string
+  /** Idempotency keys. No default: Hermes has no global crypto, so the phone passes expo-crypto's. */
+  newKey: () => string
   /** Tasks that came to the owner's turn since the last sync, for a local notification. */
   onYourTurn?: (items: QueueItem[]) => void
   /** How long a catch-up holds the call open when nothing is new. */
@@ -85,7 +85,7 @@ export class Sync {
   private flushing: Promise<void> | null = null
 
   constructor(options: SyncOptions) {
-    this.o = { now: () => new Date(), newKey: () => crypto.randomUUID(), waitSeconds: 20, ...options }
+    this.o = { now: () => new Date(), waitSeconds: 20, ...options }
     this.link = new Link(options.connection, options.pinned)
   }
 

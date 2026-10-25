@@ -45,6 +45,22 @@
       }
     },
     {
+      "files": ["packages/design/src/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["node:*", "@autopilot/*"],
+                "message": "The tokens run everywhere, the iPhone included, and depend on nothing."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "files": ["packages/client/src/**"],
       "rules": {
         "no-restricted-imports": [
@@ -109,6 +125,28 @@
               }
             ]
           }
+        ],
+        "react/forbid-elements": [
+          "error",
+          {
+            "forbid": [
+              {
+                "element": "button",
+                "message": "Use Button from src/ui.tsx: one of its kinds, or add a kind there."
+              }
+            ]
+          }
+        ],
+        "react/forbid-dom-props": [
+          "error",
+          {
+            "forbid": [
+              {
+                "propName": "style",
+                "message": "Lay out with a class in styles.css or Row/Column from src/ui.tsx; colours come from the tokens."
+              }
+            ]
+          }
         ]
       }
     },
@@ -124,6 +162,43 @@
                 "message": "The server depends on the contract, not on its clients."
               }
             ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/desktop/src/ui.tsx"],
+      "rules": {
+        "react/forbid-elements": "off",
+        "react/forbid-dom-props": "off"
+      }
+    },
+    {
+      "files": ["apps/mobile/**", "packages/client/src/**", "packages/contracts/src/**", "packages/design/src/**"],
+      "rules": {
+        "no-restricted-properties": [
+          "error",
+          {
+            "property": "toSorted",
+            "message": "Hermes on the iPhone has no toSorted: copy and sort in place."
+          },
+          {
+            "property": "toReversed",
+            "message": "Hermes on the iPhone has no toReversed."
+          },
+          {
+            "property": "toSpliced",
+            "message": "Hermes on the iPhone has no toSpliced."
+          },
+          {
+            "object": "AbortSignal",
+            "property": "timeout",
+            "message": "Hermes has no AbortSignal.timeout: use timeoutSignal from @autopilot/client."
+          },
+          {
+            "object": "crypto",
+            "property": "randomUUID",
+            "message": "Hermes has no crypto.randomUUID: use expo-crypto on the phone."
           }
         ]
       }

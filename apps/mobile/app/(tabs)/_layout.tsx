@@ -1,6 +1,6 @@
 import { NativeTabs } from 'expo-router/native-tabs'
 import { useItems } from '../../src/store.ts'
-import { colours } from '../../src/theme.ts'
+import { colours } from '@autopilot/design'
 
 /**
  * Native tabs, so iOS can move them into the vertical bar on the iPhone Duo's outer display and in

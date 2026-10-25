@@ -4,6 +4,7 @@ import type { QueueItem, Update } from '@autopilot/contracts'
 import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
+import { ArrowUp, Banner, Button, Dot, Meta, Spacer } from '../ui.tsx'
 
 type Props = { item: QueueItem; onClose: () => void }
 
@@ -67,36 +68,36 @@ export const TaskPane = ({ item, onClose }: Props) => {
   return (
     <section className="pane task" aria-label={task.title}>
       <div className="task-head drag">
-        <button className="icon-button back" aria-label="Back to the list" onClick={onClose}>
+        <Button kind="icon" className="back" aria-label="Back to the list" onClick={onClose}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
             <path d="M9 2L4 7l5 5" />
           </svg>
-        </button>
-        <span className="meta">
+        </Button>
+        <Meta as="span">
           {titleCase(task.workstream)} · {task.id}
           {task.source.mirrors ? ` · ${task.source.mirrors}` : ''}
-        </span>
-        <span style={{ flex: 1 }} />
+        </Meta>
+        <Spacer />
         {session && session.state !== 'ended' && (
-          <span className="meta">
-            <span className="health-dot" style={{ background: 'var(--pilot)', marginRight: 6 }} />
+          <span className="meta session">
+            <Dot tone="good" />
             {session.activity ?? SESSION_STATE[session.state]}
           </span>
         )}
       </div>
       <div className="task-title">
         <h2 className="serif">{task.title}</h2>
-        <div className="meta" style={{ marginTop: 8 }}>
+        <div className="meta filed">
           {filed} · {ago(task.createdAt)}
           {task.links.map((l) => (
-            <button key={l.url} className="chip" style={{ marginLeft: 8 }} onClick={() => open(l.url)}>
+            <Button key={l.url} kind="chip" onClick={() => open(l.url)}>
               {l.title}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
       <div className="timeline" ref={timeline}>
-        {refused && <div className="banner">{refused}</div>}
+        {refused && <Banner>{refused}</Banner>}
         {task.brief && <Brief text={task.brief} mine={task.createdBy === 'owner'} />}
         {updates.map((u) => (
           <Entry key={u.id} update={u} answered={answered.has(u.id)} />
@@ -104,7 +105,7 @@ export const TaskPane = ({ item, onClose }: Props) => {
         {pending.map((p) => (
           <PendingEntry key={p.id} pending={p} options={updates.flatMap((u) => u.options)} />
         ))}
-        {detail && updates.length === 0 && pending.length === 0 && !task.brief && <div className="meta">Nothing yet.</div>}
+        {detail && updates.length === 0 && pending.length === 0 && !task.brief && <Meta>Nothing yet.</Meta>}
       </div>
       <Composer item={item} />
     </section>
@@ -117,9 +118,7 @@ const Brief = ({ text, mine }: { text: string; mine: boolean }) =>
   ) : (
     <div>
       <div className="label">Filed</div>
-      <div className="msg" style={{ color: 'var(--text-2)' }}>
-        {text}
-      </div>
+      <div className="msg filed">{text}</div>
     </div>
   )
 
@@ -145,18 +144,18 @@ const Entry = ({ update, answered }: { update: Update; answered: boolean }) => {
       {update.attachments.length > 0 && (
         <div className="attachments">
           {update.attachments.map((a) => (
-            <button key={a.url} className="chip" onClick={() => open(a.url)}>
+            <Button key={a.url} kind="chip" onClick={() => open(a.url)}>
               {a.title}
-            </button>
+            </Button>
           ))}
         </div>
       )}
       {asking && update.options.length > 0 && (
         <div className="options">
           {update.options.map((o) => (
-            <button key={o.id} className="btn" onClick={() => answer(o.id)}>
+            <Button key={o.id} onClick={() => answer(o.id)}>
               {o.label}
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -168,14 +167,15 @@ const Menu = ({ label, items }: { label: string; items: { label: string; run: ()
   const [shown, setShown] = useState(false)
   return (
     <div className="menu">
-      <button className="tool" aria-haspopup="menu" aria-expanded={shown} onClick={() => setShown((s) => !s)}>
+      <Button kind="tool" aria-haspopup="menu" aria-expanded={shown} onClick={() => setShown((s) => !s)}>
         {label}
-      </button>
+      </Button>
       {shown && (
         <div className="menu-items" role="menu" onMouseLeave={() => setShown(false)}>
           {items.map((i) => (
-            <button
+            <Button
               key={i.label}
+              kind="menu"
               role="menuitem"
               onClick={() => {
                 setShown(false)
@@ -183,7 +183,7 @@ const Menu = ({ label, items }: { label: string; items: { label: string; run: ()
               }}
             >
               {i.label}
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -225,9 +225,9 @@ const Composer = ({ item }: { item: QueueItem }) => {
         <div className="composer-bar">
           {sessionLinks.length > 0 && <Menu label="Open session" items={sessionLinks} />}
           {item.band === 'new' && !live && (
-            <button className="tool" onClick={() => send({ kind: 'start', taskId: task.id })}>
+            <Button kind="tool" onClick={() => send({ kind: 'start', taskId: task.id })}>
               Start
-            </button>
+            </Button>
           )}
           <Menu
             label="Snooze"
@@ -236,19 +236,17 @@ const Composer = ({ item }: { item: QueueItem }) => {
               run: () => send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() }),
             }))}
           />
-          <button className="tool" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'done' })}>
+          <Button kind="tool" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'done' })}>
             Mark done
-          </button>
+          </Button>
           {item.band === 'new' && (
-            <button className="tool bare" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'canceled' })}>
+            <Button kind="quiet" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'canceled' })}>
               Not for me
-            </button>
+            </Button>
           )}
-          <button className="send" aria-label="Send" disabled={!text.trim()} onClick={reply}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#141413" strokeWidth="1.8" aria-hidden="true">
-              <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" />
-            </svg>
-          </button>
+          <Button kind="send" aria-label="Send" disabled={!text.trim()} onClick={reply}>
+            <ArrowUp />
+          </Button>
         </div>
       </div>
     </div>

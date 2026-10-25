@@ -4,6 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
 import { BAND_TITLE } from '../view.ts'
+import { Banner, Button, SearchIcon, SidebarIcon } from '../ui.tsx'
 
 type Props = {
   title: string
@@ -87,24 +88,17 @@ export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, w
   }
 
   return (
+    // oxlint-disable-next-line react/forbid-dom-props -- the width the person dragged it to
     <section className="pane list" style={{ width }} aria-label={title}>
       <div className="list-head drag">
-        <button className="icon-button narrow-only" aria-label="Show navigation" onClick={onMenu}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
-            <rect x="2" y="3" width="12" height="10" rx="2" />
-            <path d="M6 3v10" />
-          </svg>
-        </button>
+        <Button kind="icon" className="narrow-only" aria-label="Show navigation" onClick={onMenu}>
+          <SidebarIcon />
+        </Button>
         <h1 className="serif">{title}</h1>
-        <span className="meta" style={{ fontSize: 14, marginTop: 4 }}>
-          {visible.length}
-        </span>
+        <span className="count">{visible.length}</span>
       </div>
       <label className="filter">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#9C9A92" strokeWidth="1.5" aria-hidden="true">
-          <circle cx="7" cy="7" r="4.5" />
-          <path d="M10.5 10.5L14 14" />
-        </svg>
+        <SearchIcon />
         <input
           aria-label="Filter tasks"
           placeholder="Filter, e.g. ws:customers from:slack"
@@ -112,13 +106,14 @@ export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, w
           onChange={(e) => setFilter(e.target.value)}
         />
       </label>
-      {banner && <div className="banner">{banner}</div>}
+      {banner && <Banner>{banner}</Banner>}
       <div className="rows" ref={rows} role="listbox" aria-label="Tasks" tabIndex={0} onKeyDown={onKeyDown}>
         {visible.length === 0 && (
           <div className="empty">
             {filter ? 'Nothing matches the filter.' : 'Nothing here. Autopilot fills this as signals file and sessions hand over.'}
           </div>
         )}
+        {/* oxlint-disable-next-line react/forbid-dom-props -- measured by the virtualiser */}
         <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
           {virtual.getVirtualItems().map((v) => {
             const entry = entries[v.index]
@@ -128,6 +123,7 @@ export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, w
                 key={v.key}
                 data-index={v.index}
                 ref={virtual.measureElement}
+                // oxlint-disable-next-line react/forbid-dom-props -- placed by the virtualiser
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }}
               >
                 {entry.kind === 'group' ? (
@@ -138,7 +134,7 @@ export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, w
                 ) : expanded === entry.item.task.id ? (
                   <Expanded item={entry.item} selected={selected === entry.item.task.id} onOpen={onOpen} onDone={() => setExpanded(null)} />
                 ) : (
-                  <Row item={entry.item} selected={selected === entry.item.task.id} onSelect={onSelect} onOpen={onOpen} />
+                  <TaskRow item={entry.item} selected={selected === entry.item.task.id} onSelect={onSelect} onOpen={onOpen} />
                 )}
               </div>
             )
@@ -152,10 +148,11 @@ export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, w
 type RowProps = { item: QueueItem; selected: boolean; onSelect?: (id: string) => void; onOpen: (id: string) => void }
 
 /** Rerenders only when what it shows changed: the store keeps unchanged tasks and asks as the same objects. */
-const Row = memo(
+const TaskRow = memo(
   ({ item, selected, onSelect, onOpen }: RowProps) => (
-    <button
-      className={`row${item.unread ? '' : ' read'}`}
+    <Button
+      kind="row"
+      className={item.unread ? undefined : 'read'}
       role="option"
       data-task={item.task.id}
       aria-selected={selected}
@@ -164,12 +161,12 @@ const Row = memo(
       onDoubleClick={() => onOpen(item.task.id)}
     >
       <span className={`dot ${item.band}${item.unread ? '' : ' read'}`} aria-hidden="true" />
-      <div style={{ minWidth: 0 }}>
+      <div className="text">
         <div className="title">{item.task.title}</div>
         <div className="meta">{rowMeta(item)}</div>
       </div>
       <span className="age">{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</span>
-    </button>
+    </Button>
   ),
   (a, b) =>
     a.selected === b.selected &&
@@ -203,20 +200,20 @@ const Expanded = ({
   }
   return (
     <div className="expanded">
-      <Row item={item} selected={selected} onOpen={onOpen} />
+      <TaskRow item={item} selected={selected} onOpen={onOpen} />
       <div className="ask">
         {ask ? (
           <>
             <div className="ask-body">{ask.body}</div>
             <div className="options">
               {ask.options.map((o) => (
-                <button key={o.id} className="btn" onClick={() => answer({ optionId: o.id })}>
+                <Button key={o.id} onClick={() => answer({ optionId: o.id })}>
                   {o.label}
-                </button>
+                </Button>
               ))}
-              <button className="tool bare" onClick={() => onOpen(item.task.id)}>
+              <Button kind="quiet" onClick={() => onOpen(item.task.id)}>
                 Open
-              </button>
+              </Button>
             </div>
             <input
               className="inline-reply"
@@ -234,19 +231,17 @@ const Expanded = ({
         ) : (
           <div className="options">
             {item.band === 'new' && (
-              <button
-                className="btn primary"
+              <Button
+                kind="primary"
                 onClick={() => {
                   send({ kind: 'start', taskId: item.task.id })
                   onDone()
                 }}
               >
                 Start
-              </button>
+              </Button>
             )}
-            <button className="btn" onClick={() => onOpen(item.task.id)}>
-              Open {item.task.id}
-            </button>
+            <Button onClick={() => onOpen(item.task.id)}>Open {item.task.id}</Button>
           </div>
         )}
       </div>
