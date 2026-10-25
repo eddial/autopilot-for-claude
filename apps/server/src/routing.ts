@@ -121,7 +121,11 @@ export class Routing {
   apply(changes: RoutingProposal['changes']): void {
     for (const change of changes) {
       if (!this.applies(change)) {
-        throw new DomainError('CONFLICT', { reason: 'version_mismatch' }, `${change.file} changed since the proposal; reject it and edit by hand`)
+        throw new DomainError(
+          'CONFLICT',
+          { reason: 'version_mismatch' },
+          `${change.file} changed since the proposal; reject it and edit by hand`,
+        )
       }
     }
     for (const change of changes) {

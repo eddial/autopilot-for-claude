@@ -51,7 +51,15 @@ const plistFile = () => join(homedir(), 'Library', 'LaunchAgents', `${LABEL}.pli
 
 /** The PATH the agent runs with: this Node, Homebrew, and where `claude` and `gh` usually live. */
 const agentPath = (node: string) =>
-  [dirname(node), join(homedir(), '.local', 'bin'), join(homedir(), '.claude', 'local'), '/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin']
+  [
+    dirname(node),
+    join(homedir(), '.local', 'bin'),
+    join(homedir(), '.claude', 'local'),
+    '/opt/homebrew/bin',
+    '/usr/local/bin',
+    '/usr/bin',
+    '/bin',
+  ]
     .filter((p, i, all) => all.indexOf(p) === i)
     .join(':')
 

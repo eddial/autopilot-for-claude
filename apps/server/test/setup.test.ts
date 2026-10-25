@@ -21,7 +21,12 @@ describe('onboarding set-up', () => {
     expect(slack).toContain('<@U0123>')
     expect(slack).toMatch(/^paused: true$/m)
 
-    const saved = setup.saveWorkstream({ name: 'engineering', routing: 'Pull requests and bugs.', urgent: 'prod down', repo: '~/code/product' })
+    const saved = setup.saveWorkstream({
+      name: 'engineering',
+      routing: 'Pull requests and bugs.',
+      urgent: 'prod down',
+      repo: '~/code/product',
+    })
     expect(saved).toMatchObject({ routing: 'Pull requests and bugs.', urgent: 'prod down' })
     expect(saved.work).toContain('failing test first')
     // Every home gets the autopilot workstream, for health and routing proposals.

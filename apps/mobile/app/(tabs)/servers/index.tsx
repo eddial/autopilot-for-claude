@@ -10,7 +10,8 @@ const ROUTE = { lan: 'on your home network', tailscale: 'through Tailscale' } as
 export default function ServersScreen() {
   const sync = useSyncInstance()
   const { status, routeKind, lastSyncedAt, outbox } = useSyncState()
-  const reached = status === 'online' ? `Connected ${routeKind ? ROUTE[routeKind] : ''}` : status === 'connecting' ? 'Connecting…' : 'Out of reach'
+  const reached =
+    status === 'online' ? `Connected ${routeKind ? ROUTE[routeKind] : ''}` : status === 'connecting' ? 'Connecting…' : 'Out of reach'
   return (
     <>
       <Stack.Screen options={{ title: 'Servers' }} />
@@ -28,7 +29,8 @@ export default function ServersScreen() {
           </Pressable>
         </View>
         <Text style={styles.note}>
-          Away from home, install Tailscale on this iPhone and your Mac with the same account and turn on VPN On Demand. Autopilot tries your home network first and Tailscale next.
+          Away from home, install Tailscale on this iPhone and your Mac with the same account and turn on VPN On Demand. Autopilot tries
+          your home network first and Tailscale next.
         </Text>
         <Pressable
           style={[styles.button, { alignSelf: 'flex-start' }]}
@@ -47,12 +49,26 @@ export default function ServersScreen() {
 }
 
 const styles = StyleSheet.create({
-  card: { padding: 14, borderRadius: 14, backgroundColor: colours.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colours.border, gap: 6 },
+  card: {
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: colours.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colours.border,
+    gap: 6,
+  },
   head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   name: { flex: 1, fontSize: 17, color: colours.body },
   meta: { fontSize: 13, color: colours.text3 },
   note: { fontSize: 14, lineHeight: 20, color: colours.text3, padding: 4 },
-  button: { marginTop: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10, backgroundColor: colours.raised, alignSelf: 'flex-start' },
+  button: {
+    marginTop: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: colours.raised,
+    alignSelf: 'flex-start',
+  },
   buttonText: { fontSize: 15, color: colours.text },
 })

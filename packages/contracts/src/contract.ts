@@ -123,18 +123,27 @@ export const contract = {
       .meta({ scopes: [...READERS, 'session'], ownTask: true })
       .input(z.object({ id: TaskId }))
       .output(TaskDetail),
-    create: base.meta({ scopes: ['owner', 'create', 'session'] }).input(CreateTask).output(Task),
+    create: base
+      .meta({ scopes: ['owner', 'create', 'session'] })
+      .input(CreateTask)
+      .output(Task),
     edit: base.meta({ scopes: OWNER }).input(EditTask).output(Task),
     start: base.meta({ scopes: OWNER }).input(TaskRef).output(Task),
     snooze: base.meta({ scopes: OWNER }).input(SnoozeTask).output(Task),
-    wait: base.meta({ scopes: ['owner', 'session'], ownTask: true }).input(WaitOn).output(Task),
+    wait: base
+      .meta({ scopes: ['owner', 'session'], ownTask: true })
+      .input(WaitOn)
+      .output(Task),
     close: base.meta({ scopes: OWNER }).input(CloseTask).output(Task),
     markSeen: base.meta({ scopes: OWNER }).input(TaskRef).output(Task),
     bulk: base.meta({ scopes: OWNER }).input(BulkTasks).output(z.array(Task)),
   },
 
   updates: {
-    post: base.meta({ scopes: ['session', 'watcher'], ownTask: true }).input(PostUpdate).output(Update),
+    post: base
+      .meta({ scopes: ['session', 'watcher'], ownTask: true })
+      .input(PostUpdate)
+      .output(Update),
     /** Records the answer as an `instruction` and delivers it into the session when it is idle. */
     answer: base.meta({ scopes: OWNER }).input(AnswerUpdate).output(Update),
     instruct: base.meta({ scopes: OWNER }).input(Instruct).output(Update),
@@ -142,21 +151,39 @@ export const contract = {
 
   sessions: {
     /** From the session's own hooks: working, idle, waiting on a permission prompt, or ended. */
-    report: base.meta({ scopes: ['session'], ownTask: true }).input(ReportSession).output(Session),
+    report: base
+      .meta({ scopes: ['session'], ownTask: true })
+      .input(ReportSession)
+      .output(Session),
   },
 
   links: {
-    attach: base.meta({ scopes: ['owner', 'session'], ownTask: true }).input(AttachLink).output(Task),
+    attach: base
+      .meta({ scopes: ['owner', 'session'], ownTask: true })
+      .input(AttachLink)
+      .output(Task),
   },
 
   watchers: {
-    add: base.meta({ scopes: ['owner', 'session'], ownTask: true }).input(AddWatcher).output(Watcher),
-    remove: base.meta({ scopes: ['owner', 'session'], ownTask: true }).input(RemoveWatcher).output(z.object({})),
+    add: base
+      .meta({ scopes: ['owner', 'session'], ownTask: true })
+      .input(AddWatcher)
+      .output(Watcher),
+    remove: base
+      .meta({ scopes: ['owner', 'session'], ownTask: true })
+      .input(RemoveWatcher)
+      .output(z.object({})),
   },
 
   items: {
-    match: base.meta({ scopes: ['signal'] }).input(MatchItems).output(z.object({ tasks: z.array(MatchedTask) })),
-    file: base.meta({ scopes: ['signal'] }).input(FileItem).output(Decision),
+    match: base
+      .meta({ scopes: ['signal'] })
+      .input(MatchItems)
+      .output(z.object({ tasks: z.array(MatchedTask) })),
+    file: base
+      .meta({ scopes: ['signal'] })
+      .input(FileItem)
+      .output(Decision),
   },
 
   routing: {
@@ -201,14 +228,20 @@ export const contract = {
     /** Authorised by the one-time pairing code, not a token. */
     /** A one-time invite, valid five minutes; opens the network listener for devices if it is not open yet. */
     startPairing: base.meta({ scopes: OWNER }).input(StartPairing).output(Pairing),
-    pair: base.meta({ scopes: [], public: true }).input(PairDevice).output(z.object({ device: Device, token: z.string() })),
+    pair: base
+      .meta({ scopes: [], public: true })
+      .input(PairDevice)
+      .output(z.object({ device: Device, token: z.string() })),
     remove: base.meta({ scopes: OWNER }).input(RemoveDevice).output(z.object({})),
   },
 
   tokens: {
     list: base.meta({ scopes: OWNER }).output(z.array(Token)),
     /** The secret is returned once, here. */
-    create: base.meta({ scopes: OWNER }).input(CreateToken).output(z.object({ token: Token, secret: z.string() })),
+    create: base
+      .meta({ scopes: OWNER })
+      .input(CreateToken)
+      .output(z.object({ token: Token, secret: z.string() })),
     revoke: base.meta({ scopes: OWNER }).input(RevokeToken).output(z.object({})),
   },
 }

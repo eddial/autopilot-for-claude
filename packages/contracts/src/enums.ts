@@ -4,17 +4,7 @@ import { z } from 'zod'
  * What an update on a task is. The kind decides where the task goes next;
  * see docs/PRODUCT.md, "A task is a list of updates".
  */
-export const UpdateKind = z.enum([
-  'decision',
-  'question',
-  'review',
-  'blocked',
-  'waiting',
-  'done',
-  'info',
-  'signal',
-  'instruction',
-])
+export const UpdateKind = z.enum(['decision', 'question', 'review', 'blocked', 'waiting', 'done', 'info', 'signal', 'instruction'])
 export type UpdateKind = z.infer<typeof UpdateKind>
 
 /** The kinds that put a task on your turn. A task has at most one open ask. */

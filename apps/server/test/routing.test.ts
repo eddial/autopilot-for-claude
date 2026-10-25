@@ -34,7 +34,15 @@ const file = (service: Service, title: string) =>
   service.fileItem(
     FileItem.parse({
       idempotencyKey: key(),
-      item: { signal: 'slack', url: `https://example.slack.com/archives/C1/p${++n}`, sender: 'Joris', channel: '#sales', at: '2026-10-25T01:00:00Z', title, summary: title },
+      item: {
+        signal: 'slack',
+        url: `https://example.slack.com/archives/C1/p${++n}`,
+        sender: 'Joris',
+        channel: '#sales',
+        at: '2026-10-25T01:00:00Z',
+        title,
+        summary: title,
+      },
       action: 'create',
       workstream: 'customers',
       reason: 'customer question',

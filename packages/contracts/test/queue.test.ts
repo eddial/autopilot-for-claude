@@ -22,12 +22,8 @@ describe('bandOf', () => {
 
   it('keeps a snoozed task hidden until it is due, then returns it to your turn', () => {
     const until = '2026-10-25T15:00:00Z'
-    expect(bandOf(input({ state: 'snoozed', snoozedUntil: until }, { openAsk: { kind: 'question' } }), now)).toBe(
-      'snoozed',
-    )
-    expect(bandOf(input({ state: 'snoozed', snoozedUntil: until }), new Date('2026-10-25T16:00:00Z'))).toBe(
-      'your_turn',
-    )
+    expect(bandOf(input({ state: 'snoozed', snoozedUntil: until }, { openAsk: { kind: 'question' } }), now)).toBe('snoozed')
+    expect(bandOf(input({ state: 'snoozed', snoozedUntil: until }), new Date('2026-10-25T16:00:00Z'))).toBe('your_turn')
   })
 
   it('sends urgent new tasks straight to your turn', () => {

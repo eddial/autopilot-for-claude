@@ -58,7 +58,11 @@ export const TaskPane = ({ item, onClose }: Props) => {
   }, [count])
 
   const session = item.session
-  const filed = task.source.signal ? `From ${titleCase(task.source.signal)}` : task.createdBy === 'system' ? 'From Autopilot' : 'Created by you'
+  const filed = task.source.signal
+    ? `From ${titleCase(task.source.signal)}`
+    : task.createdBy === 'system'
+      ? 'From Autopilot'
+      : 'Created by you'
 
   return (
     <section className="pane task" aria-label={task.title}>

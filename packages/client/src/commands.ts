@@ -24,7 +24,12 @@ export const execute = async (api: Api, { id, command: c }: Pending): Promise<un
   const idempotencyKey = id
   switch (c.kind) {
     case 'answer':
-      return api.updates.answer({ idempotencyKey, updateId: c.updateId, ...(c.optionId ? { optionId: c.optionId } : {}), ...(c.text ? { text: c.text } : {}) })
+      return api.updates.answer({
+        idempotencyKey,
+        updateId: c.updateId,
+        ...(c.optionId ? { optionId: c.optionId } : {}),
+        ...(c.text ? { text: c.text } : {}),
+      })
     case 'instruct':
       return api.updates.instruct({ idempotencyKey, taskId: c.taskId, body: c.body })
     case 'create':
@@ -107,4 +112,3 @@ export const pendingText = (command: Command): string | null => {
       return null
   }
 }
-

@@ -17,7 +17,23 @@ export const ensureCertificate = (paths: Paths): Certificate => {
   if (!existsSync(keyFile) || !existsSync(certFile)) {
     execFileSync(
       'openssl',
-      ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:prime256v1', '-nodes', '-days', '3650', '-subj', '/CN=Autopilot', '-keyout', keyFile, '-out', certFile],
+      [
+        'req',
+        '-x509',
+        '-newkey',
+        'ec',
+        '-pkeyopt',
+        'ec_paramgen_curve:prime256v1',
+        '-nodes',
+        '-days',
+        '3650',
+        '-subj',
+        '/CN=Autopilot',
+        '-keyout',
+        keyFile,
+        '-out',
+        certFile,
+      ],
       { stdio: 'ignore' },
     )
     chmodSync(keyFile, 0o600)

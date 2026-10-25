@@ -20,6 +20,8 @@ product, architecture, API and plan; `docs/decisions/` records why things are th
 - `packages/client`: what a paired device runs: routes probed LAN first, TLS pinned to the Mac's
   certificate, the queue cached from the change feed, and the offline outbox. Tested against a
   real server over TLS.
+- `packages/testkit`: what tests that need a real server share (`startTestServer`, `localInvite`,
+  `keys`). Use it rather than setting up a server by hand.
 - `apps/mobile`: the Expo iPhone app. Native stack and native tabs (the iPhone Duo moves only
   native bars), a Swift module in `modules/pinned-fetch` for pinned TLS, `src/store.ts` wiring
   `Sync` to the Keychain, SQLite, notifications and background sync. Check bundling with
@@ -32,19 +34,26 @@ Node 24 (`.nvmrc`), pnpm.
 
 ```sh
 pnpm install
-pnpm check        # lint, typecheck, test
+pnpm check        # lint (oxlint, package boundaries, formatting), typecheck, test
+pnpm format       # Prettier, the formatting CI checks
 pnpm schema       # regenerate packages/contracts/schema after changing the contract
 pnpm perf         # performance budgets (server and window)
 pnpm autopilot    # the CLI (serve, new, ls, show, answer, signal, status, mcp)
 ```
 
-CI runs the same and fails when the generated schema is stale.
+CI runs the same and fails when the generated schema is stale or the contract breaks installed
+apps without a new `API_VERSION` (`scripts/contract-compat.ts`).
 
 ## Conventions
 
 - TypeScript strict, ES modules, relative imports with the `.ts` extension (Node runs the sources
   directly), only erasable syntax (no enums or namespaces).
 - `type` over `interface`. No `any`, no non-null assertions.
+- Package boundaries are lint rules (`.oxlintrc.json` overrides): the contract imports nothing of
+  ours; `packages/client` and the phone use no Node built-ins (Node-only code goes in
+  `packages/client/src/node.ts`); the window reaches the server only through the contract.
+- Shared dependencies take their version from the catalog in `pnpm-workspace.yaml`
+  (`"zod": "catalog:"`); add new shared ones there.
 - Every write in the contract takes an `idempotencyKey`, declares its scopes in `.meta()`, and sets
   `ownTask` when a session token may call it. The contract tests enforce this.
 - Change the contract only together with `API_VERSION` when an older client could break.

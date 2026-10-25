@@ -54,8 +54,7 @@ export const mcpTools: readonly McpTool[] = [
   },
   {
     name: 'create_task',
-    description:
-      'Create a task. With start true (the default) a Claude Code session starts on it with the brief as its first prompt.',
+    description: 'Create a task. With start true (the default) a Claude Code session starts on it with the brief as its first prompt.',
     procedure: ['tasks', 'create'],
     input: noKey(CreateTask),
   },

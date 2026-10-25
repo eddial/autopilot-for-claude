@@ -64,7 +64,11 @@ const clientFor = (pinned: PinnedFetch, fingerprint: string, target: Target, tok
         if (token) headers.authorization = `Bearer ${token}`
         const body = request.method === 'GET' ? undefined : await request.text()
         try {
-          return await pinned(`https://${host}${url.pathname}${url.search}`, { method: request.method, headers, body, signal: request.signal }, fingerprint)
+          return await pinned(
+            `https://${host}${url.pathname}${url.search}`,
+            { method: request.method, headers, body, signal: request.signal },
+            fingerprint,
+          )
         } catch (error) {
           target.failed?.()
           throw error
@@ -123,7 +127,12 @@ export class Link {
 }
 
 /** Pairs with the server in an invite: the first route that answers gets the code. */
-export const pair = async (invite: Invite, device: { name: string; kind: 'iphone' | 'mac' }, pinned: PinnedFetch, key: string): Promise<Connection> => {
+export const pair = async (
+  invite: Invite,
+  device: { name: string; kind: 'iphone' | 'mac' },
+  pinned: PinnedFetch,
+  key: string,
+): Promise<Connection> => {
   const link = new Link({ server: invite.server, routes: invite.routes, fingerprint: invite.fingerprint, token: '' }, pinned)
   if (!(await link.probe())) throw new Offline(`${invite.server} cannot be reached on this network`)
   const { token } = await link.api.devices.pair({ idempotencyKey: key, code: invite.code, name: device.name, kind: device.kind })

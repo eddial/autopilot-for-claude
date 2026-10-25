@@ -37,9 +37,17 @@ const setup = (autonomy: number) => {
     return Promise.resolve({ ...next, sources: ['https://github.com/acme/app/pull/7'] })
   }
   const watchers = new Watchers({ service, paths, workstreams: () => [workstream(autonomy)], runClaude, prompts: PROMPTS, owner: 'Badr' })
-  const task = service.createTask(CreateTask.parse({ idempotencyKey: 'create-1', title: 'Ship the fix', workstream: 'engineering', start: false }), 'owner')
+  const task = service.createTask(
+    CreateTask.parse({ idempotencyKey: 'create-1', title: 'Ship the fix', workstream: 'engineering', start: false }),
+    'owner',
+  )
   service.waitOn(
-    WaitOn.parse({ idempotencyKey: 'wait-0001', id: task.id, on: 'Joris to review', watcher: { what: 'PR #7 review', every: '30m', until: '2026-10-26T10:00:00Z', tools: ['Bash(gh:*)'] } }),
+    WaitOn.parse({
+      idempotencyKey: 'wait-0001',
+      id: task.id,
+      on: 'Joris to review',
+      watcher: { what: 'PR #7 review', every: '30m', until: '2026-10-26T10:00:00Z', tools: ['Bash(gh:*)'] },
+    }),
     'session',
   )
   return { service, watchers, task, replies, calls: () => calls, advance: (minutes: number) => (clock += minutes * 60_000) }

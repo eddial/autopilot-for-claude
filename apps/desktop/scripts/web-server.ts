@@ -16,7 +16,7 @@ const TYPES: Record<string, string> = { '.html': 'text/html', '.js': 'text/javas
 /** The production build from dist/renderer, as the Mac app loads it; for performance runs. */
 const serveBuilt = (url: string, res: import('node:http').ServerResponse): void => {
   const root = join(import.meta.dirname, '..', 'dist', 'renderer')
-  const path = normalize(join(root, url === '/' ? 'index.html' : url.split('?')[0] ?? ''))
+  const path = normalize(join(root, url === '/' ? 'index.html' : (url.split('?')[0] ?? '')))
   if (!path.startsWith(root) || !existsSync(path)) {
     res.statusCode = 404
     res.end()
@@ -26,7 +26,11 @@ const serveBuilt = (url: string, res: import('node:http').ServerResponse): void 
   res.end(readFileSync(path))
 }
 
-export const serveWeb = async (client: Client, port = 0, options: { built?: boolean } = {}): Promise<{ url: string; close(): Promise<void> }> => {
+export const serveWeb = async (
+  client: Client,
+  port = 0,
+  options: { built?: boolean } = {},
+): Promise<{ url: string; close(): Promise<void> }> => {
   const vite = options.built
     ? null
     : await createVite({

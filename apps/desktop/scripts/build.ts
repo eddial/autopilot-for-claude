@@ -10,7 +10,14 @@ import { build as vite, createServer } from 'vite'
 const ROOT = join(import.meta.dirname, '..')
 const dev = process.argv.includes('--dev')
 
-const shared: BuildOptions = { bundle: true, platform: 'node', target: 'node22', external: ['electron'], sourcemap: true, logLevel: 'warning' }
+const shared: BuildOptions = {
+  bundle: true,
+  platform: 'node',
+  target: 'node22',
+  external: ['electron'],
+  sourcemap: true,
+  logLevel: 'warning',
+}
 // Bundled CommonJS dependencies (undici) call require(); an ES module has none of its own.
 const requireShim = "import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(import.meta.url);"
 await esbuild({
@@ -21,7 +28,12 @@ await esbuild({
   banner: { js: requireShim },
 })
 // Sandboxed preloads must be CommonJS.
-await esbuild({ ...shared, entryPoints: [join(ROOT, 'electron', 'preload.ts')], outfile: join(ROOT, 'dist', 'electron', 'preload.cjs'), format: 'cjs' })
+await esbuild({
+  ...shared,
+  entryPoints: [join(ROOT, 'electron', 'preload.ts')],
+  outfile: join(ROOT, 'dist', 'electron', 'preload.cjs'),
+  format: 'cjs',
+})
 
 if (dev) {
   const server = await createServer({ configFile: join(ROOT, 'vite.config.ts') })

@@ -1,12 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "unicorn",
-    "import",
-    "vitest",
-    "react"
-  ],
+  "plugins": ["typescript", "unicorn", "import", "vitest", "react"],
   "categories": {
     "correctness": "error",
     "suspicious": "error"
@@ -17,25 +11,122 @@
     "import/no-unassigned-import": [
       "error",
       {
-        "allow": [
-          "**/*.css",
-          "@fontsource-variable/*"
-        ]
+        "allow": ["**/*.css", "@fontsource-variable/*"]
       }
     ],
     "react/react-in-jsx-scope": "off",
     "react/style-prop-object": [
       "error",
       {
-        "allow": [
-          "StatusBar"
-        ]
+        "allow": ["StatusBar"]
       }
     ]
   },
-  "ignorePatterns": [
-    "**/schema/**",
-    "**/node_modules/**",
-    "**/dist/**"
+  "ignorePatterns": ["**/schema/**", "**/node_modules/**", "**/dist/**"],
+  "overrides": [
+    {
+      "files": ["packages/contracts/src/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["node:*"],
+                "message": "The contract runs on every client, the iPhone included: no Node built-ins."
+              },
+              {
+                "group": ["@autopilot/*"],
+                "message": "The contract depends on nothing of ours."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/client/src/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["node:*", "undici"],
+                "allowTypeImports": true,
+                "message": "The client runs on the iPhone; Node-only code goes in src/node.ts."
+              },
+              {
+                "group": ["@autopilot/server", "@autopilot/server/*"],
+                "message": "Clients talk to the server through the contract only."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/client/src/node.ts"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    },
+    {
+      "files": ["apps/mobile/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["node:*", "undici", "electron"],
+                "message": "Hermes on the iPhone has none of these."
+              },
+              {
+                "group": ["@autopilot/server", "@autopilot/server/*", "@autopilot/client/node", "../../desktop/*"],
+                "message": "The phone uses the contract and @autopilot/client only."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/desktop/src/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["node:*", "electron", "undici"],
+                "allowTypeImports": true,
+                "message": "The window is a sandboxed page: talk to the shell through window.autopilotShell."
+              },
+              {
+                "group": ["@autopilot/server", "@autopilot/server/*", "@autopilot/client/node"],
+                "message": "The window reaches the server through the contract only."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/server/src/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@autopilot/desktop", "@autopilot/mobile", "@autopilot/client", "@autopilot/client/*"],
+                "message": "The server depends on the contract, not on its clients."
+              }
+            ]
+          }
+        ]
+      }
+    }
   ]
 }

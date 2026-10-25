@@ -129,7 +129,10 @@ export const AddSignal = command({
 })
 
 export const SaveWorkstream = command({
-  name: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).max(40),
+  name: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]*$/)
+    .max(40),
   routing: z.string().min(1).max(4_000),
   urgent: z.string().max(500).default(''),
   /** A git checkout for code work; each task gets a worktree. */

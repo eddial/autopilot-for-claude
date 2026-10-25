@@ -4,18 +4,54 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    '@orpc/client':
+      specifier: ^1.16.1
+      version: 1.16.1
+    '@orpc/contract':
+      specifier: ^1.16.1
+      version: 1.16.1
+    '@orpc/server':
+      specifier: ^1.16.1
+      version: 1.16.1
+    '@types/node':
+      specifier: ^24.19.2
+      version: 24.19.2
+    '@types/react':
+      specifier: ^19.3.0
+      version: 19.3.0
+    react:
+      specifier: 19.3.0
+      version: 19.3.0
+    react-dom:
+      specifier: 19.3.0
+      version: 19.3.0
+    typescript:
+      specifier: ^5.9.3
+      version: 5.9.3
+    undici:
+      specifier: ^8.12.3
+      version: 8.12.3
+    zod:
+      specifier: ^4.6.7
+      version: 4.6.7
+
 importers:
 
   .:
     devDependencies:
       '@types/node':
-        specifier: ^24.19.2
+        specifier: 'catalog:'
         version: 24.19.2
       oxlint:
         specifier: ^1.89.0
         version: 1.89.0
+      prettier:
+        specifier: 3.9.10
+        version: 3.9.10
       typescript:
-        specifier: ^5.9.3
+        specifier: 'catalog:'
         version: 5.9.3
       vitest:
         specifier: ^5.0.5
@@ -36,32 +72,35 @@ importers:
         specifier: ^5.3.1
         version: 5.3.1
       '@orpc/client':
-        specifier: ^1.16.1
+        specifier: 'catalog:'
         version: 1.16.1
       '@orpc/contract':
-        specifier: ^1.16.1
+        specifier: 'catalog:'
         version: 1.16.1
       '@orpc/server':
-        specifier: ^1.16.1
+        specifier: 'catalog:'
         version: 1.16.1(ws@8.22.0)
       '@tanstack/react-virtual':
         specifier: 3.14.22
-        version: 3.14.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 3.14.22(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       qrcode:
         specifier: 1.5.4
         version: 1.5.4
       react:
-        specifier: ^19.3.1
-        version: 19.3.1
+        specifier: 'catalog:'
+        version: 19.3.0
       react-dom:
-        specifier: ^19.3.1
-        version: 19.3.1(react@19.3.1)
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
     devDependencies:
+      '@autopilot/testkit':
+        specifier: workspace:*
+        version: link:../../packages/testkit
       '@types/qrcode':
         specifier: 1.5.6
         version: 1.5.6
       '@types/react':
-        specifier: ^19.3.0
+        specifier: 'catalog:'
         version: 19.3.0
       '@types/react-dom':
         specifier: ^19.3.0
@@ -91,7 +130,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/contracts
       '@orpc/client':
-        specifier: ^1.16.1
+        specifier: 'catalog:'
         version: 1.16.1
       expo:
         specifier: ~58.0.19
@@ -154,10 +193,10 @@ importers:
         specifier: ~58.0.12
         version: 58.0.12(expo@58.0.19)(react-native@0.88.0(@babel/core@7.29.7)(@react-native/metro-config@0.88.0(@babel/core@7.29.7))(@types/react@19.3.0)(react@19.3.0))
       react:
-        specifier: 19.3.0
+        specifier: 'catalog:'
         version: 19.3.0
       react-dom:
-        specifier: 19.3.0
+        specifier: 'catalog:'
         version: 19.3.0(react@19.3.0)
       react-native:
         specifier: 0.88.0
@@ -173,13 +212,13 @@ importers:
         specifier: 7.29.7
         version: 7.29.7(@babel/core@7.29.7)
       '@types/react':
-        specifier: ^19.3.0
+        specifier: 'catalog:'
         version: 19.3.0
       babel-preset-expo:
         specifier: ~58.0.20
         version: 58.0.20(@babel/core@7.29.7)(@babel/runtime@7.29.10)(expo@58.0.19)(react-refresh@0.14.2)
       typescript:
-        specifier: ^5.9.3
+        specifier: 'catalog:'
         version: 5.9.3
 
   apps/server:
@@ -191,25 +230,25 @@ importers:
         specifier: ^1.32.2
         version: 1.32.2(zod@4.6.7)
       '@orpc/client':
-        specifier: ^1.16.1
+        specifier: 'catalog:'
         version: 1.16.1
       '@orpc/contract':
-        specifier: ^1.16.1
+        specifier: 'catalog:'
         version: 1.16.1
       '@orpc/server':
-        specifier: ^1.16.1
+        specifier: 'catalog:'
         version: 1.16.1(ws@8.22.0)
       node-pty:
         specifier: ^1.1.0
         version: 1.1.0
       undici:
-        specifier: ^8.12.3
+        specifier: 'catalog:'
         version: 8.12.3
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
       zod:
-        specifier: ^4.6.7
+        specifier: 'catalog:'
         version: 4.6.7
 
   packages/client:
@@ -218,27 +257,39 @@ importers:
         specifier: workspace:*
         version: link:../contracts
       '@orpc/client':
-        specifier: ^1.16.1
+        specifier: 'catalog:'
         version: 1.16.1
       '@orpc/contract':
-        specifier: ^1.16.1
+        specifier: 'catalog:'
         version: 1.16.1
     devDependencies:
       '@autopilot/server':
         specifier: workspace:*
         version: link:../../apps/server
+      '@autopilot/testkit':
+        specifier: workspace:*
+        version: link:../testkit
       undici:
-        specifier: ^8.12.3
+        specifier: 'catalog:'
         version: 8.12.3
 
   packages/contracts:
     dependencies:
       '@orpc/contract':
-        specifier: ^1.16.1
+        specifier: 'catalog:'
         version: 1.16.1
       zod:
-        specifier: ^4.6.7
+        specifier: 'catalog:'
         version: 4.6.7
+
+  packages/testkit:
+    dependencies:
+      '@autopilot/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@autopilot/server':
+        specifier: workspace:*
+        version: link:../../apps/server
 
 packages:
 
@@ -3147,6 +3198,11 @@ packages:
     resolution: {integrity: sha512-YUbWYCgErwnMAVkjUnYa+KlMBzGpHwiIt/DE7f0G33AuX2LH9UcTk6KgWxd3zRU+pN3u/C+Xl3EnMLM4Hea7Sg==}
     engines: {node: ^10 || ^12 || >=14}
 
+  prettier@3.9.10:
+    resolution: {integrity: sha512-skGHTH1Yb9QvaTC4hWnRTzEYtCpApF0UMBPz+t/0ZPzP8ihefo/btKd+QA7pUE0fEwA1SbS/NmhyEcstdXOIdA==}
+    engines: {node: '>=14'}
+    hasBin: true
+
   pretty-format@29.7.0:
     resolution: {integrity: sha512-Pdlw/oPxN+aXdmM9R00JVC9WVFoCLTKJvDVLgmJ+qAffBMxsV85l/Lu7sNx4zSzPyoL2euImuEwHhOXdEgNFZQ==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
@@ -3202,11 +3258,6 @@ packages:
     resolution: {integrity: sha512-JDk8dgif51OjFoDE70+OT9ICyYr+69HlmihNwp1+Nsfbna3t5sIiCa9ZJktDmQ4/1b/rn26hIAR2uYXDMr5r0Q==}
     peerDependencies:
       react: ^19.3.0
-
-  react-dom@19.3.1:
-    resolution: {integrity: sha512-Y0bARz53lhEC1NMCASs0/j+faB/zqt3R8hpvg1e8+61ZVJ4UL0UdC4cBbXfZMcIuhrfgeILTLe+ZeBCavQPtKQ==}
-    peerDependencies:
-      react: ^19.3.1
 
   react-fast-compare@3.2.2:
     resolution: {integrity: sha512-nsO+KSNgo1SbJqJEYRE9ERzo7YtYbou/OqjSQKxV7jcKox7+usiUVZOAC+XnDOABXggQTno0Y1CpVnuWEc1boQ==}
@@ -3287,10 +3338,6 @@ packages:
 
   react@19.3.0:
     resolution: {integrity: sha512-E8LUcbtBWt20bbl2YoHfx4ZDBdxVTfOKtCZn9cDSJ4l6/nuoApcpIBcj47t2wZoVX8g2ZHuMHbiShgCR1T5Sog==}
-    engines: {node: '>=0.10.0'}
-
-  react@19.3.1:
-    resolution: {integrity: sha512-QNhWdt7nrgVWWQG58QuGsAR3jv3Hbe4mb4vz7w2csnHavciZJgda1CPNaldF6eVxv90ud3jUXpKlHL69gO38yw==}
     engines: {node: '>=0.10.0'}
 
   regenerate-unicode-properties@10.3.0:
@@ -5417,11 +5464,11 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@tanstack/react-virtual@3.14.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@tanstack/react-virtual@3.14.22(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@tanstack/virtual-core': 3.19.7
-      react: 19.3.1
-      react-dom: 19.3.1(react@19.3.1)
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
   '@tanstack/virtual-core@3.19.7': {}
 
@@ -7029,6 +7076,8 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.2
 
+  prettier@3.9.10: {}
+
   pretty-format@29.7.0:
     dependencies:
       '@jest/schemas': 29.6.3
@@ -7088,11 +7137,6 @@ snapshots:
   react-dom@19.3.0(react@19.3.0):
     dependencies:
       react: 19.3.0
-      scheduler: 0.28.0
-
-  react-dom@19.3.1(react@19.3.1):
-    dependencies:
-      react: 19.3.1
       scheduler: 0.28.0
 
   react-fast-compare@3.2.2: {}
@@ -7216,8 +7260,6 @@ snapshots:
   react-refresh@0.14.2: {}
 
   react@19.3.0: {}
-
-  react@19.3.1: {}
 
   regenerate-unicode-properties@10.3.0:
     dependencies:

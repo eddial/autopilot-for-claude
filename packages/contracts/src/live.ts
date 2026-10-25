@@ -92,7 +92,9 @@ export const applyToDetail = (detail: TaskDetail, change: Change): TaskDetail =>
         ? { ...detail, updates: [...detail.updates, change.update] }
         : detail
     case 'update.changed':
-      return change.update.taskId === detail.task.id ? { ...detail, updates: detail.updates.map((u) => (u.id === change.update.id ? change.update : u)) } : detail
+      return change.update.taskId === detail.task.id
+        ? { ...detail, updates: detail.updates.map((u) => (u.id === change.update.id ? change.update : u)) }
+        : detail
     case 'session.changed':
       return change.session.taskId === detail.task.id ? { ...detail, session: change.session } : detail
     default:

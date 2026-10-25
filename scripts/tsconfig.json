@@ -3,5 +3,5 @@
   "compilerOptions": {
     "lib": ["es2024", "dom", "dom.iterable"]
   },
-  "include": ["checks"]
+  "include": ["checks", "*.ts"]
 }

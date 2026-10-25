@@ -38,21 +38,46 @@ export default function NewTaskScreen() {
 
   const create = () => {
     if (!sync || !title.trim()) return
-    void sync.send({ kind: 'create', title: title.trim().slice(0, 120), brief: brief.trim(), start, priority, ...(workstream ? { workstream } : {}) })
+    void sync.send({
+      kind: 'create',
+      title: title.trim().slice(0, 120),
+      brief: brief.trim(),
+      start,
+      priority,
+      ...(workstream ? { workstream } : {}),
+    })
     router.back()
   }
 
   return (
     <>
-      <Stack.Screen options={{ title: 'New task', headerStyle: { backgroundColor: colours.surface }, headerTitleStyle: { color: colours.text } }} />
+      <Stack.Screen
+        options={{ title: 'New task', headerStyle: { backgroundColor: colours.surface }, headerTitleStyle: { color: colours.text } }}
+      />
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button icon="xmark" accessibilityLabel="Cancel" onPress={() => router.back()} />
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button variant="prominent" tintColor={colours.clay} icon="arrow.up" accessibilityLabel={start ? 'Create and start' : 'Save'} disabled={!title.trim()} onPress={create} />
+        <Stack.Toolbar.Button
+          variant="prominent"
+          tintColor={colours.clay}
+          icon="arrow.up"
+          accessibilityLabel={start ? 'Create and start' : 'Save'}
+          disabled={!title.trim()}
+          onPress={create}
+        />
       </Stack.Toolbar>
       <ScrollView style={{ backgroundColor: colours.surface }} contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
-        <TextInput style={styles.title} placeholder="What needs doing, starting with a verb" placeholderTextColor={colours.text3} value={title} onChangeText={setTitle} maxLength={120} autoFocus accessibilityLabel="Title" />
+        <TextInput
+          style={styles.title}
+          placeholder="What needs doing, starting with a verb"
+          placeholderTextColor={colours.text3}
+          value={title}
+          onChangeText={setTitle}
+          maxLength={120}
+          autoFocus
+          accessibilityLabel="Title"
+        />
         <TextInput
           style={styles.brief}
           placeholder="The brief: what you know, what to use, what not to do."
@@ -98,7 +123,13 @@ const styles = StyleSheet.create({
   brief: { minHeight: 120, fontSize: 16, lineHeight: 22, color: colours.text2, textAlignVertical: 'top' },
   label: { marginTop: 12, fontSize: 13, color: colours.text3 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, borderWidth: StyleSheet.hairlineWidth, borderColor: colours.borderStrong },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 9,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colours.borderStrong,
+  },
   chipOn: { backgroundColor: colours.raised, borderColor: colours.clay },
   chipText: { fontSize: 14, color: colours.text2 },
   switchRow: { marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

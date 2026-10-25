@@ -22,7 +22,12 @@ export const run = async (title: string, steps: [string, () => Promise<string>][
       const detail = await fn()
       results.push({ name, ok: true, seconds: (Date.now() - started) / 1000, detail })
     } catch (error) {
-      results.push({ name, ok: false, seconds: (Date.now() - started) / 1000, detail: error instanceof Error ? error.message : String(error) })
+      results.push({
+        name,
+        ok: false,
+        seconds: (Date.now() - started) / 1000,
+        detail: error instanceof Error ? error.message : String(error),
+      })
       break
     }
   }

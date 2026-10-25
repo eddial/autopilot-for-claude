@@ -39,7 +39,12 @@ export const Nav = ({ view, go, items, workstreams, signals, onHide, overlay }: 
         <Pilot />
         <span className="serif">Autopilot</span>
       </div>
-      <button className="nav-item" style={{ color: 'var(--text)' }} aria-current={current(view.kind === 'new')} onClick={() => go({ kind: 'new' })}>
+      <button
+        className="nav-item"
+        style={{ color: 'var(--text)' }}
+        aria-current={current(view.kind === 'new')}
+        onClick={() => go({ kind: 'new' })}
+      >
         <span className="plus" aria-hidden="true">
           +
         </span>

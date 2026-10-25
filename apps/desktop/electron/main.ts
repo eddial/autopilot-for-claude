@@ -109,11 +109,7 @@ const menu = (): Menu =>
     { role: 'appMenu' },
     {
       label: 'File',
-      submenu: [
-        { label: 'New Task', accelerator: 'CmdOrCtrl+N', click: () => show('new') },
-        { type: 'separator' },
-        { role: 'close' },
-      ],
+      submenu: [{ label: 'New Task', accelerator: 'CmdOrCtrl+N', click: () => show('new') }, { type: 'separator' }, { role: 'close' }],
     },
     { role: 'editMenu' },
     { role: 'viewMenu' },

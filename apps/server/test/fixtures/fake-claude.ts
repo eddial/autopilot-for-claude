@@ -19,7 +19,11 @@ const hook = (event: string) =>
 const server = config.mcpServers.autopilot
 const mcp = new Client({ name: 'fake-claude', version: '1.0.0' })
 await mcp.connect(
-  new StdioClientTransport({ command: server.command, args: server.args, env: { ...(process.env as Record<string, string>), ...server.env } }),
+  new StdioClientTransport({
+    command: server.command,
+    args: server.args,
+    env: { ...(process.env as Record<string, string>), ...server.env },
+  }),
 )
 const taskId = process.env.AUTOPILOT_TASK ?? ''
 

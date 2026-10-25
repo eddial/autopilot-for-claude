@@ -2,6 +2,7 @@
 // and tools that do not use TypeScript. CI fails when the files are stale.
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import type { AnyContractProcedure } from '@orpc/contract'
 import { z } from 'zod'
 import * as c from '../src/index.ts'
 
@@ -43,5 +44,27 @@ write(
   })),
 )
 
+// Every procedure's access and shapes: what scripts/contract-compat.ts compares between versions.
+const shape = (schema: unknown, io: 'input' | 'output') => {
+  if (!(schema instanceof z.ZodType)) return null
+  try {
+    return z.toJSONSchema(schema, { io, unrepresentable: 'any' })
+  } catch {
+    // A live stream (queue.subscribe): its events are in Change.json.
+    return 'stream'
+  }
+}
+write(
+  'contract.json',
+  Object.fromEntries(
+    Object.entries(c.contract).flatMap(([group, procedures]) =>
+      Object.entries(procedures as Record<string, AnyContractProcedure>).map(([name, p]) => [
+        `${group}.${name}`,
+        { meta: p['~orpc'].meta, input: shape(p['~orpc'].inputSchema, 'input'), output: shape(p['~orpc'].outputSchema, 'output') },
+      ]),
+    ),
+  ),
+)
+
 write('version.json', { version: c.API_VERSION })
-console.log(`Wrote ${Object.keys(entities).length + 2} files to ${out}`)
+console.log(`Wrote ${Object.keys(entities).length + 3} files to ${out}`)

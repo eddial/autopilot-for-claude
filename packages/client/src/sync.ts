@@ -1,12 +1,4 @@
-import {
-  applyEvent,
-  applyToDetail,
-  emptyQueue,
-  queueItems,
-  type LiveQueue,
-  type QueueItem,
-  type TaskDetail,
-} from '@autopilot/contracts'
+import { applyEvent, applyToDetail, emptyQueue, queueItems, type LiveQueue, type QueueItem, type TaskDetail } from '@autopilot/contracts'
 import { isDefinedError, ORPCError } from '@orpc/client'
 import { execute, overlay, PENDING_PREFIX, type Command, type Conflict, type Pending } from './commands.ts'
 import { Link, Offline, timeoutSignal, type Api, type Connection, type PinnedFetch } from './connection.ts'
@@ -64,7 +56,15 @@ export type SyncOptions = {
 export class Sync {
   private readonly o: Required<Omit<SyncOptions, 'onYourTurn'>> & Pick<SyncOptions, 'onYourTurn'>
   private readonly link: Link
-  private state: SyncState = { status: 'connecting', routeKind: null, lastSyncedAt: null, queue: emptyQueue, outbox: [], conflicts: [], details: {} }
+  private state: SyncState = {
+    status: 'connecting',
+    routeKind: null,
+    lastSyncedAt: null,
+    queue: emptyQueue,
+    outbox: [],
+    conflicts: [],
+    details: {},
+  }
   private saveTimer: ReturnType<typeof setTimeout> | null = null
   private readonly fetching = new Set<string>()
   private readonly listeners = new Set<() => void>()
@@ -180,7 +180,12 @@ export class Sync {
       } catch (error) {
         // The network failed, or the server did: keep it and try again next round.
         if (!(error instanceof ORPCError) || error.status >= 500) throw error
-        const reason = isDefinedError(error) && error.code === 'CONFLICT' ? (error.data.reason === 'already_answered' ? 'already_answered' : 'task_closed') : 'rejected'
+        const reason =
+          isDefinedError(error) && error.code === 'CONFLICT'
+            ? error.data.reason === 'already_answered'
+              ? 'already_answered'
+              : 'task_closed'
+            : 'rejected'
         this.set({ conflicts: [...this.state.conflicts, { id: next.id, command: next.command, reason, message: error.message }] })
       }
       this.set({ outbox: this.state.outbox.filter((p) => p.id !== next.id) })
@@ -216,7 +221,11 @@ export class Sync {
   }
 
   private async catchUp(waitSeconds: number): Promise<void> {
-    const before = new Set(this.items().filter((i) => i.band === 'your_turn').map((i) => i.task.id))
+    const before = new Set(
+      this.items()
+        .filter((i) => i.band === 'your_turn')
+        .map((i) => i.task.id),
+    )
     // Never synced: start from a snapshot; afterwards only the changes since.
     const first = this.state.lastSyncedAt === null
     let queue = this.state.queue
@@ -225,13 +234,11 @@ export class Sync {
       queue = applyEvent(queue, { type: 'snapshot', snapshot: await this.link.api.queue.list({}) })
     } else {
       for (let wait = waitSeconds; ; wait = 0) {
-        const page = await this.link.api.changes.since(
-          { after: queue.seq, wait },
-          { signal: timeoutSignal((wait + 15) * 1000) },
-        )
+        const page = await this.link.api.changes.since({ after: queue.seq, wait }, { signal: timeoutSignal((wait + 15) * 1000) })
         for (const change of page.changes) {
           queue = applyEvent(queue, change)
-          if (Object.keys(details).length > 0) details = Object.fromEntries(Object.entries(details).map(([id, d]) => [id, applyToDetail(d, change)]))
+          if (Object.keys(details).length > 0)
+            details = Object.fromEntries(Object.entries(details).map(([id, d]) => [id, applyToDetail(d, change)]))
         }
         if (!page.more) break
       }
@@ -328,4 +335,3 @@ export class Sync {
     })
   }
 }
-

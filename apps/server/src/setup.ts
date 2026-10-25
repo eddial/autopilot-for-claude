@@ -46,7 +46,11 @@ export class Setup {
       const name = file.replace(/\.md$/, '')
       return {
         name,
-        summary: body.trim().split(/\n\s*\n/)[0]?.replace(/\s+/g, ' ') ?? '',
+        summary:
+          body
+            .trim()
+            .split(/\n\s*\n/)[0]
+            ?.replace(/\s+/g, ' ') ?? '',
         tools: Array.isArray(meta.tools) ? meta.tools.map(String) : [],
         fields: [...new Set(text.match(PLACEHOLDER) ?? [])],
         added: existsSync(join(this.o.paths.home, 'signals', file)),

@@ -43,7 +43,8 @@ export default function PairScreen() {
         <Pilot pixel={4} />
         <Text style={styles.title}>Pair with your Mac</Text>
         <Text style={styles.lead}>
-          On the Mac, open Autopilot, go to Servers and choose Pair a device. Be on the same Wi-Fi, or both on Tailscale, then scan the code.
+          On the Mac, open Autopilot, go to Servers and choose Pair a device. Be on the same Wi-Fi, or both on Tailscale, then scan the
+          code.
         </Text>
       </View>
       <View style={styles.camera}>
@@ -71,7 +72,15 @@ const styles = StyleSheet.create({
   head: { alignItems: 'center', gap: 14, marginTop: 24 },
   title: { fontFamily: serif, fontSize: 28, color: colours.text },
   lead: { fontSize: 15, lineHeight: 22, color: colours.text2, textAlign: 'center' },
-  camera: { marginTop: 28, aspectRatio: 1, borderRadius: 20, overflow: 'hidden', backgroundColor: colours.surface, alignItems: 'center', justifyContent: 'center' },
+  camera: {
+    marginTop: 28,
+    aspectRatio: 1,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: colours.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   button: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 12, backgroundColor: colours.clay },
   buttonText: { color: colours.well, fontSize: 15, fontWeight: '600' },
   error: { marginTop: 16, color: colours.claySoft, fontSize: 14, textAlign: 'center' },

@@ -11,6 +11,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The base commit, for the contract compatibility check.
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -28,6 +31,8 @@ jobs:
         run: cd apps/mobile && CI=1 npx expo export --platform ios --output-dir "$RUNNER_TEMP/ios-bundle"
       - name: JSON Schema is up to date
         run: pnpm schema && git diff --exit-code -- packages/contracts/schema
+      - name: The contract stays compatible with installed apps
+        run: node scripts/contract-compat.ts "${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}"
 
   # The numbers behind "it should feel like the text is hardcoded": docs/PERFORMANCE.md.
   perf:

@@ -44,7 +44,12 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
         <Text style={styles.title}>{task.title}</Text>
         {task.brief ? <Text style={[styles.body, { color: colours.text2 }]}>{task.brief}</Text> : null}
         {updates.map((u) => (
-          <Entry key={u.id} update={u} answered={answered.has(u.id)} onOption={(optionId) => void send({ kind: 'answer', taskId: task.id, updateId: u.id, optionId })} />
+          <Entry
+            key={u.id}
+            update={u}
+            answered={answered.has(u.id)}
+            onOption={(optionId) => void send({ kind: 'answer', taskId: task.id, updateId: u.id, optionId })}
+          />
         ))}
         {pending.map((p) => {
           const words = pendingText(p.command) ?? optionLabel(detail, p.command)
@@ -58,7 +63,11 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
         {refused.map((c) => (
           <View key={c.id} style={styles.conflict}>
             <Text style={styles.conflictText}>
-              {c.reason === 'already_answered' ? 'Answered on the Mac before this arrived.' : c.reason === 'task_closed' ? 'The task was closed meanwhile.' : c.message}
+              {c.reason === 'already_answered'
+                ? 'Answered on the Mac before this arrived.'
+                : c.reason === 'task_closed'
+                  ? 'The task was closed meanwhile.'
+                  : c.message}
             </Text>
             <View style={styles.row}>
               {c.command.kind === 'answer' && c.command.text ? (
@@ -86,7 +95,12 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
           multiline
           accessibilityLabel="Reply to Autopilot"
         />
-        <Pressable style={[styles.send, !text.trim() && { opacity: 0.4 }]} onPress={reply} disabled={!text.trim()} accessibilityLabel="Send">
+        <Pressable
+          style={[styles.send, !text.trim() && { opacity: 0.4 }]}
+          onPress={reply}
+          disabled={!text.trim()}
+          accessibilityLabel="Send"
+        >
           <Text style={styles.sendText}>↑</Text>
         </Pressable>
       </View>
@@ -152,17 +166,41 @@ const styles = StyleSheet.create({
   title: { fontFamily: serif, fontSize: 24, lineHeight: 30, color: colours.text, marginTop: -8 },
   label: { fontSize: 13, color: colours.text3 },
   body: { fontSize: 16, lineHeight: 24, color: colours.body },
-  bubble: { alignSelf: 'flex-end', maxWidth: '85%', backgroundColor: colours.well, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
+  bubble: {
+    alignSelf: 'flex-end',
+    maxWidth: '85%',
+    backgroundColor: colours.well,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
   bubbleText: { fontSize: 16, lineHeight: 22, color: colours.body },
   pending: { marginTop: 4, fontSize: 12, color: colours.text3 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  option: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10, backgroundColor: colours.button, borderWidth: StyleSheet.hairlineWidth, borderColor: colours.borderStrong },
+  option: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: colours.button,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colours.borderStrong,
+  },
   optionText: { fontSize: 15, color: colours.text },
   chip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: colours.border },
   chipText: { fontSize: 13, color: colours.text2 },
   conflict: { padding: 12, borderRadius: 12, backgroundColor: 'rgba(217,119,87,0.12)', gap: 8 },
   conflictText: { fontSize: 14, color: colours.claySoft },
-  composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, margin: 12, padding: 10, borderRadius: 18, backgroundColor: colours.raised, borderWidth: StyleSheet.hairlineWidth, borderColor: colours.borderStrong },
+  composer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    margin: 12,
+    padding: 10,
+    borderRadius: 18,
+    backgroundColor: colours.raised,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colours.borderStrong,
+  },
   input: { flex: 1, maxHeight: 140, fontSize: 16, color: colours.text, paddingVertical: 6 },
   send: { width: 34, height: 34, borderRadius: 10, backgroundColor: colours.clay, alignItems: 'center', justifyContent: 'center' },
   sendText: { fontSize: 18, fontWeight: '700', color: colours.well },

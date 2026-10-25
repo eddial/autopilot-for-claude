@@ -27,7 +27,11 @@ export default function SignalsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Signals' }} />
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 16, gap: 10 }} refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colours.text3} />}>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: 16, gap: 10 }}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colours.text3} />}
+      >
         {offline && <Text style={styles.note}>Your Mac is out of reach; signals show when it is back.</Text>}
         {signals?.length === 0 && <Text style={styles.note}>No signals yet. Add them on the Mac under Set up.</Text>}
         {signals?.map((s) => (
@@ -49,7 +53,14 @@ export default function SignalsScreen() {
 }
 
 const styles = StyleSheet.create({
-  card: { padding: 14, borderRadius: 14, backgroundColor: colours.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colours.border, gap: 6 },
+  card: {
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: colours.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colours.border,
+    gap: 6,
+  },
   head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   name: { flex: 1, fontSize: 16, color: colours.body },

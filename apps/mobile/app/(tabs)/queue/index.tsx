@@ -86,7 +86,13 @@ export default function QueueScreen() {
         <TaskToolbar item={selectedItem} closeAfter={false} />
       ) : (
         <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Button variant="prominent" tintColor={colours.clay} icon="plus" accessibilityLabel="New task" onPress={() => router.push('/new')} />
+          <Stack.Toolbar.Button
+            variant="prominent"
+            tintColor={colours.clay}
+            icon="plus"
+            accessibilityLabel="New task"
+            onPress={() => router.push('/new')}
+          />
           <Stack.Toolbar.Menu icon="line.3.horizontal.decrease.circle" accessibilityLabel="View" title="View">
             {VIEWS.map((v) => (
               <Stack.Toolbar.MenuAction key={v.id} isOn={v.id === view} onPress={() => setView(v.id)}>
@@ -98,7 +104,11 @@ export default function QueueScreen() {
       )}
       {split ? (
         <View style={{ flex: 1, flexDirection: 'row' }}>
-          <View style={{ width: Math.min(420, width * 0.42), borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colours.border }}>{list}</View>
+          <View
+            style={{ width: Math.min(420, width * 0.42), borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colours.border }}
+          >
+            {list}
+          </View>
           <View style={{ flex: 1 }}>
             {selectedItem ? (
               <TaskView key={selectedItem.task.id} item={selectedItem} />
@@ -149,7 +159,15 @@ const dotStyle = (item: QueueItem) => {
 
 const styles = StyleSheet.create({
   section: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 6, fontSize: 13, color: colours.text3 },
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginHorizontal: 8, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 12 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginHorizontal: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
   dot: { width: 9, height: 9, borderRadius: 5, marginTop: 7 },
   title: { fontSize: 16, lineHeight: 22, color: colours.body },
   meta: { marginTop: 3, fontSize: 13, color: colours.text3 },

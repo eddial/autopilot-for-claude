@@ -135,7 +135,12 @@ describe('filing', () => {
       s.fileItem(
         FileItem.parse({
           idempotencyKey: key(),
-          item: { ...item, signal: 'linear', url: `https://linear.app/acme/issue/LLE-15982/${closed ? 'x' : 'y'}`, ticket: { id: 'LLE-15982', closed } },
+          item: {
+            ...item,
+            signal: 'linear',
+            url: `https://linear.app/acme/issue/LLE-15982/${closed ? 'x' : 'y'}`,
+            ticket: { id: 'LLE-15982', closed },
+          },
           action: 'create',
           reason: 'assigned to you',
           searches: ['LLE-15982'],

@@ -1,0 +1,16 @@
+{
+  "name": "@autopilot/testkit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@autopilot/contracts": "workspace:*",
+    "@autopilot/server": "workspace:*"
+  }
+}

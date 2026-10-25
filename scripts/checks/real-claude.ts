@@ -36,7 +36,9 @@ await run('A real Claude Code session', [
   [
     'The session posts a decision through the Autopilot MCP tools',
     async () => {
-      const ask = await waitFor('a decision', 300, async () => (await api.tasks.get({ id })).updates.find((u) => u.kind === 'decision' && u.open))
+      const ask = await waitFor('a decision', 300, async () =>
+        (await api.tasks.get({ id })).updates.find((u) => u.kind === 'decision' && u.open),
+      )
       asked = ask.id
       // Blue if Claude offered it as asked, else whatever it offered first.
       choice = ask.options.find((o) => /blue/i.test(`${o.id} ${o.label}`)) ?? ask.options[0] ?? choice
@@ -59,8 +61,12 @@ await run('A real Claude Code session', [
       const done = await waitFor('the done update', 300, async () =>
         (await api.tasks.get({ id })).updates.find((u) => u.kind === 'done' && u.createdAt > answeredAt),
       )
-      const words = choice.label.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
-      if (!words.some((w) => done.body.toLowerCase().includes(w))) throw new Error(`The session handed over without the answer (${choice.label}): ${done.body}`)
+      const words = choice.label
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length > 2)
+      if (!words.some((w) => done.body.toLowerCase().includes(w)))
+        throw new Error(`The session handed over without the answer (${choice.label}): ${done.body}`)
       return done.body
     },
   ],
@@ -68,7 +74,9 @@ await run('A real Claude Code session', [
     'Closing the task ends the session',
     async () => {
       await api.tasks.close({ idempotencyKey: key(), id, outcome: 'done' })
-      const ended = await waitFor('the session to end', 60, async () => ((await api.tasks.get({ id })).session?.state === 'ended' ? true : null))
+      const ended = await waitFor('the session to end', 60, async () =>
+        (await api.tasks.get({ id })).session?.state === 'ended' ? true : null,
+      )
       return String(ended)
     },
   ],

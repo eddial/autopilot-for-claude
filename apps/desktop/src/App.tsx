@@ -72,7 +72,11 @@ export const App = () => {
   // Done is not in the live queue; it is fetched when shown, again after each change.
   const showingDone = view.kind === 'queue' && view.queue === 'done'
   useEffect(() => {
-    if (showingDone) void api.queue.list({ band: 'done' }).then((s) => setDone({ seq: queue.seq, items: s.items }), () => {})
+    if (showingDone)
+      void api.queue.list({ band: 'done' }).then(
+        (s) => setDone({ seq: queue.seq, items: s.items }),
+        () => {},
+      )
   }, [showingDone, queue.seq])
 
   useEffect(() => shell?.onNavigate((to) => to === 'new' && setView({ kind: 'new' })), [])
@@ -91,7 +95,8 @@ export const App = () => {
   useAttention(items, openTask)
 
   const list = useMemo(() => {
-    if (view.kind === 'workstream') return { title: titleCase(view.name), items: items.filter((i) => i.task.workstream === view.name), grouped: true }
+    if (view.kind === 'workstream')
+      return { title: titleCase(view.name), items: items.filter((i) => i.task.workstream === view.name), grouped: true }
     if (view.kind === 'queue') {
       const q = QUEUE_VIEWS.find((v) => v.id === view.queue) ?? QUEUE_VIEWS[0]
       if (!q) return null

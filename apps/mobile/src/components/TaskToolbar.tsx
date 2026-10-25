@@ -36,13 +36,28 @@ export const TaskToolbar = ({ item, closeAfter }: { item: QueueItem; closeAfter:
   return (
     <Stack.Toolbar placement="right">
       {live?.remoteControlUrl ? (
-        <Stack.Toolbar.Button variant="prominent" tintColor={colours.clay} icon="arrow.up.forward.app" accessibilityLabel="Open session" onPress={() => void Linking.openURL(live.remoteControlUrl ?? '')} />
+        <Stack.Toolbar.Button
+          variant="prominent"
+          tintColor={colours.clay}
+          icon="arrow.up.forward.app"
+          accessibilityLabel="Open session"
+          onPress={() => void Linking.openURL(live.remoteControlUrl ?? '')}
+        />
       ) : item.band === 'new' ? (
-        <Stack.Toolbar.Button variant="prominent" tintColor={colours.clay} icon="play.fill" accessibilityLabel="Start" onPress={() => void sync?.send({ kind: 'start', taskId: task.id })} />
+        <Stack.Toolbar.Button
+          variant="prominent"
+          tintColor={colours.clay}
+          icon="play.fill"
+          accessibilityLabel="Start"
+          onPress={() => void sync?.send({ kind: 'start', taskId: task.id })}
+        />
       ) : null}
       <Stack.Toolbar.Menu icon="moon.zzz" accessibilityLabel="Snooze" title="Snooze">
         {snoozeTimes().map((t) => (
-          <Stack.Toolbar.MenuAction key={t.label} onPress={() => void sync?.send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() })}>
+          <Stack.Toolbar.MenuAction
+            key={t.label}
+            onPress={() => void sync?.send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() })}
+          >
             {t.label}
           </Stack.Toolbar.MenuAction>
         ))}

@@ -63,7 +63,18 @@ const taskOf = (service: Service, path: readonly string[], input: unknown): stri
   return null
 }
 
-export const createRouter = ({ service, workstreams, signals, machine, applyRouting, detect, setup, installService, startPairing, log = () => {} }: Deps) => {
+export const createRouter = ({
+  service,
+  workstreams,
+  signals,
+  machine,
+  applyRouting,
+  detect,
+  setup,
+  installService,
+  startPairing,
+  log = () => {},
+}: Deps) => {
   const os = implement(contract).$context<Context>()
 
   /** Every call: check the token against the procedure's scopes, then map domain errors to typed ones. */
@@ -90,7 +101,7 @@ export const createRouter = ({ service, workstreams, signals, machine, applyRout
       return await next()
     } catch (error) {
       if (!(error instanceof DomainError)) {
-        log(`${path.join('.')} failed: ${error instanceof Error ? error.stack ?? error.message : String(error)}`)
+        log(`${path.join('.')} failed: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`)
         throw error
       }
       switch (error.code) {
@@ -134,7 +145,10 @@ export const createRouter = ({ service, workstreams, signals, machine, applyRout
           for (const change of page.changes) {
             // An event the contract rejects would end the client's stream; log exactly what was wrong.
             const checked = QueueEvent.safeParse(change)
-            if (!checked.success) log(`queue event ${change.seq} does not match the contract: ${JSON.stringify(checked.error.issues)} ${JSON.stringify(change).slice(0, 2000)}`)
+            if (!checked.success)
+              log(
+                `queue event ${change.seq} does not match the contract: ${JSON.stringify(checked.error.issues)} ${JSON.stringify(change).slice(0, 2000)}`,
+              )
             yield change
           }
           after = page.changes.at(-1)?.seq ?? after

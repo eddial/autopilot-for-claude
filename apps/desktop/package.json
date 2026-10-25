@@ -17,22 +17,23 @@
     "@autopilot/contracts": "workspace:*",
     "@autopilot/server": "workspace:*",
     "@fontsource-variable/source-serif-4": "^5.3.1",
-    "@orpc/client": "^1.16.1",
-    "@orpc/contract": "^1.16.1",
-    "@orpc/server": "^1.16.1",
+    "@orpc/client": "catalog:",
+    "@orpc/contract": "catalog:",
+    "@orpc/server": "catalog:",
     "@tanstack/react-virtual": "3.14.22",
     "qrcode": "1.5.4",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "devDependencies": {
     "@types/qrcode": "1.5.6",
-    "@types/react": "^19.3.0",
+    "@types/react": "catalog:",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "^45.0.0",
     "esbuild": "^0.28.2",
     "playwright-core": "1.63.0",
-    "vite": "^8.3.5"
+    "vite": "^8.3.5",
+    "@autopilot/testkit": "workspace:*"
   }
 }

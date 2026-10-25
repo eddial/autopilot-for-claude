@@ -16,5 +16,15 @@ export const StatusLine = () => {
 }
 
 const styles = StyleSheet.create({
-  line: { marginHorizontal: 16, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, overflow: 'hidden', backgroundColor: 'rgba(217,119,87,0.12)', color: colours.claySoft, fontSize: 13 },
+  line: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(217,119,87,0.12)',
+    color: colours.claySoft,
+    fontSize: 13,
+  },
 })

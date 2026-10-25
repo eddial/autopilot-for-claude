@@ -1,44 +1,30 @@
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { AnswerUpdate, CreateTask, PostUpdate, type Invite } from '@autopilot/contracts'
-import { connect } from '@autopilot/server/client'
-import { startServer, type ServerHandle } from '@autopilot/server/main'
-import { readOwnerToken } from '@autopilot/server/owner'
-import { resolvePaths, type Paths } from '@autopilot/server/paths'
+import { AnswerUpdate, CreateTask, PostUpdate } from '@autopilot/contracts'
+import { keys, localInvite, startTestServer, type TestServer, type TestServerOptions } from '@autopilot/testkit'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { pair, type Connection } from '../src/connection.ts'
 import { nodePinnedFetch } from '../src/node.ts'
 import { memoryStorage, Sync } from '../src/sync.ts'
 
 const pinned = nodePinnedFetch()
-const servers: ServerHandle[] = []
-let n = 0
-const key = () => `client-test-${++n}-key`
+const servers: TestServer[] = []
+const key = keys('client-test')
 
-const start = async (paths: Paths, devicePort = 0) => {
-  const handle = await startServer({
-    paths,
-    self: { node: process.execPath, script: 'autopilot.js' },
-    runClaude: () => Promise.resolve({ items: [] }),
-    spawn: () => ({ pid: 1, write: () => {}, kill: () => {}, onData: () => {}, onExit: () => {} }),
-    devicePort,
-    log: () => {},
-  })
-  servers.push(handle)
-  return handle
+const start = async (options: TestServerOptions = {}) => {
+  const server = await startTestServer(options)
+  servers.push(server)
+  return server
 }
 
-/** A server, and an invite from it as the Mac app would show it. Loopback first so tests do not wait on mDNS. */
+/** A server, and an invite from it as the Mac app would show it. */
 const setup = async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'ap-client-'))
-  const paths = resolvePaths({ AUTOPILOT_DATA: join(dir, 'data'), AUTOPILOT_HOME: join(dir, 'home') })
-  const handle = await start(paths)
-  const owner = connect(paths.socket, readOwnerToken(paths) ?? '')
-  const { invite } = await owner.devices.startPairing({ idempotencyKey: key() })
-  const port = handle.devicePort() ?? 0
-  const local: Invite = { ...invite, routes: [{ kind: 'lan', address: `127.0.0.1:${port}` }, ...invite.routes] }
-  return { paths, handle, owner, invite: local, port }
+  const server = await start()
+  return {
+    paths: server.paths,
+    handle: server.handle,
+    owner: server.owner,
+    invite: await localInvite(server, key()),
+    port: server.handle.devicePort() ?? 0,
+  }
 }
 
 afterAll(async () => {
@@ -53,7 +39,12 @@ describe('the phone against the Mac', () => {
     expect((await owner.devices.list()).map((d) => d.name)).toEqual(['Test iPhone'])
 
     const turns: string[] = []
-    const sync = new Sync({ connection, pinned, storage: memoryStorage(), onYourTurn: (items) => turns.push(...items.map((i) => i.task.title)) })
+    const sync = new Sync({
+      connection,
+      pinned,
+      storage: memoryStorage(),
+      onYourTurn: (items) => turns.push(...items.map((i) => i.task.title)),
+    })
     await sync.syncOnce()
     expect(sync.getState().status).toBe('online')
 
@@ -72,7 +63,10 @@ describe('the phone against the Mac', () => {
     const storage = memoryStorage()
     const sync = new Sync({ connection, pinned, storage })
     const task = handle.service.createTask(CreateTask.parse({ idempotencyKey: key(), title: 'Backport the fix?', start: false }))
-    const ask = handle.service.postUpdate(PostUpdate.parse({ idempotencyKey: key(), taskId: task.id, kind: 'question', body: 'Backport?' }), 'session')
+    const ask = handle.service.postUpdate(
+      PostUpdate.parse({ idempotencyKey: key(), taskId: task.id, kind: 'question', body: 'Backport?' }),
+      'session',
+    )
     await sync.syncOnce()
 
     // Answered on the Mac, then the Mac goes to sleep before the phone hears of it.
@@ -91,7 +85,7 @@ describe('the phone against the Mac', () => {
     // The app was closed meanwhile: a new Sync reads the outbox back from storage.
     const reopened = new Sync({ connection, pinned, storage })
     await reopened.load()
-    const back = await start(paths, port)
+    const back = await start({ paths, devicePort: port })
     await reopened.syncOnce()
     expect(reopened.getState()).toMatchObject({ status: 'online', outbox: [], conflicts: [{ reason: 'already_answered' }] })
     expect(back.service.queue().items.map((i) => i.task.title)).toContain('Draft the release note')
@@ -103,14 +97,19 @@ describe('the phone against the Mac', () => {
     const connection = await pair(invite, { name: 'Test iPhone', kind: 'iphone' }, pinned, key())
     const sync = new Sync({ connection, pinned, storage: memoryStorage() })
     const task = handle.service.createTask(CreateTask.parse({ idempotencyKey: key(), title: 'Pick a colour', start: false }))
-    const ask = handle.service.postUpdate(PostUpdate.parse({ idempotencyKey: key(), taskId: task.id, kind: 'question', body: 'Red or blue?' }), 'session')
+    const ask = handle.service.postUpdate(
+      PostUpdate.parse({ idempotencyKey: key(), taskId: task.id, kind: 'question', body: 'Red or blue?' }),
+      'session',
+    )
     await sync.syncOnce()
     await sync.detail(task.id)
 
     const polling = sync.syncOnce(20)
     await sync.send({ kind: 'answer', taskId: task.id, updateId: ask.id, text: 'Blue' })
     // The Mac has it long before the poll would have ended, and the poll ends because it did.
-    await vi.waitFor(() => expect(handle.service.getTask(task.id).updates.map((u) => u.kind)).toEqual(['question', 'instruction']), { timeout: 3000 })
+    await vi.waitFor(() => expect(handle.service.getTask(task.id).updates.map((u) => u.kind)).toEqual(['question', 'instruction']), {
+      timeout: 3000,
+    })
     await polling
     // The conversation fetched before is current from the feed, without fetching it again.
     expect(sync.cachedDetail(task.id)?.updates.map((u) => `${u.kind}:${String(u.open)}`)).toEqual(['question:false', 'instruction:false'])

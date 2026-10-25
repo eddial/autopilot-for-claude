@@ -23,7 +23,12 @@ describe('connector detection', () => {
     chmodSync(claude, 0o755)
 
     expect(connectorsOf(await claudeInit(claude))).toEqual([
-      { name: 'claude.ai Slack', status: 'connected', tools: ['mcp__claude_ai_Slack__slack_read_thread', 'mcp__claude_ai_Slack__slack_search_public'], signal: 'slack' },
+      {
+        name: 'claude.ai Slack',
+        status: 'connected',
+        tools: ['mcp__claude_ai_Slack__slack_read_thread', 'mcp__claude_ai_Slack__slack_search_public'],
+        signal: 'slack',
+      },
       { name: 'claude.ai Gmail', status: 'needs-auth', tools: [], signal: 'gmail' },
     ])
   })

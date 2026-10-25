@@ -1,16 +1,12 @@
 // pnpm perf: the numbers behind "it should feel like the text is hardcoded". Seeds a realistic
 // queue, times the server's hot paths, then times the window's interactions inside Chromium from
 // input to the next painted frame, and checks everything against perf/budgets.json.
-import { readdirSync, readFileSync, writeFileSync, mkdtempSync, appendFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { appendFileSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { overlay, type Pending } from '@autopilot/client'
 import { applyEvent, CreateTask, emptyQueue, PostUpdate, queueItems } from '@autopilot/contracts'
-import { connect } from '@autopilot/server/client'
-import { startServer } from '@autopilot/server/main'
-import { readOwnerToken } from '@autopilot/server/owner'
-import { resolvePaths } from '@autopilot/server/paths'
+import { startTestServer } from '@autopilot/testkit'
 import { chromium, type Page } from 'playwright-core'
 import { serveWeb } from '../scripts/web-server.ts'
 
@@ -34,22 +30,19 @@ const median = (fn: () => unknown, runs = 25): number => {
 
 // ── the server, with a heavy but realistic queue: 1000 open tasks, five updates each ──
 
-const dir = mkdtempSync(join(tmpdir(), 'ap-perf-'))
-const paths = resolvePaths({ AUTOPILOT_DATA: join(dir, 'data'), AUTOPILOT_HOME: join(dir, 'home') })
-const handle = await startServer({
-  paths,
-  self: { node: process.execPath, script: 'autopilot.js' },
-  claude: join(dir, 'no-claude'),
-  runClaude: () => Promise.resolve({ items: [] }),
-  spawn: () => ({ pid: 1, write: () => {}, kill: () => {}, onData: () => {}, onExit: () => {} }),
-  devicePort: 0,
-  log: () => {},
-})
+const server = await startTestServer()
+const handle = server.handle
 const { service } = handle
 const workstreams = ['engineering', 'customers', 'company']
 for (let i = 0; i < 1000; i++) {
   const task = service.createTask(
-    CreateTask.parse({ idempotencyKey: key(), title: `Task ${i}: answer the question about the renewal`, workstream: workstreams[i % 3], priority: (i % 4) + 1, start: false }),
+    CreateTask.parse({
+      idempotencyKey: key(),
+      title: `Task ${i}: answer the question about the renewal`,
+      workstream: workstreams[i % 3],
+      priority: (i % 4) + 1,
+      start: false,
+    }),
   )
   for (let j = 0; j < 5; j++) {
     const ask = i % 10 === 0 && j === 4
@@ -59,7 +52,14 @@ for (let i = 0; i < 1000; i++) {
         taskId: task.id,
         kind: ask ? 'decision' : 'info',
         body: 'Progress on the work, a few sentences long, as sessions write them. '.repeat(3),
-        ...(ask ? { options: [{ id: 'yes', label: 'Yes' }, { id: 'no', label: 'No' }] } : {}),
+        ...(ask
+          ? {
+              options: [
+                { id: 'yes', label: 'Yes' },
+                { id: 'no', label: 'No' },
+              ],
+            }
+          : {}),
       }),
       'session',
     )
@@ -68,18 +68,28 @@ for (let i = 0; i < 1000; i++) {
 results['server.snapshot.1000'] = median(() => service.queue())
 results['server.taskDetail'] = median(() => service.getTask('AP-500'), 200)
 results['server.changesSince'] = median(() => service.changesSince(service.latestSeq() - 50, 500), 200)
-results['server.write'] = median(() => service.postUpdate(PostUpdate.parse({ idempotencyKey: key(), taskId: 'AP-7', kind: 'info', body: 'More.' }), 'session'), 200)
+results['server.write'] = median(
+  () => service.postUpdate(PostUpdate.parse({ idempotencyKey: key(), taskId: 'AP-7', kind: 'info', body: 'More.' }), 'session'),
+  200,
+)
 
 // What the window and the phone compute on every change: the queue as shown, outbox on top. It runs
 // here in V8; Hermes on the phone is a few times slower, which the budget leaves room for.
 const live = applyEvent(emptyQueue, { type: 'snapshot', snapshot: service.queue() })
-const outbox: Pending[] = [{ id: 'p1', n: 1, at: new Date().toISOString(), command: { kind: 'snooze', taskId: 'AP-3', until: new Date(Date.now() + 3_600_000).toISOString() } }]
+const outbox: Pending[] = [
+  {
+    id: 'p1',
+    n: 1,
+    at: new Date().toISOString(),
+    command: { kind: 'snooze', taskId: 'AP-3', until: new Date(Date.now() + 3_600_000).toISOString() },
+  },
+]
 results['client.queueItems.1000'] = median(() => queueItems(overlay(live, outbox, new Date()), new Date()), 50)
 
 // ── the window, in Chromium against that server ──
 
 // The production build, as the Mac app loads it.
-const web = await serveWeb(connect(paths.socket, readOwnerToken(paths) ?? ''), 0, { built: true })
+const web = await serveWeb(server.owner, 0, { built: true })
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 
@@ -129,7 +139,9 @@ if (process.env.PERF_DEBUG) {
     'first load:',
     // Runs in the page, so everything is spelled out inside it.
     await page.evaluate(() => ({
-      domContentLoaded: (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.domContentLoadedEventEnd.toFixed(0),
+      domContentLoaded: (
+        performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
+      )?.domContentLoadedEventEnd.toFixed(0),
       subscribe: performance.getEntriesByName('autopilot:subscribe')[0]?.startTime.toFixed(0),
       snapshot: performance.getEntriesByName('autopilot:snapshot')[0]?.startTime.toFixed(0),
     })),
@@ -156,18 +168,36 @@ results['window.openTask'] = openTimes.toSorted((a, b) => a - b)[2] ?? 0
 // Rows waiting on a decision; answering one takes it off the list.
 const answerTimes: number[] = []
 for (let k = 0; k < 3; k++) {
-  const i = await page.evaluate(() => [...document.querySelectorAll('[role="option"]')].findIndex((r) => r.textContent?.includes('Needs your decision')))
+  const i = await page.evaluate(() =>
+    [...document.querySelectorAll('[role="option"]')].findIndex((r) => r.textContent?.includes('Needs your decision')),
+  )
   if (i < 0) throw new Error('no decision on screen')
   await hover(i)
   await interaction(page, row(i), `${opened(i)} && !!document.querySelector('.timeline .options .btn')`)
-  answerTimes.push(await interaction(page, `document.querySelector('.timeline .options .btn')`, `!document.querySelector('.timeline .options .btn')`))
+  answerTimes.push(
+    await interaction(page, `document.querySelector('.timeline .options .btn')`, `!document.querySelector('.timeline .options .btn')`),
+  )
 }
 results['window.answer'] = answerTimes.toSorted((a, b) => a - b)[1] ?? 0
 
 const switchTimes: number[] = []
-for (const [view, title] of [['Waiting on others', 'Waiting on others'], ['Needs me', 'Needs me'], ['Running', 'Running'], ['Needs me', 'Needs me']] as const) {
-  const index = await page.evaluate((v) => [...document.querySelectorAll('nav .nav-item')].findIndex((b) => b.textContent?.startsWith(v)), view)
-  switchTimes.push(await interaction(page, `document.querySelectorAll('nav .nav-item')[${index}]`, `document.querySelector('.list h1')?.textContent === '${title}'`))
+for (const [view, title] of [
+  ['Waiting on others', 'Waiting on others'],
+  ['Needs me', 'Needs me'],
+  ['Running', 'Running'],
+  ['Needs me', 'Needs me'],
+] as const) {
+  const index = await page.evaluate(
+    (v) => [...document.querySelectorAll('nav .nav-item')].findIndex((b) => b.textContent?.startsWith(v)),
+    view,
+  )
+  switchTimes.push(
+    await interaction(
+      page,
+      `document.querySelectorAll('nav .nav-item')[${index}]`,
+      `document.querySelector('.list h1')?.textContent === '${title}'`,
+    ),
+  )
 }
 results['window.switchView'] = switchTimes.toSorted((a, b) => a - b)[2] ?? 0
 results['window.longTasks.count'] = await page.evaluate(() => (window as unknown as { longTaskCount: number }).longTaskCount)
@@ -200,7 +230,9 @@ try {
 const iosBundle = process.env.IOS_BUNDLE_DIR
 if (iosBundle) {
   const find = (folder: string): string[] =>
-    readdirSync(folder, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? find(join(folder, e.name)) : e.name.endsWith('.hbc') ? [join(folder, e.name)] : []))
+    readdirSync(folder, { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? find(join(folder, e.name)) : e.name.endsWith('.hbc') ? [join(folder, e.name)] : [],
+    )
   results['phone.bundle.MB'] = find(iosBundle).reduce((total, f) => total + readFileSync(f).length / 1_048_576, 0)
 }
 
@@ -216,7 +248,10 @@ const rows = Object.entries(budgets)
 const table = [
   '| Measure | Result | Budget | |',
   '| --- | ---: | ---: | --- |',
-  ...rows.map((r) => `| ${r.name} | ${r.value === undefined ? 'not measured' : r.value.toFixed(r.value < 10 ? 2 : 0)} | ${r.budget} | ${r.ok ? 'ok' : 'OVER'} |`),
+  ...rows.map(
+    (r) =>
+      `| ${r.name} | ${r.value === undefined ? 'not measured' : r.value.toFixed(r.value < 10 ? 2 : 0)} | ${r.budget} | ${r.ok ? 'ok' : 'OVER'} |`,
+  ),
 ].join('\n')
 console.log(table)
 writeFileSync(join(import.meta.dirname, 'results.json'), JSON.stringify(results, null, 2))

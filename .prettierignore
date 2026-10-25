@@ -1,0 +1,9 @@
+node_modules
+dist
+**/schema
+pnpm-lock.yaml
+apps/mobile/ios
+apps/mobile/android
+apps/mobile/.expo
+**/*.md
+**/perf/results.json

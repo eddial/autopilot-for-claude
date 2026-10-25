@@ -31,10 +31,7 @@ export const QueueSnapshot = z.object({
 export type QueueSnapshot = z.infer<typeof QueueSnapshot>
 
 /** A live subscription starts with a snapshot (unless resuming), then streams changes. */
-export const QueueEvent = z.union([
-  z.object({ type: z.literal('snapshot'), snapshot: QueueSnapshot }),
-  Change,
-])
+export const QueueEvent = z.union([z.object({ type: z.literal('snapshot'), snapshot: QueueSnapshot }), Change])
 export type QueueEvent = z.infer<typeof QueueEvent>
 
 export const ChangesPage = z.object({

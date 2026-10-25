@@ -245,8 +245,17 @@ export class Launcher {
       const session = service.session(sessionId)
       if (!session || session.state !== 'starting' || !STARTUP_PROMPT.test(plain(live.output))) return
       live.stuck = true
-      const screen = plain(live.output).split('\n').map((l) => l.trim()).filter(Boolean).slice(-12).join('\n')
-      service.systemUpdate(task.id, 'blocked', `The session stopped at a startup screen in ${cwd} and was closed. Answer it once in Claude Code there, then start the task again:\n\n${screen}`)
+      const screen = plain(live.output)
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .slice(-12)
+        .join('\n')
+      service.systemUpdate(
+        task.id,
+        'blocked',
+        `The session stopped at a startup screen in ${cwd} and was closed. Answer it once in Claude Code there, then start the task again:\n\n${screen}`,
+      )
       pty.kill()
     }, STUCK_AFTER_MS).unref()
     this.opts.log(`started ${task.id} in ${cwd}`)
@@ -268,7 +277,11 @@ export class Launcher {
     const sinceOwner = detail.updates.slice(detail.updates.findLastIndex((u) => u.author === 'owner') + 1)
     const handedOver = sinceOwner.some((u) => u.author === 'session' && u.kind !== 'info')
     if (detail.task.state === 'running' && !handedOver) {
-      service.systemUpdate(taskId, 'blocked', `The session ended (exit code ${exitCode}) before handing over. Start it again or close the task.`)
+      service.systemUpdate(
+        taskId,
+        'blocked',
+        `The session ended (exit code ${exitCode}) before handing over. Start it again or close the task.`,
+      )
     }
   }
 

@@ -55,7 +55,9 @@ export const Setup = ({ onDone }: Props) => {
         }),
       )
       setPreviews(Object.fromEntries(results))
-      const suggested = new Set(results.flatMap(([, r]) => (Array.isArray(r) ? r.flatMap((d) => (d.workstream ? [d.workstream] : [])) : [])))
+      const suggested = new Set(
+        results.flatMap(([, r]) => (Array.isArray(r) ? r.flatMap((d) => (d.workstream ? [d.workstream] : [])) : [])),
+      )
       const options = await api.workstreams.examples()
       setWorkstreams(options.map((w) => ({ ...w, use: suggested.size === 0 || suggested.has(w.name) })))
     } catch (e) {
@@ -70,7 +72,13 @@ export const Setup = ({ onDone }: Props) => {
     setError(null)
     try {
       for (const w of workstreams.filter((x) => x.use)) {
-        await api.workstreams.save({ idempotencyKey: key(), name: w.name, routing: w.routing, urgent: w.urgent, ...(w.repo ? { repo: w.repo } : {}) })
+        await api.workstreams.save({
+          idempotencyKey: key(),
+          name: w.name,
+          routing: w.routing,
+          urgent: w.urgent,
+          ...(w.repo ? { repo: w.repo } : {}),
+        })
       }
       setStep(4)
     } catch (e) {
@@ -106,7 +114,11 @@ export const Setup = ({ onDone }: Props) => {
             </li>
           ))}
         </ol>
-        {error && <div className="banner" style={{ margin: '12px 0' }}>{error}</div>}
+        {error && (
+          <div className="banner" style={{ margin: '12px 0' }}>
+            {error}
+          </div>
+        )}
 
         {step === 0 && (
           <>
@@ -121,16 +133,29 @@ export const Setup = ({ onDone }: Props) => {
             <Check
               ok={status?.claude.installed ?? null}
               title="Claude Code is installed"
-              detail={status ? (status.claude.version ?? 'Not found. Install Claude Code, sign in, then open this again.') : 'I start every session with it.'}
+              detail={
+                status
+                  ? (status.claude.version ?? 'Not found. Install Claude Code, sign in, then open this again.')
+                  : 'I start every session with it.'
+              }
             />
             <Check
               ok={detected ? detected.connectors.length > 0 : error ? false : null}
               title="Your Claude connectors are there"
               detail={detected ? `${detected.connectors.length} found` : error ? 'Could not ask Claude Code' : 'Asking Claude Code…'}
             />
-            <Check ok={status?.service ?? null} title="Keep working in the background" detail="Starts when you log in and keeps going when this window is closed.">
+            <Check
+              ok={status?.service ?? null}
+              title="Keep working in the background"
+              detail="Starts when you log in and keeps going when this window is closed."
+            >
               {status && !status.service && (
-                <button className="tool" onClick={() => void api.setup.installService({ idempotencyKey: key() }).then(setStatus, (e: unknown) => setError(message(e)))}>
+                <button
+                  className="tool"
+                  onClick={() =>
+                    void api.setup.installService({ idempotencyKey: key() }).then(setStatus, (e: unknown) => setError(message(e)))
+                  }
+                >
                   Turn on
                 </button>
               )}
@@ -149,7 +174,9 @@ export const Setup = ({ onDone }: Props) => {
             <h1 className="serif" style={{ marginTop: 24 }}>
               Where should I listen?
             </h1>
-            <p className="lead">These are the sources I can read with your Claude connectors. Pick one or two to start; I only ever read from them.</p>
+            <p className="lead">
+              These are the sources I can read with your Claude connectors. Pick one or two to start; I only ever read from them.
+            </p>
             {examples.map((example) => {
               const on = chosen.has(example.name)
               const can = available(example) || example.added
@@ -170,7 +197,13 @@ export const Setup = ({ onDone }: Props) => {
                       }
                     />
                     <span className="name">{titleCase(example.name)}</span>
-                    <span className="meta">{can ? example.summary.slice(0, 120) : example.name === 'github' ? 'Sign in with gh auth login first' : 'Not connected in Claude yet'}</span>
+                    <span className="meta">
+                      {can
+                        ? example.summary.slice(0, 120)
+                        : example.name === 'github'
+                          ? 'Sign in with gh auth login first'
+                          : 'Not connected in Claude yet'}
+                    </span>
                   </label>
                   {on &&
                     example.fields.map((field) => (
@@ -250,7 +283,8 @@ export const Setup = ({ onDone }: Props) => {
             </h1>
             <p className="lead">Adjust the words if they're off; they're how I decide where things land. Everything else can wait.</p>
             {workstreams.map((w, i) => {
-              const set = (patch: Partial<Workstream & { use: boolean }>) => setWorkstreams((all) => all.map((x, j) => (j === i ? { ...x, ...patch } : x)))
+              const set = (patch: Partial<Workstream & { use: boolean }>) =>
+                setWorkstreams((all) => all.map((x, j) => (j === i ? { ...x, ...patch } : x)))
               return (
                 <div key={w.name} className="card">
                   <label className="card-head">
@@ -259,10 +293,28 @@ export const Setup = ({ onDone }: Props) => {
                   </label>
                   {w.use && (
                     <>
-                      <textarea className="inline-reply" rows={3} aria-label={`What lands in ${w.name}`} value={w.routing} onChange={(e) => set({ routing: e.target.value })} />
-                      <input className="inline-reply" aria-label={`When ${w.name} is urgent`} placeholder="Urgent when…" value={w.urgent} onChange={(e) => set({ urgent: e.target.value })} />
+                      <textarea
+                        className="inline-reply"
+                        rows={3}
+                        aria-label={`What lands in ${w.name}`}
+                        value={w.routing}
+                        onChange={(e) => set({ routing: e.target.value })}
+                      />
+                      <input
+                        className="inline-reply"
+                        aria-label={`When ${w.name} is urgent`}
+                        placeholder="Urgent when…"
+                        value={w.urgent}
+                        onChange={(e) => set({ urgent: e.target.value })}
+                      />
                       {w.repo !== null && (
-                        <input className="inline-reply" aria-label={`Repository for ${w.name}`} placeholder="~/code/your-repo" value={w.repo} onChange={(e) => set({ repo: e.target.value })} />
+                        <input
+                          className="inline-reply"
+                          aria-label={`Repository for ${w.name}`}
+                          placeholder="~/code/your-repo"
+                          value={w.repo}
+                          onChange={(e) => set({ repo: e.target.value })}
+                        />
                       )}
                     </>
                   )}
@@ -287,8 +339,19 @@ export const Setup = ({ onDone }: Props) => {
               <Pilot pixel={3} />
               <h1 className="serif">Ready for take-off</h1>
             </div>
-            <Check ok title={`Listening to ${[...chosen].map(titleCase).join(' and ')}, from now on`} detail="Nothing from before today is filed." />
-            <Check ok title={`Sorting into ${workstreams.filter((w) => w.use).map((w) => titleCase(w.name)).join(', ')}`} detail="Correct me by moving a task; I learn from it overnight." />
+            <Check
+              ok
+              title={`Listening to ${[...chosen].map(titleCase).join(' and ')}, from now on`}
+              detail="Nothing from before today is filed."
+            />
+            <Check
+              ok
+              title={`Sorting into ${workstreams
+                .filter((w) => w.use)
+                .map((w) => titleCase(w.name))
+                .join(', ')}`}
+              detail="Correct me by moving a task; I learn from it overnight."
+            />
             <Check ok title="Sessions prepare drafts and branches" detail="You send and merge." />
             <div className="step-bar">
               <button className="tool" onClick={() => setStep(3)}>
@@ -308,7 +371,11 @@ export const Setup = ({ onDone }: Props) => {
 const Check = ({ ok, title, detail, children }: { ok: boolean | null; title: string; detail: string; children?: React.ReactNode }) => (
   <div className="card">
     <div className="card-head">
-      <span className="health-dot" style={{ background: ok === null ? '#6b6a65' : ok ? 'var(--pilot)' : 'var(--clay)' }} aria-label={ok === null ? 'checking' : ok ? 'ok' : 'needs attention'} />
+      <span
+        className="health-dot"
+        style={{ background: ok === null ? '#6b6a65' : ok ? 'var(--pilot)' : 'var(--clay)' }}
+        aria-label={ok === null ? 'checking' : ok ? 'ok' : 'needs attention'}
+      />
       <span className="name">{title}</span>
       <span className="meta">{detail}</span>
       {children && <div className="actions">{children}</div>}

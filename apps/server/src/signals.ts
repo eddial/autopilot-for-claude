@@ -176,8 +176,7 @@ export class Signals {
 
   private state(name: string): State {
     const row = this.o.service.db.prepare('select * from signal_state where name = ?').get(name) as
-      | Record<string, string | number | null>
-      | undefined
+      Record<string, string | number | null> | undefined
     return {
       lastCheckedAt: (row?.last_checked_at as string | null) ?? null,
       lastRunAt: (row?.last_run_at as string | null) ?? null,
@@ -312,7 +311,14 @@ export class Signals {
       const parsed = SignalOutput.parse(typeof output === 'string' ? JSON.parse(output) : output)
       const decisions = dry ? parsed.items.map((i) => this.preview(name, i)) : parsed.items.map((i) => this.apply(name, i))
       if (!dry) {
-        this.save(name, { ...state, lastCheckedAt: end.toISOString(), lastRunAt: end.toISOString(), failingSince: null, failures: 0, message: null })
+        this.save(name, {
+          ...state,
+          lastCheckedAt: end.toISOString(),
+          lastRunAt: end.toISOString(),
+          failingSince: null,
+          failures: 0,
+          message: null,
+        })
         service.closeHealth(`signal:${name}`, `The ${name} signal runs again.`)
         if (missed) {
           service.systemTask(
@@ -354,7 +360,16 @@ export class Signals {
     return this.o.service.fileItem(
       FileItem.parse({
         idempotencyKey: `signal-${key.slice(0, 40)}`,
-        item: { signal: name, url: item.url, sender: item.sender, channel: item.channel, at: item.at, title: item.title.slice(0, 120), summary: item.summary.slice(0, 2000), ticket: item.ticket },
+        item: {
+          signal: name,
+          url: item.url,
+          sender: item.sender,
+          channel: item.channel,
+          at: item.at,
+          title: item.title.slice(0, 120),
+          summary: item.summary.slice(0, 2000),
+          ticket: item.ticket,
+        },
         action: item.action,
         taskId: item.taskId,
         workstream: item.workstream,
@@ -412,7 +427,9 @@ export class Signals {
       .join('\n\n')
     const active = this.o.service
       .queue()
-      .items.map((i) => `- ${i.task.id} · ${i.band} · ${i.task.workstream} · ${i.task.title}${i.task.source.url ? ` · ${i.task.source.url}` : ''}`)
+      .items.map(
+        (i) => `- ${i.task.id} · ${i.band} · ${i.task.workstream} · ${i.task.title}${i.task.source.url ? ` · ${i.task.source.url}` : ''}`,
+      )
       .join('\n')
     return [
       read('instructions.md'),

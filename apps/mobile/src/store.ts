@@ -47,7 +47,8 @@ export const loadConnection = async (): Promise<Connection | null> => {
 
 /** Starts syncing with a server just paired with. */
 export const connectTo = async (connection: Connection, save: boolean): Promise<Sync> => {
-  if (save) await SecureStore.setItemAsync(CONNECTION_KEY, JSON.stringify(connection), { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK })
+  if (save)
+    await SecureStore.setItemAsync(CONNECTION_KEY, JSON.stringify(connection), { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK })
   current?.sync.stop()
   const sync = create(connection)
   if (!sync.restore()) await sync.load()
@@ -170,7 +171,8 @@ TaskManager.defineTask(BACKGROUND_TASK, async () => {
 export const registerBackgroundSync = async (): Promise<void> => {
   const status = await BackgroundTask.getStatusAsync()
   if (status !== BackgroundTask.BackgroundTaskStatus.Available) return
-  if (!(await TaskManager.isTaskRegisteredAsync(BACKGROUND_TASK))) await BackgroundTask.registerTaskAsync(BACKGROUND_TASK, { minimumInterval: 15 })
+  if (!(await TaskManager.isTaskRegisteredAsync(BACKGROUND_TASK)))
+    await BackgroundTask.registerTaskAsync(BACKGROUND_TASK, { minimumInterval: 15 })
 }
 
 Notifications.setNotificationHandler({

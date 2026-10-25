@@ -139,7 +139,9 @@ const main = async (argv: string[]): Promise<void> => {
       for (const c of connectors) {
         console.log(`${c.name}: ${c.status}, ${c.tools.length} tools${c.signal ? ` · signal ${c.signal}` : ''}`)
       }
-      console.log(`GitHub CLI: ${github.cli ? (github.user ? `signed in as ${github.user} · signal github` : 'not signed in (gh auth login)') : 'not installed'}`)
+      console.log(
+        `GitHub CLI: ${github.cli ? (github.user ? `signed in as ${github.user} · signal github` : 'not signed in (gh auth login)') : 'not installed'}`,
+      )
       return
     }
     case 'routing': {
@@ -165,7 +167,9 @@ const main = async (argv: string[]): Promise<void> => {
       console.log(`Server API v${version.version} on ${paths.socket}`)
       console.log(`Queue: ${count('your_turn')} your turn, ${count('new')} new, ${count('running')} running, ${count('waiting')} waiting`)
       for (const s of signals) {
-        console.log(`Signal ${s.name}: ${s.health.state}${s.health.message ? ` (${s.health.message})` : ''} · last run ${s.lastRunAt ?? 'never'}`)
+        console.log(
+          `Signal ${s.name}: ${s.health.state}${s.health.message ? ` (${s.health.message})` : ''} · last run ${s.lastRunAt ?? 'never'}`,
+        )
       }
       return
     }

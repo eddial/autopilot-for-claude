@@ -176,9 +176,9 @@ export class Service {
     const rows = this.db
       .prepare('select seq, at, type, payload from changes where seq > ? order by seq limit ?')
       .all(after, limit + 1) as Row[]
-    const changes = rows.slice(0, limit).map(
-      (r) => ({ seq: Number(r.seq), at: str(r.at), type: r.type, ...parse<object>(r.payload) }) as Change,
-    )
+    const changes = rows
+      .slice(0, limit)
+      .map((r) => ({ seq: Number(r.seq), at: str(r.at), type: r.type, ...parse<object>(r.payload) }) as Change)
     return { changes, latest: this.latestSeq(), more: rows.length > limit }
   }
 
@@ -273,9 +273,8 @@ export class Service {
   }
 
   private openAsk(taskId: string): Update | null {
-    const row = this.db
-      .prepare('select * from updates where task_id = ? and open = 1 order by created_at desc limit 1')
-      .get(taskId) as Row | undefined
+    const row = this.db.prepare('select * from updates where task_id = ? and open = 1 order by created_at desc limit 1').get(taskId) as
+      Row | undefined
     return row ? this.toUpdate(row) : null
   }
 
@@ -300,27 +299,32 @@ export class Service {
   getTask(id: string): TaskDetail {
     const task = this.task(id)
     const item = this.item(task)
-    const updates = (this.sql('select * from updates where task_id = ? order by created_at, id').all(id) as Row[]).map(
-      (r) => this.toUpdate(r),
+    const updates = (this.sql('select * from updates where task_id = ? order by created_at, id').all(id) as Row[]).map((r) =>
+      this.toUpdate(r),
     )
-    const watchers = (this.sql('select * from watchers where task_id = ?').all(id) as Row[]).map((r) =>
-      this.toWatcher(r),
-    )
+    const watchers = (this.sql('select * from watchers where task_id = ?').all(id) as Row[]).map((r) => this.toWatcher(r))
     return { task, band: item.band, updates, session: item.session, watchers }
   }
 
-  queue(filter: { band?: QueueItem['band'] | undefined; workstream?: string | undefined; filter?: string | undefined } = {}): QueueSnapshot {
+  queue(
+    filter: { band?: QueueItem['band'] | undefined; workstream?: string | undefined; filter?: string | undefined } = {},
+  ): QueueSnapshot {
     const done = filter.band === 'done'
     // Done is history: the most recent two hundred are enough to look back on.
     const rows = this.sql(
-      done ? `select * from tasks where state in ('done', 'canceled') order by updated_at desc limit 200` : `select * from tasks where ${ACTIVE}`,
+      done
+        ? `select * from tasks where state in ('done', 'canceled') order by updated_at desc limit 200`
+        : `select * from tasks where ${ACTIVE}`,
     ).all() as Row[]
     // Three queries for the whole queue, not two per task: open asks and sessions come in bulk.
     const asks = new Map<string, Update>()
-    for (const r of this.sql(`select * from updates where open = 1 order by created_at`).all() as Row[]) asks.set(str(r.task_id), this.toUpdate(r))
+    for (const r of this.sql(`select * from updates where open = 1 order by created_at`).all() as Row[])
+      asks.set(str(r.task_id), this.toUpdate(r))
     const sessions = new Map<string, Session>()
     const sessionRows = this.sql(
-      done ? `select s.* from sessions s join tasks t on t.session_id = s.id where t.state in ('done', 'canceled')` : `select s.* from sessions s join tasks t on t.session_id = s.id where t.${ACTIVE}`,
+      done
+        ? `select s.* from sessions s join tasks t on t.session_id = s.id where t.state in ('done', 'canceled')`
+        : `select s.* from sessions s join tasks t on t.session_id = s.id where t.${ACTIVE}`,
     ).all() as Row[]
     for (const r of sessionRows) sessions.set(str(r.id), this.toSession(r))
     const now = this.now()
@@ -330,7 +334,13 @@ export class Service {
         const task = this.toTask(r)
         const openAsk = asks.get(task.id) ?? null
         const session = task.sessionId ? (sessions.get(task.sessionId) ?? null) : null
-        return { task, band: bandOf({ task, openAsk, session }, now), openAsk, session, unread: task.seenAt === null || task.updatedAt > task.seenAt }
+        return {
+          task,
+          band: bandOf({ task, openAsk, session }, now),
+          openAsk,
+          session,
+          unread: task.seenAt === null || task.updatedAt > task.seenAt,
+        }
       })
       .filter((i) => (filter.band ? i.band === filter.band : true))
       .filter((i) => (filter.workstream ? i.task.workstream === filter.workstream : true))
@@ -503,15 +513,21 @@ export class Service {
 
   /** What the routing review reads: the owner's corrections and the signals' decisions since `since`. */
   routingEvidence(since: string): {
-    corrections: { at: string; taskId: string; title: string; signal: string | null; kind: string; before: string | null; after: string | null }[]
+    corrections: {
+      at: string
+      taskId: string
+      title: string
+      signal: string | null
+      kind: string
+      before: string | null
+      after: string | null
+    }[]
     decisions: { at: string; signal: string; action: string; taskId: string | null; reason: string; title: string }[]
     byHand: { taskId: string; title: string; workstream: string; createdAt: string }[]
   } {
     const corrections = (
       this.db
-        .prepare(
-          `select c.*, t.title, t.source_signal from corrections c join tasks t on t.id = c.task_id where c.at > ? order by c.at`,
-        )
+        .prepare(`select c.*, t.title, t.source_signal from corrections c join tasks t on t.id = c.task_id where c.at > ? order by c.at`)
         .all(since) as Row[]
     ).map((r) => ({
       at: str(r.at),
@@ -547,9 +563,7 @@ export class Service {
   }
 
   proposals(): RoutingProposal[] {
-    return (this.sql(`select * from routing_proposals order by created_at desc limit 100`).all() as Row[]).map((r) =>
-      this.toProposal(r),
-    )
+    return (this.sql(`select * from routing_proposals order by created_at desc limit 100`).all() as Row[]).map((r) => this.toProposal(r))
   }
 
   /** A proposal waits on the owner as a review in the `autopilot` workstream. */
@@ -588,7 +602,10 @@ export class Service {
   }
 
   jobRan(name: string, at: string): void {
-    this.sql('insert into jobs (name, last_run_at) values (?, ?) on conflict(name) do update set last_run_at = excluded.last_run_at').run(name, at)
+    this.sql('insert into jobs (name, last_run_at) values (?, ?) on conflict(name) do update set last_run_at = excluded.last_run_at').run(
+      name,
+      at,
+    )
   }
 
   /** Closing ends the session and the watchers with it. */
@@ -837,9 +854,7 @@ export class Service {
     for (const query of input.queries) {
       const like = `%${query.replace(/[%_]/g, '')}%`
       const rows = this.db
-        .prepare(
-          `select * from tasks where ${ACTIVE} and (source_url = ? or title like ? or links like ? or brief like ?) limit 20`,
-        )
+        .prepare(`select * from tasks where ${ACTIVE} and (source_url = ? or title like ? or links like ? or brief like ?) limit 20`)
         .all(query, like, like, like) as Row[]
       for (const row of rows) seen.set(str(row.id), this.toTask(row))
     }
@@ -1162,15 +1177,12 @@ export class Service {
   }
 
   listTokens(): Token[] {
-    return (this.sql('select * from tokens where revoked_at is null order by created_at').all() as Row[]).map((r) =>
-      this.toToken(r),
-    )
+    return (this.sql('select * from tokens where revoked_at is null order by created_at').all() as Row[]).map((r) => this.toToken(r))
   }
 
   authenticate(secret: string): Principal | null {
-    const row = this.db
-      .prepare('select * from tokens where secret_hash = ? and revoked_at is null')
-      .get(hashSecret(secret)) as Row | undefined
+    const row = this.db.prepare('select * from tokens where secret_hash = ? and revoked_at is null').get(hashSecret(secret)) as
+      Row | undefined
     if (!row) return null
     this.sql('update tokens set last_used_at = ? where id = ?').run(this.iso(), str(row.id))
     this.sql('update devices set last_seen_at = ? where token_id = ?').run(this.iso(), str(row.id))

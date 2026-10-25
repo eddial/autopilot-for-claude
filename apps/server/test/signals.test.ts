@@ -14,7 +14,10 @@ const setup = (runClaude: RunClaude) => {
   const paths = resolvePaths({ AUTOPILOT_DATA: join(dir, 'data'), AUTOPILOT_HOME: join(dir, 'home') })
   mkdirSync(join(paths.home, 'signals'), { recursive: true })
   mkdirSync(paths.data, { recursive: true })
-  writeFileSync(join(paths.home, 'signals', 'slack.md'), '---\nevery: 5m\ntools: [mcp__claude_ai_Slack__slack_read_thread]\n---\nDMs and mentions.\n')
+  writeFileSync(
+    join(paths.home, 'signals', 'slack.md'),
+    '---\nevery: 5m\ntools: [mcp__claude_ai_Slack__slack_read_thread]\n---\nDMs and mentions.\n',
+  )
   let clock = Date.parse('2026-10-25T10:00:00Z')
   const service = new Service({ db: openDatabase(':memory:'), now: () => new Date(clock) })
   const signals = new Signals({
@@ -98,7 +101,9 @@ describe('switching a signal on', () => {
 describe('signal health', () => {
   it('reports a signal failing for an hour and three runs once, and closes it when it runs again', async () => {
     let fail = true
-    const { service, signals, advance } = setup(() => (fail ? Promise.reject(new Error('Slack unreachable')) : Promise.resolve({ items: [] })))
+    const { service, signals, advance } = setup(() =>
+      fail ? Promise.reject(new Error('Slack unreachable')) : Promise.resolve({ items: [] }),
+    )
     await signals.run('slack')
     for (let i = 0; i < 4; i++) {
       advance(25)

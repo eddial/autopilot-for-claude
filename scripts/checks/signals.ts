@@ -20,7 +20,9 @@ await run('Connectors and signals', [
       const { connectors, github } = await api.connectors.detect()
       const examples = await api.signals.examples()
       const usable = examples.filter(
-        (e) => e.fields.length === 0 && (e.name === 'github' ? github.user !== null : connectors.some((c) => c.signal === e.name && c.tools.length > 0)),
+        (e) =>
+          e.fields.length === 0 &&
+          (e.name === 'github' ? github.user !== null : connectors.some((c) => c.signal === e.name && c.tools.length > 0)),
       )
       if (usable.length === 0) return 'no signal to preview (connect Gmail, Linear or Fathom in Claude, or sign in to gh)'
       for (const example of usable) {
@@ -29,7 +31,9 @@ await run('Connectors and signals', [
         try {
           const decisions = await api.signals.run({ idempotencyKey: key(), name: example.name, dryMinutes: 120 })
           const count = (action: string) => decisions.filter((d) => d.action === action).length
-          previews.push(`${example.name}: ${count('created')} new, ${count('updated')} follow-ups, ${count('dropped')} left alone in ${((Date.now() - started) / 1000).toFixed(0)} s`)
+          previews.push(
+            `${example.name}: ${count('created')} new, ${count('updated')} follow-ups, ${count('dropped')} left alone in ${((Date.now() - started) / 1000).toFixed(0)} s`,
+          )
         } catch (error) {
           previews.push(`${example.name}: FAILED ${error instanceof Error ? error.message.slice(0, 300) : String(error)}`)
         }

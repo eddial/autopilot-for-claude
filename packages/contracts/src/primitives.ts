@@ -17,11 +17,7 @@ export const Duration = z
   .describe('Duration such as 30m, 1h or 14d')
 
 /** Chosen by the caller, unique per write; a repeated key is ignored by the server. */
-export const IdempotencyKey = z
-  .string()
-  .min(8)
-  .max(128)
-  .describe('Unique per write; the server ignores a key it has already applied')
+export const IdempotencyKey = z.string().min(8).max(128).describe('Unique per write; the server ignores a key it has already applied')
 
 /** 1 urgent, 2 high, 3 normal, 4 low. */
 export const Priority = z.int().min(1).max(4)

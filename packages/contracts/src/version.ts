@@ -5,5 +5,4 @@
  */
 export const API_VERSION = 1
 
-export const isCompatible = (server: number, client: number): boolean =>
-  client === server || client === server - 1
+export const isCompatible = (server: number, client: number): boolean => client === server || client === server - 1

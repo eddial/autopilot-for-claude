@@ -11,10 +11,7 @@ import type { SpawnPty } from './launcher.ts'
 export const ensureSpawnHelper = (): void => {
   if (process.platform !== 'darwin') return
   const root = dirname(dirname(createRequire(import.meta.url).resolve('node-pty')))
-  const candidates = [
-    join(root, 'prebuilds', `darwin-${process.arch}`, 'spawn-helper'),
-    join(root, 'build', 'Release', 'spawn-helper'),
-  ]
+  const candidates = [join(root, 'prebuilds', `darwin-${process.arch}`, 'spawn-helper'), join(root, 'build', 'Release', 'spawn-helper')]
   for (const file of candidates) {
     if (existsSync(file) && (statSync(file).mode & 0o111) === 0) chmodSync(file, 0o755)
   }

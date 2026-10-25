@@ -44,7 +44,11 @@ export const Signals = ({ items, workstreams, onOpen }: Props) => {
       <div className="task-head drag" />
       <div className="page">
         <h1 className="serif">Signals and workstreams</h1>
-        {error && <div className="banner" style={{ margin: '8px 0' }}>{error}</div>}
+        {error && (
+          <div className="banner" style={{ margin: '8px 0' }}>
+            {error}
+          </div>
+        )}
 
         {(health.length > 0 || proposals.length > 0) && <h2>Needs you</h2>}
         {health.map((i) => (
@@ -68,11 +72,18 @@ export const Signals = ({ items, workstreams, onOpen }: Props) => {
               <div className="actions">
                 <button
                   className="btn primary"
-                  onClick={() => void api.routing.decide({ idempotencyKey: key(), proposalId: p.id, accept: true }).then(load, (e: unknown) => setError(String(e)))}
+                  onClick={() =>
+                    void api.routing
+                      .decide({ idempotencyKey: key(), proposalId: p.id, accept: true })
+                      .then(load, (e: unknown) => setError(String(e)))
+                  }
                 >
                   Accept
                 </button>
-                <button className="tool" onClick={() => void api.routing.decide({ idempotencyKey: key(), proposalId: p.id, accept: false }).then(load)}>
+                <button
+                  className="tool"
+                  onClick={() => void api.routing.decide({ idempotencyKey: key(), proposalId: p.id, accept: false }).then(load)}
+                >
                   Reject
                 </button>
               </div>
@@ -106,18 +117,29 @@ export const Signals = ({ items, workstreams, onOpen }: Props) => {
                   <button className="tool" disabled={shown === 'running'} onClick={() => void preview(s.name)}>
                     {shown === 'running' ? 'Previewing…' : 'Preview last day'}
                   </button>
-                  <button className="tool" onClick={() => void api.signals.pause({ idempotencyKey: key(), name: s.name, paused: !s.paused }).then(load)}>
+                  <button
+                    className="tool"
+                    onClick={() => void api.signals.pause({ idempotencyKey: key(), name: s.name, paused: !s.paused }).then(load)}
+                  >
                     {s.paused ? 'Resume' : 'Pause'}
                   </button>
                 </div>
               </div>
-              {s.health.message && <div className="meta" style={{ marginTop: 8 }}>{s.health.message}</div>}
+              {s.health.message && (
+                <div className="meta" style={{ marginTop: 8 }}>
+                  {s.health.message}
+                </div>
+              )}
               {Array.isArray(shown) && (
                 <pre className="diff">
                   {shown.length === 0 ? 'Nothing in the last day.' : shown.map((d) => `${d.action.padEnd(8)} ${d.reason}`).join('\n')}
                 </pre>
               )}
-              {typeof shown === 'string' && shown !== 'running' && <div className="banner" style={{ margin: '8px 0 0' }}>{shown}</div>}
+              {typeof shown === 'string' && shown !== 'running' && (
+                <div className="banner" style={{ margin: '8px 0 0' }}>
+                  {shown}
+                </div>
+              )}
             </div>
           )
         })}

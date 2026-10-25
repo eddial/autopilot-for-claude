@@ -33,8 +33,7 @@ export const runMcpBridge = async (client: Client, token: string): Promise<void>
         const result = await call(input)
         return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] }
       } catch (error) {
-        const message =
-          error instanceof ORPCError ? `${error.code}: ${error.message} ${JSON.stringify(error.data ?? {})}` : String(error)
+        const message = error instanceof ORPCError ? `${error.code}: ${error.message} ${JSON.stringify(error.data ?? {})}` : String(error)
         return { isError: true, content: [{ type: 'text' as const, text: message }] }
       }
     })

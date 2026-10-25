@@ -10,18 +10,20 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck && tsc -p scripts",
     "test": "vitest run",
-    "lint": "oxlint",
+    "lint": "oxlint && prettier --check --log-level warn \"**/*.{ts,tsx,js,mjs,cjs,json,css,yml,yaml}\"",
     "schema": "pnpm --filter @autopilot/contracts schema",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "autopilot": "node apps/server/bin/autopilot.js",
     "desktop": "pnpm --filter @autopilot/desktop start",
     "mac-check": "bash scripts/mac-check.sh",
-    "perf": "pnpm --filter @autopilot/desktop perf"
+    "perf": "pnpm --filter @autopilot/desktop perf",
+    "format": "prettier --write --log-level warn \"**/*.{ts,tsx,js,mjs,cjs,json,css,yml,yaml}\""
   },
   "devDependencies": {
-    "@types/node": "^24.19.2",
+    "@types/node": "catalog:",
     "oxlint": "^1.89.0",
-    "typescript": "^5.9.3",
+    "prettier": "3.9.10",
+    "typescript": "catalog:",
     "vitest": "^5.0.5"
   },
   "pnpm": {

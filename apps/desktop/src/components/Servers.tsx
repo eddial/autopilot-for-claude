@@ -46,7 +46,9 @@ export const Servers = () => {
         setDevices(d)
         // Sessions and signals get short-lived tokens of their own; this Mac's token and paired devices'
         // are managed above (revoking this Mac's would lock the app out).
-        setTokens(t.filter((x) => x.scope !== 'session' && x.scope !== 'signal' && x.name !== 'This Mac' && !/ \((iphone|mac)\)$/.test(x.name)))
+        setTokens(
+          t.filter((x) => x.scope !== 'session' && x.scope !== 'signal' && x.name !== 'This Mac' && !/ \((iphone|mac)\)$/.test(x.name)),
+        )
       })
       .catch((e: unknown) => setError(message(e)))
   }, [])
@@ -57,7 +59,11 @@ export const Servers = () => {
     setPaired(null)
     try {
       const next = await api.devices.startPairing({ idempotencyKey: key() })
-      const svg = await QRCode.toString(JSON.stringify(next.invite), { type: 'svg', margin: 1, color: { dark: '#141413', light: '#FAF9F5' } })
+      const svg = await QRCode.toString(JSON.stringify(next.invite), {
+        type: 'svg',
+        margin: 1,
+        color: { dark: '#141413', light: '#FAF9F5' },
+      })
       setPairing({ pairing: next, svg, known: new Set(devices.map((d) => d.id)) })
       load()
     } catch (e) {
@@ -91,7 +97,11 @@ export const Servers = () => {
       <div className="task-head drag" />
       <div className="page" style={{ maxWidth: 760 }}>
         <h1 className="serif">Servers</h1>
-        {error && <div className="banner" style={{ margin: '8px 0' }}>{error}</div>}
+        {error && (
+          <div className="banner" style={{ margin: '8px 0' }}>
+            {error}
+          </div>
+        )}
 
         {shell && mode && (
           <>
@@ -100,7 +110,9 @@ export const Servers = () => {
               <div className="card-head">
                 <span className="name">{mode.kind === 'remote' ? `Uses ${mode.server}` : 'Uses this Mac'}</span>
                 <span className="meta">
-                  {mode.kind === 'remote' ? 'The queue and the sessions run on that Mac; this one shows them.' : 'The queue and the sessions run here.'}
+                  {mode.kind === 'remote'
+                    ? 'The queue and the sessions run on that Mac; this one shows them.'
+                    : 'The queue and the sessions run here.'}
                 </span>
                 {mode.kind === 'remote' && (
                   <div className="actions">
@@ -113,10 +125,23 @@ export const Servers = () => {
               {mode.kind === 'local' && (
                 <>
                   <div className="meta" style={{ marginTop: 10 }}>
-                    To use an always-on Mac instead: on that Mac open Servers, choose Pair a device, then Copy invite for a Mac, and paste it here.
+                    To use an always-on Mac instead: on that Mac open Servers, choose Pair a device, then Copy invite for a Mac, and paste
+                    it here.
                   </div>
-                  <textarea className="inline-reply" rows={2} aria-label="Invite from another Mac" placeholder='{"v":1,"server":…}' value={invite} onChange={(e) => setInvite(e.target.value)} />
-                  <button className="btn" style={{ marginTop: 8 }} disabled={switching || !invite.trim()} onClick={() => void switchToRemote()}>
+                  <textarea
+                    className="inline-reply"
+                    rows={2}
+                    aria-label="Invite from another Mac"
+                    placeholder='{"v":1,"server":…}'
+                    value={invite}
+                    onChange={(e) => setInvite(e.target.value)}
+                  />
+                  <button
+                    className="btn"
+                    style={{ marginTop: 8 }}
+                    disabled={switching || !invite.trim()}
+                    onClick={() => void switchToRemote()}
+                  >
                     {switching ? 'Connecting…' : 'Use that Mac'}
                   </button>
                 </>
@@ -150,17 +175,29 @@ export const Servers = () => {
         )}
 
         <h2>Devices</h2>
-        {paired && <div className="banner" style={{ margin: '0 0 8px', background: 'rgba(93,176,143,.14)', color: '#8fcdb2' }}>Paired with {paired}.</div>}
-        {devices.length === 0 && !pairing && <div className="meta">No phone yet. Pair your iPhone to answer and add tasks from anywhere.</div>}
+        {paired && (
+          <div className="banner" style={{ margin: '0 0 8px', background: 'rgba(93,176,143,.14)', color: '#8fcdb2' }}>
+            Paired with {paired}.
+          </div>
+        )}
+        {devices.length === 0 && !pairing && (
+          <div className="meta">No phone yet. Pair your iPhone to answer and add tasks from anywhere.</div>
+        )}
         {devices.map((d) => (
           <div key={d.id} className="card">
             <div className="card-head">
               <span className="name">{d.name}</span>
               <span className="meta">
-                {d.kind === 'iphone' ? 'iPhone' : 'Mac'} · paired {ago(d.createdAt)}{d.lastSeenAt ? ` · seen ${ago(d.lastSeenAt)}` : ''}
+                {d.kind === 'iphone' ? 'iPhone' : 'Mac'} · paired {ago(d.createdAt)}
+                {d.lastSeenAt ? ` · seen ${ago(d.lastSeenAt)}` : ''}
               </span>
               <div className="actions">
-                <button className="tool" onClick={() => void api.devices.remove({ idempotencyKey: key(), id: d.id }).then(load, (e: unknown) => setError(message(e)))}>
+                <button
+                  className="tool"
+                  onClick={() =>
+                    void api.devices.remove({ idempotencyKey: key(), id: d.id }).then(load, (e: unknown) => setError(message(e)))
+                  }
+                >
                   Remove
                 </button>
               </div>
@@ -180,7 +217,10 @@ export const Servers = () => {
                 <li>Open it and scan. The code works once and for five minutes.</li>
               </ol>
               <div className="meta">
-                Or type the code: <span style={{ color: 'var(--text)', letterSpacing: 2, fontFamily: 'ui-monospace, Menlo, monospace' }}>{pairing.pairing.invite.code}</span>
+                Or type the code:{' '}
+                <span style={{ color: 'var(--text)', letterSpacing: 2, fontFamily: 'ui-monospace, Menlo, monospace' }}>
+                  {pairing.pairing.invite.code}
+                </span>
               </div>
               <div className="meta" style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
                 Waiting for your phone…

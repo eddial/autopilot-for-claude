@@ -43,7 +43,9 @@ export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, w
     const bands: Band[] = ['your_turn', 'new', 'running', 'waiting', 'snoozed', 'done']
     return bands.flatMap((band) => {
       const inBand = visible.filter((i) => i.band === band)
-      return inBand.length === 0 ? [] : [{ kind: 'group' as const, band, count: inBand.length }, ...inBand.map((item) => ({ kind: 'item' as const, item }))]
+      return inBand.length === 0
+        ? []
+        : [{ kind: 'group' as const, band, count: inBand.length }, ...inBand.map((item) => ({ kind: 'item' as const, item }))]
     })
   }, [visible, grouped])
   const order = useMemo(() => entries.flatMap((e) => (e.kind === 'item' ? [e.item.task.id] : [])), [entries])
@@ -103,17 +105,31 @@ export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, w
           <circle cx="7" cy="7" r="4.5" />
           <path d="M10.5 10.5L14 14" />
         </svg>
-        <input aria-label="Filter tasks" placeholder="Filter, e.g. ws:customers from:slack" value={filter} onChange={(e) => setFilter(e.target.value)} />
+        <input
+          aria-label="Filter tasks"
+          placeholder="Filter, e.g. ws:customers from:slack"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
       </label>
       {banner && <div className="banner">{banner}</div>}
       <div className="rows" ref={rows} role="listbox" aria-label="Tasks" tabIndex={0} onKeyDown={onKeyDown}>
-        {visible.length === 0 && <div className="empty">{filter ? 'Nothing matches the filter.' : 'Nothing here. Autopilot fills this as signals file and sessions hand over.'}</div>}
+        {visible.length === 0 && (
+          <div className="empty">
+            {filter ? 'Nothing matches the filter.' : 'Nothing here. Autopilot fills this as signals file and sessions hand over.'}
+          </div>
+        )}
         <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
           {virtual.getVirtualItems().map((v) => {
             const entry = entries[v.index]
             if (!entry) return null
             return (
-              <div key={v.key} data-index={v.index} ref={virtual.measureElement} style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }}>
+              <div
+                key={v.key}
+                data-index={v.index}
+                ref={virtual.measureElement}
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }}
+              >
                 {entry.kind === 'group' ? (
                   <div className="group">
                     <span className={`name ${entry.band}`}>{BAND_TITLE[entry.band]}</span>
@@ -167,7 +183,17 @@ const Row = memo(
 )
 
 /** A row opened in place with Space: answer it without opening the task. */
-const Expanded = ({ item, selected, onOpen, onDone }: { item: QueueItem; selected: boolean; onOpen: (id: string) => void; onDone: () => void }) => {
+const Expanded = ({
+  item,
+  selected,
+  onOpen,
+  onDone,
+}: {
+  item: QueueItem
+  selected: boolean
+  onOpen: (id: string) => void
+  onDone: () => void
+}) => {
   const [text, setText] = useState('')
   const ask = item.openAsk
   const answer = (reply: { optionId: string } | { text: string }) => {
@@ -208,10 +234,13 @@ const Expanded = ({ item, selected, onOpen, onDone }: { item: QueueItem; selecte
         ) : (
           <div className="options">
             {item.band === 'new' && (
-              <button className="btn primary" onClick={() => {
+              <button
+                className="btn primary"
+                onClick={() => {
                   send({ kind: 'start', taskId: item.task.id })
                   onDone()
-                }}>
+                }}
+              >
                 Start
               </button>
             )}

@@ -18,7 +18,13 @@ describe('the live queue a client holds', () => {
 
     const a = service.createTask(CreateTask.parse({ idempotencyKey: key(), title: 'Decide on caching' }))
     const ask = service.postUpdate(
-      PostUpdate.parse({ idempotencyKey: key(), taskId: a.id, kind: 'decision', body: 'Opus only?', options: [{ id: 'opus', label: 'Opus only' }] }),
+      PostUpdate.parse({
+        idempotencyKey: key(),
+        taskId: a.id,
+        kind: 'decision',
+        body: 'Opus only?',
+        options: [{ id: 'opus', label: 'Opus only' }],
+      }),
       'session',
     )
     service.answerUpdate(AnswerUpdate.parse({ idempotencyKey: key(), updateId: ask.id, optionId: 'opus' }))

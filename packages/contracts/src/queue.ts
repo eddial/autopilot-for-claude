@@ -56,8 +56,7 @@ const time = (iso: string | null | undefined): number => (iso ? Date.parse(iso) 
 
 /** A live session sits waiting on this answer; those come first. */
 const blocksLiveSession = (item: QueueItem): boolean =>
-  item.session !== null &&
-  (item.session.state === 'waiting_permission' || (item.session.state === 'idle' && item.openAsk !== null))
+  item.session !== null && (item.session.state === 'waiting_permission' || (item.session.state === 'idle' && item.openAsk !== null))
 
 /** Since when the task has been waiting on you. */
 const waitingSince = (item: QueueItem): number => time(item.openAsk?.createdAt ?? item.task.updatedAt)
@@ -78,8 +77,7 @@ export const compareQueue = (a: QueueItem, b: QueueItem): number => {
       order = a.task.priority - b.task.priority || time(b.task.createdAt) - time(a.task.createdAt)
       break
     case 'running':
-      order =
-        time(b.session?.lastActivityAt ?? b.task.updatedAt) - time(a.session?.lastActivityAt ?? a.task.updatedAt)
+      order = time(b.session?.lastActivityAt ?? b.task.updatedAt) - time(a.session?.lastActivityAt ?? a.task.updatedAt)
       break
     case 'snoozed':
       order = time(a.task.snoozedUntil) - time(b.task.snoozedUntil)
