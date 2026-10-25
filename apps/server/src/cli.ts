@@ -228,32 +228,39 @@ const main = async (argv: string[]): Promise<void> => {
   }
 }
 
+/** A hook's JSON on stdin; empty when there is none within a second. */
+const readHookInput = async (): Promise<{
+  notification_type?: string
+  message?: string
+  tool_name?: string
+  tool_input?: Record<string, unknown>
+}> => {
+  const input = await new Promise<string>((resolve) => {
+    let data = ''
+    process.stdin.on('data', (d: Buffer) => (data += d.toString()))
+    process.stdin.on('end', () => resolve(data))
+    setTimeout(() => resolve(data), 1000)
+  })
+  try {
+    return JSON.parse(input) as Awaited<ReturnType<typeof readHookInput>>
+  } catch {
+    return {}
+  }
+}
+
 /** Called by a session's Claude Code hooks. Never fails the session: errors are swallowed. */
 const hook = async (event: string): Promise<void> => {
   const taskId = process.env.AUTOPILOT_TASK
   if (!taskId || !process.env.AUTOPILOT_TOKEN) return
-  const read = async () => {
-    const input = await new Promise<string>((resolve) => {
-      let data = ''
-      process.stdin.on('data', (d: Buffer) => (data += d.toString()))
-      process.stdin.on('end', () => resolve(data))
-      setTimeout(() => resolve(data), 1000)
-    })
-    try {
-      return JSON.parse(input) as { notification_type?: string; message?: string; tool_name?: string; tool_input?: Record<string, unknown> }
-    } catch {
-      return {}
-    }
-  }
   let state: 'working' | 'idle' | 'waiting_permission' | 'ended'
   // What it is doing, for the running task's line; cleared when it stops.
   let activity: string | null = null
   if (event === 'notification') {
-    const payload = await read()
+    const payload = await readHookInput()
     if (payload.notification_type !== 'permission_prompt' && !/permission/i.test(payload.message ?? '')) return
     state = 'waiting_permission'
   } else if (event === 'tool') {
-    const payload = await read()
+    const payload = await readHookInput()
     if (!payload.tool_name) return
     state = 'working'
     activity = activityOf(payload.tool_name, payload.tool_input ?? {})
