@@ -20,8 +20,8 @@ else {
   exit(1)
 }
 
-// The tokens' values, written as they are: the image is tagged sRGB below, so nothing converts
-// them on the way (an untagged image came out duller than Claude's icon beside it).
+// The tokens' values, written as they are: the image is tagged Display P3 below, as Claude's icon
+// takes its orange (sRGB, or untagged, came out duller than Claude's icon beside it).
 func colour(_ hex: String) -> NSColor {
   let v = Int(hex.dropFirst(), radix: 16) ?? 0
   return NSColor(deviceRed: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255,
@@ -71,6 +71,6 @@ for (y, row) in art.rows.enumerated() {
 }
 
 NSGraphicsContext.restoreGraphicsState()
-let tagged = rep.retagging(with: .sRGB) ?? rep
+let tagged = rep.retagging(with: .displayP3) ?? rep
 try! tagged.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: args[2]))
 print("wrote \(args[2])")

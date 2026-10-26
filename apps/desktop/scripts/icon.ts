@@ -24,17 +24,24 @@ draw('splash', join(ROOT, '..', 'mobile', 'assets', 'splash.png'), colours.windo
 const icon = join(ROOT, 'build', 'Autopilot.icon')
 mkdirSync(join(icon, 'Assets'), { recursive: true })
 draw('layer', join(icon, 'Assets', 'pilot.png'))
+// Claude's own icon takes the clay's numbers in Display P3 (richer than sRGB) and deepens it
+// towards the bottom; ours does the same, so the two sit as one colour in the Dock.
 const channel = (hex: string, at: number) => (Number.parseInt(hex.slice(at, at + 2), 16) / 255).toFixed(5)
-const clay = `srgb:${channel(colours.clay, 1)},${channel(colours.clay, 3)},${channel(colours.clay, 5)},1.00000`
+const p3 = (hex: string) => `display-p3:${channel(hex, 1)},${channel(hex, 3)},${channel(hex, 5)},1.00000`
 writeFileSync(
   join(icon, 'icon.json'),
   `${JSON.stringify(
     {
-      fill: { solid: clay },
+      fill: {
+        'linear-gradient': [p3(colours.clay), 'display-p3:0.85900,0.40800,0.26300,1.00000'],
+        orientation: { start: { x: 0.5, y: 0 }, stop: { x: 0.5, y: 1 } },
+      },
       groups: [
         {
           layers: [{ 'image-name': 'pilot.png', name: 'pilot' }],
           shadow: { kind: 'none', opacity: 0 },
+          // Flat pixels, as Claude's mark is flat: no glass highlight on the pilot.
+          specular: false,
           translucency: { enabled: false, value: 0 },
         },
       ],
