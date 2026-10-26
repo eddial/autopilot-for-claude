@@ -159,6 +159,9 @@ export const RemoveWorkstream = command({ name: z.string().regex(/^[a-z0-9][a-z0
 
 export const InstallService = command({})
 
+/** The folder tasks with no repository work in: new, empty, or a git repository. */
+export const SetWorkspace = command({ path: z.string().min(1) })
+
 export const PauseSignal = command({ name: z.string(), paused: z.boolean() })
 
 /** From the new device, with the code from the invite. The device gets its own token back. */

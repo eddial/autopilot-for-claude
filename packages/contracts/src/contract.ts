@@ -16,6 +16,7 @@ import {
   FileItem,
   ImportSignal,
   InstallService,
+  SetWorkspace,
   Instruct,
   MatchItems,
   PairDevice,
@@ -217,6 +218,7 @@ export const contract = {
   setup: {
     status: base.meta({ scopes: OWNER }).output(SetupStatus),
     installService: base.meta({ scopes: OWNER }).input(InstallService).output(SetupStatus),
+    setWorkspace: base.meta({ scopes: OWNER }).input(SetWorkspace).output(SetupStatus),
   },
 
   connectors: {

@@ -6240,6 +6240,9 @@
         "home": {
           "type": "string"
         },
+        "workspace": {
+          "type": "string"
+        },
         "signals": {
           "type": "integer",
           "minimum": -9007199254740991,
@@ -6309,6 +6312,88 @@
           "type": "boolean"
         },
         "home": {
+          "type": "string"
+        },
+        "workspace": {
+          "type": "string"
+        },
+        "signals": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "workstreams": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "claude",
+        "service",
+        "home",
+        "signals",
+        "workstreams"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "setup.setWorkspace": {
+    "meta": {
+      "scopes": [
+        "owner"
+      ]
+    },
+    "input": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128,
+          "description": "Unique per write; the server ignores a key it has already applied"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "idempotencyKey",
+        "path"
+      ]
+    },
+    "output": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "claude": {
+          "type": "object",
+          "properties": {
+            "installed": {
+              "type": "boolean"
+            },
+            "version": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "installed",
+            "version"
+          ],
+          "additionalProperties": false
+        },
+        "service": {
+          "type": "boolean"
+        },
+        "home": {
+          "type": "string"
+        },
+        "workspace": {
           "type": "string"
         },
         "signals": {

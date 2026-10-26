@@ -244,6 +244,8 @@ export const SetupStatus = z.object({
   /** The server runs as a launchd agent, so it keeps going when the app is closed. */
   service: z.boolean(),
   home: z.string(),
+  /** Where tasks with no repository of their own work: one folder, a worktree per task. */
+  workspace: z.string().optional(),
   signals: z.int(),
   workstreams: z.int(),
 })

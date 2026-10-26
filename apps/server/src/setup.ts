@@ -4,6 +4,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { SetupStatus, SignalExample, Workstream } from '@autopilot/contracts'
 import { stringify } from 'yaml'
+import { loadWorkspace, saveWorkspace } from './checkouts.ts'
 import { isGitCheckout } from './git.ts'
 import { markdownFiles, readSignals, readWorkstreams, splitFrontmatter } from './home.ts'
 import type { Paths } from './paths.ts'
@@ -63,6 +64,15 @@ export class Setup {
     this.o = options
   }
 
+  /** Moves where tasks with no repository work; tasks already under way keep their folder. */
+  setWorkspace(path: string): void {
+    try {
+      saveWorkspace(this.o.paths.home, path)
+    } catch (e) {
+      throw new DomainError('BAD_REQUEST', { field: 'path' }, e instanceof Error ? e.message : String(e))
+    }
+  }
+
   async status(): Promise<SetupStatus> {
     const version = await new Promise<string | null>((resolve) => {
       execFile(this.o.claude, ['--version'], { timeout: 10_000 }, (error, stdout) => resolve(error ? null : stdout.trim() || null))
@@ -71,6 +81,7 @@ export class Setup {
       claude: { installed: version !== null, version },
       service: existsSync(join(homedir(), 'Library', 'LaunchAgents', 'autopilot.server.plist')),
       home: this.o.paths.home,
+      workspace: loadWorkspace(this.o.paths.home),
       signals: readSignals(this.o.paths.home).length,
       workstreams: readWorkstreams(this.o.paths.home).length,
     }

@@ -256,6 +256,10 @@ export const createRouter = ({
         installService()
         return setup.status()
       }),
+      setWorkspace: guarded.setup.setWorkspace.handler(({ input }) => {
+        setup.setWorkspace(input.path)
+        return setup.status()
+      }),
     },
 
     connectors: {

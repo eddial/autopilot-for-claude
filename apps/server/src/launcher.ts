@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Task, Workstream } from '@autopilot/contracts'
-import { checkoutFor, type Checkouts } from './checkouts.ts'
+import { checkoutFor, prepareWorkspace, type Checkouts } from './checkouts.ts'
 import { isGitCheckout } from './git.ts'
 import type { Paths } from './paths.ts'
 import type { OutboxItem, Service } from './service.ts'
@@ -40,6 +40,8 @@ export type LauncherOptions = {
   claudeConfig?: string | null
   /** The checkouts on this Mac, for tasks that name a repository and for `repo: default`. */
   checkouts?: () => Checkouts
+  /** The folder tasks without a repository work in (checkouts.yaml `workspace:`); tests leave it out. */
+  workspace?: () => string
   log?: (message: string) => void
 }
 
@@ -100,6 +102,7 @@ export class Launcher {
       claudeConfig: null,
       maxParallel: 4,
       checkouts: () => ({ repos: {}, fallback: null }),
+      workspace: () => join(options.paths.data, 'workspace'),
       log: () => {},
       ...options,
     }
@@ -330,7 +333,7 @@ export class Launcher {
     return 'done'
   }
 
-  /** Where the session runs: the workstream's folder, a worktree of its repo, or Autopilot's own work folder. */
+  /** Where the session runs: a worktree of its repo, the workstream's folder, or a worktree of the workspace. */
   private workspace(task: Task, workstream: Workstream | undefined): { cwd: string; branch: string | null } {
     const id = task.source.mirrors ?? task.id
     // The workstream's checkout; else the one for the repository the task names; else a folder.
@@ -345,33 +348,45 @@ export class Launcher {
         throw new Error(
           `${task.workstream === workstream?.name ? `the ${task.workstream} workstream works in ` : ''}${repo}, which is not a git checkout on this Mac. Point its repo at the right folder, or remove the line, in ${join(this.opts.paths.home, 'workstreams', `${task.workstream}.md`)}; then reply here to start again`,
         )
-      const cwd = join(repo, '.claude', 'worktrees', id)
-      const branch = `claude/${id.toLowerCase()}`
-      if (!existsSync(cwd)) {
-        const exists = (() => {
-          try {
-            execFileSync('git', ['-C', repo, 'rev-parse', '--verify', '--quiet', branch], { stdio: 'ignore' })
-            return true
-          } catch {
-            return false
-          }
-        })()
-        execFileSync('git', ['-C', repo, 'worktree', 'add', cwd, ...(exists ? [branch] : ['-b', branch])], {
-          stdio: 'ignore',
-        })
-      }
-      return { cwd, branch }
+      return worktree(repo, id)
     }
-    const base = workstream?.folder ?? join(this.opts.paths.data, 'work', task.workstream)
-    const cwd = join(base, id)
-    mkdirSync(cwd, { recursive: true })
-    // A repository of its own, so what the session makes has history: what changed since review.
-    if (!existsSync(join(cwd, '.git'))) execFileSync('git', ['init', '-q', cwd], { stdio: 'ignore' })
-    return { cwd, branch: null }
+    // A folder the workstream names, or one a task already worked in before the workspace: kept.
+    const own =
+      workstream?.folder ??
+      (existsSync(join(this.opts.paths.data, 'work', task.workstream, id)) ? join(this.opts.paths.data, 'work', task.workstream) : null)
+    if (own) {
+      const cwd = join(own, id)
+      mkdirSync(cwd, { recursive: true })
+      // A repository of its own, so what the session makes has history: what changed since review.
+      if (!existsSync(join(cwd, '.git'))) execFileSync('git', ['init', '-q', cwd], { stdio: 'ignore' })
+      return { cwd, branch: null }
+    }
+    // Otherwise a worktree of the workspace, so the Claude app lists it under one name.
+    const workspace = this.opts.workspace()
+    prepareWorkspace(workspace)
+    return worktree(workspace, id)
   }
 
   stopAll(): void {
     this.stopping = true
     for (const live of this.live.values()) live.pty.kill()
   }
+}
+
+/** A worktree of `repo` for the task, on `claude/<id>`, made the first time and reused after. */
+const worktree = (repo: string, id: string): { cwd: string; branch: string } => {
+  const cwd = join(repo, '.claude', 'worktrees', id)
+  const branch = `claude/${id.toLowerCase()}`
+  if (!existsSync(cwd)) {
+    const exists = (() => {
+      try {
+        execFileSync('git', ['-C', repo, 'rev-parse', '--verify', '--quiet', branch], { stdio: 'ignore' })
+        return true
+      } catch {
+        return false
+      }
+    })()
+    execFileSync('git', ['-C', repo, 'worktree', 'add', cwd, ...(exists ? [branch] : ['-b', branch])], { stdio: 'ignore' })
+  }
+  return { cwd, branch }
 }

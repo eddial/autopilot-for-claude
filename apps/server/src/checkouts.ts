@@ -1,12 +1,12 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { Task } from '@autopilot/contracts'
-import { parse as parseYaml } from 'yaml'
+import { parse as parseYaml, parseDocument } from 'yaml'
 
 /**
- * Where code work happens. A task that names a GitHub repository (a pull request, an issue, a
+ * Where sessions work. A task that names a GitHub repository (a pull request, an issue, a
  * link in its brief) gets a worktree of that repository's checkout on this Mac, found by its
  * remote; `home/checkouts.yaml` says where to look and which checkout `repo: default` means.
  */
@@ -66,10 +66,16 @@ export const findCheckouts = (roots: string[]): Record<string, string> => {
   return repos
 }
 
+const settingsFile = (home: string) => join(home, 'checkouts.yaml')
+
+const readSettings = (home: string): Record<string, unknown> => {
+  const file = settingsFile(home)
+  return existsSync(file) ? ((parseYaml(readFileSync(file, 'utf8')) ?? {}) as Record<string, unknown>) : {}
+}
+
 /** Reads `home/checkouts.yaml` (all optional) and finds the checkouts it points to. */
 export const loadCheckouts = (home: string): Checkouts => {
-  const file = join(home, 'checkouts.yaml')
-  const settings = existsSync(file) ? ((parseYaml(readFileSync(file, 'utf8')) ?? {}) as Record<string, unknown>) : {}
+  const settings = readSettings(home)
   const roots = Array.isArray(settings.roots) ? settings.roots.map((r) => expand(String(r))) : ROOTS.map(expand)
   const fallback = typeof settings.default === 'string' && settings.default.trim() ? expand(settings.default.trim()) : null
   return { repos: findCheckouts(roots), fallback }
@@ -83,4 +89,51 @@ export const checkoutFor = (task: Task, checkouts: Checkouts): string | null => 
     if (dir) return dir
   }
   return null
+}
+
+/**
+ * Where a task with no repository works: one folder, a repository of its own, with a worktree per
+ * task under `.claude/worktrees`, so the Claude app lists every such session under one name instead
+ * of a folder each. `workspace:` in checkouts.yaml; `~/Autopilot` when it does not say.
+ */
+export const DEFAULT_WORKSPACE = '~/Autopilot'
+
+export const loadWorkspace = (home: string): string => {
+  const set = readSettings(home).workspace
+  return expand(typeof set === 'string' && set.trim() ? set.trim() : DEFAULT_WORKSPACE)
+}
+
+const git = (dir: string, ...args: string[]) => execFileSync('git', ['-C', dir, ...args], { stdio: 'ignore' })
+
+/**
+ * Makes the folder ready to hold worktrees: a repository with a first commit. A folder of
+ * someone's own files is not taken over: it must be empty, new, or a repository already.
+ */
+export const prepareWorkspace = (dir: string): void => {
+  if (existsSync(dir) && !existsSync(join(dir, '.git')) && readdirSync(dir).some((f) => !f.startsWith('.')))
+    throw new Error(`${dir} already holds files and is not a git repository. Pick an empty or new folder, or a repository.`)
+  mkdirSync(dir, { recursive: true })
+  if (!existsSync(join(dir, '.git'))) git(dir, 'init', '-q')
+  try {
+    git(dir, 'rev-parse', '--verify', '--quiet', 'HEAD')
+  } catch {
+    writeFileSync(
+      join(dir, 'README.md'),
+      "# Autopilot\n\nWhere Autopilot's sessions work on tasks that have no repository of their own. Each\ntask has a worktree in `.claude/worktrees/`, on a branch of its own.\n",
+    )
+    writeFileSync(join(dir, '.gitignore'), '.claude/worktrees/\n')
+    git(dir, 'add', 'README.md', '.gitignore')
+    git(dir, '-c', 'user.name=Autopilot', '-c', 'user.email=autopilot@localhost', 'commit', '-q', '-m', 'Autopilot work folder')
+  }
+}
+
+/** Sets the workspace in checkouts.yaml, keeping the rest of the file and its comments. */
+export const saveWorkspace = (home: string, path: string): string => {
+  const dir = expand(path.trim())
+  prepareWorkspace(dir)
+  const file = settingsFile(home)
+  const doc = parseDocument(existsSync(file) ? readFileSync(file, 'utf8') : '')
+  doc.set('workspace', path.trim())
+  writeFileSync(file, String(doc))
+  return dir
 }

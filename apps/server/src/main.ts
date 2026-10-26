@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import type { Server } from 'node:http'
 import type { Machine } from '@autopilot/contracts'
 import { createRouter } from './api.ts'
-import { loadCheckouts } from './checkouts.ts'
+import { loadCheckouts, loadWorkspace } from './checkouts.ts'
 import { detect, keepFor, keepSync } from './detect.ts'
 import { openDatabase } from './db.ts'
 import { readWorkstreams } from './home.ts'
@@ -106,6 +106,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     maxParallel: options.maxParallel ?? 4,
     // Finding checkouts walks a few folders; once in ten minutes is plenty.
     checkouts: keepSync(10 * 60_000, () => loadCheckouts(paths.home)),
+    workspace: () => loadWorkspace(paths.home),
     log,
   })
   launcher.reconcile()

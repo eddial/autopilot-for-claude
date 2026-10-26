@@ -276,6 +276,7 @@ export const Setup = ({ items, workstreams, onWorkstreams, onOpen, onDone }: Pro
           </Button>
         )}
       </Check>
+      {status?.workspace && <WorkspaceCard path={status.workspace} onSaved={setStatus} />}
     </>
   )
 
@@ -684,3 +685,68 @@ const Check = ({ ok, title, detail, children }: { ok: boolean | null; title: str
     </div>
   </div>
 )
+
+/** A home folder path as people write it. */
+const tilde = (path: string) => path.replace(/^\/Users\/[^/]+/, '~')
+
+/**
+ * Where tasks with no repository work. One folder, so the Claude app lists their sessions under
+ * one name; each task is a worktree of it. Changing it moves new tasks only.
+ */
+const WorkspaceCard = ({ path, onSaved }: { path: string; onSaved: (status: SetupStatus) => void }) => {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(() => tilde(path))
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const save = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      onSaved(await api.setup.setWorkspace({ idempotencyKey: key(), path: draft.trim() }))
+      setEditing(false)
+    } catch (e) {
+      setError(message(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="card">
+      <div className="check">
+        <Dot tone="pilot" label="ok" />
+        <span className="name">Where tasks work</span>
+        <span className="meta">
+          {tilde(path)}: tasks without a repository get a folder of their own in it, listed together in Claude Code.
+        </span>
+        {!editing && (
+          <div className="actions">
+            <Button kind="tool" onClick={() => setEditing(true)}>
+              Change
+            </Button>
+          </div>
+        )}
+      </div>
+      {editing && (
+        <>
+          {error && <Banner>{error}</Banner>}
+          <div className="step-bar">
+            <input
+              className="inline-reply"
+              aria-label="Folder where tasks work"
+              placeholder="~/Autopilot"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+            />
+            <Button kind="tool" disabled={busy} onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
+            <Button kind="primary" disabled={busy || !draft.trim()} onClick={() => void save()}>
+              {busy ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+          <Meta top={3}>A new or empty folder, or a git repository. Tasks already under way keep theirs.</Meta>
+        </>
+      )}
+    </div>
+  )
+}
