@@ -382,15 +382,19 @@ const Expanded = ({
                 Open
               </Button>
             </div>
-            <input
+            <textarea
               className="inline-reply"
+              rows={2}
               aria-label="Reply"
-              placeholder="Or reply in words…"
+              placeholder="Or answer in your own words…"
               value={text}
               autoFocus
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && text.trim()) answer({ text: text.trim() })
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  if (text.trim()) answer({ text: text.trim() })
+                }
                 if (e.key === 'Escape') onDone()
               }}
             />

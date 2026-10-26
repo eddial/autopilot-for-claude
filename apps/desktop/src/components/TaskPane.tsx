@@ -20,7 +20,7 @@ import { markSeen, send, useDetail, useStore } from '../store.ts'
 import { AttachButton, FileChips, useFiles } from './Files.tsx'
 import { Menu, type MenuItem } from './Menu.tsx'
 import type { Tone } from '@autopilot/design'
-import { ArrowUp, Avatar, Bars, WorkstreamMark, Banner, Button, Claude, Dot, Icon, Markdown, Meta, NavIcon, Spacer, Tag } from '../ui.tsx'
+import { Avatar, Bars, WorkstreamMark, Banner, Button, Claude, Dot, Icon, Markdown, Meta, NavIcon, Spacer, Tag } from '../ui.tsx'
 import { LinkIcon, Linked, SideLink } from './Links.tsx'
 import { BAND_TITLE } from '../view.ts'
 
@@ -312,7 +312,7 @@ const BeforeStart = ({ taskId, updates }: { taskId: string; updates: Update[] })
         className="inline-reply"
         rows={3}
         aria-label="Your answers"
-        placeholder="Answer what you know; leave the rest to the session…"
+        placeholder="Answer what you know…"
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
@@ -382,7 +382,9 @@ const AskCard = ({ update }: { update: Update }) => {
           className="inline-reply"
           rows={3}
           aria-label="Reply to Autopilot"
-          placeholder={update.kind === 'done' ? 'Or ask for more…' : update.options.length > 0 ? 'Or answer in words…' : 'Answer…'}
+          placeholder={
+            update.kind === 'done' ? 'Or ask for changes…' : update.options.length > 0 ? 'Or answer in your own words…' : 'Answer…'
+          }
           value={text}
           onChange={(e) => setText(e.target.value)}
           onPaste={files.onPaste}
@@ -637,8 +639,8 @@ const Composer = ({ item }: { item: QueueItem }) => {
         <div className="composer compact">
           <textarea
             aria-label="Reply to Autopilot"
-            rows={Math.min(8, Math.max(1, text.split('\n').length))}
-            placeholder={live ? 'Tell the session…' : 'Tell Autopilot what to do; starts a session…'}
+            rows={Math.min(8, Math.max(2, text.split('\n').length))}
+            placeholder={live ? 'Reply to the session…' : session ? 'Reply to pick it up again…' : 'Reply to start a session…'}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onPaste={files.onPaste}
@@ -650,8 +652,8 @@ const Composer = ({ item }: { item: QueueItem }) => {
             }}
           />
           <AttachButton onFiles={files.add} />
-          <Button kind="send" aria-label="Send" disabled={!ready} onClick={reply}>
-            <ArrowUp />
+          <Button kind="send" aria-label="Send" title="Send (Enter; Shift-Enter for a new line)" disabled={!ready} onClick={reply}>
+            <Icon name="enter" size={14} />
           </Button>
         </div>
         <FileChips files={files.files} onRemove={files.remove} />

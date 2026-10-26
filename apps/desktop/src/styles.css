@@ -1516,20 +1516,25 @@ button {
 }
 
 .send {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   margin-left: auto;
   border: 0;
-  border-radius: 10px;
-  background: var(--pilot);
-  color: var(--well);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+.send:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+/* The return key, as in the answer box: dim until there is something to send. */
 .send:disabled {
-  opacity: 0.4;
+  color: var(--muted);
   cursor: default;
 }
 

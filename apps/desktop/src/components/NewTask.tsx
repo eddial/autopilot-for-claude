@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Workstream } from '@autopilot/contracts'
 import { api, key } from '../api.ts'
 import { useDraft } from '../drafts.ts'
-import { ArrowUp, Banner, Bars, Button, NavIcon, Pilot, Row, Spacer, WorkstreamMark } from '../ui.tsx'
+import { Banner, Bars, Button, Icon, NavIcon, Pilot, Row, Spacer, WorkstreamMark } from '../ui.tsx'
 import { Menu } from './Menu.tsx'
 
 type Props = { workstreams: Workstream[]; onCreated: (id: string) => void }
@@ -88,7 +88,7 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
           />
           <div className="composer-bar">
             <Button kind="send" type="submit" aria-label="Create and start" title="Create and start (⌘↩)" disabled={busy || !title.trim()}>
-              <ArrowUp />
+              <Icon name="enter" size={14} />
             </Button>
           </div>
         </form>

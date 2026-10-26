@@ -247,7 +247,17 @@ export const TaskView = ({ item, onTitleOff }: { item: QueueItem; onTitleOff?: (
           </Pressable>
           <TextInput
             style={styles.input}
-            placeholder={ask?.kind === 'done' ? 'Or ask for more…' : ask ? 'Or answer in words…' : 'Tell the session…'}
+            placeholder={
+              ask?.kind === 'done'
+                ? 'Or ask for changes…'
+                : ask
+                  ? 'Or answer in your own words…'
+                  : item.session && item.session.state !== 'ended'
+                    ? 'Reply to the session…'
+                    : item.session
+                      ? 'Reply to pick it up again…'
+                      : 'Reply to start a session…'
+            }
             placeholderTextColor={colours.text3}
             value={text}
             onChangeText={setText}
@@ -506,7 +516,8 @@ const styles = StyleSheet.create({
     borderColor: colours.borderStrong,
   },
   attach: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
-  input: { flex: 1, maxHeight: 140, fontSize: 16, color: colours.text, paddingVertical: 6 },
+  // Two lines to start with, room to write a real answer.
+  input: { flex: 1, minHeight: 48, maxHeight: 140, fontSize: 16, color: colours.text, paddingVertical: 6 },
   send: { width: 34, height: 34, borderRadius: 10, backgroundColor: colours.pilot, alignItems: 'center', justifyContent: 'center' },
   sendText: { fontSize: 18, fontWeight: '700', color: colours.well },
 })

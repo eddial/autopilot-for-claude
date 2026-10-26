@@ -263,13 +263,6 @@ export const Chevron = ({ open }: { open: boolean }) => (
   </svg>
 )
 
-/** The arrow on a send button; it takes the button's colour. */
-export const ArrowUp = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-    <path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" />
-  </svg>
-)
-
 /** A small round light: running, failing, paused. */
 export const Dot = ({ tone, label }: { tone: Tone; label?: string }) => (
   <span className={`health-dot tone-${tone}`} role={label ? 'img' : undefined} aria-label={label} />
