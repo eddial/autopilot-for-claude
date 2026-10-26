@@ -2,7 +2,8 @@ import AppKit
 
 // The app icon: the pilot from the design tokens on Claude's orange, as Claude's own icon sits.
 // "mac" draws the macOS icon shape (an 824-point rounded square on a 1024 canvas, with its shadow);
-// "phone" fills the square, which iOS rounds itself. Pixels kept sharp.
+// "phone" fills the square, which iOS rounds itself; "splash" is the phone's launch screen, the
+// pilot small in the middle of the window's colour. Pixels kept sharp.
 // Run by scripts/icon.ts (pnpm --filter @autopilot/desktop icon).
 struct Art: Decodable {
   let rows: [String]
@@ -11,10 +12,10 @@ struct Art: Decodable {
 }
 
 let args = CommandLine.arguments
-guard args.count == 3, ["mac", "phone"].contains(args[1]),
+guard args.count == 3, ["mac", "phone", "splash"].contains(args[1]),
   let art = try? JSONDecoder().decode(Art.self, from: FileHandle.standardInput.readDataToEndOfFile())
 else {
-  print("usage: swift mac-icon.swift <mac|phone> <out.png> < pilot.json")
+  print("usage: swift mac-icon.swift <mac|phone|splash> <out.png> < pilot.json")
   exit(1)
 }
 
@@ -53,9 +54,9 @@ if mac {
   tile.fill()
 }
 
-// The pilot, 16 cells across six tenths of the tile, centred.
+// The pilot, 16 cells across six tenths of the tile (three on the splash), centred.
 let columns = art.rows.map(\.count).max() ?? 0
-let cell = (tile.width * 0.6 / CGFloat(columns)).rounded()
+let cell = (tile.width * (args[1] == "splash" ? 0.3 : 0.6) / CGFloat(columns)).rounded()
 let left = tile.midX - cell * CGFloat(columns) / 2
 let top = tile.midY + cell * CGFloat(art.rows.count) / 2
 for (y, row) in art.rows.enumerated() {
