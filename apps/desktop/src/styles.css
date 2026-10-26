@@ -994,6 +994,7 @@ button {
 
 /* Wide: the properties, the task's id and its session in their column, not in the head. */
 @container (min-width: 900px) {
+  .task-title .task-actions,
   .task-title .props,
   .linked-inline,
   .task-head .head-id,
@@ -1008,6 +1009,15 @@ button {
   gap: 4px;
   min-height: 32px;
   padding-left: 8px;
+}
+
+/* The actions, at the top of the properties: one place for them, beside the title. */
+.side-actions {
+  padding: 8px 0 4px 8px;
+}
+
+.side-actions .task-actions {
+  flex-wrap: wrap;
 }
 
 .side-id {

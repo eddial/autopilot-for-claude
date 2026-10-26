@@ -680,7 +680,8 @@ const useOpenSession = (session: QueueItem['session']) => {
 }
 
 /** What can be done with the task as a whole. */
-const Actions = ({ item }: { item: QueueItem }) => {
+/** What you can do to a task. In the properties column Open session is left out: its Session row opens it. */
+const Actions = ({ item, session: withSession = true }: { item: QueueItem; session?: boolean }) => {
   const { task, session } = item
   const live = session && session.state !== 'ended' ? session : null
   const { preferred, choices } = useOpenSession(session)
@@ -692,7 +693,7 @@ const Actions = ({ item }: { item: QueueItem }) => {
           Start
         </Button>
       )}
-      {preferred && (
+      {withSession && preferred && (
         <div className="split tone-claude">
           {/* One click opens it the way you last chose; the arrow picks another and keeps it. */}
           <Button kind="tool" className="tinted split-main" title={preferred.label} onClick={() => open(preferred.url)}>
@@ -802,20 +803,7 @@ const Properties = ({
   // Links from before they carried a time: when the activity says it was linked.
   const linkedAt = (url: string) => updates.find((u) => u.attachments.some((a) => a.url === url))?.createdAt ?? null
   const { task, session } = item
-  const live = session && session.state !== 'ended' ? session : null
   const closed = item.band === 'done'
-  const status: MenuItem[] = closed
-    ? []
-    : [
-        ...(item.band === 'new' && !live ? [{ label: 'Start', run: () => send({ kind: 'start', taskId: task.id }) }] : []),
-        ...snoozeTimes().map((t) => ({
-          label: `Snooze: ${t.label}`,
-          detail: [t.day, t.time],
-          run: () => send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() }),
-        })),
-        { label: 'Mark done', run: () => send({ kind: 'close', taskId: task.id, outcome: 'done' }) },
-        { label: 'Not for me', run: () => send({ kind: 'close', taskId: task.id, outcome: 'canceled' }) },
-      ]
   const streams: MenuItem[] = [...new Set([...workstreams.map((w) => w.name).filter((n) => n !== 'autopilot'), 'inbox'])]
     .filter((name) => name !== task.workstream)
     .map((name) => ({
@@ -847,19 +835,15 @@ const Properties = ({
           <NavIcon name="document" size={13} />
         </Button>
       </div>
+      {!closed && (
+        <div className="side-actions">
+          <Actions item={item} session={false} />
+        </div>
+      )}
       <div className="side-group">
+        {/* Where it stands, said once; what you can do about it is in the buttons above. */}
         <Prop label="Status">
-          {status.length > 0 ? (
-            <Menu
-              trigger="prop"
-              chevron={false}
-              align="right"
-              label={<Pill tone={BAND_TONE[item.band]}>{BAND_TITLE[item.band]}</Pill>}
-              items={status}
-            />
-          ) : (
-            <Pill tone={BAND_TONE[item.band]}>{BAND_TITLE[item.band]}</Pill>
-          )}
+          <Pill tone={BAND_TONE[item.band]}>{BAND_TITLE[item.band]}</Pill>
         </Prop>
         <Prop label="Workstream">
           <Menu
