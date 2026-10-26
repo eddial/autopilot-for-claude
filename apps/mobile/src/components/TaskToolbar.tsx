@@ -1,4 +1,4 @@
-import { Linking } from 'react-native'
+import { Linking, useWindowDimensions } from 'react-native'
 import type { QueueItem } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
 import { firstLookQuestions } from '@autopilot/client'
@@ -42,6 +42,9 @@ export const TaskToolbar = ({
   onTop?: () => void
 }) => {
   const sync = useSyncInstance()
+  // A short screen (the Duo folded, in landscape) has room in its bar for only so many buttons:
+  // back to the top goes first, so the way through the list stays out of the overflow menu.
+  const short = useWindowDimensions().height < 500
   const { task, session } = item
   const live = session && session.state !== 'ended' ? session : null
   const closed = item.band === 'done'
@@ -89,7 +92,12 @@ export const TaskToolbar = ({
             Not for me
           </Stack.Toolbar.MenuAction>
         </Stack.Toolbar.Menu>
-        <Stack.Toolbar.Button icon="arrow.up.to.line" accessibilityLabel="Back to the top" hidden={!onTop} onPress={() => onTop?.()} />
+        <Stack.Toolbar.Button
+          icon="arrow.up.to.line"
+          accessibilityLabel="Back to the top"
+          hidden={!onTop || short}
+          onPress={() => onTop?.()}
+        />
       </Stack.Toolbar>
       {step && (
         <Stack.Toolbar placement="bottom">

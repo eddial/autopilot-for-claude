@@ -14,7 +14,7 @@ import {
 } from 'react-native'
 import { claude, colours, fonts, pilot, radius, space, tones, type Tone } from '@autopilot/design'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { emptyWords, linkKind, parseMarkdown, workstreamMark, type Inline, type LinkKind } from '@autopilot/client'
 
 /**
@@ -424,6 +424,17 @@ export const ComposerTool = ({ symbol, label, onPress }: { symbol: SFSymbol; lab
 )
 
 /**
+ * Space under a screen's last row (the tabs, the composer), `height` tall. Beside the Duo's vertical
+ * bar it is centred on the edge line, level with the bar's last button; where iOS lays its bar across
+ * the bottom (the inner display in portrait) that bar is in the safe area, and the row sits above it.
+ * Read inside `Sides` (or `KeyboardScreen`), whose provider measures the screen itself.
+ */
+export const useBottomGap = (height: number): number => {
+  const { bottom } = useSafeAreaInsets()
+  return bottom > 40 ? bottom + 8 : edgeSpace(height)
+}
+
+/**
  * A screen that keeps its composer above the keyboard, as Claude's does: its bottom padding is
  * exactly how far the keyboard reaches into it, plus a small gap, measured in the window, so a
  * pushed screen, a sheet and a split-view half all come out the same. With the keyboard down the
@@ -443,10 +454,18 @@ export const KeyboardScreen = ({ children, style }: { children: ReactNode; style
     }
   }, [])
   return (
-    <View ref={box} style={[{ flex: 1, paddingBottom: covered > 0 ? covered + 12 : edgeSpace(COMPOSER_BAR) }, style]}>
-      {children}
+    <View ref={box} style={[{ flex: 1 }, style]}>
+      <SafeAreaProvider style={{ flex: 1 }}>
+        <BottomGap covered={covered}>{children}</BottomGap>
+      </SafeAreaProvider>
     </View>
   )
+}
+
+/** The keyboard's reach plus a small gap while it is up; the bottom gap otherwise. */
+const BottomGap = ({ covered, children }: { covered: number; children: ReactNode }) => {
+  const gap = useBottomGap(COMPOSER_BAR)
+  return <View style={{ flex: 1, paddingBottom: covered > 0 ? covered + 12 : gap }}>{children}</View>
 }
 
 /** The composer's text field: grows with what is written, up to a point. */

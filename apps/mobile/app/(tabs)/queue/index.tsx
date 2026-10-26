@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   Alert,
   KeyboardAvoidingView,
@@ -21,7 +21,7 @@ import { TaskView } from '../../../src/components/TaskView.tsx'
 import { age, rowMeta } from '../../../src/format.ts'
 import { doneItem, rememberDone, serverName, unpair, useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
-import { Bars, EmptyList, Sides, WorkstreamBadge, edgeSpace, GUTTER, type } from '../../../src/ui.tsx'
+import { Bars, EmptyList, Sides, WorkstreamBadge, edgeSpace, GUTTER, type, useBottomGap } from '../../../src/ui.tsx'
 
 type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
 const VIEWS: { id: QueueView; title: string; about: string; bands: Band[]; symbol: SFSymbol }[] = [
@@ -232,7 +232,7 @@ export default function QueueScreen() {
           )}
         />
         {/* The tabs under the list, where the thumb is; search and New in the bar below them. */}
-        <View style={{ marginBottom: edgeSpace(TABS_HEIGHT) }}>{tabs}</View>
+        <BottomRow>{tabs}</BottomRow>
       </KeyboardAvoidingView>
     </Sides>
   )
@@ -326,6 +326,9 @@ export default function QueueScreen() {
     </>
   )
 }
+
+/** The tabs, on the bottom line: read inside Sides, which measures where this screen's bars are. */
+const BottomRow = ({ children }: { children: ReactNode }) => <View style={{ marginBottom: useBottomGap(TABS_HEIGHT) }}>{children}</View>
 
 const Row = ({ item, selected, status, onPress }: { item: QueueItem; selected: boolean; status: boolean; onPress: () => void }) => (
   <Pressable style={[styles.row, selected && { backgroundColor: colours.raised }]} onPress={onPress} accessibilityRole="button">
