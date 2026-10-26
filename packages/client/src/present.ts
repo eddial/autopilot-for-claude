@@ -95,6 +95,10 @@ export const workstreamMark = (name: string): { letters: string; tone: 'pilot' |
   return { letters, tone: tones[hash % tones.length] ?? 'quiet' }
 }
 
+/** Who a task came from, as both apps say it under its title: "From Gmail", "Created by you". */
+export const filedBy = (task: Task): string =>
+  task.source.signal ? `From ${signalName(task.source.signal)}` : task.createdBy === 'system' ? 'From Autopilot' : 'Created by you'
+
 export const linkSource = (url: string): string => {
   // Not URL: React Native's has no hostname.
   if (url.startsWith('file:')) return 'File'

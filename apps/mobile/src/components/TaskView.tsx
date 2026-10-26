@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import {
+  filedBy,
   createdText,
   eventText,
   linkKind,
@@ -15,7 +16,7 @@ import {
 import type { QueueItem, Update } from '@autopilot/contracts'
 import * as Haptics from 'expo-haptics'
 import KV from 'expo-sqlite/kv-store'
-import { age, BAND_TITLE, titleCase } from '../format.ts'
+import { age, ago, BAND_TITLE, titleCase } from '../format.ts'
 import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
 import { colours, radius, tones, type Tone } from '@autopilot/design'
 import { Avatar, Banner, Button, Chip, LinkIcon, Markdown, Pill, Sides, Tag, bannerText, type } from '../ui.tsx'
@@ -88,12 +89,15 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
               <Pill tone={BAND_TONE[item.band]} label={BAND_TITLE[item.band]} />
               <Tag label={titleCase(task.workstream)} />
               {task.priority <= 2 && <Tag label={task.priority === 1 ? 'Urgent' : 'High priority'} />}
+              <Text style={type.meta}>
+                {filedBy(task)} · {ago(task.createdAt)}
+              </Text>
             </View>
           </View>
           {task.brief ? (
             <View style={styles.section}>
               <Text style={type.label}>Brief</Text>
-              <Markdown text={task.brief} onLink={open} />
+              <Folded text={task.brief} onLink={open} />
             </View>
           ) : null}
           {task.links.length > 0 && <Linked taskId={task.id} links={task.links} />}
@@ -352,7 +356,9 @@ const styles = StyleSheet.create({
   page: { padding: 20, gap: 24, paddingBottom: 32 },
   head: { gap: 6 },
   section: { gap: 8 },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  folded: { maxHeight: 200, overflow: 'hidden' },
+  more: { marginTop: 6 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   ask: {
     gap: 8,
     padding: 16,
@@ -399,3 +405,21 @@ const styles = StyleSheet.create({
   send: { width: 34, height: 34, borderRadius: 10, backgroundColor: colours.pilot, alignItems: 'center', justifyContent: 'center' },
   sendText: { fontSize: 18, fontWeight: '700', color: colours.well },
 })
+
+/** A long brief folded to its first lines, as on the Mac; Show more opens it. */
+const Folded = ({ text, onLink }: { text: string; onLink: (url: string) => void }) => {
+  const [shown, setShown] = useState(false)
+  const long = text.length > 360 || text.split('\n').length > 6
+  return (
+    <>
+      <View style={long && !shown ? styles.folded : null}>
+        <Markdown text={text} onLink={onLink} />
+      </View>
+      {long && (
+        <Pressable onPress={() => setShown((o) => !o)} accessibilityRole="button" hitSlop={8}>
+          <Text style={[type.meta, styles.more]}>{shown ? 'Show less' : 'Show more'}</Text>
+        </Pressable>
+      )}
+    </>
+  )
+}

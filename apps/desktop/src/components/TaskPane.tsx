@@ -12,12 +12,13 @@ import {
   type Pending,
 } from '@autopilot/client'
 import type { QueueItem, Update } from '@autopilot/contracts'
+import { filedBy, signalName } from '@autopilot/client'
 import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
 import type { Tone } from '@autopilot/design'
 import { ArrowUp, Avatar, Banner, Button, Claude, Dot, Icon, Markdown, Meta, Pill, Spacer, Tag } from '../ui.tsx'
-import { LinkIcon, Linked } from './Links.tsx'
+import { LinkIcon, LinkRow, Linked } from './Links.tsx'
 import { BAND_TITLE } from '../view.ts'
 
 type Props = { item: QueueItem; onClose: () => void }
@@ -110,11 +111,7 @@ export const TaskPane = ({ item, onClose }: Props) => {
   ]
 
   const session = item.session
-  const filed = task.source.signal
-    ? `From ${titleCase(task.source.signal)}`
-    : task.createdBy === 'system'
-      ? 'From Autopilot'
-      : 'Created by you'
+  const filed = filedBy(task)
 
   return (
     <section className="pane task" aria-label={task.title}>
@@ -136,40 +133,54 @@ export const TaskPane = ({ item, onClose }: Props) => {
           </span>
         )}
       </div>
-      <div className="timeline">
-        <header className="task-title">
-          <h2 className="serif">{task.title}</h2>
-          <div className="props">
-            <Pill tone={BAND_TONE[item.band]}>{BAND_TITLE[item.band]}</Pill>
-            <Tag>{titleCase(task.workstream)}</Tag>
-            {task.priority <= 2 && <Tag>{task.priority === 1 ? 'Urgent' : 'High priority'}</Tag>}
-            <Meta as="span">
-              {filed} · {ago(task.createdAt)}
-            </Meta>
+      <div className="task-body">
+        <div className="task-col">
+          <div className="timeline">
+            <div className="task-main">
+              <header className="task-title">
+                <h2 className="serif">{task.title}</h2>
+                {/* Narrow, the properties sit here; wide, in the column on the right (styles.css). */}
+                <div className="props">
+                  <Pill tone={BAND_TONE[item.band]}>{BAND_TITLE[item.band]}</Pill>
+                  <Tag>{titleCase(task.workstream)}</Tag>
+                  {task.priority <= 2 && <Tag>{task.priority === 1 ? 'Urgent' : 'High priority'}</Tag>}
+                  <Meta as="span">
+                    {filed} · {ago(task.createdAt)}
+                  </Meta>
+                </div>
+                <Actions item={item} />
+              </header>
+              {task.brief && (
+                <section className="section">
+                  <div className="section-label">Brief</div>
+                  <Body text={task.brief} />
+                </section>
+              )}
+              <div className="linked-inline">
+                <Linked taskId={task.id} links={task.links} />
+              </div>
+              {refused && <Banner>{refused}</Banner>}
+              {ask && <AskCard update={ask} />}
+              {!ask && item.band === 'new' && <BeforeStart taskId={task.id} updates={updates} />}
+              <section className="section">
+                <div className="section-head">
+                  <div className="section-label">Activity</div>
+                  <Button
+                    kind="quiet"
+                    aria-label="Order of the activity"
+                    onClick={() => setOrder(order === 'newest' ? 'oldest' : 'newest')}
+                  >
+                    {order === 'newest' ? 'Newest first' : 'Oldest first'}
+                  </Button>
+                </div>
+                <ol className="feed">{order === 'newest' ? entries.toReversed() : entries}</ol>
+              </section>
+            </div>
           </div>
-          <Actions item={item} />
-        </header>
-        {task.brief && (
-          <section className="section">
-            <div className="section-label">Brief</div>
-            <Body text={task.brief} />
-          </section>
-        )}
-        <Linked taskId={task.id} links={task.links} />
-        {refused && <Banner>{refused}</Banner>}
-        {ask && <AskCard update={ask} />}
-        {!ask && item.band === 'new' && <BeforeStart taskId={task.id} updates={updates} />}
-        <section className="section">
-          <div className="section-head">
-            <div className="section-label">Activity</div>
-            <Button kind="quiet" aria-label="Order of the activity" onClick={() => setOrder(order === 'newest' ? 'oldest' : 'newest')}>
-              {order === 'newest' ? 'Newest first' : 'Oldest first'}
-            </Button>
-          </div>
-          <ol className="feed">{order === 'newest' ? entries.toReversed() : entries}</ol>
-        </section>
+          {!ask && <Composer item={item} />}
+        </div>
+        <Properties item={item} />
       </div>
-      {!ask && <Composer item={item} />}
     </section>
   )
 }
@@ -532,3 +543,63 @@ const Composer = ({ item }: { item: QueueItem }) => {
     </div>
   )
 }
+
+/** A label and its value in the properties column. */
+const Prop = ({ label, children }: { label: string; children: ReactNode }) => (
+  <div className="prop">
+    <span className="prop-label">{label}</span>
+    <div className="prop-value">{children}</div>
+  </div>
+)
+
+/**
+ * What a task is, beside what happened to it, as in Linear: status, workstream, priority, where
+ * it came from, the session, and what it links to. Shown when the pane is wide enough.
+ */
+const Properties = ({ item }: { item: QueueItem }) => {
+  const { task, session } = item
+  return (
+    <aside className="task-side" aria-label="Properties">
+      <Prop label="Status">
+        <Pill tone={BAND_TONE[item.band]}>{BAND_TITLE[item.band]}</Pill>
+      </Prop>
+      <Prop label="Workstream">
+        <Tag>{titleCase(task.workstream)}</Tag>
+      </Prop>
+      <Prop label="Priority">
+        <span className="meta">{PRIORITY[task.priority] ?? 'Normal'}</span>
+      </Prop>
+      <Prop label="From">
+        <span className="meta">
+          {task.source.signal ? signalName(task.source.signal) : task.createdBy === 'system' ? 'Autopilot' : 'You'} · {ago(task.createdAt)}
+        </span>
+        {task.source.url && (
+          <Button kind="link" onClick={() => open(task.source.url ?? '')}>
+            Open the source
+          </Button>
+        )}
+      </Prop>
+      {task.source.mirrors && (
+        <Prop label="Mirrors">
+          <span className="meta">{task.source.mirrors}</span>
+        </Prop>
+      )}
+      {session && (
+        <Prop label="Session">
+          <span className="meta">{session.state === 'ended' ? 'Ended' : (session.activity ?? SESSION_STATE[session.state])}</span>
+        </Prop>
+      )}
+      {task.links.length > 0 && (
+        <Prop label="Linked">
+          <ul className="side-links">
+            {task.links.toReversed().map((l) => (
+              <LinkRow key={l.url} taskId={task.id} link={l} />
+            ))}
+          </ul>
+        </Prop>
+      )}
+    </aside>
+  )
+}
+
+const PRIORITY: Record<number, string> = { 1: 'Urgent', 2: 'High', 3: 'Normal', 4: 'Low' }

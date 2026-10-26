@@ -50,7 +50,7 @@ const Preview = ({ taskId, url }: { taskId: string; url: string }) => {
 }
 
 /** One link: its kind, where it lives, and the ways to open it. */
-const LinkRow = ({ taskId, link }: { taskId: string; link: Link }) => {
+export const LinkRow = ({ taskId, link }: { taskId: string; link: Link }) => {
   const kind = linkKind(link)
   const file = link.url.startsWith('file:')
   const [reading, setReading] = useState(false)
