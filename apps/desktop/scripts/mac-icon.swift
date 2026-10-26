@@ -19,9 +19,11 @@ else {
   exit(1)
 }
 
+// The tokens' values, written as they are: the image is tagged sRGB below, so nothing converts
+// them on the way (an untagged image came out duller than Claude's icon beside it).
 func colour(_ hex: String) -> NSColor {
   let v = Int(hex.dropFirst(), radix: 16) ?? 0
-  return NSColor(srgbRed: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255,
+  return NSColor(deviceRed: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255,
                  blue: CGFloat(v & 0xFF) / 255, alpha: 1)
 }
 
@@ -68,5 +70,6 @@ for (y, row) in art.rows.enumerated() {
 }
 
 NSGraphicsContext.restoreGraphicsState()
-try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: args[2]))
+let tagged = rep.retagging(with: .sRGB) ?? rep
+try! tagged.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: args[2]))
 print("wrote \(args[2])")
