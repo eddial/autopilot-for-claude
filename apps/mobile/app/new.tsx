@@ -4,6 +4,7 @@ import type { Workstream } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
 import KV from 'expo-sqlite/kv-store'
 import { titleCase } from '../src/format.ts'
+import { useDraft } from '../src/drafts.ts'
 import { useSyncInstance } from '../src/store.ts'
 import { colours } from '@autopilot/design'
 import { Chip, Sides, type } from '../src/ui.tsx'
@@ -18,8 +19,8 @@ const PRIORITIES = [
 /** New task, as a sheet. Works offline: it waits in the outbox and reaches the Mac later. */
 export default function NewTaskScreen() {
   const sync = useSyncInstance()
-  const [title, setTitle] = useState('')
-  const [brief, setBrief] = useState('')
+  const [title, setTitle] = useDraft('new:title')
+  const [brief, setBrief] = useDraft('new:brief')
   const [workstream, setWorkstream] = useState<string | null>(null)
   const [priority, setPriority] = useState(3)
   const [start, setStart] = useState(true)
@@ -47,6 +48,8 @@ export default function NewTaskScreen() {
       priority,
       ...(workstream ? { workstream } : {}),
     })
+    setTitle('')
+    setBrief('')
     router.back()
   }
 

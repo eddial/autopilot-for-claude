@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem, Signal } from '@autopilot/contracts'
 import { workstreamMark } from '@autopilot/client'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { useDraft } from '../drafts.ts'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
 import { QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
@@ -267,11 +268,12 @@ const Expanded = ({
   onOpen: (id: string) => void
   onDone: () => void
 }) => {
-  const [text, setText] = useState('')
   const ask = item.openAsk
+  const [text, setText] = useDraft(`${item.task.id}:${ask?.id ?? 'reply'}`)
   const answer = (reply: { optionId: string } | { text: string }) => {
     if (!ask) return
     send({ kind: 'answer', taskId: item.task.id, updateId: ask.id, ...reply })
+    setText('')
     onDone()
   }
   return (

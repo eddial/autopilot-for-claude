@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Workstream } from '@autopilot/contracts'
 import { api, key } from '../api.ts'
+import { useDraft } from '../drafts.ts'
 import { titleCase } from '../format.ts'
 import { ArrowUp, Banner, Button, Meta, Pilot, Row } from '../ui.tsx'
 
@@ -14,8 +15,8 @@ const PRIORITIES = [
 ]
 
 export const NewTask = ({ workstreams, onCreated }: Props) => {
-  const [title, setTitle] = useState('')
-  const [brief, setBrief] = useState('')
+  const [title, setTitle] = useDraft('new:title')
+  const [brief, setBrief] = useDraft('new:brief')
   const [workstream, setWorkstream] = useState('')
   const [priority, setPriority] = useState(3)
   const [error, setError] = useState<string | null>(null)
@@ -37,6 +38,8 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
         priority,
         start,
       })
+      setTitle('')
+      setBrief('')
       onCreated(task.id)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))

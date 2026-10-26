@@ -90,6 +90,15 @@ describe('the Mac app window', () => {
     await expect.poll(() => heading.count()).toBe(0)
   }, 30_000)
 
+  it('keeps what you were typing when the window restarts', async () => {
+    await page.getByRole('button', { name: 'Needs me' }).click()
+    await page.getByRole('option', { name: /Renew the office lease/ }).click()
+    await page.getByLabel('Reply to Autopilot').fill('Half an answer about the lease')
+    await page.reload()
+    await page.getByRole('option', { name: /Renew the office lease/ }).click()
+    await expect.poll(() => page.getByLabel('Reply to Autopilot').inputValue()).toBe('Half an answer about the lease')
+  }, 30_000)
+
   it('shows every open task when the current tab is clicked again', async () => {
     await page.getByRole('button', { name: 'Running' }).click()
     await expect.poll(() => page.getByRole('heading', { name: 'Running' }).isVisible()).toBe(true)

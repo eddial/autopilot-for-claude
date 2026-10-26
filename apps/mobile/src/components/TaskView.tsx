@@ -17,6 +17,7 @@ import type { QueueItem, Update } from '@autopilot/contracts'
 import * as Haptics from 'expo-haptics'
 import KV from 'expo-sqlite/kv-store'
 import { age, ago, BAND_TITLE, titleCase } from '../format.ts'
+import { useDraft } from '../drafts.ts'
 import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
 import { colours, radius, tones, type Tone } from '@autopilot/design'
 import { Avatar, Banner, Button, Chip, LinkIcon, Markdown, Pill, Sides, Tag, bannerText, type } from '../ui.tsx'
@@ -28,7 +29,7 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
   const { task, openAsk } = item
   // From the phone's own copy, kept current by the feed; the ask from the queue until it has one.
   const detail = useDetail(task.id)
-  const [text, setText] = useState('')
+  const [text, setText] = useDraft(`${task.id}:composer`)
 
   const pending = outbox.filter((p) => 'taskId' in p.command && p.command.taskId === task.id)
   const answered = new Set(pending.flatMap((p) => (p.command.kind === 'answer' ? [p.command.updateId] : [])))

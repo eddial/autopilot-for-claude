@@ -15,6 +15,7 @@ import type { QueueItem, Update } from '@autopilot/contracts'
 import { filedBy, signalName } from '@autopilot/client'
 import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
+import { useDraft } from '../drafts.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
 import type { Tone } from '@autopilot/design'
 import { ArrowUp, Avatar, Banner, Button, Claude, Dot, Icon, Markdown, Meta, Pill, Spacer, Tag } from '../ui.tsx'
@@ -255,13 +256,14 @@ const firstLookQuestions = (updates: Update[]): string[] => {
  * with the answers instead of guessing. Answering is optional; Start goes either way.
  */
 const BeforeStart = ({ taskId, updates }: { taskId: string; updates: Update[] }) => {
-  const [text, setText] = useState('')
+  const [text, setText] = useDraft(`${taskId}:answers`)
   const questions = firstLookQuestions(updates)
   if (questions.length === 0) return null
-  const start = () =>
-    text.trim()
-      ? send({ kind: 'instruct', taskId, body: `Answers to the first look's questions:\n\n${text.trim()}` })
-      : send({ kind: 'start', taskId })
+  const start = () => {
+    if (text.trim()) send({ kind: 'instruct', taskId, body: `Answers to the first look's questions:\n\n${text.trim()}` })
+    else send({ kind: 'start', taskId })
+    setText('')
+  }
   return (
     <section className="ask-card" aria-label="Before starting">
       <div className="ask-head">Before I start</div>
@@ -291,9 +293,11 @@ const BeforeStart = ({ taskId, updates }: { taskId: string; updates: Update[] })
 
 /** The one thing waiting on the owner, with its answers. */
 const AskCard = ({ update }: { update: Update }) => {
-  const [text, setText] = useState('')
-  const answer = (reply: { optionId: string } | { text: string }) =>
+  const [text, setText] = useDraft(`${update.taskId}:${update.id}`)
+  const answer = (reply: { optionId: string } | { text: string }) => {
     send({ kind: 'answer', taskId: update.taskId, updateId: update.id, ...reply })
+    setText('')
+  }
   return (
     <section className="ask-card" aria-label="Needs you">
       <div className="ask-head">
@@ -512,7 +516,7 @@ const Actions = ({ item }: { item: QueueItem }) => {
 /** A line for telling the session something; it grows while you write. */
 const Composer = ({ item }: { item: QueueItem }) => {
   const { task, session } = item
-  const [text, setText] = useState('')
+  const [text, setText] = useDraft(`${task.id}:composer`)
   const reply = () => {
     const body = text.trim()
     if (!body) return
