@@ -256,39 +256,34 @@ type UpNextProps = {
 }
 
 /**
- * The end of a task: where you are in the list and what comes next. Nothing moves you on by
- * itself; you see your reply land, then go when you are ready (⌘] and ⌘[ work anywhere).
+ * The end of a task, on one line: what comes next, where you are in the list, and the way there.
+ * Nothing moves you on by itself; you see your reply land, then go when you are ready (⌘→ and ⌘←
+ * work anywhere but in a box you are writing in).
  */
 const UpNext = ({ next, hasPrevious, at, total, list, move }: UpNextProps) => (
   <section className="up-next" aria-label="Up next">
-    <div className="up-next-head">
-      <span className="section-label">{next ? 'Up next' : 'The end of the list'}</span>
-      <Meta as="span">
-        {at} of {total} in {list}
-      </Meta>
-    </div>
+    <span className="section-label">{next ? 'Up next' : 'Last one'}</span>
     {next ? (
-      <Button kind="item" className="up-next-task" onClick={() => move(1)}>
+      <Button kind="item" className="up-next-task" title={next.task.title} onClick={() => move(1)}>
         <WorkstreamMark name={next.task.workstream} />
-        <span className="up-next-text">
-          <span className="up-next-title">{next.task.title}</span>
-          <span className="up-next-meta">{rowMeta(next, false)}</span>
-        </span>
+        <span className="up-next-title">{next.task.title}</span>
+        <span className="up-next-meta">{rowMeta(next, false)}</span>
         <Bars priority={next.task.priority} />
       </Button>
     ) : (
-      <p className="up-next-done">That was the last one here. Pick another list, or go back through these.</p>
+      <span className="up-next-task up-next-done">Nothing after this in {list}</span>
     )}
-    <div className="up-next-actions">
-      <Button kind="tool" disabled={!hasPrevious} onClick={() => move(-1)} title="Previous task (⌘[)">
-        ← Previous <kbd>⌘[</kbd>
+    <Meta as="span" className="up-next-where">
+      {at} of {total} in {list}
+    </Meta>
+    <Button kind="tool" disabled={!hasPrevious} onClick={() => move(-1)} aria-label="Previous task" title="Previous task (⌘←)">
+      ←
+    </Button>
+    {next && (
+      <Button kind="primary" onClick={() => move(1)} title="Next task (⌘→)">
+        Next →
       </Button>
-      {next && (
-        <Button kind="primary" onClick={() => move(1)} title="Next task (⌘])">
-          Next <kbd>⌘]</kbd>
-        </Button>
-      )}
-    </div>
+    )}
   </section>
 )
 

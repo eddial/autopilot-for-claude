@@ -414,6 +414,32 @@ export const Markdown = ({ text, onLink }: { text: string; onLink: (url: string)
         <div key={i} className={`md-h md-h${b.level}`}>
           <Inlines inlines={b.inlines} onLink={onLink} />
         </div>
+      ) : b.kind === 'table' ? (
+        // Wide tables scroll sideways inside the message rather than pushing the page out.
+        <div key={i} className="md-table-wrap">
+          <table className="md-table">
+            <thead>
+              <tr>
+                {b.head.map((cell, c) => (
+                  <th key={c} className={`md-${b.align[c] ?? 'left'}`}>
+                    <Inlines inlines={cell} onLink={onLink} />
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {b.rows.map((row, r) => (
+                <tr key={r}>
+                  {row.map((cell, c) => (
+                    <td key={c} className={`md-${b.align[c] ?? 'left'}`}>
+                      <Inlines inlines={cell} onLink={onLink} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : b.kind === 'list' ? (
         (() => {
           const items = b.items.map((item, j) => (

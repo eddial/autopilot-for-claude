@@ -1,5 +1,5 @@
 /**
- * Markdown as sessions write it, parsed once for both apps: headings, lists, paragraphs, and
+ * Markdown as sessions write it, parsed once for both apps: headings, lists, tables, paragraphs, and
  * bold, italics, code and links within a line. Each app draws the result with its own elements,
  * never as HTML, so nothing in a message can run.
  */
@@ -16,11 +16,27 @@ export type Block =
   | { kind: 'paragraph'; lines: Inline[][] }
   | { kind: 'list'; ordered: boolean; items: Inline[][] }
   | { kind: 'rule' }
+  | { kind: 'table'; align: Align[]; head: Inline[][]; rows: Inline[][][] }
+
+export type Align = 'left' | 'center' | 'right'
 
 const INLINE = /(\*\*([^*]+)\*\*|__([^_]+)__|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)|\*([^*\s][^*]*)\*|_([^_\s][^_]*)_)/g
 const ITEM = /^\s*([-*•]|\d+[.)])\s+/
 const HEADING = /^(#{1,3})\s+(.*)$/
 const RULE = /^\s*(-{3,}|\*{3,}|_{3,})\s*$/
+const TABLE_ROW = /^\s*\|.*\|\s*$/
+const TABLE_RULE = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$/
+
+/** The cells of a table row, `| a | b |` or `a | b`, untrimmed of nothing but their spaces. */
+const cells = (line: string): string[] => {
+  const inner = line.trim().replace(/^\|/, '').replace(/\|$/, '')
+  return inner.split('|').map((c) => c.trim())
+}
+
+const alignOf = (cell: string): Align => (cell.startsWith(':') && cell.endsWith(':') ? 'center' : cell.endsWith(':') ? 'right' : 'left')
+
+/** A table starts where a row of cells sits on its rule: `|---|---|`. */
+const tableAt = (lines: string[], i: number) => TABLE_ROW.test(lines[i] ?? '') && TABLE_RULE.test(lines[i + 1] ?? '')
 
 export const parseInline = (text: string): Inline[] => {
   const out: Inline[] = []
@@ -50,6 +66,18 @@ export const parseMarkdown = (text: string): Block[] => {
     } else if (RULE.test(line)) {
       blocks.push({ kind: 'rule' })
       i++
+    } else if (tableAt(lines, i)) {
+      const head = cells(lines[i] ?? '')
+      const align = cells(lines[i + 1] ?? '').map(alignOf)
+      const rows: Inline[][][] = []
+      i += 2
+      while (i < lines.length && TABLE_ROW.test(lines[i] ?? '')) {
+        const row = cells(lines[i] ?? '')
+        // As many cells as the head: a short row is filled, a long one cut.
+        rows.push(head.map((_, c) => parseInline(row[c] ?? '')))
+        i++
+      }
+      blocks.push({ kind: 'table', align, head: head.map((h) => parseInline(h)), rows })
     } else if (heading) {
       blocks.push({ kind: 'heading', level: Math.min(3, heading[1]?.length ?? 1) as 1 | 2 | 3, inlines: parseInline(heading[2] ?? '') })
       i++
@@ -64,7 +92,7 @@ export const parseMarkdown = (text: string): Block[] => {
     } else {
       const para: Inline[][] = []
       const plain = (l: string) => l.trim() !== '' && !HEADING.test(l) && !ITEM.test(l) && !RULE.test(l)
-      while (i < lines.length && plain(lines[i] ?? '')) {
+      while (i < lines.length && plain(lines[i] ?? '') && !tableAt(lines, i)) {
         para.push(parseInline(lines[i] ?? ''))
         i++
       }

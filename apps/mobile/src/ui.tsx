@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import { claude, colours, fonts, pilot, radius, space, tones, type Tone } from '@autopilot/design'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -118,6 +118,15 @@ const Inlines = ({ inlines, onLink }: { inlines: Inline[]; onLink: (url: string)
   })
 
 /** Markdown as sessions write it (`parseMarkdown`, shared with the Mac), in native text. */
+/** How many letters a table cell holds. */
+const cellLength = (cell: Inline[] | undefined) => (cell ?? []).reduce((n, part) => n + part.text.length, 0)
+
+/** A table column wide enough for its longest cell, within reason: about 7.5 points a letter. */
+const columnWidth = (table: { head: Inline[][]; rows: Inline[][][] }, c: number) => {
+  const longest = Math.max(cellLength(table.head[c]), ...table.rows.map((row) => cellLength(row[c])))
+  return Math.min(220, Math.max(56, longest * 7.5 + 20))
+}
+
 export const Markdown = ({ text, onLink }: { text: string; onLink: (url: string) => void }) => (
   <View style={styles.md}>
     {parseMarkdown(text).map((b, i) =>
@@ -127,6 +136,29 @@ export const Markdown = ({ text, onLink }: { text: string; onLink: (url: string)
         <Text key={i} style={[type.body, styles.mdHeading]}>
           <Inlines inlines={b.inlines} onLink={onLink} />
         </Text>
+      ) : b.kind === 'table' ? (
+        // Columns sized to their longest cell so rows line up; a wide table scrolls sideways.
+        <ScrollView key={i} horizontal showsHorizontalScrollIndicator={false}>
+          <View>
+            {[b.head, ...b.rows].map((row, r) => (
+              <View key={r} style={[styles.mdRow, r === 0 && styles.mdHeadRow]}>
+                {row.map((cell, c) => (
+                  <Text
+                    key={c}
+                    style={[
+                      type.body,
+                      styles.mdCell,
+                      { width: columnWidth(b, c), textAlign: b.align[c] ?? 'left' },
+                      r === 0 && { color: colours.text2 },
+                    ]}
+                  >
+                    <Inlines inlines={cell} onLink={onLink} />
+                  </Text>
+                ))}
+              </View>
+            ))}
+          </View>
+        </ScrollView>
       ) : b.kind === 'list' ? (
         <View key={i} style={styles.mdList}>
           {b.items.map((item, j) => (
@@ -266,6 +298,9 @@ const Mascot = ({
 export const Pilot = ({ pixel = 3 }: { pixel?: number }) => <Mascot art={pilot} pixel={pixel} label="Autopilot" />
 
 const styles = StyleSheet.create({
+  mdRow: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colours.border },
+  mdHeadRow: { borderBottomColor: colours.borderStrong },
+  mdCell: { paddingVertical: 6, paddingRight: 12, fontSize: 15 },
   bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, height: 12 },
   bar: { width: 3, borderRadius: 1, backgroundColor: colours.borderStrong },
   sides: { flex: 1 },

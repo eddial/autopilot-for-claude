@@ -195,7 +195,7 @@ describe('the Mac app window', () => {
     // Answered, it runs: still open, still in its place in the list, until you move on.
     await expect.poll(() => page.locator('.row.left').textContent()).toContain('Pick a venue')
     await expect.poll(() => page.getByRole('heading', { level: 2, name: 'Pick a venue' }).count()).toBe(1)
-    await page.keyboard.press('Meta+]')
+    await page.keyboard.press('Meta+ArrowRight')
     await expect.poll(() => page.getByRole('heading', { level: 2, name: 'Pick a caterer' }).count()).toBe(1)
     await expect.poll(() => page.locator('.row.left').count()).toBe(0)
   }, 30_000)

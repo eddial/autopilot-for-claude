@@ -138,7 +138,8 @@ export const App = () => {
     return [...inTab.slice(0, lingering.at), item, ...inTab.slice(lingering.at)]
   }, [inTab, lingering, items, done])
 
-  // Next and previous in the list as it reads, from anywhere: ⌘] and ⌘[, or the Next button.
+  // Next and previous in the list as it reads: ⌘→ and ⌘←, or Up next at the end of the task. In a
+  // box with words in it the arrows move the cursor as usual.
   const ordered = useMemo(() => listOrder(listed), [listed])
   const at = ordered.findIndex((i) => i.task.id === selected)
   const nextItem = at >= 0 ? (ordered[at + 1] ?? null) : null
@@ -151,9 +152,11 @@ export const App = () => {
   )
   useEffect(() => {
     const keys = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || (e.key !== ']' && e.key !== '[')) return
+      if (!(e.metaKey || e.ctrlKey) || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return
+      const field = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement ? e.target : null
+      if (field && field.value !== '') return
       e.preventDefault()
-      step(e.key === ']' ? 1 : -1)
+      step(e.key === 'ArrowRight' ? 1 : -1)
     }
     window.addEventListener('keydown', keys)
     return () => window.removeEventListener('keydown', keys)

@@ -34,6 +34,9 @@ describe('how updates read', () => {
   })
 })
 
+/** A cell or line of plain text, as the parser gives it. */
+const t = (text: string) => [{ kind: 'text', text }]
+
 describe('markdown', () => {
   it('reads headings, lists and paragraphs, with bold, code and links inside a line', () => {
     expect(parseMarkdown('# Reply\n\nHi **Sofie**, see `docs`.\n\n- [Trust page](https://trust.example.com)\n- Two')).toEqual([
@@ -54,6 +57,21 @@ describe('markdown', () => {
         kind: 'list',
         ordered: false,
         items: [[{ kind: 'link', text: 'Trust page', url: 'https://trust.example.com' }], [{ kind: 'text', text: 'Two' }]],
+      },
+    ])
+  })
+
+  it('reads a table under a paragraph, an empty corner cell and alignment included', () => {
+    expect(parseMarkdown('Point 3 says:\n| | Paged | Repeats |\n|---|:---:|--:|\n| P0 | **call** | 3× |\n| P2 | Slack |')).toEqual([
+      { kind: 'paragraph', lines: [t('Point 3 says:')] },
+      {
+        kind: 'table',
+        align: ['left', 'center', 'right'],
+        head: [[], t('Paged'), t('Repeats')],
+        rows: [
+          [t('P0'), [{ kind: 'strong', text: 'call' }], t('3×')],
+          [t('P2'), t('Slack'), []],
+        ],
       },
     ])
   })
