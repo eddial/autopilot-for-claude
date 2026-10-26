@@ -282,11 +282,18 @@ const BeforeStart = ({ taskId, updates }: { taskId: string; updates: Update[] })
         placeholder="Answer what you know; leave the rest to the session…"
         value={text}
         onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault()
+            start()
+          }
+        }}
       />
       <div className="options">
         <Button kind="primary" onClick={start}>
           {text.trim() ? 'Start with these answers' : 'Start without answering'}
         </Button>
+        <Meta as="span">⌘↩</Meta>
       </div>
     </section>
   )
