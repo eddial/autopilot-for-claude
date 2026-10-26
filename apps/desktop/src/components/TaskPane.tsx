@@ -17,6 +17,7 @@ import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
 import { useDraft } from '../drafts.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
+import { FileChips, useFiles } from './Files.tsx'
 import type { Tone } from '@autopilot/design'
 import { ArrowUp, Avatar, Banner, Button, Claude, Dot, Icon, Markdown, Meta, NavIcon, Pill, Spacer, Tag } from '../ui.tsx'
 import { LinkIcon, Linked, SideLink } from './Links.tsx'
@@ -302,15 +303,24 @@ const BeforeStart = ({ taskId, updates }: { taskId: string; updates: Update[] })
 /** The one thing waiting on the owner, with its answers. */
 const AskCard = ({ update }: { update: Update }) => {
   const [text, setText] = useDraft(`${update.taskId}:${update.id}`)
+  const files = useFiles(update.taskId)
   const answer = (reply: { optionId: string } | { text: string }) => {
-    send({ kind: 'answer', taskId: update.taskId, updateId: update.id, ...reply })
+    send({
+      kind: 'answer',
+      taskId: update.taskId,
+      updateId: update.id,
+      ...reply,
+      ...(files.links.length > 0 ? { attachments: files.links } : {}),
+    })
     setText('')
+    files.clear()
   }
+  const ready = (text.trim().length > 0 || files.links.length > 0) && !files.busy
   const submit = () => {
-    if (text.trim()) answer({ text: text.trim() })
+    if (ready) answer({ text: text.trim() })
   }
   return (
-    <section className="ask-card" aria-label="Needs you">
+    <section className="ask-card" aria-label="Needs you" {...files.drop}>
       <div className="ask-head">
         {updateLabel(update)} · {age(update.createdAt)}
       </div>
@@ -333,6 +343,7 @@ const AskCard = ({ update }: { update: Update }) => {
           ))}
         </div>
       )}
+      <FileChips files={files.files} onRemove={files.remove} />
       <div className="inline-reply-box">
         <input
           className="inline-reply"
@@ -340,11 +351,12 @@ const AskCard = ({ update }: { update: Update }) => {
           placeholder={update.kind === 'done' ? 'Or ask for more…' : update.options.length > 0 ? 'Or answer in words…' : 'Answer…'}
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onPaste={files.onPaste}
           onKeyDown={(e) => {
             if (e.key === 'Enter') submit()
           }}
         />
-        <Button kind="icon" className="enter-key" aria-label="Send" title="Send (Enter)" disabled={!text.trim()} onClick={submit}>
+        <Button kind="icon" className="enter-key" aria-label="Send" title="Send (Enter)" disabled={!ready} onClick={submit}>
           <Icon name="enter" size={14} />
         </Button>
       </div>
@@ -618,33 +630,39 @@ const Actions = ({ item }: { item: QueueItem }) => {
 const Composer = ({ item }: { item: QueueItem }) => {
   const { task, session } = item
   const [text, setText] = useDraft(`${task.id}:composer`)
+  const files = useFiles(task.id)
+  const ready = (text.trim().length > 0 || files.links.length > 0) && !files.busy
   const reply = () => {
-    const body = text.trim()
-    if (!body) return
+    if (!ready) return
+    send({ kind: 'instruct', taskId: task.id, body: text.trim(), ...(files.links.length > 0 ? { attachments: files.links } : {}) })
     setText('')
-    send({ kind: 'instruct', taskId: task.id, body })
+    files.clear()
   }
   const live = session && session.state !== 'ended'
   return (
     <li className="entry composer-entry">
       <Avatar who="owner" />
-      <div className="composer compact">
-        <textarea
-          aria-label="Reply to Autopilot"
-          rows={Math.min(8, Math.max(1, text.split('\n').length))}
-          placeholder={live ? 'Tell the session…' : 'Tell Autopilot what to do; starts a session…'}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              reply()
-            }
-          }}
-        />
-        <Button kind="send" aria-label="Send" disabled={!text.trim()} onClick={reply}>
-          <ArrowUp />
-        </Button>
+      <div className="composer-box" {...files.drop}>
+        <div className="composer compact">
+          <textarea
+            aria-label="Reply to Autopilot"
+            rows={Math.min(8, Math.max(1, text.split('\n').length))}
+            placeholder={live ? 'Tell the session… (paste or drop files)' : 'Tell Autopilot what to do; starts a session…'}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onPaste={files.onPaste}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                reply()
+              }
+            }}
+          />
+          <Button kind="send" aria-label="Send" disabled={!ready} onClick={reply}>
+            <ArrowUp />
+          </Button>
+        </div>
+        <FileChips files={files.files} onRemove={files.remove} />
       </div>
     </li>
   )

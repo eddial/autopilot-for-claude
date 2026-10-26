@@ -2240,3 +2240,58 @@ textarea.inline-reply {
 .pasted .msg {
   padding: 0 12px 12px;
 }
+
+/* Files in a reply before it is sent: a chip each, with its size, and a way to take it out. */
+.file-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+
+.ask-card .file-chips {
+  margin: 12px 0 0;
+}
+
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 280px;
+  padding: 3px 4px 3px 9px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.file-chip.uploading {
+  opacity: 0.65;
+}
+
+.file-chip.failed {
+  border-color: var(--clay);
+}
+
+.file-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-body);
+}
+
+.file-chip-meta {
+  flex: none;
+}
+
+.file-chip.failed .file-chip-meta {
+  color: var(--clay-soft);
+}
+
+.file-chip .file-chip-remove {
+  padding: 0 6px;
+  font-size: 14px;
+  line-height: 1;
+}

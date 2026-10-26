@@ -1,4 +1,4 @@
-import type { LiveQueue, Task } from '@autopilot/contracts'
+import type { Link, LiveQueue, Task } from '@autopilot/contracts'
 import type { Api } from './connection.ts'
 
 /** Tasks created while offline show under this prefix until the server numbers them. */
@@ -6,8 +6,8 @@ export const PENDING_PREFIX = 'NEW-'
 
 /** What a person can do to a task; applied to the screen at once, sent after (the phone keeps them while offline). */
 export type Command =
-  | { kind: 'answer'; taskId: string; updateId: string; optionId?: string; text?: string }
-  | { kind: 'instruct'; taskId: string; body: string }
+  | { kind: 'answer'; taskId: string; updateId: string; optionId?: string; text?: string; attachments?: Link[] }
+  | { kind: 'instruct'; taskId: string; body: string; attachments?: Link[] }
   | { kind: 'create'; title: string; brief: string; workstream?: string; priority?: number; start: boolean }
   | { kind: 'start'; taskId: string }
   | { kind: 'snooze'; taskId: string; until: string }
@@ -30,9 +30,15 @@ export const execute = async (api: Api, { id, command: c }: Pending): Promise<un
         updateId: c.updateId,
         ...(c.optionId ? { optionId: c.optionId } : {}),
         ...(c.text ? { text: c.text } : {}),
+        ...(c.attachments?.length ? { attachments: c.attachments } : {}),
       })
     case 'instruct':
-      return api.updates.instruct({ idempotencyKey, taskId: c.taskId, body: c.body })
+      return api.updates.instruct({
+        idempotencyKey,
+        taskId: c.taskId,
+        body: c.body,
+        ...(c.attachments?.length ? { attachments: c.attachments } : {}),
+      })
     case 'create':
       return api.tasks.create({
         idempotencyKey,
@@ -116,10 +122,14 @@ export const overlay = (queue: LiveQueue, outbox: Pending[], now: Date): LiveQue
 export const pendingText = (command: Command): string | null => {
   switch (command.kind) {
     case 'answer':
-      return command.text ?? null
+      return command.text || filesText(command.attachments)
     case 'instruct':
-      return command.body
+      return command.body || filesText(command.attachments)
     default:
       return null
   }
 }
+
+/** "Sent notes.pdf", "Sent 3 files": what a message of files alone reads as. */
+const filesText = (files: Link[] | undefined): string | null =>
+  !files?.length ? null : files.length === 1 ? `Sent ${files[0]?.title ?? 'a file'}` : `Sent ${files.length} files`

@@ -1,4 +1,6 @@
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { CreateTask, PostUpdate } from '@autopilot/contracts'
 import { startTestServer, type TestServer } from '@autopilot/testkit'
 import { chromium, type Browser, type Page } from 'playwright-core'
@@ -144,5 +146,24 @@ describe('the Mac app window', () => {
     await tab('Needs me').click()
     await page.getByRole('option', { name: /Renew the office lease/ }).click()
     await expect.poll(() => page.getByRole('heading', { level: 2, name: 'Renew the office lease' }).count()).toBe(1)
+  }, 30_000)
+
+  it('sends a file dropped on the reply with it, kept for the session', async () => {
+    server.service.createTask(CreateTask.parse({ idempotencyKey: 'ui-create-file', title: 'Check the lease terms', start: false }), 'owner')
+    await tab('Needs me').click()
+    await page.getByRole('option', { name: /Check the lease terms/ }).click()
+    const files = await page.evaluateHandle(() => {
+      const data = new DataTransfer()
+      data.items.add(new File(['lease terms'], 'lease.txt', { type: 'text/plain' }))
+      return data
+    })
+    await page.locator('.composer-box').dispatchEvent('drop', { dataTransfer: files })
+    // The chip says its size once the file is on the Mac; then it goes with the reply.
+    await expect.poll(() => page.locator('.file-chip').textContent()).toContain('1 KB')
+    await page.getByRole('button', { name: 'Send' }).click()
+    const task = server.service.queue().items.find((i) => i.task.title === 'Check the lease terms')?.task.id ?? ''
+    const sent = () => server.service.getTask(task).updates.findLast((u) => u.kind === 'instruction')
+    await expect.poll(() => sent()?.attachments.map((a) => a.title)).toEqual(['lease.txt'])
+    expect(readFileSync(fileURLToPath(sent()?.attachments[0]?.url ?? ''), 'utf8')).toBe('lease terms')
   }, 30_000)
 })
