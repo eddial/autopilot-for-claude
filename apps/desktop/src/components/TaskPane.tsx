@@ -122,13 +122,13 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
             <path d="M9 2L4 7l5 5" />
           </svg>
         </Button>
-        <Meta as="span">
+        <Meta as="span" className="head-id">
           {task.id}
           {task.source.mirrors ? ` · ${task.source.mirrors}` : ''}
         </Meta>
         <Spacer />
         {session && session.state !== 'ended' && (
-          <span className="meta session">
+          <span className="meta session head-session">
             <Dot tone="claude" />
             {session.activity ?? SESSION_STATE[session.state]}
           </span>
@@ -649,6 +649,20 @@ const Properties = ({ item, workstreams, signals }: { item: QueueItem; workstrea
   const mark = workstreamMark(task.workstream)
   return (
     <aside className="task-side" aria-label="Properties">
+      <div className="side-top">
+        <span className="side-id">
+          {task.id}
+          {task.source.mirrors ? ` · ${task.source.mirrors}` : ''}
+        </span>
+        <Button
+          kind="icon"
+          aria-label={`Copy ${task.id}`}
+          title={`Copy ${task.id}`}
+          onClick={() => void navigator.clipboard.writeText(task.id)}
+        >
+          <NavIcon name="document" size={13} />
+        </Button>
+      </div>
       <div className="side-group">
         <Prop label="Status">
           {status.length > 0 ? (

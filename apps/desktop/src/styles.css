@@ -884,11 +884,49 @@ button {
   list-style: none;
 }
 
-/* Wide: the properties in their column, not under the title. */
+/* Wide: the properties, the task's id and its session in their column, not in the head. */
 @container (min-width: 900px) {
   .task-title .props,
-  .linked-inline {
+  .linked-inline,
+  .task-head .head-id,
+  .task-head .head-session {
     display: none;
+  }
+}
+
+.side-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding-left: 8px;
+}
+
+.side-id {
+  font-size: 13px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.side-top .icon-button {
+  width: 24px;
+  height: 24px;
+  opacity: 0;
+}
+
+.side-top:hover .icon-button,
+.side-top .icon-button:focus-visible {
+  opacity: 1;
+}
+
+/* Back to the list only means something when the list is hidden (a narrow window). */
+.task-head .back {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .task-head .back {
+    display: flex;
   }
 }
 

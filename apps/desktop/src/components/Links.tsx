@@ -21,6 +21,12 @@ const READABLE = /^file:.*\.(md|markdown|txt|csv|json|ya?ml|html?|eml|ts|tsx|js|
 const FOLDED = 12
 
 /** Older sessions began titles with where it lives (`file: …`); the row already says. */
+/** The file's name, from a file: link. */
+const fileName = (url: string) =>
+  decodeURI(url.replace(/^file:\/\//, ''))
+    .split('/')
+    .pop() ?? url
+
 const titleOf = (link: Link) => link.title.replace(/^(file|gmail|slack|github|linear|drive):\s*/i, '')
 
 const Preview = ({ taskId, url }: { taskId: string; url: string }) => {
@@ -63,7 +69,9 @@ export const LinkRow = ({ taskId, link }: { taskId: string; link: Link }) => {
         </span>
         <Button kind="item" className="link-title" onClick={() => open(link.url)}>
           <span className="title">{titleOf(link)}</span>
-          <span className="meta">{[kind.label, link.subtitle ?? (file ? null : linkSource(link.url))].filter(Boolean).join(' · ')}</span>
+          <span className="meta">
+            {[file ? fileName(link.url) : kind.label, link.subtitle ?? (file ? null : linkSource(link.url))].filter(Boolean).join(' · ')}
+          </span>
         </Button>
         <div className="link-actions">
           {READABLE.test(link.url) && (
