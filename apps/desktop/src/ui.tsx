@@ -57,6 +57,8 @@ export const SearchIcon = () => (
 const ICONS = {
   play: <path d="M5 3.5v9l7-4.5z" fill="currentColor" stroke="none" />,
   done: <path d="M3.5 8.5l3 3 6-7" />,
+  /** The return key: Enter sends. */
+  enter: <path d="M12.5 3.5V8a2 2 0 0 1-2 2H3.5M6.5 7l-3 3 3 3" />,
   clock: (
     <>
       <circle cx="8" cy="8" r="5.75" />

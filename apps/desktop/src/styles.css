@@ -1150,8 +1150,30 @@ button {
   content: '';
 }
 
-.ask-card .inline-reply {
+.ask-card .inline-reply-box {
+  position: relative;
   margin-top: 12px;
+}
+
+.inline-reply-box .inline-reply {
+  margin-top: 0;
+  padding-right: 40px;
+}
+
+/* The return key at the end of the answer: dim until there is something to send. */
+.inline-reply-box .enter-key {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  transform: translateY(-50%);
+  color: var(--text);
+}
+
+.inline-reply-box .enter-key:disabled {
+  color: var(--muted);
+  cursor: default;
 }
 
 /* The activity: a rail down the left, a mark per entry in its tone. */

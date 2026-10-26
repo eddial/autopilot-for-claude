@@ -299,6 +299,9 @@ const AskCard = ({ update }: { update: Update }) => {
     send({ kind: 'answer', taskId: update.taskId, updateId: update.id, ...reply })
     setText('')
   }
+  const submit = () => {
+    if (text.trim()) answer({ text: text.trim() })
+  }
   return (
     <section className="ask-card" aria-label="Needs you">
       <div className="ask-head">
@@ -323,19 +326,21 @@ const AskCard = ({ update }: { update: Update }) => {
           ))}
         </div>
       )}
-      <input
-        className="inline-reply"
-        aria-label="Reply to Autopilot"
-        placeholder={update.kind === 'done' ? 'Or ask for more…' : update.options.length > 0 ? 'Or answer in words…' : 'Answer…'}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && text.trim()) {
-            answer({ text: text.trim() })
-            setText('')
-          }
-        }}
-      />
+      <div className="inline-reply-box">
+        <input
+          className="inline-reply"
+          aria-label="Reply to Autopilot"
+          placeholder={update.kind === 'done' ? 'Or ask for more…' : update.options.length > 0 ? 'Or answer in words…' : 'Answer…'}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit()
+          }}
+        />
+        <Button kind="icon" className="enter-key" aria-label="Send" title="Send (Enter)" disabled={!text.trim()} onClick={submit}>
+          <Icon name="enter" size={14} />
+        </Button>
+      </div>
     </section>
   )
 }
