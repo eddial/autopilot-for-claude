@@ -203,6 +203,36 @@ export const createdText = (task: Task): string =>
 export const shortDate = (iso: string): string =>
   new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
+/** The first line of a message as plain words: no Markdown marks, cut at a sentence or 140 characters. */
+export const firstLine = (text: string): string => {
+  const line =
+    text
+      .split('\n')
+      .map((l) =>
+        l
+          .replace(/^\s*(#+|[-*>]|\d+\.)\s+/, '')
+          .replace(/[*_`]/g, '')
+          .trim(),
+      )
+      .find((l) => l.length > 0) ?? ''
+  return line.length > 140 ? `${line.slice(0, 139).trimEnd()}…` : line
+}
+
+/**
+ * What a row in either app says under its title: what it is about now, in words that differ per
+ * task. Snoozed says when it comes back; waiting on you, the question itself; running, what the
+ * session is doing; new, the start of its brief. The tab already says which of these it is.
+ */
+export const rowDetail = (item: QueueItem): string | null => {
+  if (item.band === 'snoozed' && item.task.snoozedUntil) return `Until ${shortDate(item.task.snoozedUntil)}`
+  if (item.openAsk) return firstLine(item.openAsk.body) || updateLabel(item.openAsk)
+  if (item.session?.state === 'waiting_permission') return 'Waiting for a permission'
+  if (item.band === 'running') return item.session?.activity ?? 'Working'
+  if (item.band === 'waiting') return 'Waiting on others'
+  if (item.band === 'new') return firstLine(item.task.brief) || 'Not started'
+  return null
+}
+
 /**
  * A message long enough to have been pasted rather than typed: both apps show it as a pasted
  * card, a few words of it and a click to read the rest, so it does not push the page apart.

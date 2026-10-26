@@ -1,4 +1,4 @@
-import { signalName, updateLabel } from '@autopilot/client'
+import { rowDetail, signalName, updateLabel } from '@autopilot/client'
 import type { Band, QueueItem } from '@autopilot/contracts'
 
 export const age = (iso: string, now = Date.now()): string => {
@@ -26,18 +26,11 @@ export const BAND_TITLE: Record<Band, string> = {
   done: 'Done',
 }
 
-/** A row's second line; without the workstream where the list is already grouped by it. */
+/** A row's second line, as on the Mac: what it is about now, then where it came from. */
 export const rowMeta = (item: QueueItem, withWorkstream = true): string => {
-  const what = item.openAsk
-    ? updateLabel(item.openAsk)
-    : item.task.id.startsWith('NEW-')
-      ? 'Waiting to reach your Mac'
-      : item.band === 'running'
-        ? (item.session?.activity ?? 'Working')
-        : item.band === 'new'
-          ? 'New'
-          : null
-  const source = item.task.source.signal ? signalName(item.task.source.signal) : item.task.createdBy === 'system' ? 'Autopilot' : 'You'
+  const what = item.task.id.startsWith('NEW-') ? 'Waiting to reach your Mac' : rowDetail(item)
+  // Where it came from, when that was somewhere else: Slack, Linear.
+  const source = item.task.source.signal ? signalName(item.task.source.signal) : null
   return [what, withWorkstream ? item.task.workstream : null, source].filter(Boolean).join(' · ')
 }
 

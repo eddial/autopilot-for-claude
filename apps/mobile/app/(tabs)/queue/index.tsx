@@ -231,7 +231,9 @@ export default function QueueScreen() {
               </Pressable>
             )
           }}
-          renderItem={({ item }) => <Row item={item} selected={split && item.task.id === selected} onPress={() => open(item.task.id)} />}
+          renderItem={({ item }) => (
+            <Row item={item} selected={split && item.task.id === selected} status={all} onPress={() => open(item.task.id)} />
+          )}
         />
       </KeyboardAvoidingView>
     </Sides>
@@ -293,17 +295,19 @@ export default function QueueScreen() {
   )
 }
 
-const Row = ({ item, selected, onPress }: { item: QueueItem; selected: boolean; onPress: () => void }) => (
+const Row = ({ item, selected, status, onPress }: { item: QueueItem; selected: boolean; status: boolean; onPress: () => void }) => (
   <Pressable style={[styles.row, selected && { backgroundColor: colours.raised }]} onPress={onPress} accessibilityRole="button">
-    {/* Where it stands, as its tab draws it; green only when it is your turn. */}
-    <View style={styles.status}>
-      <SymbolView name={BAND_SYMBOL[item.band]} size={14} tintColor={item.band === 'your_turn' ? colours.pilot : colours.text3} />
-    </View>
+    {/* Under All: where it stands, as its tab draws it; green only when it is your turn. */}
+    {status && (
+      <View style={styles.status}>
+        <SymbolView name={BAND_SYMBOL[item.band]} size={14} tintColor={item.band === 'your_turn' ? colours.pilot : colours.text3} />
+      </View>
+    )}
     <View style={{ flex: 1 }}>
       <Text style={[styles.title, item.unread && { fontWeight: '500' }]} numberOfLines={2}>
         {item.task.title}
       </Text>
-      <Text style={styles.meta} numberOfLines={1}>
+      <Text style={styles.meta} numberOfLines={2}>
         {rowMeta(item, false)}
       </Text>
     </View>

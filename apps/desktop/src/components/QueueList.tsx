@@ -303,6 +303,7 @@ export const QueueList = (props: Props) => {
                     selected={selected === entry.item.task.id}
                     left={lingering === entry.item.task.id}
                     hint={order.indexOf(entry.item.task.id) < 9 ? order.indexOf(entry.item.task.id) + 1 : undefined}
+                    status={all}
                     onSelect={onSelect}
                     onOpen={onOpen}
                   />
@@ -341,6 +342,8 @@ type RowProps = {
   selected: boolean
   /** Its number while ⌥ is held: ⌥1 to ⌥9 pick the first nine. */
   hint?: number | undefined
+  /** Under All, where the statuses mix: its status as its tab's icon. */
+  status?: boolean
   /** It has left this tab (you answered it) and stays, faded, until you move on. */
   left?: boolean
   onSelect?: (id: string) => void
@@ -352,10 +355,10 @@ const PRIORITY_NAME: Record<number, string> = { 1: 'Urgent', 2: 'High priority',
 
 /** Rerenders only when what it shows changed: the store keeps unchanged tasks and asks as the same objects. */
 const TaskRow = memo(
-  ({ item, selected, left = false, hint, onSelect, onOpen }: RowProps) => (
+  ({ item, selected, left = false, hint, status = false, onSelect, onOpen }: RowProps) => (
     <Button
       kind="row"
-      className={[item.unread ? null : 'read', left ? 'left' : null].filter(Boolean).join(' ') || undefined}
+      className={[item.unread ? null : 'read', left ? 'left' : null, status ? 'with-status' : null].filter(Boolean).join(' ') || undefined}
       role="option"
       data-task={item.task.id}
       aria-selected={selected}
@@ -363,11 +366,13 @@ const TaskRow = memo(
       onMouseEnter={() => prefetch(item.task.id)}
       onDoubleClick={() => onOpen(item.task.id)}
     >
-      {/* Where it stands, as the tab it is under draws it; green only when it is your turn. */}
-      <span className={`row-status ${item.band}`} aria-hidden="true">
-        <NavIcon name={BAND_ICON[item.band]} size={14} />
-        {hint !== undefined && <kbd className="hint hint-alt">⌥{hint}</kbd>}
-      </span>
+      {hint !== undefined && <kbd className="hint hint-alt row-hint">⌥{hint}</kbd>}
+      {/* Under All: where it stands, as its tab draws it; green only when it is your turn. */}
+      {status && (
+        <span className={`row-status ${item.band}`} aria-hidden="true">
+          <NavIcon name={BAND_ICON[item.band]} size={14} />
+        </span>
+      )}
       <div className="text">
         <div className="title">{item.task.title}</div>
         <div className="meta">{rowMeta(item, false)}</div>
@@ -385,6 +390,7 @@ const TaskRow = memo(
     a.selected === b.selected &&
     a.left === b.left &&
     a.hint === b.hint &&
+    a.status === b.status &&
     a.item.task === b.item.task &&
     a.item.openAsk === b.item.openAsk &&
     a.item.session === b.item.session &&

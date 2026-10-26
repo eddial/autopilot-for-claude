@@ -353,8 +353,9 @@ button {
 }
 
 .row {
+  position: relative;
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   column-gap: 11px;
   align-items: start;
   width: calc(100% - 24px);
@@ -391,6 +392,12 @@ button {
 }
 
 .row .meta {
+  /* One grey under the title, whatever it says, two lines at most. */
+  color: var(--text-3);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   margin-top: 2px;
   font-size: 12.5px;
   line-height: 18px;
@@ -401,6 +408,10 @@ button {
   line-height: 20px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
+}
+
+.row.with-status {
+  grid-template-columns: 14px minmax(0, 1fr) auto;
 }
 
 .row-status {
@@ -2604,8 +2615,7 @@ textarea.inline-reply {
 .tab,
 .filter,
 .new-task,
-.settings-button,
-.row-status {
+.settings-button {
   position: relative;
 }
 
@@ -2622,10 +2632,9 @@ textarea.inline-reply {
   transform: translateY(-50%);
 }
 
-.row-status .hint {
-  top: 50%;
-  left: -6px;
-  transform: translateY(-50%);
+.row .row-hint {
+  top: 10px;
+  left: -8px;
 }
 
 .tab-caption {

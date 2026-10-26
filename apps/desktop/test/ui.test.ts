@@ -81,7 +81,8 @@ describe('the Mac app window', () => {
       }),
       'session',
     )
-    await expect.poll(() => row.textContent()).toContain('Needs your decision')
+    // The row says what is asked, in the session's words.
+    await expect.poll(() => row.textContent()).toContain('Caching works on staging')
     await row.click()
     await expect.poll(() => page.getByRole('button', { name: 'Opus only' }).isVisible()).toBe(true)
     await shot('queue-and-task')
