@@ -1201,6 +1201,16 @@ button {
   content: '';
 }
 
+/* In the timeline the avatar on the rail says who asks; the card needs no dot of its own. */
+.ask-entry .ask-head::before {
+  display: none;
+}
+
+.entry.ask-entry .avatar {
+  /* Centred on the card's first line, as on the reply box. */
+  top: 15px;
+}
+
 .ask-card .inline-reply-box {
   position: relative;
   margin-top: 12px;
@@ -1209,6 +1219,19 @@ button {
 .inline-reply-box .inline-reply {
   margin-top: 0;
   padding-right: 40px;
+}
+
+/* The paperclip in the answer box, beside the return key. */
+.inline-reply-attach {
+  position: absolute;
+  right: 38px;
+  bottom: 6px;
+}
+
+.inline-reply-attach .attach,
+.composer .attach {
+  width: 28px;
+  height: 28px;
 }
 
 /* The return key at the end of the answer: dim until there is something to send. */

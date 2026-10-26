@@ -17,7 +17,7 @@ import { shell } from '../api.ts'
 import { age, ago, rowMeta, updateLabel } from '../format.ts'
 import { useDraft } from '../drafts.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
-import { FileChips, useFiles } from './Files.tsx'
+import { AttachButton, FileChips, useFiles } from './Files.tsx'
 import type { Tone } from '@autopilot/design'
 import {
   ArrowUp,
@@ -131,9 +131,16 @@ export const TaskPane = ({ item, workstreams, upNext = null, onClose }: Props) =
     <Marker key="created" who={task.createdBy} label={createdText(task)} at={shortDate(task.createdAt)} />,
     ...activity.map((u, i) => <Entry key={u.id} update={u} latest={i === activity.length - 1 && pending.length === 0} />),
     ...pending.map((p) => <PendingEntry key={p.id} pending={p} options={updates.flatMap((u) => u.options)} />),
-    <Now key="now" item={item} />,
-    // What you write next sits where it will appear: after the newest entry.
-    ...(ask ? [] : [<Composer key="composer" item={item} />]),
+    // Where it stands now: what waits on you, with its answer, or the line saying how it stands
+    // and the box for what you write next, after the newest entry.
+    ...(ask
+      ? [
+          <li key="ask" className="entry ask-entry">
+            <Avatar who={ask.author} />
+            <AskCard update={ask} />
+          </li>,
+        ]
+      : [<Now key="now" item={item} />, <Composer key="composer" item={item} />]),
   ]
 
   const session = item.session
@@ -194,7 +201,6 @@ export const TaskPane = ({ item, workstreams, upNext = null, onClose }: Props) =
               </section>
               {/* What waits on the owner comes last, where the reading ends and the page opens. */}
               {refused && <Banner>{refused}</Banner>}
-              {ask && <AskCard update={ask} />}
               {!ask && item.band === 'new' && <BeforeStart taskId={task.id} updates={updates} />}
               {/* Nothing moves you on by itself: you see your reply land, then go when you are ready. */}
               {upNext && <UpNext {...upNext} />}
@@ -437,6 +443,9 @@ const AskCard = ({ update }: { update: Update }) => {
             }
           }}
         />
+        <span className="inline-reply-attach">
+          <AttachButton onFiles={files.add} />
+        </span>
         <Button
           kind="icon"
           className="enter-key"
@@ -744,7 +753,7 @@ const Composer = ({ item }: { item: QueueItem }) => {
           <textarea
             aria-label="Reply to Autopilot"
             rows={Math.min(8, Math.max(1, text.split('\n').length))}
-            placeholder={live ? 'Tell the session… (paste or drop files)' : 'Tell Autopilot what to do; starts a session…'}
+            placeholder={live ? 'Tell the session…' : 'Tell Autopilot what to do; starts a session…'}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onPaste={files.onPaste}
@@ -755,6 +764,7 @@ const Composer = ({ item }: { item: QueueItem }) => {
               }
             }}
           />
+          <AttachButton onFiles={files.add} />
           <Button kind="send" aria-label="Send" disabled={!ready} onClick={reply}>
             <ArrowUp />
           </Button>

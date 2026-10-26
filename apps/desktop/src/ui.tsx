@@ -179,6 +179,8 @@ const NAV_ICONS = {
       <path d="M3.25 8.25h13.5M3.25 12h13.5M8.25 8.25v7.5" />
     </>
   ),
+  /** A paperclip: attach files. */
+  attach: <path d="m15.5 9.5-5.6 5.6a3.5 3.5 0 0 1-5-5l6-6a2.33 2.33 0 0 1 3.3 3.3l-6 6a1.17 1.17 0 0 1-1.65-1.65l5.6-5.6" />,
   /** A pencil on a page: a new task. */
   compose: (
     <>

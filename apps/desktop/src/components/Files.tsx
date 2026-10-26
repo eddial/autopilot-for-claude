@@ -1,4 +1,4 @@
-import { useState, type ClipboardEvent, type DragEvent } from 'react'
+import { useRef, useState, type ClipboardEvent, type DragEvent } from 'react'
 import type { Link } from '@autopilot/contracts'
 import { api } from '../api.ts'
 import { Button, NavIcon } from '../ui.tsx'
@@ -43,6 +43,7 @@ export const useFiles = (taskId: string) => {
   return {
     files,
     links,
+    add,
     /** Still uploading: sending waits for these. */
     busy: files.some((f) => !f.link && !f.failed),
     remove: (key: string) => setFiles((all) => all.filter((f) => f.key !== key)),
@@ -83,3 +84,31 @@ export const FileChips = ({ files, onRemove }: { files: Sent[]; onRemove: (key: 
       ))}
     </div>
   ) : null
+
+/** The paperclip in a reply: picks files from the Mac to send with it (pasting and dropping work too). */
+export const AttachButton = ({ onFiles }: { onFiles: (files: FileList) => void }) => {
+  const input = useRef<HTMLInputElement>(null)
+  return (
+    <>
+      <input
+        ref={input}
+        type="file"
+        multiple
+        hidden
+        onChange={(e) => {
+          if (e.target.files?.length) onFiles(e.target.files)
+          e.target.value = ''
+        }}
+      />
+      <Button
+        kind="icon"
+        className="attach"
+        aria-label="Attach files"
+        title="Attach files (or paste or drop them)"
+        onClick={() => input.current?.click()}
+      >
+        <NavIcon name="attach" size={16} />
+      </Button>
+    </>
+  )
+}
