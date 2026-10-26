@@ -108,6 +108,8 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     // Finding checkouts walks a few folders; once in ten minutes is plenty.
     checkouts: keepSync(10 * 60_000, () => loadCheckouts(paths.home)),
     workspace: () => loadWorkspace(paths.home, paths.workspace),
+    // A task started on Automatic is filed by the scout before its session opens.
+    place: (taskId) => scout.place(taskId),
     log,
   })
   launcher.reconcile()

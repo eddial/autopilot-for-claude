@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Workstream } from '@autopilot/contracts'
 import { api, key } from '../api.ts'
 import { useDraft } from '../drafts.ts'
-import { ArrowUp, Banner, Bars, Button, Pilot, Row, Spacer, WorkstreamMark } from '../ui.tsx'
+import { ArrowUp, Banner, Bars, Button, NavIcon, Pilot, Row, Spacer, WorkstreamMark } from '../ui.tsx'
 import { Menu } from './Menu.tsx'
 
 type Props = { workstreams: Workstream[]; onCreated: (id: string) => void }
@@ -10,10 +10,19 @@ type Props = { workstreams: Workstream[]; onCreated: (id: string) => void }
 /** The priorities as the task's own Priority property names them. */
 const PRIORITIES: Record<number, string> = { 1: 'Urgent', 2: 'High', 3: 'Normal', 4: 'Low' }
 
+/** Automatic, drawn where a workstream's mark would be. */
+const AutoMark = () => (
+  <span className="ws-mark quiet" aria-hidden="true">
+    <NavIcon name="auto" size={13} />
+  </span>
+)
+
 export const NewTask = ({ workstreams, onCreated }: Props) => {
   const [title, setTitle] = useDraft('new:title')
   const [brief, setBrief] = useDraft('new:brief')
-  const [workstream, setWorkstream] = useState('inbox')
+  // Automatic (null) leaves it to routing, as a task from a source: the first look or, when it
+  // starts straight away, a quick pass before its session opens.
+  const [workstream, setWorkstream] = useState<string | null>(null)
   const [priority, setPriority] = useState(3)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -30,7 +39,7 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
         idempotencyKey: key(),
         title: title.trim().slice(0, 120),
         brief: brief.trim(),
-        ...(workstream !== 'inbox' ? { workstream } : {}),
+        ...(workstream ? { workstream } : {}),
         priority,
         start,
       })
@@ -49,7 +58,7 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
       <div className="start">
         <Row gap={6}>
           <Pilot pixel={3} />
-          <h1 className="serif">What should I take on?</h1>
+          <h1 className="serif">What’s next?</h1>
         </Row>
         <form
           className="composer"
@@ -62,7 +71,7 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
             ref={titleRef}
             className="title-input"
             aria-label="Title"
-            placeholder="What needs doing, starting with a verb"
+            placeholder="Title"
             maxLength={120}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -70,7 +79,7 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
           <textarea
             aria-label="Brief"
             rows={4}
-            placeholder="The brief: what you know, what to use, what not to do. It is the session's first prompt."
+            placeholder="Details for the session"
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
             onKeyDown={(e) => {
@@ -88,17 +97,30 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
           <Menu
             trigger="prop"
             label={
-              <>
-                <WorkstreamMark name={workstream} />
-                {workstream}
-              </>
+              workstream ? (
+                <>
+                  <WorkstreamMark name={workstream} />
+                  {workstream}
+                </>
+              ) : (
+                <>
+                  <AutoMark />
+                  Automatic
+                </>
+              )
             }
-            items={[...new Set([...workstreams.map((w) => w.name).filter((n) => n !== 'autopilot'), 'inbox'])].map((name) => ({
-              label: name,
-              icon: <WorkstreamMark name={name} />,
-              checked: name === workstream,
-              run: () => setWorkstream(name),
-            }))}
+            items={[
+              { label: 'Automatic', icon: <AutoMark />, checked: workstream === null, run: () => setWorkstream(null) },
+              ...workstreams
+                .map((w) => w.name)
+                .filter((n) => n !== 'autopilot')
+                .map((name) => ({
+                  label: name,
+                  icon: <WorkstreamMark name={name} />,
+                  checked: name === workstream,
+                  run: () => setWorkstream(name),
+                })),
+            ]}
           />
           <Spacer />
           <Menu

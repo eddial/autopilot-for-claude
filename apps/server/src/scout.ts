@@ -19,6 +19,9 @@ export const ScoutOutput = z.object({
 })
 export type ScoutOutput = z.infer<typeof ScoutOutput>
 
+/** Where a task started without a workstream belongs, from the routing alone. */
+const Placement = z.object({ workstream: z.string() })
+
 export type ScoutOptions = {
   service: Service
   paths: Paths
@@ -98,6 +101,34 @@ export class Scout {
     if (service.queue({ band: 'new' }).items.every((i) => i.task.id !== task.id)) return
     if (unplaced && workstreams.some((w) => w.name === result.workstream)) service.placeTask(task.id, result.workstream)
     service.systemUpdate(task.id, 'info', scoutBody(result), scoutLinks(result), 'scout')
+  }
+
+  /**
+   * A task started without one of the owner's workstreams (New left on Automatic): picks where it
+   * belongs before its session opens, from the title, brief and each workstream's routing, so the
+   * session starts in that workstream's folder. Reads nothing else; a quick call.
+   */
+  async place(taskId: string): Promise<void> {
+    const { service } = this.o
+    const task = service.task(taskId)
+    const choices = this.o.workstreams().filter((w) => w.name !== 'autopilot')
+    if (choices.length === 0 || choices.some((w) => w.name === task.workstream)) return
+    const prompt = [
+      `# Task ${task.id}: ${task.title}`,
+      `Brief:\n\n${task.brief.slice(0, 4000) || '(none)'}`,
+      `The workstreams, each with what lands in it:\n\n${choices.map((w) => `- ${w.name}: ${w.routing.replace(/\s+/g, ' ').slice(0, 300)}`).join('\n')}`,
+      `Return workstream: the name of the one this task belongs in, or "" when none fits.`,
+    ].join('\n\n')
+    const output = await this.o.runClaude(prompt, {
+      label: `place ${task.id}`,
+      tools: [],
+      model: this.o.model,
+      schema: z.toJSONSchema(Placement),
+      mcpConfig: this.mcpConfig(),
+      cwd: this.o.paths.home,
+    })
+    const { workstream } = Placement.parse(typeof output === 'string' ? JSON.parse(output) : output)
+    if (choices.some((w) => w.name === workstream)) service.placeTask(task.id, workstream)
   }
 
   private prompt(task: Task, workstream: Workstream | undefined, place: string | null, choices: Workstream[]): string {

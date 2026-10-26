@@ -804,31 +804,34 @@ button {
 
 /* The tick at the end of the row, as Linear has it; the icon leads. */
 .menu-items.with-checks {
-  grid-template-columns: 1fr auto auto 16px;
+  grid-template-columns: 1fr auto auto auto;
 }
 
 .menu-items.with-icons {
-  grid-template-columns: 22px 1fr auto auto;
+  grid-template-columns: auto 1fr auto auto;
 }
 
 .menu-items.with-checks.with-icons {
-  grid-template-columns: 22px 1fr auto auto 16px;
+  grid-template-columns: auto 1fr auto auto auto;
 }
 
 .menu-items.with-icons button {
   align-items: center;
 }
 
+/* The rows share the menu's columns, which carry no gap of their own: each part keeps its own room. */
 .menu-icon {
   display: inline-flex;
   align-items: center;
+  padding-right: 10px;
 }
 
 .menu-check {
   grid-column: -2;
   display: inline-flex;
   align-items: center;
-  min-width: 16px;
+  min-width: 29px;
+  padding-left: 16px;
   color: var(--text);
 }
 
@@ -1557,7 +1560,6 @@ button {
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
   align-items: baseline;
-  column-gap: 12px;
   width: 100%;
   white-space: nowrap;
   padding: 7px 10px;
@@ -1573,12 +1575,9 @@ button {
 }
 
 .menu-detail {
+  padding-left: 12px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
-}
-
-.menu-detail:first-of-type {
-  padding-left: 12px;
 }
 
 .menu-detail:last-child {

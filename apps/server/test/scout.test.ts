@@ -93,4 +93,11 @@ describe('scout', () => {
         .toSorted(),
     ).toEqual(['scout/event', 'scout/info'])
   })
+
+  it('files a task started on Automatic where its routing fits, before its session opens', async () => {
+    const { service, scout, create } = setup(() => {}, [ws('customers'), ws('engineering')])
+    const task = create('Reply to Acme about SSO', true, 'inbox')
+    await scout.place(task.id)
+    expect(service.getTask(task.id).task.workstream).toBe('customers')
+  })
 })

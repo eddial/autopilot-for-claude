@@ -79,7 +79,7 @@ export default function NewTaskScreen() {
         <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
           <TextInput
             style={styles.title}
-            placeholder="What needs doing, starting with a verb"
+            placeholder="Title"
             placeholderTextColor={colours.text3}
             value={title}
             onChangeText={setTitle}
@@ -89,7 +89,7 @@ export default function NewTaskScreen() {
           />
           <TextInput
             style={styles.brief}
-            placeholder="The brief: what you know, what to use, what not to do."
+            placeholder="Details for the session"
             placeholderTextColor={colours.text3}
             value={brief}
             onChangeText={setBrief}
@@ -98,7 +98,7 @@ export default function NewTaskScreen() {
           />
           <Text style={[type.meta, styles.label]}>Workstream</Text>
           <View style={styles.chips}>
-            <Chip label="Inbox" on={workstream === null} onPress={() => setWorkstream(null)} />
+            <Chip label="Automatic" on={workstream === null} onPress={() => setWorkstream(null)} />
             {workstreams
               .filter((w) => w.name !== 'autopilot')
               .map((w) => (

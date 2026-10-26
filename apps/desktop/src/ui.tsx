@@ -136,6 +136,8 @@ const NAV_ICONS = {
       <path d="M7.5 16.5h5M10 13.5v3" />
     </>
   ),
+  /** A spark: chosen for you (a workstream left on Automatic). */
+  auto: <path d="M10 3.5c.5 3.4 1.6 4.5 5 5-3.4.5-4.5 1.6-5 5-.5-3.4-1.6-4.5-5-5 3.4-.5 4.5-1.6 5-5z" />,
   /** Three dots: more for this row. */
   ellipsis: (
     <>

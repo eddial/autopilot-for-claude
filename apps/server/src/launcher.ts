@@ -43,6 +43,11 @@ export type LauncherOptions = {
   checkouts?: () => Checkouts
   /** The folder tasks without a repository work in (checkouts.yaml `workspace:`); tests leave it out. */
   workspace?: () => string
+  /**
+   * Files a task that is starting without one of the workstreams, before its session opens (the
+   * scout's quick routing); none leaves it where it is.
+   */
+  place?: ((taskId: string) => Promise<void>) | null
   log?: (message: string) => void
 }
 
@@ -92,6 +97,8 @@ const MAX_ATTEMPTS = 5
  */
 export class Launcher {
   private readonly live = new Map<string, Live>()
+  /** Tasks being filed before their session opens, and those already through it. */
+  private readonly placing = new Map<string, 'pending' | 'done'>()
   private readonly opts: Required<LauncherOptions>
   private draining = false
   private stopping = false
@@ -104,6 +111,7 @@ export class Launcher {
       maxParallel: 4,
       checkouts: () => ({ repos: {}, fallback: null }),
       workspace: () => options.paths.workspace,
+      place: null,
       log: () => {},
       ...options,
     }
@@ -164,12 +172,28 @@ export class Launcher {
 
   private start(taskId: string): 'done' | 'defer' {
     const { service, paths } = this.opts
-    const task = service.task(taskId)
-    if (task.state === 'done' || task.state === 'canceled') return 'done'
+    const asked = service.task(taskId)
+    if (asked.state === 'done' || asked.state === 'canceled') return 'done'
     if (this.live.has(taskId)) return 'done'
     if (this.live.size >= this.opts.maxParallel) return 'defer'
 
-    const workstream = this.opts.workstreams().find((w) => w.name === task.workstream)
+    // Started on Automatic: filed first, so the session opens in its workstream's folder. A failed
+    // filing starts it where it is.
+    const workstreams = this.opts.workstreams()
+    const { place } = this.opts
+    const unplaced = !workstreams.some((w) => w.name === asked.workstream) && workstreams.some((w) => w.name !== 'autopilot')
+    if (place && unplaced && this.placing.get(taskId) !== 'done') {
+      if (!this.placing.has(taskId)) {
+        this.placing.set(taskId, 'pending')
+        void place(taskId)
+          .catch((error: unknown) => this.opts.log(`place ${taskId}: ${String(error)}`))
+          .finally(() => this.placing.set(taskId, 'done'))
+      }
+      return 'defer'
+    }
+    this.placing.delete(taskId)
+    const task = service.task(taskId)
+    const workstream = workstreams.find((w) => w.name === task.workstream)
     const { cwd, branch } = this.workspace(task, workstream)
     // Claude Code keys trust by the real path (on macOS /tmp is /private/tmp).
     if (this.opts.claudeConfig) trustFolder(this.opts.claudeConfig, realpathSync(cwd))
