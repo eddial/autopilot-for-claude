@@ -846,9 +846,9 @@ button {
   position: relative;
 }
 
-.side-link-main {
+.item.side-link-main {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   width: 100%;
   padding: 7px 8px;
@@ -865,7 +865,7 @@ button {
 
 .side-link-icon {
   flex: none;
-  padding-top: 1px;
+  display: flex;
   color: var(--text-3);
 }
 
