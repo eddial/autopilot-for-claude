@@ -75,6 +75,16 @@ const EmptyList = ({ tab, counts }: { tab: QueueView | null; counts: Props['coun
   )
 }
 
+/** Each band as the icon of the tab it shows under. */
+const BAND_ICON: Record<QueueItem['band'], NavIconName> = {
+  your_turn: 'needs',
+  new: 'needs',
+  running: 'running',
+  waiting: 'waiting',
+  snoozed: 'snoozed',
+  done: 'done',
+}
+
 const TAB_ICON: Record<QueueView, NavIconName> = {
   needs_me: 'needs',
   running: 'running',
@@ -319,7 +329,10 @@ const TaskRow = memo(
       onMouseEnter={() => prefetch(item.task.id)}
       onDoubleClick={() => onOpen(item.task.id)}
     >
-      <span className={`dot ${item.band}${item.unread ? '' : ' read'}`} aria-hidden="true" />
+      {/* Where it stands, as the tab it is under draws it; green only when it is your turn. */}
+      <span className={`row-status ${item.band}`} aria-hidden="true">
+        <NavIcon name={BAND_ICON[item.band]} size={14} />
+      </span>
       <div className="text">
         <div className="title">{item.task.title}</div>
         <div className="meta">{rowMeta(item, false)}</div>

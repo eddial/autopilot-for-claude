@@ -35,7 +35,9 @@ export const rowMeta = (item: QueueItem, withWorkstream = true): string => {
             ? `Snoozed until ${new Date(item.task.snoozedUntil).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}`
             : item.band === 'new'
               ? 'New'
-              : null
+              : item.band === 'waiting'
+                ? 'Waiting on others'
+                : null
   return [what, withWorkstream ? item.task.workstream : null, sourceOf(item)].filter(Boolean).join(' · ')
 }
 

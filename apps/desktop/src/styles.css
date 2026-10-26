@@ -354,8 +354,8 @@ button {
 
 .row {
   display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) auto;
-  column-gap: 12px;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  column-gap: 11px;
   align-items: start;
   width: calc(100% - 24px);
   margin: 0 12px 6px;
@@ -381,22 +381,37 @@ button {
 
 .row .title {
   font-size: 14px;
-  line-height: 1.4;
-  color: var(--text-body);
+  line-height: 20px;
+  color: var(--text);
 }
 
-.row.read .title {
-  color: var(--text-2);
+/* New to you: the title in weight, nothing else. */
+.row:not(.read) .title {
+  font-weight: 500;
 }
 
 .row .meta {
-  margin-top: 4px;
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 18px;
 }
 
 .row .age {
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 20px;
   color: var(--text-3);
-  padding-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.row-status {
+  display: flex;
+  height: 20px;
+  align-items: center;
+  color: var(--text-3);
+}
+
+.row-status.your_turn {
+  color: var(--pilot);
 }
 
 /* Answered and gone from this tab, kept in its place until you move on. */
@@ -410,36 +425,6 @@ button {
   flex-direction: column;
   align-items: flex-end;
   gap: 7px;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  margin-top: 7px;
-  border-radius: 50%;
-  background: var(--text-2);
-}
-
-.dot.your_turn {
-  background: var(--pilot);
-}
-
-.dot.your_turn.read {
-  background: transparent;
-  border: 1.5px solid var(--pilot);
-}
-
-.dot.running {
-  background: var(--clay);
-}
-
-.dot.waiting,
-.dot.snoozed {
-  background: var(--amber);
-}
-
-.dot.done {
-  background: var(--muted);
 }
 
 .expanded {

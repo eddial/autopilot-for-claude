@@ -295,9 +295,12 @@ export default function QueueScreen() {
 
 const Row = ({ item, selected, onPress }: { item: QueueItem; selected: boolean; onPress: () => void }) => (
   <Pressable style={[styles.row, selected && { backgroundColor: colours.raised }]} onPress={onPress} accessibilityRole="button">
-    <View style={[styles.dot, dotStyle(item)]} />
+    {/* Where it stands, as its tab draws it; green only when it is your turn. */}
+    <View style={styles.status}>
+      <SymbolView name={BAND_SYMBOL[item.band]} size={14} tintColor={item.band === 'your_turn' ? colours.pilot : colours.text3} />
+    </View>
     <View style={{ flex: 1 }}>
-      <Text style={[styles.title, !item.unread && { color: colours.text2 }]} numberOfLines={2}>
+      <Text style={[styles.title, item.unread && { fontWeight: '500' }]} numberOfLines={2}>
         {item.task.title}
       </Text>
       <Text style={styles.meta} numberOfLines={1}>
@@ -312,20 +315,14 @@ const Row = ({ item, selected, onPress }: { item: QueueItem; selected: boolean; 
   </Pressable>
 )
 
-const dotStyle = (item: QueueItem) => {
-  switch (item.band) {
-    case 'your_turn':
-      return item.unread ? { backgroundColor: colours.pilot } : { borderWidth: 1.5, borderColor: colours.pilot }
-    case 'running':
-      return { backgroundColor: colours.clay }
-    case 'waiting':
-    case 'snoozed':
-      return { backgroundColor: colours.amber }
-    case 'new':
-      return { backgroundColor: colours.text2 }
-    default:
-      return { backgroundColor: colours.muted }
-  }
+/** Each band as the symbol of the tab it shows under. */
+const BAND_SYMBOL: Record<QueueItem['band'], SFSymbol> = {
+  your_turn: 'hand.raised',
+  new: 'hand.raised',
+  running: 'hammer',
+  waiting: 'clock',
+  snoozed: 'moon',
+  done: 'flag.checkered',
 }
 
 const styles = StyleSheet.create({
@@ -369,9 +366,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colours.surface,
   },
-  dot: { width: 9, height: 9, borderRadius: 5, marginTop: 7 },
+  status: { width: 16, height: 22, alignItems: 'center', justifyContent: 'center' },
   rowEnd: { alignItems: 'flex-end', gap: 8 },
-  title: { fontSize: 16, lineHeight: 22, color: colours.textBody },
+  title: { fontSize: 16, lineHeight: 22, color: colours.text },
   meta: { marginTop: 3, fontSize: 13, color: colours.text3 },
   empty: { padding: 28, fontSize: 15, lineHeight: 22, color: colours.text3, textAlign: 'center' },
   placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: colours.surface },
