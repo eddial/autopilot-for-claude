@@ -14,6 +14,7 @@ import { installService, uninstallService } from './service-install.ts'
 const HELP = `autopilot <command>
 
   serve                          run the server (the launchd agent runs this)
+  session-host                   run the terminals sessions live in, apart from the server
   service install|uninstall      keep the server running in the background on this Mac
   new "<title>" [--brief <text>] [--ws <workstream>] [--priority 1-4] [--save]
                                  create a task; starts a session unless --save
@@ -83,6 +84,15 @@ const main = async (argv: string[]): Promise<void> => {
         ...(port ? { devicePort: port } : {}),
       })
       const stop = () => void handle.close().then(() => process.exit(0))
+      process.on('SIGTERM', stop)
+      process.on('SIGINT', stop)
+      return
+    }
+    case 'session-host': {
+      // The terminals sessions run in, apart from the server, so restarting it stops none of them.
+      const { runSessionHost } = await import('./session-host.ts')
+      const host = await runSessionHost(paths.sessionHost)
+      const stop = () => void host.close().then(() => process.exit(0))
       process.on('SIGTERM', stop)
       process.on('SIGINT', stop)
       return

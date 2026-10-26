@@ -24,7 +24,7 @@ machine stays a different connection, not a different code path.
  └─ main process: tray, notifications,   │     ├─ config/            (workstreams, signals: Markdown)
     global shortcut, updater             │     └─ logs/
                                          ▼
- autopilot server (launchd agent, user session)  ── node-pty ──▶ claude --remote-control …  (sessions)
+ autopilot server (launchd agent, user session)  ── socket ──▶ session host (its own agent) ── node-pty ──▶ claude --remote-control …
    unix socket, owner-only                       ── spawn ─────▶ claude -p --json-schema …  (signals, watchers, scout)
 ```
 
@@ -69,7 +69,7 @@ One language and one contract across the server, the Mac app, the iPhone app and
 | RPC | oRPC, contract-first: the contract lives in `packages/contracts`, the server implements it, the desktop and mobile apps get typed clients. a streamed subscription for the Mac app and a long poll on the change feed for the phone; Unix socket locally, TLS for paired devices |
 | Store | SQLite through Node's built-in `node:sqlite`; normal tables, an append-only updates table, a numbered change feed, one transaction per command |
 | Jobs | A small scheduler for the tick (signals, watchers, health, routing review) with timeouts and cancellation through `AbortSignal` |
-| Sessions | `claude --remote-control` in a pseudo-terminal owned by the server (`node-pty`); no tmux |
+| Sessions | `claude --remote-control` in a pseudo-terminal (`node-pty`) owned by the session host, a small process apart from the server (`session-host.ts`), so restarting or updating the server stops no session; the server reattaches after a restart. A session lives until its task closes; only working ones count against the parallel limit. No tmux |
 | Signals and watchers | `claude -p --json-schema` with the signal's read-only tools, as today |
 | Scout | Once per task waiting in New: a read-only `claude -p` over the signals' connectors and the workstream's code, posted as a "First look" update (summary, related links, likely approach, questions). Started tasks get this from their session |
 | MCP | `@modelcontextprotocol/sdk`: streamable HTTP on the server, `autopilot mcp` as a stdio bridge |

@@ -59,7 +59,7 @@ describe('starting Claude Code', () => {
     expect(detail.updates[0]?.body).toContain('Do you trust this folder?')
   })
 
-  it('ends a finished session once it is idle, and says so when a restart stranded a task', async () => {
+  it('keeps a finished session until the task closes, without holding a slot, and says so when a restart stranded a task', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'ap-launch-'))
     const service = new Service({ db: openDatabase(':memory:') })
     const exits: ((event: { exitCode: number }) => void)[] = []
@@ -79,7 +79,7 @@ describe('starting Claude Code', () => {
       spawn,
       self: { node: process.execPath, script: 'autopilot.js' },
     }
-    const launcher = new Launcher(options)
+    const launcher = new Launcher({ ...options, maxParallel: 1 })
     const report = (taskId: string, state: 'working' | 'idle', n: number) =>
       service.reportSession(ReportSession.parse({ idempotencyKey: `report-${taskId}-${n}`, taskId, state }))
 
@@ -93,9 +93,9 @@ describe('starting Claude Code', () => {
     report(finished.id, 'idle', 2)
     await launcher.drain()
     const after = service.getTask(finished.id)
-    // Back to the owner to close; the session no longer holds a slot.
+    // Back to the owner to close, its session still there to open; idle, it holds no slot.
     expect(after.band).toBe('your_turn')
-    expect(after.session?.state).toBe('ended')
+    expect(after.session?.state).toBe('idle')
     expect(after.updates.map((u) => u.kind)).toEqual(['done'])
 
     const working = service.createTask(CreateTask.parse({ idempotencyKey: 'launch-0003', title: 'Look into the bug' }))

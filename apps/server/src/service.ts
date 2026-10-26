@@ -807,7 +807,6 @@ export class Service {
       })
       const state: Task['state'] = input.kind === 'waiting' ? 'waiting' : task.state === 'new' ? 'new' : 'running'
       this.touch(task, { state })
-      this.endIfFinished(task)
       return update
     })
   }
@@ -1108,19 +1107,8 @@ export class Service {
         state: input.state,
         ...(activity === undefined ? {} : { activity }),
       })
-      this.endIfFinished(task)
       return session
     })
-  }
-
-  /**
-   * A session that has finished (its `done` is the open ask) and gone idle is ended, so it does not
-   * hold one of the parallel slots while the task waits for the owner to close it. A reply starts
-   * a new one.
-   */
-  private endIfFinished(task: Task): void {
-    const session = this.liveSession(task)
-    if (session?.state === 'idle' && this.openAsk(task.id)?.kind === 'done') this.enqueue('end_session', { taskId: task.id })
   }
 
   /** Since the owner last said anything, the session posted something other than progress. */

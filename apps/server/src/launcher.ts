@@ -8,6 +8,7 @@ import { checkoutFor, prepareWorkspace, type Checkouts } from './checkouts.ts'
 import { isGitCheckout } from './git.ts'
 import type { Paths } from './paths.ts'
 import type { OutboxItem, Service } from './service.ts'
+import type { Hosted } from './session-host.ts'
 
 /** The bit of node-pty the launcher uses, so tests can pass a fake. */
 export type Pty = {
@@ -21,7 +22,8 @@ export type Pty = {
 export type SpawnPty = (
   file: string,
   args: string[],
-  options: { cwd: string; env: Record<string, string>; cols: number; rows: number },
+  /** `key`: the session's id, which the session host keeps it under. */
+  options: { cwd: string; env: Record<string, string>; cols: number; rows: number; key?: string },
 ) => Pty
 
 export type LauncherOptions = {
@@ -48,6 +50,11 @@ export type LauncherOptions = {
    * scout's quick routing); none leaves it where it is.
    */
   place?: ((taskId: string) => Promise<void>) | null
+  /**
+   * The sessions a session host still runs, from before this server started (see session-host.ts);
+   * none when the server owns its terminals itself, as in tests.
+   */
+  attach?: (() => Promise<{ running: Hosted[]; exited: { key: string; exitCode: number }[] }>) | null
   log?: (message: string) => void
 }
 
@@ -112,6 +119,7 @@ export class Launcher {
       checkouts: () => ({ repos: {}, fallback: null }),
       workspace: () => options.paths.workspace,
       place: null,
+      attach: null,
       log: () => {},
       ...options,
     }
@@ -176,7 +184,9 @@ export class Launcher {
     const asked = service.task(taskId)
     if (asked.state === 'done' || asked.state === 'canceled') return 'done'
     if (this.live.has(taskId)) return 'done'
-    if (this.live.size >= this.opts.maxParallel) return 'defer'
+    // A session lives until its task closes, so its link keeps working; only those at work count
+    // against the limit, an idle one costs nothing until someone writes to it.
+    if (this.working() >= this.opts.maxParallel) return 'defer'
     const resumed = resume ? service.session(resume) : null
 
     // Started on Automatic: filed first, so the session opens in its workstream's folder. A failed
@@ -271,6 +281,7 @@ export class Launcher {
       env: { ...(process.env as Record<string, string>), ...env },
       cols: 120,
       rows: 40,
+      key: sessionId,
     })
     const live: Live = { pty, sessionId, output: '', stuck: false }
     this.live.set(task.id, live)
@@ -289,15 +300,7 @@ export class Launcher {
         pid: pty.pid,
       })
 
-    pty.onData((data) => {
-      live.output = (live.output + data).slice(-20_000)
-      const session = service.session(sessionId)
-      if (session && !session.remoteControlUrl) {
-        const url = REMOTE_CONTROL_URL.exec(plain(live.output))?.[0]
-        if (url) service.setSession(sessionId, { remoteControlUrl: url })
-      }
-    })
-    pty.onExit(({ exitCode }) => this.exited(task.id, sessionId, exitCode))
+    this.watch(task.id, live)
     // A session held at a startup screen never reports in; say what the screen shows, then stop it.
     setTimeout(() => {
       const session = service.session(sessionId)
@@ -318,6 +321,59 @@ export class Launcher {
     }, STUCK_AFTER_MS).unref()
     this.opts.log(`started ${task.id} in ${cwd}`)
     return 'done'
+  }
+
+  private working(): number {
+    const { service } = this.opts
+    return [...this.live.values()].filter((l) => {
+      const state = service.session(l.sessionId)?.state
+      return state === 'starting' || state === 'working'
+    }).length
+  }
+
+  /** Reads a session's screen for its Remote Control link, and hears when it ends. */
+  private watch(taskId: string, live: Live): void {
+    const { service } = this.opts
+    const { pty, sessionId } = live
+    const link = () => {
+      const session = service.session(sessionId)
+      if (session && !session.remoteControlUrl) {
+        const url = REMOTE_CONTROL_URL.exec(plain(live.output))?.[0]
+        if (url) service.setSession(sessionId, { remoteControlUrl: url })
+      }
+    }
+    link()
+    pty.onData((data) => {
+      live.output = (live.output + data).slice(-20_000)
+      link()
+    })
+    pty.onExit(({ exitCode }) => this.exited(taskId, sessionId, exitCode))
+  }
+
+  /**
+   * After a restart: the sessions the session host kept running are this server's again, as they
+   * were, link and all. One it holds that no open task owns is ended; one that ended while no server
+   * listened is recorded as ended.
+   */
+  async attach(): Promise<void> {
+    if (!this.opts.attach) return
+    const { service, log } = this.opts
+    const { running, exited } = await this.opts.attach()
+    for (const hosted of running) {
+      const session = service.session(hosted.key)
+      if (!session || session.state === 'ended') {
+        hosted.pty.kill()
+        continue
+      }
+      const live: Live = { pty: hosted.pty, sessionId: hosted.key, output: hosted.output, stuck: false }
+      this.live.set(session.taskId, live)
+      this.watch(session.taskId, live)
+      log(`reattached ${session.taskId}`)
+    }
+    for (const { key, exitCode } of exited) {
+      const session = service.session(key)
+      if (session && session.state !== 'ended') this.exited(session.taskId, key, exitCode)
+    }
   }
 
   private exited(taskId: string, sessionId: string, exitCode: number): void {
@@ -403,8 +459,13 @@ export class Launcher {
     return worktree(workspace, id)
   }
 
+  /**
+   * On shutdown. Sessions in a session host keep running for the next server; ones this server
+   * owns itself (tests) end with it.
+   */
   stopAll(): void {
     this.stopping = true
+    if (this.opts.attach) return
     for (const live of this.live.values()) live.pty.kill()
   }
 }

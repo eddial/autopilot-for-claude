@@ -9,6 +9,8 @@ export type Paths = {
   home: string
   db: string
   socket: string
+  /** The session host's socket: the terminals sessions run in, which outlive the server. */
+  sessionHost: string
   logs: string
   /**
    * Where tasks with no repository work, unless checkouts.yaml says otherwise: ~/Autopilot for the
@@ -30,6 +32,7 @@ export const resolvePaths = (env: NodeJS.ProcessEnv = process.env): Paths => {
     db: join(data, 'autopilot.sqlite'),
     // macOS limits socket paths to 104 bytes; the default stays well under it.
     socket: env.AUTOPILOT_SOCKET ?? join(data, 'autopilot.sock'),
+    sessionHost: join(data, 'sessions.sock'),
     logs: join(data, 'logs'),
   }
 }

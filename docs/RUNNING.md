@@ -47,6 +47,10 @@ When you are happy, keep it running in the background (it starts at login):
 autopilot service install
 ```
 
+That installs two launchd agents: `autopilot.server`, and `autopilot.sessions`, the session host the
+Claude Code sessions run in. Restarting the server (`launchctl kickstart -k gui/$(id -u)/autopilot.server`)
+stops no session; stopping the host (`autopilot service uninstall`) ends them all.
+
 ## Check 1 · a session writes back, also through Remote Control
 
 This is the one thing that cannot be tested in the cloud: a real Claude Code session using the

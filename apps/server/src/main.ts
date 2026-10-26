@@ -15,6 +15,7 @@ import type { AddressInfo } from 'node:net'
 import type { Server as HttpsServer } from 'node:https'
 import { Launcher, type SpawnPty } from './launcher.ts'
 import { loadPty } from './pty.ts'
+import { connectSessionHost, startHostProcess } from './session-host.ts'
 import { ensureDataDir, ensureOwnerToken } from './owner.ts'
 import type { Paths } from './paths.ts'
 import { DomainError, Service } from './service.ts'
@@ -95,7 +96,15 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   })
 
   const workstreams = () => readWorkstreams(paths.home)
-  const spawn = options.spawn ?? (await loadPty().catch(() => missingPty))
+  // Sessions run in the session host, so they outlive this server (see session-host.ts); tests pass
+  // their own spawn and own their terminals.
+  const host = options.spawn
+    ? null
+    : await connectSessionHost(paths.sessionHost, startHostProcess(options.self, process.env)).catch((error: unknown) => {
+        log(`session host: ${String(error)}; sessions run in this server and end with it`)
+        return null
+      })
+  const spawn = options.spawn ?? host?.spawn ?? (await loadPty().catch(() => missingPty))
   const launcher = new Launcher({
     service,
     paths,
@@ -112,8 +121,10 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     workspace: () => loadWorkspace(paths.home, paths.workspace),
     // A task started on Automatic is filed by the scout before its session opens.
     place: (taskId) => scout.place(taskId),
+    attach: host ? host.attach : null,
     log,
   })
+  await launcher.attach()
   launcher.reconcile()
 
   const runClaude = options.runClaude ?? claudeHeadless(options.claude ?? 'claude', undefined, log)
@@ -233,6 +244,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
       clearInterval(sweeping)
       unsubscribe()
       launcher.stopAll()
+      host?.close()
       // Live subscriptions keep connections open; close them so shutdown does not wait on clients.
       const closing = [server, ...(devices ? [devices] : [])].map((s) => {
         const closed = new Promise<void>((resolve) => s.close(() => resolve()))
