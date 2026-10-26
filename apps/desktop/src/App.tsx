@@ -182,28 +182,6 @@ export const App = () => {
       <div className="grip" role="separator" aria-label="Resize list" aria-orientation="vertical" onPointerDown={startResize}>
         <span />
       </div>
-      {/* Settings, at the window's top right, with a dot when a source is failing. */}
-      <Button
-        kind="icon"
-        className="settings-button"
-        aria-label="Settings"
-        title="Settings"
-        aria-current={view.kind === 'setup' ? 'page' : undefined}
-        onClick={() => go({ kind: 'setup' })}
-      >
-        <NavIcon name="setup" />
-        {signals.some((s) => s.health.state === 'failing') && (
-          <span className="place-alert">
-            <Dot tone="alert" label="A source is failing" />
-          </span>
-        )}
-      </Button>
-      {/* Too narrow for the list beside a place: the way back to it. */}
-      {view.kind !== 'task' && showingTask && (
-        <Button kind="quiet" className="narrow-back" onClick={() => setShowingTask(false)}>
-          Back to the list
-        </Button>
-      )}
       {view.kind === 'new' ? (
         <NewTask workstreams={workstreams} onCreated={openTask} />
       ) : view.kind === 'setup' ? (
@@ -226,6 +204,30 @@ export const App = () => {
             Pick a task, or press Space on one to answer it in place.
           </div>
         </section>
+      )}
+      {/* Settings, at the window's top right, with a dot when a source is failing. It comes after the
+          panes: Electron lets the last drag or no-drag region in page order win, so before them the
+          pane's draggable head swallowed its clicks. */}
+      <Button
+        kind="icon"
+        className="settings-button"
+        aria-label="Settings"
+        title="Settings"
+        aria-current={view.kind === 'setup' ? 'page' : undefined}
+        onClick={() => go({ kind: 'setup' })}
+      >
+        <NavIcon name="settings" />
+        {signals.some((s) => s.health.state === 'failing') && (
+          <span className="place-alert">
+            <Dot tone="alert" label="A source is failing" />
+          </span>
+        )}
+      </Button>
+      {/* Too narrow for the list beside a place: the way back to it. */}
+      {view.kind !== 'task' && showingTask && (
+        <Button kind="quiet" className="narrow-back" onClick={() => setShowingTask(false)}>
+          Back to the list
+        </Button>
       )}
     </div>
   )
