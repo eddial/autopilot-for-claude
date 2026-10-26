@@ -3,7 +3,7 @@ import type { Decision, QueueItem, RoutingProposal, Signal } from '@autopilot/co
 import { signalName } from '@autopilot/client'
 import { api, key } from '../api.ts'
 import { age, ago } from '../format.ts'
-import { Banner, Button, Dot, Meta, NavIcon } from '../ui.tsx'
+import { Banner, Button, Dot, Meta, MoreToggle, NavIcon } from '../ui.tsx'
 import { Menu } from './Menu.tsx'
 
 type Props = { items: QueueItem[]; onOpen: (id: string) => void }
@@ -19,13 +19,24 @@ const unwrap = (text: string) => text.replace(/([^\n])\n(?![\n\s]*([-*•]|\d+\.
  * What a source picks up, in your words: the text each of its runs is given. Two lines until
  * opened; edited in place, as a workstream's routing is.
  */
-const Rules = ({ signal, onSaved }: { signal: Signal; onSaved: (s: Signal) => void }) => {
+const Rules = ({
+  signal,
+  editing,
+  onEditing,
+  onSaved,
+}: {
+  signal: Signal
+  /** Edit beside Pause opens it; Cancel and Save close it. */
+  editing: boolean
+  onEditing: (on: boolean) => void
+  onSaved: (s: Signal) => void
+}) => {
   const [full, setFull] = useState(false)
-  const [draft, setDraft] = useState<string | null>(null)
+  const [draft, setDraft] = useState(signal.rules ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const rules = signal.rules ?? ''
-  if (draft !== null)
+  if (editing)
     return (
       <div className="settings-row-note">
         {error && <Banner>{error}</Banner>}
@@ -37,7 +48,7 @@ const Rules = ({ signal, onSaved }: { signal: Signal; onSaved: (s: Signal) => vo
           onChange={(e) => setDraft(e.target.value)}
         />
         <div className="step-bar">
-          <Button kind="tool" disabled={busy} onClick={() => setDraft(null)}>
+          <Button kind="tool" disabled={busy} onClick={() => onEditing(false)}>
             Cancel
           </Button>
           <Button
@@ -49,7 +60,7 @@ const Rules = ({ signal, onSaved }: { signal: Signal; onSaved: (s: Signal) => vo
               void api.signals.describe({ idempotencyKey: key(), name: signal.name, rules: draft }).then(
                 (saved) => {
                   onSaved(saved)
-                  setDraft(null)
+                  onEditing(false)
                   setBusy(false)
                 },
                 (e: unknown) => {
@@ -66,17 +77,12 @@ const Rules = ({ signal, onSaved }: { signal: Signal; onSaved: (s: Signal) => vo
     )
   return (
     <div className="settings-row-note">
-      {rules ? <p className={`prose routing${full ? '' : ' clamped'}`}>{unwrap(rules)}</p> : <Meta>Nothing written down yet.</Meta>}
-      <div className="rules-links">
-        {rules.length > 160 && (
-          <Button kind="link" onClick={() => setFull((f) => !f)}>
-            {full ? 'Show less' : 'Show more'}
-          </Button>
-        )}
-        <Button kind="link" onClick={() => setDraft(rules)}>
-          Edit what it picks up
-        </Button>
-      </div>
+      {rules ? (
+        <p className={`prose routing${full ? '' : ' clamped'}`}>{unwrap(rules)}</p>
+      ) : (
+        <Meta>Nothing written down yet: Edit says what it should pick up.</Meta>
+      )}
+      {rules.length > 160 && <MoreToggle open={full} onToggle={() => setFull((f) => !f)} />}
     </div>
   )
 }
@@ -92,6 +98,8 @@ export const Sources = ({ items, onOpen }: Props) => {
   const [error, setError] = useState<string | null>(null)
   /** The source whose Remove is waiting to be confirmed. */
   const [removing, setRemoving] = useState<string | null>(null)
+  /** The source whose description is open for editing. */
+  const [editing, setEditing] = useState<string | null>(null)
 
   const load = useCallback(() => {
     Promise.all([api.signals.list(), api.routing.list()])
@@ -219,6 +227,9 @@ export const Sources = ({ items, onOpen }: Props) => {
                     >
                       {s.paused ? 'Resume' : 'Pause'}
                     </Button>
+                    <Button kind="tool" onClick={() => setEditing(s.name)}>
+                      Edit
+                    </Button>
                     <Menu
                       className="icon-only"
                       chevron={false}
@@ -233,7 +244,13 @@ export const Sources = ({ items, onOpen }: Props) => {
                     />
                   </div>
                 )}
-                <Rules signal={s} onSaved={(saved) => setSignals((all) => all.map((x) => (x.name === saved.name ? saved : x)))} />
+                <Rules
+                  key={`${s.name}-${editing === s.name}`}
+                  signal={s}
+                  editing={editing === s.name}
+                  onEditing={(on) => setEditing(on ? s.name : null)}
+                  onSaved={(saved) => setSignals((all) => all.map((x) => (x.name === saved.name ? saved : x)))}
+                />
                 {s.health.message && <Meta className="settings-row-note">{s.health.message}</Meta>}
                 {Array.isArray(shown) && (
                   <pre className="diff settings-row-note">

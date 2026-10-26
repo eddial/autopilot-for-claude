@@ -20,7 +20,22 @@ import { markSeen, send, useDetail, useStore } from '../store.ts'
 import { AttachButton, FileChips, useFiles } from './Files.tsx'
 import { Menu, type MenuItem } from './Menu.tsx'
 import type { Tone } from '@autopilot/design'
-import { Avatar, Bars, WorkstreamMark, Banner, Button, Claude, Dot, Icon, Markdown, Meta, NavIcon, Spacer, Tag } from '../ui.tsx'
+import {
+  Avatar,
+  MoreToggle,
+  Bars,
+  WorkstreamMark,
+  Banner,
+  Button,
+  Claude,
+  Dot,
+  Icon,
+  Markdown,
+  Meta,
+  NavIcon,
+  Spacer,
+  Tag,
+} from '../ui.tsx'
 import { LinkIcon, Linked, SideLink } from './Links.tsx'
 import { BAND_TITLE } from '../view.ts'
 
@@ -252,11 +267,7 @@ const Body = ({ text, full = false }: { text: string; full?: boolean }) => {
       <div className={`msg${long && !more ? ' clamped' : ''}`}>
         <Markdown text={text} onLink={open} />
       </div>
-      {long && (
-        <Button kind="link" onClick={() => setMore((m) => !m)}>
-          {more ? 'Show less' : 'Show more'}
-        </Button>
-      )}
+      {long && <MoreToggle open={more} onToggle={() => setMore((m) => !m)} />}
     </>
   )
 }

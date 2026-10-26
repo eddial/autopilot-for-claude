@@ -1669,6 +1669,19 @@ button {
   padding: 0;
 }
 
+/* Show more: the word and a chevron, quiet until hovered. */
+.link.more-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.link.more-toggle:hover {
+  color: var(--text);
+}
+
 /* ── signals ── */
 
 .page {
@@ -1914,12 +1927,6 @@ button {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-.rules-links {
-  display: flex;
-  gap: 14px;
-  margin-top: 4px;
 }
 
 .urgent-when {

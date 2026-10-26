@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type { QueueItem, Workstream } from '@autopilot/contracts'
 import { api, key } from '../api.ts'
-import { Bars, Banner, Button, Meta, WorkstreamMark } from '../ui.tsx'
+import { Bars, Banner, Button, Meta, MoreToggle, WorkstreamMark } from '../ui.tsx'
 
 /** What each autonomy level lets a workstream's sessions do, in the owner's words. */
 export const AUTONOMY = ['', 'Files only', 'Prepares when started', 'Starts by itself', 'Finishes within its rules']
@@ -116,11 +116,7 @@ const WorkstreamCard = ({
         {/* What lands here, a few lines until opened; when it is urgent, under it. */}
         <div className="settings-row-note">
           <p className={`prose routing${full ? '' : ' clamped'}`}>{routing}</p>
-          {routing.length > 240 && (
-            <Button kind="link" onClick={() => setFull((f) => !f)}>
-              {full ? 'Show less' : 'Show more'}
-            </Button>
-          )}
+          {routing.length > 240 && <MoreToggle open={full} onToggle={() => setFull((f) => !f)} />}
           {workstream.urgent && (
             <p className="urgent-when">
               <Bars priority={1} />

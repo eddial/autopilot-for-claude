@@ -248,6 +248,14 @@ export const NavIcon = ({ name, size = 16 }: { name: NavIconName; size?: number 
 )
 
 /** Points right when closed, down when open. */
+/** Opens or folds long text: a chevron and the word, in ink when hovered. */
+export const MoreToggle = ({ open, onToggle }: { open: boolean; onToggle: () => void }) => (
+  <Button kind="link" className="more-toggle" aria-expanded={open} onClick={onToggle}>
+    {open ? 'Show less' : 'Show more'}
+    <Chevron open={open} />
+  </Button>
+)
+
 export const Chevron = ({ open }: { open: boolean }) => (
   <svg
     className={open ? 'chevron open' : 'chevron'}

@@ -31,7 +31,7 @@ export const Menu = ({
 }) => {
   // Where it opens, worked out from its button: floating above the page, so no scrolling column
   // clips it; upwards when there is no room below.
-  const [shown, setShown] = useState<{ top: number; left?: number; right?: number } | null>(null)
+  const [shown, setShown] = useState<{ top: number; left: number | 'auto'; right: number | 'auto' } | null>(null)
   const ref = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -56,7 +56,8 @@ export const Menu = ({
     if (!box) return
     const tall = items.length * 33 + 16
     const top = box.bottom + 6 + tall > window.innerHeight ? Math.max(8, box.top - 6 - tall) : box.bottom + 6
-    setShown(align === 'right' ? { top, right: window.innerWidth - box.right } : { top, left: box.left })
+    // One edge set, the other auto: the menu keeps its own width.
+    setShown(align === 'right' ? { top, left: 'auto', right: window.innerWidth - box.right } : { top, left: box.left, right: 'auto' })
   }
   return (
     <div className={`menu${trigger === 'prop' ? ' menu-prop' : ''}`} ref={ref}>
