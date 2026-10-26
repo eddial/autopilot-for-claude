@@ -15,6 +15,8 @@ export type Shell = {
   openExternal(url: string): void
   /** Shows a local file in Finder. */
   reveal(url: string): void
+  /** A native menu at the pointer; the chosen item's id, or null when dismissed. */
+  menu(items: { id: string; label: string }[]): Promise<string | null>
   onNavigate(listener: (to: string) => void): void
 }
 
@@ -32,6 +34,7 @@ const shell: Shell = {
   setBadge: (count) => ipcRenderer.send('autopilot:badge', count),
   openExternal: (url) => ipcRenderer.send('autopilot:open', url),
   reveal: (url) => ipcRenderer.send('autopilot:reveal', url),
+  menu: (items) => ipcRenderer.invoke('autopilot:menu', items) as Promise<string | null>,
   onNavigate: (listener) => {
     ipcRenderer.on('autopilot:navigate', (_event, to: string) => listener(to))
   },

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 import { linkKind, linkSource } from '@autopilot/client'
 import type { LinkPreview, Link } from '@autopilot/contracts'
 import { api, shell } from '../api.ts'
@@ -137,11 +137,28 @@ export const SideLink = ({ taskId, link, at }: { taskId: string; link: Link; at:
   const kind = linkKind(link)
   const file = link.url.startsWith('file:')
   const [reading, setReading] = useState(false)
-  const [copied, setCopied] = useState(false)
   const title = titleOf(link)
   const hint = [title, file ? fileName(link.url) : null, link.subtitle].filter(Boolean).join('\n')
+  const readable = READABLE.test(link.url)
+  // Right-click: what you can do with it, in a menu macOS draws.
+  const menu = (e: MouseEvent) => {
+    if (!shell) return
+    e.preventDefault()
+    const items = [
+      { id: 'open', label: 'Open' },
+      ...(readable ? [{ id: 'read', label: reading ? 'Close preview' : 'Read here' }] : []),
+      ...(file ? [{ id: 'finder', label: 'Show in Finder' }] : []),
+      { id: 'copy', label: file ? 'Copy path' : 'Copy link' },
+    ]
+    void shell.menu(items).then((chosen) => {
+      if (chosen === 'open') open(link.url)
+      if (chosen === 'read') setReading((r) => !r)
+      if (chosen === 'finder') shell?.reveal(link.url)
+      if (chosen === 'copy') void navigator.clipboard.writeText(file ? decodeURI(link.url.replace(/^file:\/\//, '')) : link.url)
+    })
+  }
   return (
-    <li className={`side-link${reading ? ' reading' : ''}`} onMouseLeave={() => setCopied(false)}>
+    <li className={`side-link${reading ? ' reading' : ''}`} onContextMenu={menu}>
       <Button kind="item" className="side-link-main" title={hint} onClick={() => open(link.url)}>
         <span className="side-link-icon">
           <NavIcon name={kind.icon} size={15} />
@@ -154,26 +171,21 @@ export const SideLink = ({ taskId, link, at }: { taskId: string; link: Link; at:
           </span>
         </span>
       </Button>
-      <div className="side-link-actions">
-        {READABLE.test(link.url) && (
-          <Button kind="quiet" aria-expanded={reading} onClick={() => setReading((r) => !r)}>
-            {reading ? 'Close' : 'Read'}
-          </Button>
-        )}
-        {file && shell && (
-          <Button kind="quiet" onClick={() => shell?.reveal(link.url)}>
-            Finder
-          </Button>
-        )}
-        <Button
-          kind="quiet"
-          onClick={() => {
-            void navigator.clipboard.writeText(file ? decodeURI(link.url.replace(/^file:\/\//, '')) : link.url).then(() => setCopied(true))
-          }}
-        >
-          {copied ? 'Copied' : file ? 'Copy path' : 'Copy link'}
-        </Button>
-      </div>
+      {/* On hover, to its left: reading it here and Finder; the rest is on right-click. */}
+      {(readable || (file && shell)) && (
+        <div className="side-link-actions">
+          {readable && (
+            <Button kind="quiet" aria-expanded={reading} onClick={() => setReading((r) => !r)}>
+              {reading ? 'Close' : 'Read'}
+            </Button>
+          )}
+          {file && shell && (
+            <Button kind="quiet" onClick={() => shell?.reveal(link.url)}>
+              Finder
+            </Button>
+          )}
+        </div>
+      )}
       {reading && (
         <div className="side-link-preview">
           <Preview taskId={taskId} url={link.url} />

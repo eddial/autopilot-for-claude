@@ -159,27 +159,20 @@ export default function QueueScreen() {
   )
 
   const search = (
-    <View style={styles.searchRow}>
-      <View style={styles.search}>
-        <SymbolView name="magnifyingglass" size={15} tintColor={colours.text3} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search"
-          placeholderTextColor={colours.text3}
-          value={filter}
-          onChangeText={setFilter}
-          autoCapitalize="none"
-          autoCorrect={false}
-          clearButtonMode="while-editing"
-          returnKeyType="search"
-          accessibilityLabel="Search tasks"
-        />
-      </View>
-      {/* A word as well as a plus, so it is found. */}
-      <Pressable style={styles.newTask} onPress={() => router.push('/new')} accessibilityRole="button" accessibilityLabel="New task">
-        <SymbolView name="plus" size={15} weight="semibold" tintColor={colours.text} />
-        <Text style={styles.newTaskText}>New</Text>
-      </Pressable>
+    <View style={styles.search}>
+      <SymbolView name="magnifyingglass" size={15} tintColor={colours.text3} />
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Search"
+        placeholderTextColor={colours.text3}
+        value={filter}
+        onChangeText={setFilter}
+        autoCapitalize="none"
+        autoCorrect={false}
+        clearButtonMode="while-editing"
+        returnKeyType="search"
+        accessibilityLabel="Search tasks"
+      />
     </View>
   )
 
@@ -235,8 +228,28 @@ export default function QueueScreen() {
   return (
     <>
       {/* The tab names itself, so there is no title bar; in the split it carries the selected task's actions. */}
-      <Stack.Screen options={{ title: all ? 'All open' : (current?.title ?? 'Queue'), headerShown: split, headerLargeTitle: false }} />
-      {selectedItem && <TaskToolbar item={selectedItem} closeAfter={false} />}
+      <Stack.Screen
+        options={
+          split
+            ? { title: all ? 'All open' : (current?.title ?? 'Queue'), headerLargeTitle: false }
+            : // The toolbar needs a header; an empty, see-through one puts New in the side bar alone.
+              {
+                title: '',
+                headerLargeTitle: false,
+                headerTransparent: true,
+                headerStyle: { backgroundColor: 'transparent' },
+                scrollEdgeEffects: { top: 'hidden' },
+              }
+        }
+      />
+      {selectedItem ? (
+        <TaskToolbar item={selectedItem} closeAfter={false} />
+      ) : (
+        // New task in the side bar, where iOS puts a screen's actions on the Duo.
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button icon="plus" accessibilityLabel="New task" onPress={() => router.push('/new')} />
+        </Stack.Toolbar>
+      )}
       {split ? (
         <View style={{ flex: 1, flexDirection: 'row' }}>
           <View
@@ -304,28 +317,17 @@ const styles = StyleSheet.create({
   section: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 8 },
   sectionName: { fontSize: 14, color: colours.text2, fontFamily: 'Menlo' },
   sectionCount: { marginLeft: 'auto', fontSize: 13, color: colours.text3 },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12 },
   search: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginHorizontal: 12,
     paddingHorizontal: 12,
     height: 40,
     borderRadius: 12,
     backgroundColor: colours.surface,
   },
   searchInput: { flex: 1, fontSize: 16, color: colours.text },
-  newTask: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    height: 40,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: colours.surface,
-  },
-  newTaskText: { fontSize: 16, fontWeight: '500', color: colours.text },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',

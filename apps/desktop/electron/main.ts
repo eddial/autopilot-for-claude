@@ -15,7 +15,7 @@ import { RPCHandler } from '@orpc/server/message-port'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, nativeTheme, safeStorage, shell, Tray } from 'electron'
 import { proxyRouter } from './proxy.ts'
-import { pilotBitmap } from './pilot.ts'
+import { pilotTemplate } from './pilot.ts'
 import type { Mode } from './preload.ts'
 
 /** What a file link may open directly: documents, never anything that runs. */
@@ -226,9 +226,25 @@ const start = async (): Promise<void> => {
   ipcMain.on('autopilot:reveal', (_event, url: unknown) => {
     if (typeof url === 'string' && url.startsWith('file:')) shell.showItemInFolder(fileURLToPath(url))
   })
+  // A right-click menu, drawn by macOS: the window names the items, the choice comes back.
+  ipcMain.handle('autopilot:menu', (event, items: unknown) => {
+    if (!Array.isArray(items)) return null
+    const owner = BrowserWindow.fromWebContents(event.sender) ?? undefined
+    return new Promise<string | null>((resolve) => {
+      let chosen: string | null = null
+      Menu.buildFromTemplate(
+        items.flatMap((item: unknown) => {
+          if (typeof item !== 'object' || item === null) return []
+          const { id, label } = item as { id?: unknown; label?: unknown }
+          return typeof id === 'string' && typeof label === 'string' ? [{ label, click: () => (chosen = id) }] : []
+        }),
+      ).popup({ window: owner, callback: () => resolve(chosen) })
+    })
+  })
 
   Menu.setApplicationMenu(menu())
-  const icon = nativeImage.createFromBitmap(pilotBitmap(), { width: 16, height: 16, scaleFactor: 1 })
+  const icon = nativeImage.createFromBitmap(pilotTemplate(), { width: 32, height: 32, scaleFactor: 2 })
+  icon.setTemplateImage(true)
   tray = new Tray(icon)
   tray.setToolTip('Autopilot')
   tray.on('click', () => show())
