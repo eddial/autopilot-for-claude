@@ -203,6 +203,18 @@ export const createdText = (task: Task): string =>
 export const shortDate = (iso: string): string =>
   new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
+const BEFORE_STARTING = /^Before starting:\s*$/m
+
+/** A first look without its questions, for when they are asked on their own (Before I start). */
+export const withoutQuestions = (body: string): string => body.split(BEFORE_STARTING)[0]?.trim() ?? body
+
+/** What the first look asked before anyone starts: its "Before starting" lines. Both apps ask them as Before I start. */
+export const firstLookQuestions = (updates: Update[]): string[] => {
+  const look = [...updates].reverse().find((u) => u.author === 'scout' && u.kind === 'info')
+  const after = look?.body.split(BEFORE_STARTING)[1]
+  return after ? after.split('\n').flatMap((l) => (/^\s*[-*]\s+/.test(l) ? [l.replace(/^\s*[-*]\s+/, '').trim()] : [])) : []
+}
+
 /** The first line of a message as plain words: no Markdown marks, cut at a sentence or 140 characters. */
 export const firstLine = (text: string): string => {
   const line =

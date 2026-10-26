@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { RefreshControl, ScrollView, StyleSheet, Text } from 'react-native'
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text } from 'react-native'
 import type { Signal, Workstream } from '@autopilot/contracts'
 import { signalName } from '@autopilot/client'
 import { Stack, useFocusEffect } from 'expo-router'
@@ -58,6 +58,7 @@ export default function SetupScreen() {
               <Text style={type.meta}>
                 Last day: {s.last24h.filed} filed, {s.last24h.updated} added, {s.last24h.dropped} left alone
               </Text>
+              {s.rules ? <Rules text={s.rules} /> : null}
               {s.health.message && <Text style={[type.meta, { color: colours.claySoft }]}>{s.health.message}</Text>}
             </Card>
           ))}
@@ -82,6 +83,19 @@ export default function SetupScreen() {
   )
 }
 
+/** What a source picks up, in your words: three lines, the rest on a tap. Changed on the Mac. */
+const Rules = ({ text }: { text: string }) => {
+  const [open, setOpen] = useState(false)
+  return (
+    <Pressable onPress={() => setOpen((o) => !o)} accessibilityRole="button" accessibilityState={{ expanded: open }}>
+      <Text style={styles.rules} numberOfLines={open ? undefined : 3}>
+        {text.replace(/([^\n])\n(?![\n\s]*([-*•]|\d+\.)\s|\n)/g, '$1 ')}
+      </Text>
+    </Pressable>
+  )
+}
+
 const styles = StyleSheet.create({
+  rules: { fontSize: 14, lineHeight: 20, color: colours.text2 },
   label: { marginTop: 10, marginLeft: 4 },
 })

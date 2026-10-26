@@ -1,7 +1,8 @@
 import { Linking } from 'react-native'
 import type { QueueItem } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
-import { useSyncInstance } from '../store.ts'
+import { firstLookQuestions } from '@autopilot/client'
+import { useDetail, useSyncInstance } from '../store.ts'
 import { colours } from '@autopilot/design'
 
 const snoozeTimes = (): { label: string; until: Date }[] => {
@@ -38,6 +39,9 @@ export const TaskToolbar = ({
   const sync = useSyncInstance()
   const { task, session } = item
   const live = session && session.state !== 'ended' ? session : null
+  // Before I start in the timeline starts it when the first look has questions: one Start, there.
+  const detail = useDetail(task.id)
+  const asking = item.band === 'new' && firstLookQuestions(detail?.updates ?? []).length > 0
   const done = (outcome: 'done' | 'canceled') => {
     void sync?.send({ kind: 'close', taskId: task.id, outcome })
     if (closeAfter && router.canGoBack()) router.back()
@@ -52,7 +56,7 @@ export const TaskToolbar = ({
           accessibilityLabel="Open session"
           onPress={() => void Linking.openURL(live.remoteControlUrl ?? '')}
         />
-      ) : item.band === 'new' ? (
+      ) : item.band === 'new' && !asking ? (
         <Stack.Toolbar.Button
           variant="prominent"
           tintColor={colours.pilot}

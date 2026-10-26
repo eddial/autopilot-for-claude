@@ -2,6 +2,7 @@ import { useRef, useState, type ComponentRef, type ReactNode } from 'react'
 import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import {
   filedBy,
+  firstLookQuestions,
   isArtifact,
   isPaste,
   pasteSize,
@@ -16,8 +17,9 @@ import {
   shortDate,
   updateAuthor,
   updateLabel,
+  withoutQuestions,
 } from '@autopilot/client'
-import type { QueueItem, Update } from '@autopilot/contracts'
+import type { QueueItem, TaskSignal, Update } from '@autopilot/contracts'
 import * as Haptics from 'expo-haptics'
 import { SymbolView } from 'expo-symbols'
 import { age, ago, BAND_TITLE } from '../format.ts'
@@ -55,12 +57,29 @@ export const TaskView = ({ item, onTitleOff }: { item: QueueItem; onTitleOff?: (
   const updates = detail?.updates ?? (openAsk ? [openAsk] : [])
   // What needs the owner comes last, after the activity: everything else, oldest first.
   const ask = updates.find((u) => u.open && !answered.has(u.id)) ?? null
-  const activity = updates.filter((u) => u !== ask)
+  // New, with questions from the first look: asked as the last entry, Before I start, which also
+  // starts it; the first look then shows without them.
+  const questions = !ask && item.band === 'new' ? firstLookQuestions(updates) : []
+  const asking = questions.length > 0
+  const activity = updates
+    .filter((u) => u !== ask)
+    .map((u) => (asking && u.author === 'scout' && u.kind === 'info' ? { ...u, body: withoutQuestions(u.body) } : u))
   const options = updates.flatMap((u) => u.options)
   const send = async (command: Parameters<NonNullable<typeof sync>['send']>[0]) => {
     if (!sync) return
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     await sync.send(command)
+  }
+
+  // Before I start: what you know goes with the start; nothing written starts it as it is.
+  const start = () => {
+    const body = text.trim()
+    setText('')
+    void send(
+      body
+        ? { kind: 'instruct', taskId: task.id, body: `Answers to the first look's questions:\n\n${body}` }
+        : { kind: 'start', taskId: task.id },
+    )
   }
 
   // From how it began to where it stands now, read downwards like a conversation.
@@ -104,6 +123,20 @@ export const TaskView = ({ item, onTitleOff }: { item: QueueItem; onTitleOff?: (
           </View>
         )}
       </Entry>
+    ) : asking ? (
+      <Entry
+        key="before"
+        label="Before I start"
+        by={null}
+        at={age(task.createdAt)}
+        who="scout"
+        body={questions.map((q) => `- ${q}`).join('\n')}
+        card
+      >
+        <View style={styles.row}>
+          <Button kind="primary" label={text.trim() ? 'Start with these answers' : 'Start without answering'} onPress={() => start()} />
+        </View>
+      </Entry>
     ) : (
       <Entry key="now" label="Now" by={null} at={nowText(item)} who="now" tone={nowTone(item)} body="" event />
     ),
@@ -114,6 +147,7 @@ export const TaskView = ({ item, onTitleOff }: { item: QueueItem; onTitleOff?: (
   const ready = (text.trim().length > 0 || files.links.length > 0) && !files.busy
   const reply = () => {
     const body = text.trim()
+    if (asking && ready) return start()
     if (!ready) return
     const attachments = files.links.length > 0 ? { attachments: files.links } : {}
     setText('')
@@ -177,32 +211,10 @@ export const TaskView = ({ item, onTitleOff }: { item: QueueItem; onTitleOff?: (
               <Folded text={task.brief} onLink={open} />
             </View>
           ) : null}
-          {(detail?.signals ?? []).length > 0 && (
-            <View style={styles.section}>
-              <Text style={type.label}>Signal</Text>
-              {(detail?.signals ?? []).map((m) => (
-                <Pressable
-                  key={`${m.url}-${m.at}`}
-                  style={styles.signal}
-                  onPress={() => /^https?:\/\//.test(m.url) && open(m.url)}
-                  accessibilityRole="link"
-                  accessibilityLabel={`${signalName(m.signal)}: ${m.title}`}
-                >
-                  <Text style={type.meta}>
-                    {signalName(m.signal)}
-                    {m.channel ? ` · ${m.channel}` : ''}
-                  </Text>
-                  <Text style={styles.signalTitle}>{m.title}</Text>
-                  <Text style={type.meta}>
-                    {m.sender} · {Number.isNaN(Date.parse(m.at)) ? m.at : ago(m.at)}
-                    {m.action === 'updated' ? ' · added' : ''}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
           <Linked taskId={task.id} links={task.links.filter(isArtifact)} noun="artifact" />
           <Linked taskId={task.id} links={task.links.filter((l) => !isArtifact(l))} noun="linked" />
+          {/* As on the Mac: what the session made, what it points to, then where it came from. */}
+          <Signals signals={detail?.signals ?? []} />
           <View style={styles.section}>
             <Text style={type.label}>Activity</Text>
             <View style={styles.feed}>
@@ -248,15 +260,17 @@ export const TaskView = ({ item, onTitleOff }: { item: QueueItem; onTitleOff?: (
           <TextInput
             style={styles.input}
             placeholder={
-              ask?.kind === 'done'
-                ? 'Or ask for changes…'
-                : ask
-                  ? 'Or answer in your own words…'
-                  : item.session && item.session.state !== 'ended'
-                    ? 'Reply to the session…'
-                    : item.session
-                      ? 'Reply to pick it up again…'
-                      : 'Reply to start a session…'
+              asking
+                ? 'Answer what you know…'
+                : ask?.kind === 'done'
+                  ? 'Or ask for changes…'
+                  : ask
+                    ? 'Or answer in your own words…'
+                    : item.session && item.session.state !== 'ended'
+                      ? 'Reply to the session…'
+                      : item.session
+                        ? 'Reply to pick it up again…'
+                        : 'Reply to start a session…'
             }
             placeholderTextColor={colours.text3}
             value={text}
@@ -272,6 +286,46 @@ export const TaskView = ({ item, onTitleOff }: { item: QueueItem; onTitleOff?: (
     </KeyboardAvoidingView>
   )
 }
+
+/** Where the task came from, newest first: three, and the rest on a tap. */
+const Signals = ({ signals }: { signals: TaskSignal[] }) => {
+  const [all, setAll] = useState(false)
+  if (signals.length === 0) return null
+  const newest = [...signals].sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0))
+  return (
+    <View style={styles.section}>
+      <Text style={type.label}>Signal</Text>
+      {(all ? newest : newest.slice(0, 3)).map((m) => (
+        <Pressable
+          key={`${m.url}-${m.at}`}
+          style={styles.signal}
+          onPress={() => /^https?:\/\//.test(m.url) && open(m.url)}
+          accessibilityRole="link"
+          accessibilityLabel={`${signalName(m.signal)}: ${m.title}`}
+        >
+          <Text style={type.meta}>
+            {signalName(m.signal)}
+            {m.channel ? ` · ${m.channel}` : ''}
+          </Text>
+          <Text style={styles.signalTitle}>{m.title}</Text>
+          <Text style={type.meta}>
+            {m.sender} · {Number.isNaN(Date.parse(m.at)) ? m.at : ago(m.at)}
+            {m.action === 'updated' ? ' · added' : ''}
+          </Text>
+        </Pressable>
+      ))}
+      {signals.length > 3 && <MoreToggle open={all} onToggle={() => setAll((x) => !x)} count={signals.length} />}
+    </View>
+  )
+}
+
+/** Opens or folds long text or a long list: the word and a chevron, as on the Mac. */
+const MoreToggle = ({ open: on, onToggle, count }: { open: boolean; onToggle: () => void; count?: number }) => (
+  <Pressable onPress={onToggle} accessibilityRole="button" accessibilityState={{ expanded: on }} hitSlop={8} style={styles.more}>
+    <Text style={styles.moreText}>{on ? 'Show less' : count ? `Show all ${count}` : 'Show more'}</Text>
+    <SymbolView name={on ? 'chevron.up' : 'chevron.down'} size={11} tintColor={colours.text2} />
+  </Pressable>
+)
 
 /** Links open where they live; a file on the Mac cannot open here, so the phone reads it instead. */
 const open = (url: string) => {
@@ -469,7 +523,8 @@ const styles = StyleSheet.create({
   pastedHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   pastedTitle: { fontSize: 15, color: colours.textBody },
   pastedPeek: { lineHeight: 18 },
-  more: { marginTop: 6 },
+  more: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
+  moreText: { fontSize: 13, fontWeight: '500', color: colours.text2 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   // A plain box, as on the Mac: the avatar on the rail says who asks.
@@ -498,7 +553,7 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colours.raised,
+    backgroundColor: colours.surface,
   },
   nowDot: { width: 8, height: 8, borderRadius: 4 },
   entry: { gap: 4 },
@@ -518,8 +573,9 @@ const styles = StyleSheet.create({
   attach: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
   // Two lines to start with, room to write a real answer.
   input: { flex: 1, minHeight: 48, maxHeight: 140, fontSize: 16, color: colours.text, paddingVertical: 6 },
-  send: { width: 34, height: 34, borderRadius: 10, backgroundColor: colours.pilot, alignItems: 'center', justifyContent: 'center' },
-  sendText: { fontSize: 18, fontWeight: '700', color: colours.well },
+  // Ink, as the Mac's primary: no colour of its own.
+  send: { width: 34, height: 34, borderRadius: 17, backgroundColor: colours.text, alignItems: 'center', justifyContent: 'center' },
+  sendText: { fontSize: 18, fontWeight: '700', color: colours.surface },
 })
 
 /** A long brief folded to its first lines, as on the Mac; Show more opens it. */
@@ -531,11 +587,7 @@ const Folded = ({ text, onLink }: { text: string; onLink: (url: string) => void 
       <View style={long && !shown ? styles.folded : null}>
         <Markdown text={text} onLink={onLink} />
       </View>
-      {long && (
-        <Pressable onPress={() => setShown((o) => !o)} accessibilityRole="button" hitSlop={8}>
-          <Text style={[type.meta, styles.more]}>{shown ? 'Show less' : 'Show more'}</Text>
-        </Pressable>
-      )}
+      {long && <MoreToggle open={shown} onToggle={() => setShown((o) => !o)} />}
     </>
   )
 }

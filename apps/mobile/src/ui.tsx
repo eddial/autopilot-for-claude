@@ -73,16 +73,16 @@ type Who = 'owner' | 'session' | 'watcher' | 'signal' | 'system' | 'scout'
 
 const AVATAR: Record<Exclude<Who, 'system' | 'scout' | 'session'>, { symbol: SFSymbol; fg: string; bg: string }> = {
   // A watcher in amber (paused on something), a signal in green, you in white.
-  watcher: { symbol: 'eye', fg: colours.amber, bg: colours.raised },
-  owner: { symbol: 'person.fill', fg: colours.text, bg: colours.raised },
-  signal: { symbol: 'bolt.fill', fg: colours.pilot, bg: colours.raised },
+  watcher: { symbol: 'eye', fg: colours.amber, bg: colours.surface },
+  owner: { symbol: 'person.fill', fg: colours.text, bg: colours.surface },
+  signal: { symbol: 'bolt.fill', fg: colours.pilot, bg: colours.surface },
 }
 
 /** Who did something in a task's timeline, as on the Mac: the pilot for Autopilot, Claude for its session, a symbol for the rest. */
 export const Avatar = ({ who }: { who: Who }) => {
   if (who === 'system' || who === 'scout' || who === 'session')
     return (
-      <View style={[styles.avatar, { backgroundColor: colours.raised }]}>
+      <View style={[styles.avatar, { backgroundColor: colours.surface }]}>
         {who === 'session' ? <Mascot art={claude} pixel={1} label="Claude" /> : <Pilot pixel={1} />}
       </View>
     )

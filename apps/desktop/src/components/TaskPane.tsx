@@ -12,7 +12,7 @@ import {
   type Pending,
 } from '@autopilot/client'
 import type { QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contracts'
-import { filedBy, isArtifact, isPaste, pasteSize, signalName } from '@autopilot/client'
+import { filedBy, firstLookQuestions, isArtifact, isPaste, pasteSize, signalName, withoutQuestions } from '@autopilot/client'
 import { shell } from '../api.ts'
 import { age, ago, updateLabel } from '../format.ts'
 import { useDraft } from '../drafts.ts'
@@ -283,18 +283,6 @@ const Attachments = ({ links }: { links: Update['attachments'] }) =>
       ))}
     </div>
   ) : null
-
-const BEFORE_STARTING = /^Before starting:\s*$/m
-
-/** A first look without its questions, for when they are asked on their own. */
-const withoutQuestions = (body: string) => body.split(BEFORE_STARTING)[0]?.trim() ?? body
-
-/** What the first look asked before anyone starts: its "Before starting" lines. */
-const firstLookQuestions = (updates: Update[]): string[] => {
-  const look = updates.findLast((u) => u.author === 'scout' && u.kind === 'info')
-  const after = look?.body.split(BEFORE_STARTING)[1]
-  return after ? after.split('\n').flatMap((l) => (/^\s*[-*]\s+/.test(l) ? [l.replace(/^\s*[-*]\s+/, '').trim()] : [])) : []
-}
 
 /**
  * A new task whose first look has questions: asked here, before the start, so the session begins
