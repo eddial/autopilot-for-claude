@@ -166,6 +166,21 @@ describe('the Mac app window', () => {
     await expect.poll(() => page.getByRole('heading', { level: 2, name: 'Renew the office lease' }).count()).toBe(1)
   }, 30_000)
 
+  it('opens a task with one click when the window is narrow', async () => {
+    server.service.createTask(CreateTask.parse({ idempotencyKey: 'ui-narrow-1', title: 'Check the narrow window', start: false }), 'owner')
+    await page.setViewportSize({ width: 680, height: 900 })
+    try {
+      // Narrow, an open task hides the list: back to it first.
+      const back = page.getByRole('button', { name: 'Back to the list' }).first()
+      if (await back.isVisible()) await back.click()
+      await tab('Needs me').click()
+      await page.getByRole('option', { name: /Check the narrow window/ }).click()
+      await expect.poll(() => page.getByRole('heading', { level: 2, name: 'Check the narrow window' }).isVisible()).toBe(true)
+    } finally {
+      await page.setViewportSize({ width: 1440, height: 900 })
+    }
+  }, 30_000)
+
   it('sends a file dropped on the reply with it, kept for the session', async () => {
     server.service.createTask(CreateTask.parse({ idempotencyKey: 'ui-create-file', title: 'Check the lease terms', start: false }), 'owner')
     await tab('Needs me').click()

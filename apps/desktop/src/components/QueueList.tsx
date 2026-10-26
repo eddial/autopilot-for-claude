@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem } from '@autopilot/contracts'
 import { emptyWords } from '@autopilot/client'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -141,6 +141,11 @@ export const QueueList = (props: Props) => {
     })
   const order = useMemo(() => entries.flatMap((e) => (e.kind === 'item' ? [e.item.task.id] : [])), [entries])
   const search = useRef<HTMLInputElement>(null)
+  // Narrow, the list and the task take turns: a click opens the task, as a double-click does wide.
+  const pick = useCallback(
+    (id: string) => (window.matchMedia('(max-width: 760px)').matches ? onOpen(id) : onSelect(id)),
+    [onOpen, onSelect],
+  )
   // ⌘1 to ⌘6 a tab, ⌘F the search; ⌥1 to ⌥9 the first nine tasks as listed (outside a text box).
   useEffect(() => {
     const keys = (e: KeyboardEvent) => {
@@ -295,7 +300,7 @@ export const QueueList = (props: Props) => {
                     left={lingering === entry.item.task.id}
                     hint={order.indexOf(entry.item.task.id) < 9 ? order.indexOf(entry.item.task.id) + 1 : undefined}
                     status={all}
-                    onSelect={onSelect}
+                    onSelect={pick}
                     onOpen={onOpen}
                   />
                 )}
