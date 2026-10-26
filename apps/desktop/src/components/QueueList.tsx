@@ -160,13 +160,15 @@ export const QueueList = (props: Props) => {
           <input aria-label="Filter tasks" placeholder="Search" value={filter} onChange={(e) => setFilter(e.target.value)} />
         </label>
         <Button
-          kind="icon"
+          kind="tool"
+          className="with-icon new-task"
           aria-label="New task"
           title="New task"
           aria-current={view.kind === 'new' ? 'page' : undefined}
           onClick={() => go({ kind: 'new' })}
         >
-          <NavIcon name="compose" />
+          <NavIcon name="plus" size={14} />
+          New
         </Button>
       </div>
       {banner && <Banner>{banner}</Banner>}

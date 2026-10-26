@@ -162,6 +162,21 @@ button {
   background: var(--surface);
 }
 
+/* New task beside the search: a word as well as a plus, so it is found. */
+.search-row .new-task {
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.search-row .new-task:hover,
+.search-row .new-task[aria-current='page'] {
+  background: var(--raised);
+}
+
 .icon-button[aria-current='page'] {
   background: var(--raised);
   color: var(--text);
