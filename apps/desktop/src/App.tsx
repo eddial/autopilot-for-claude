@@ -233,9 +233,7 @@ export const App = () => {
         showingTasks={view.kind === 'task'}
         lingering={lingering?.id ?? null}
       />
-      <div className="grip" role="separator" aria-label="Resize list" aria-orientation="vertical" onPointerDown={startResize}>
-        <span />
-      </div>
+      <div className="grip" role="separator" aria-label="Resize list" aria-orientation="vertical" onPointerDown={startResize} />
       {view.kind === 'new' ? (
         <NewTask workstreams={workstreams} onCreated={openTask} />
       ) : view.kind === 'setup' ? (
