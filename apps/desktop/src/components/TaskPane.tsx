@@ -14,7 +14,7 @@ import {
 import type { QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contracts'
 import { filedBy, isPaste, pasteSize, signalName } from '@autopilot/client'
 import { shell } from '../api.ts'
-import { age, ago, updateLabel } from '../format.ts'
+import { age, ago, rowMeta, updateLabel } from '../format.ts'
 import { useDraft } from '../drafts.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
 import { FileChips, useFiles } from './Files.tsx'
@@ -42,9 +42,8 @@ import { BAND_TITLE } from '../view.ts'
 type Props = {
   item: QueueItem
   workstreams: Workstream[]
-  /** The task after this one in the list, for moving on when you are ready. */
-  next?: QueueItem | null
-  onNext?: () => void
+  /** Where this task sits in the list it was opened from, and the way through it. */
+  upNext?: UpNextProps | null
   onClose: () => void
 }
 
@@ -105,7 +104,7 @@ const snoozeTimes = (): { label: string; day: string; time: string; until: Date 
     .map((t) => ({ ...t, day: day(t.until), time: time(t.until) }))
 }
 
-export const TaskPane = ({ item, workstreams, next = null, onNext, onClose }: Props) => {
+export const TaskPane = ({ item, workstreams, upNext = null, onClose }: Props) => {
   const { task } = item
   // The task comes from the window's store, kept current by the feed: no request on open once it
   // has been seen. Until then, the ask from the queue shows straight away.
@@ -152,6 +151,9 @@ export const TaskPane = ({ item, workstreams, next = null, onNext, onClose }: Pr
           {task.id}
           {task.source.mirrors ? ` · ${task.source.mirrors}` : ''}
         </Meta>
+        <Button kind="quiet" className="head-title" tabIndex={-1} onClick={() => body.current?.scrollTo({ top: 0, behavior: 'smooth' })}>
+          {task.title}
+        </Button>
         <Spacer />
         {session && session.state !== 'ended' && (
           <span className="meta session head-session">
@@ -195,15 +197,7 @@ export const TaskPane = ({ item, workstreams, next = null, onNext, onClose }: Pr
               {ask && <AskCard update={ask} />}
               {!ask && item.band === 'new' && <BeforeStart taskId={task.id} updates={updates} />}
               {/* Nothing moves you on by itself: you see your reply land, then go when you are ready. */}
-              {next && onNext && (
-                <div className="next-task">
-                  <Button kind="quiet" className="with-icon" onClick={onNext} title="Next task (⌘])">
-                    <span className="next-label">Next</span>
-                    <span className="next-title">{next.task.title}</span>
-                    <kbd>⌘]</kbd>
-                  </Button>
-                </div>
-              )}
+              {upNext && <UpNext {...upNext} />}
             </div>
           </div>
         </div>
@@ -215,7 +209,8 @@ export const TaskPane = ({ item, workstreams, next = null, onNext, onClose }: Pr
 
 /**
  * The page opens at its end, where the newest entry and the reply are, and stays there as entries
- * arrive while you are at the end; scroll up and it stays where you put it. Scrolled, the page
+ * arrive while you are at the end; scroll up and it stays where you put it. Once the title is out of
+ * sight the head shows it, a click away from the top. Scrolled, the page
  * fades in under its head so you can tell there is more above. Each task mounts its own pane.
  */
 const usePinnedToEnd = () => {
@@ -230,6 +225,10 @@ const usePinnedToEnd = () => {
     const onScroll = () => {
       pinned = el.scrollHeight - el.scrollTop - el.clientHeight < 24
       el.classList.toggle('scrolled', el.scrollTop > 0)
+      // The title scrolled out of sight: the head says it instead.
+      const title = el.querySelector('.task-title h2')
+      const off = title ? title.getBoundingClientRect().bottom < el.getBoundingClientRect().top + 8 : false
+      el.closest('.pane')?.classList.toggle('title-off', off)
     }
     toEnd()
     onScroll()
@@ -243,6 +242,55 @@ const usePinnedToEnd = () => {
   }, [])
   return ref
 }
+
+type UpNextProps = {
+  /** The task after this one, or none at the end of the list. */
+  next: QueueItem | null
+  hasPrevious: boolean
+  /** This task's place: 2 of 5. */
+  at: number
+  total: number
+  /** The list it is in: Needs me, Running, All open. */
+  list: string
+  move: (delta: number) => void
+}
+
+/**
+ * The end of a task: where you are in the list and what comes next. Nothing moves you on by
+ * itself; you see your reply land, then go when you are ready (⌘] and ⌘[ work anywhere).
+ */
+const UpNext = ({ next, hasPrevious, at, total, list, move }: UpNextProps) => (
+  <section className="up-next" aria-label="Up next">
+    <div className="up-next-head">
+      <span className="section-label">{next ? 'Up next' : 'The end of the list'}</span>
+      <Meta as="span">
+        {at} of {total} in {list}
+      </Meta>
+    </div>
+    {next ? (
+      <Button kind="item" className="up-next-task" onClick={() => move(1)}>
+        <WorkstreamMark name={next.task.workstream} />
+        <span className="up-next-text">
+          <span className="up-next-title">{next.task.title}</span>
+          <span className="up-next-meta">{rowMeta(next, false)}</span>
+        </span>
+        <Bars priority={next.task.priority} />
+      </Button>
+    ) : (
+      <p className="up-next-done">That was the last one here. Pick another list, or go back through these.</p>
+    )}
+    <div className="up-next-actions">
+      <Button kind="tool" disabled={!hasPrevious} onClick={() => move(-1)} title="Previous task (⌘[)">
+        ← Previous <kbd>⌘[</kbd>
+      </Button>
+      {next && (
+        <Button kind="primary" onClick={() => move(1)} title="Next task (⌘])">
+          Next <kbd>⌘]</kbd>
+        </Button>
+      )}
+    </div>
+  </section>
+)
 
 /** Long text shows its first lines; a click shows the rest. */
 const Body = ({ text, full = false }: { text: string; full?: boolean }) => {

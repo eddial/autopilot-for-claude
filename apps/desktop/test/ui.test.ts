@@ -199,15 +199,4 @@ describe('the Mac app window', () => {
     await expect.poll(() => page.getByRole('heading', { level: 2, name: 'Pick a caterer' }).count()).toBe(1)
     await expect.poll(() => page.locator('.row.left').count()).toBe(0)
   }, 30_000)
-
-  it('catches up one task at a time and ends on what became of each', async () => {
-    await needsMe()
-    const count = await page.getByRole('option').count()
-    await page.locator('.catch-up-start').click()
-    await expect.poll(() => page.locator('.catch-up-bar').textContent()).toContain(`1 of ${count}`)
-    for (let i = 0; i < count; i++) await page.getByRole('button', { name: 'Next →' }).click()
-    await expect.poll(() => page.getByRole('heading', { name: 'All caught up' }).count()).toBe(1)
-    await page.getByRole('button', { name: 'Back to the list' }).click()
-    await expect.poll(() => page.locator('.catch-up').count()).toBe(0)
-  }, 30_000)
 })

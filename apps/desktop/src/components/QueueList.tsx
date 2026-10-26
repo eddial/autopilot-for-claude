@@ -26,8 +26,6 @@ type Props = {
   showingTasks: boolean
   /** The open task, kept in its place after it left the tab (answered), until you move on. */
   lingering: string | null
-  /** Starts going through what needs you, one task at a time. */
-  onCatchUp: () => void
 }
 
 const TAB_ICON: Record<QueueView, NavIconName> = {
@@ -66,7 +64,7 @@ export const listOrder = (items: QueueItem[]): QueueItem[] =>
   sectionOrder(items).flatMap((workstream) => items.filter((i) => i.task.workstream === workstream))
 
 export const QueueList = (props: Props) => {
-  const { tab, all, onTab, counts, items, view, go, selected, onSelect, onOpen, width, banner, showingTasks, lingering, onCatchUp } = props
+  const { tab, all, onTab, counts, items, view, go, selected, onSelect, onOpen, width, banner, showingTasks, lingering } = props
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [folded, setFolded] = useState<Set<string>>(new Set())
@@ -181,13 +179,6 @@ export const QueueList = (props: Props) => {
           New
         </Button>
       </div>
-      {/* Needs me, more than one: go through them one at a time, the rest of the window out of the way. */}
-      {tab === 'needs_me' && !all && (counts.needs_me ?? 0) > 1 && (
-        <Button kind="quiet" className="catch-up-start" onClick={onCatchUp} title="One task at a time; → for the next">
-          Catch up on {counts.needs_me}
-          <span aria-hidden="true">→</span>
-        </Button>
-      )}
       {banner && <Banner>{banner}</Banner>}
       <div className="rows" ref={rows} role="listbox" aria-label="Tasks" tabIndex={0} onKeyDown={onKeyDown}>
         {visible.length === 0 && (

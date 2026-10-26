@@ -2321,32 +2321,78 @@ textarea.inline-reply {
   line-height: 1;
 }
 
-/* At the end of a task: the next one in the list, for when you are ready to move on. */
-.next-task {
+/* At the end of a task: where you are in the list, what comes next, and the way there. */
+.up-next {
+  margin-top: 28px;
+  padding: 14px 16px 16px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--raised);
+}
+
+.up-next-head {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 20px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
-.next-task .btn,
-.next-task button {
-  display: inline-flex;
+.item.up-next-task {
+  display: flex;
   align-items: center;
-  gap: 8px;
-  max-width: 100%;
-  font-size: 13px;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface);
 }
 
-.next-label {
-  color: var(--text-3);
+.item.up-next-task:hover {
+  background: var(--hover);
 }
 
-.next-title {
+.up-next-text {
+  flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.up-next-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-body);
+  font-size: 15px;
+  color: var(--text);
+}
+
+.up-next-meta {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.up-next-done {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+.up-next-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.up-next-actions kbd {
+  margin-left: 6px;
+}
+
+.btn.primary kbd {
+  border-color: transparent;
+  color: inherit;
+  opacity: 0.7;
 }
 
 kbd {
@@ -2358,90 +2404,22 @@ kbd {
   color: var(--text-3);
 }
 
-/* Catching up: one task at a time, the list out of the way, a bar to move through them. */
-.catch-up-start {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 8px 12px 0;
-  padding: 7px 12px;
-  border: 0.5px solid var(--border-strong);
-  border-radius: 9px;
-  background: var(--surface);
-  color: var(--text);
-  font-weight: 500;
-}
-
-.catch-up {
-  flex: 1;
+/* The task's title in the head once the page has scrolled past it; a click goes back to the top. */
+.task-head .head-title {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.catch-up > .pane {
-  flex: 1;
-  min-height: 0;
-}
-
-.catch-up-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  height: 52px;
-  flex: none;
-  /* Clear of the traffic lights on the left and Settings on the right. */
-  padding: 0 56px 0 88px;
-  border-bottom: 0.5px solid var(--border);
-  background: var(--surface);
-}
-
-.catch-up-name {
-  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 6px;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--text);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
 }
 
-.catch-up-dots {
-  display: flex;
-  gap: 4px;
-}
-
-.catch-up-dots span {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--border-strong);
-}
-
-.catch-up-dots span.past {
-  background: var(--text-3);
-}
-
-.catch-up-dots span.on {
-  background: var(--text);
-}
-
-.catch-up-actions {
-  display: flex;
-  gap: 6px;
-  margin-left: auto;
-}
-
-.catch-up-end {
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-  padding: 40px 24px;
-}
-
-.catch-up-summary {
-  width: min(560px, 100%);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.catch-up-summary .item {
-  justify-content: space-between;
-  padding: 8px 12px;
+.pane.title-off .task-head .head-title {
+  opacity: 1;
+  pointer-events: auto;
 }

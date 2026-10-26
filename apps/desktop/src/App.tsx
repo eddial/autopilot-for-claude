@@ -3,7 +3,6 @@ import type { QueueItem, Signal, Workstream } from '@autopilot/contracts'
 import { attentionKey } from '@autopilot/client'
 import { api, shell } from './api.ts'
 import { NewTask } from './components/NewTask.tsx'
-import { CatchUp } from './components/CatchUp.tsx'
 import { listOrder, QueueList } from './components/QueueList.tsx'
 import { Setup } from './components/Setup.tsx'
 import { TaskPane } from './components/TaskPane.tsx'
@@ -59,8 +58,6 @@ export const App = () => {
   const [all, setAll] = useState(false)
   const [view, setView] = useState<View>({ kind: 'task' })
   const [selected, setSelected] = useState<string | null>(null)
-  // Catching up: the tasks that need you when it started, and which one is showing.
-  const [catchUp, setCatchUp] = useState<{ ids: string[]; at: number } | null>(null)
   // Where the open task sat in its tab when it was picked, to keep it there once it leaves.
   const [stay, setStay] = useState<{ id: string; tab: QueueView; all: boolean; at: number } | null>(null)
   const [showingTask, setShowingTask] = useState(false)
@@ -154,14 +151,13 @@ export const App = () => {
   )
   useEffect(() => {
     const keys = (e: KeyboardEvent) => {
-      if (catchUp || !(e.metaKey || e.ctrlKey) || (e.key !== ']' && e.key !== '[')) return
+      if (!(e.metaKey || e.ctrlKey) || (e.key !== ']' && e.key !== '[')) return
       e.preventDefault()
       step(e.key === ']' ? 1 : -1)
     }
     window.addEventListener('keydown', keys)
     return () => window.removeEventListener('keydown', keys)
-  }, [step, catchUp])
-  const startCatchUp = () => setCatchUp({ ids: listOrder(tabItems('needs_me', items, done)).map((i) => i.task.id), at: 0 })
+  }, [step])
   const counts = useMemo(() => {
     const counted: Partial<Record<QueueView | 'all', number>> = { all: tabItems(tab, items, done, true).length }
     for (const q of QUEUE_VIEWS) if (q.id !== 'done') counted[q.id] = tabItems(q.id, items, done).length
@@ -212,73 +208,66 @@ export const App = () => {
 
   return (
     <div className={`app${showingTask ? ' showing-task' : ''}`}>
-      {catchUp ? (
-        <CatchUp
-          ids={catchUp.ids}
-          at={catchUp.at}
-          items={[...items, ...done]}
+      <QueueList
+        tab={tab}
+        all={all}
+        onTab={switchTab}
+        counts={counts}
+        items={listed}
+        view={view}
+        go={go}
+        selected={selected}
+        onSelect={selectTask}
+        onOpen={openTask}
+        width={listWidth}
+        banner={banner}
+        showingTasks={view.kind === 'task'}
+        lingering={lingering?.id ?? null}
+      />
+      <div className="grip" role="separator" aria-label="Resize list" aria-orientation="vertical" onPointerDown={startResize}>
+        <span />
+      </div>
+      {view.kind === 'new' ? (
+        <NewTask workstreams={workstreams} onCreated={openTask} />
+      ) : view.kind === 'setup' ? (
+        <Setup
+          items={items}
           workstreams={workstreams}
-          onMove={(to) => setCatchUp((c) => (c ? { ...c, at: to } : c))}
-          onExit={() => setCatchUp(null)}
-          onOpen={(id) => {
-            setCatchUp(null)
-            openTask(id)
-          }}
+          onWorkstreams={setWorkstreams}
+          onOpen={openTask}
+          onDone={() => setView({ kind: 'task' })}
+        />
+      ) : current ? (
+        <TaskPane
+          key={current.task.id}
+          item={current}
+          workstreams={workstreams}
+          upNext={
+            at >= 0
+              ? {
+                  next: nextItem,
+                  hasPrevious: at > 0,
+                  at: at + 1,
+                  total: ordered.length,
+                  list: all ? 'All open' : (QUEUE_VIEWS.find((q) => q.id === tab)?.title ?? ''),
+                  move: step,
+                }
+              : null
+          }
+          onClose={() => setShowingTask(false)}
         />
       ) : (
-        <>
-          <QueueList
-            tab={tab}
-            all={all}
-            onTab={switchTab}
-            counts={counts}
-            items={listed}
-            view={view}
-            go={go}
-            selected={selected}
-            onSelect={selectTask}
-            onOpen={openTask}
-            width={listWidth}
-            banner={banner}
-            showingTasks={view.kind === 'task'}
-            lingering={lingering?.id ?? null}
-            onCatchUp={startCatchUp}
-          />
-          <div className="grip" role="separator" aria-label="Resize list" aria-orientation="vertical" onPointerDown={startResize}>
-            <span />
+        <section className="pane task">
+          <div className="task-head drag" />
+          <div className="empty centred">
+            <div className="empty-pilot">
+              <Pilot pixel={3} />
+            </div>
+            Pick a task, or press Space on one to answer it in place.
           </div>
-          {view.kind === 'new' ? (
-            <NewTask workstreams={workstreams} onCreated={openTask} />
-          ) : view.kind === 'setup' ? (
-            <Setup
-              items={items}
-              workstreams={workstreams}
-              onWorkstreams={setWorkstreams}
-              onOpen={openTask}
-              onDone={() => setView({ kind: 'task' })}
-            />
-          ) : current ? (
-            <TaskPane
-              key={current.task.id}
-              item={current}
-              workstreams={workstreams}
-              next={nextItem}
-              onNext={() => step(1)}
-              onClose={() => setShowingTask(false)}
-            />
-          ) : (
-            <section className="pane task">
-              <div className="task-head drag" />
-              <div className="empty centred">
-                <div className="empty-pilot">
-                  <Pilot pixel={3} />
-                </div>
-                Pick a task, or press Space on one to answer it in place.
-              </div>
-            </section>
-          )}
-        </>
+        </section>
       )}
+
       {/* Settings, at the window's top right, with a dot when a source is failing. It comes after the
           panes: Electron lets the last drag or no-drag region in page order win, so before them the
           pane's draggable head swallowed its clicks. */}
