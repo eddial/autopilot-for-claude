@@ -184,7 +184,8 @@ export default function QueueScreen() {
   )
 
   const list = (
-    <Sides>
+    // In the split the list is the left column: the right edge's inset (the Duo's bar) is the task's.
+    <Sides edges={split ? ['left'] : undefined}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* The same column as on the Mac: search, then the tabs, then the sections. */}
         <View style={{ paddingTop: split ? 8 : insets.top + 8, gap: 8 }}>
@@ -247,7 +248,14 @@ export default function QueueScreen() {
       <Stack.Screen
         options={
           split
-            ? { title: all ? 'All open' : (current?.title ?? 'Queue'), headerLargeTitle: false }
+            ? // Every key the narrow options set, set back: options merge, so turning the phone would keep a see-through header.
+              {
+                title: all ? 'All open' : (current?.title ?? 'Queue'),
+                headerLargeTitle: false,
+                headerTransparent: false,
+                headerStyle: { backgroundColor: colours.window },
+                scrollEdgeEffects: { top: 'automatic' },
+              }
             : // The toolbar needs a header; an empty, see-through one puts New in the side bar alone.
               {
                 title: '',
@@ -294,7 +302,7 @@ export default function QueueScreen() {
           </View>
           <View style={{ flex: 1 }}>
             {selectedItem ? (
-              <TaskView key={selectedItem.task.id} item={selectedItem} />
+              <TaskView key={selectedItem.task.id} item={selectedItem} edges={['right']} />
             ) : (
               <View style={styles.placeholder}>
                 <Text style={styles.empty}>Pick a task.</Text>

@@ -99,8 +99,17 @@ export const Avatar = ({ who }: { who: Who }) => {
  * inner one in landscape, the vertical bar takes the hardware edge. Top and bottom are the scroll
  * view's (contentInsetAdjustmentBehavior); the sides are measured where this view sits.
  */
-export const Sides = ({ children, colour }: { children: ReactNode; colour?: string }) => (
-  <SafeAreaView edges={['left', 'right']} style={[styles.sides, colour ? { backgroundColor: colour } : null]}>
+export const Sides = ({
+  children,
+  colour,
+  edges = ['left', 'right'],
+}: {
+  children: ReactNode
+  colour?: string
+  /** The screen edges this view touches: the split's list column only the left, its task only the right. */
+  edges?: ('left' | 'right')[]
+}) => (
+  <SafeAreaView edges={edges} style={[styles.sides, colour ? { backgroundColor: colour } : null]}>
     {children}
   </SafeAreaView>
 )

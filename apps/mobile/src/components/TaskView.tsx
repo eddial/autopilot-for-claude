@@ -30,7 +30,16 @@ import { colours, radius, tones, type Tone } from '@autopilot/design'
 import { Avatar, Banner, Button, Chip, Dot, LinkIcon, Markdown, Sides, Tag, bannerText, type } from '../ui.tsx'
 
 /** A task: its brief, what waits on you, and its activity; the same in a pushed screen and in the wide split. */
-export const TaskView = ({ item, onTitleOff }: { item: QueueItem; onTitleOff?: (off: boolean) => void }) => {
+export const TaskView = ({
+  item,
+  onTitleOff,
+  edges,
+}: {
+  item: QueueItem
+  onTitleOff?: (off: boolean) => void
+  /** The screen edges it touches; in the split, only the right. */
+  edges?: ('left' | 'right')[]
+}) => {
   const sync = useSyncInstance()
   const { conflicts, outbox } = useSyncState()
   const { task, openAsk } = item
@@ -170,7 +179,7 @@ export const TaskView = ({ item, onTitleOff }: { item: QueueItem; onTitleOff?: (
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={20}>
-      <Sides>
+      <Sides edges={edges}>
         <ScrollView
           ref={scroll}
           contentContainerStyle={styles.page}
