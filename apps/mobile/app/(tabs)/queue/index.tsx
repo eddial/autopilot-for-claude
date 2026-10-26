@@ -30,7 +30,7 @@ const VIEWS: { id: QueueView; title: string; about: string; bands: Band[]; symbo
     title: 'Needs me',
     about: 'Waiting on your answer or a go-ahead',
     bands: ['your_turn', 'new'],
-    symbol: 'bubble.left.and.bubble.right',
+    symbol: 'hand.raised',
   },
   { id: 'running', title: 'Running', about: 'A session is working on it', bands: ['running'], symbol: 'hammer' },
   { id: 'waiting', title: 'Waiting on others', about: "Someone else's move", bands: ['waiting'], symbol: 'clock' },
