@@ -1,0 +1,26 @@
+{
+  "fill": {
+    "solid": "srgb:0.85098,0.46667,0.34118,1.00000"
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "image-name": "pilot.png",
+          "name": "pilot"
+        }
+      ],
+      "shadow": {
+        "kind": "none",
+        "opacity": 0
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}

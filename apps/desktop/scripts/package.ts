@@ -64,13 +64,41 @@ for (const size of [16, 32, 128, 256, 512]) {
 run('iconutil', '-c', 'icns', iconset, '-o', join(resources, 'icon.icns'))
 rmSync(join(resources, 'electron.icns'), { force: true })
 
+// On macOS 26, the Icon Composer icon, which it draws at full colour (an .icns gets dulled under
+// glass). Needs Xcode's actool; without it the .icns above stands alone.
+let iconName: string | null = null
+try {
+  execFileSync(
+    'xcrun',
+    [
+      'actool',
+      join(ROOT, 'build', 'Autopilot.icon'),
+      '--compile',
+      resources,
+      '--platform',
+      'macosx',
+      '--minimum-deployment-target',
+      '11.0',
+      '--app-icon',
+      'Autopilot',
+      '--output-partial-info-plist',
+      join(ROOT, 'out', 'icon-partial.plist'),
+    ],
+    { stdio: 'ignore' },
+  )
+  iconName = 'Autopilot'
+} catch {
+  console.log('actool not available: the .icns only')
+}
+
 // Its name and identity.
 const plist = join(OUT, 'Contents', 'Info.plist')
 for (const [key, value] of [
   ['CFBundleName', 'Autopilot'],
   ['CFBundleDisplayName', 'Autopilot'],
   ['CFBundleIdentifier', 'ai.autopilot.mac'],
-  ['CFBundleIconFile', 'icon.icns'],
+  ['CFBundleIconFile', iconName ? `${iconName}.icns` : 'icon.icns'],
+  ...(iconName ? [['CFBundleIconName', iconName]] : []),
   ['CFBundleShortVersionString', own.version],
 ]) {
   try {

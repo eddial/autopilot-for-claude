@@ -3,7 +3,8 @@ import AppKit
 // The app icon: the pilot from the design tokens on Claude's orange, as Claude's own icon sits.
 // "mac" draws the macOS icon shape (an 824-point rounded square on a 1024 canvas, with its shadow);
 // "phone" fills the square, which iOS rounds itself; "splash" is the phone's launch screen, the
-// pilot small in the middle of the window's colour. Pixels kept sharp.
+// pilot small in the middle of the window's colour; "layer" is the pilot alone on nothing, for
+// the macOS 26 icon (Autopilot.icon), whose ground macOS draws. Pixels kept sharp.
 // Run by scripts/icon.ts (pnpm --filter @autopilot/desktop icon).
 struct Art: Decodable {
   let rows: [String]
@@ -12,10 +13,10 @@ struct Art: Decodable {
 }
 
 let args = CommandLine.arguments
-guard args.count == 3, ["mac", "phone", "splash"].contains(args[1]),
+guard args.count == 3, ["mac", "phone", "splash", "layer"].contains(args[1]),
   let art = try? JSONDecoder().decode(Art.self, from: FileHandle.standardInput.readDataToEndOfFile())
 else {
-  print("usage: swift mac-icon.swift <mac|phone|splash> <out.png> < pilot.json")
+  print("usage: swift mac-icon.swift <mac|phone|splash|layer> <out.png> < pilot.json")
   exit(1)
 }
 
@@ -51,7 +52,7 @@ if mac {
   colour(art.ground).setFill()
   NSBezierPath(roundedRect: tile, xRadius: 185, yRadius: 185).fill()
   NSGraphicsContext.restoreGraphicsState()
-} else {
+} else if args[1] != "layer" {
   colour(art.ground).setFill()
   tile.fill()
 }
