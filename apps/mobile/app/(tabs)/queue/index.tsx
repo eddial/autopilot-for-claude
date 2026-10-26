@@ -18,10 +18,11 @@ import { useHeaderHeight } from 'expo-router/react-navigation'
 import { StatusLine } from '../../../src/components/StatusLine.tsx'
 import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
+import { NewTask } from '../../../src/components/NewTask.tsx'
 import { age, rowMeta } from '../../../src/format.ts'
 import { doneItem, rememberDone, serverName, unpair, useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
 import { colours, shapes } from '@autopilot/design'
-import { Bars, EmptyList, Sides, WorkstreamBadge, edgeSpace, GUTTER, shaped, type, useBottomGap } from '../../../src/ui.tsx'
+import { Bars, EmptyList, Sides, WorkstreamBadge, COMPOSER_BAR, edgeSpace, GUTTER, shaped, type, useBottomGap } from '../../../src/ui.tsx'
 
 type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
 const VIEWS: { id: QueueView; title: string; about: string; bands: Band[]; symbol: SFSymbol }[] = [
@@ -182,7 +183,7 @@ export default function QueueScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* The same column as on the Mac: search, then the tabs, then the sections. */}
         {/* The title level with the camera beside it, as the tabs are with the last button. */}
-        <View style={{ paddingTop: Math.max(8, edgeSpace(TITLE_HEIGHT) - headerHeight), gap: 4 }}>
+        <View style={{ paddingTop: Math.max(headerHeight + 8, edgeSpace(TITLE_HEIGHT)), gap: 4 }}>
           <Text style={[type.heading, styles.heading]} numberOfLines={1}>
             {all ? 'All open' : current?.title}
           </Text>
@@ -232,21 +233,21 @@ export default function QueueScreen() {
           )}
         />
         {/* The tabs under the list, where the thumb is; search and New in the bar below them. */}
-        <BottomRow>{tabs}</BottomRow>
+        <BottomRow beside={split}>{tabs}</BottomRow>
       </KeyboardAvoidingView>
     </Sides>
   )
 
   return (
     <>
-      {/* No title in the bar: the page has its own. The bar is solid, so where iOS draws it inside the window
-          (split screen on the Duo) the list is laid out beside it rather than under it. */}
+      {/* No title in the bar: the page has its own. The bar is see-through, so nothing scrolls under an
+          opaque strip; where iOS draws it across the top (split view) the list starts below it. */}
       <Stack.Screen
         options={{
           title: '',
           headerLargeTitle: false,
-          headerTransparent: false,
-          headerStyle: { backgroundColor: colours.well },
+          headerTransparent: true,
+          headerStyle: { backgroundColor: 'transparent' },
           scrollEdgeEffects: { top: 'hidden' },
         }}
       />
@@ -258,10 +259,12 @@ export default function QueueScreen() {
         onChangeText={(e) => setFilter(e.nativeEvent.text)}
         onCancelButtonPress={() => setFilter('')}
       />
+      {/* With a task open beside the list: close it, and step through the list with the Mac's thin
+          arrows. With none: search, and New (in the split the empty side is New task already). */}
       <Stack.Toolbar placement="bottom">
-        <Stack.Toolbar.SearchBarSlot />
+        <Stack.Toolbar.SearchBarSlot hidden={Boolean(selectedItem)} />
+        <Stack.Toolbar.Button icon="xmark" accessibilityLabel="Close the task" hidden={!selectedItem} onPress={() => setSelected(null)} />
         <Stack.Toolbar.Spacer />
-        {/* In the split, the way through the list sits here too, with the Mac's thin arrows. */}
         <Stack.Toolbar.Button
           icon="arrow.up"
           accessibilityLabel="Previous task"
@@ -276,7 +279,7 @@ export default function QueueScreen() {
           disabled={!stepTo(order[at + 1])}
           onPress={() => stepTo(order[at + 1])?.()}
         />
-        <Stack.Toolbar.Button icon="plus" accessibilityLabel="New task" onPress={() => router.push('/new')} />
+        <Stack.Toolbar.Button icon="plus" accessibilityLabel="New task" hidden={split} onPress={() => router.push('/new')} />
       </Stack.Toolbar>
       {selectedItem ? (
         <TaskToolbar item={selectedItem} closeAfter={false} onTop={() => pageTop.current?.()} />
@@ -311,12 +314,7 @@ export default function QueueScreen() {
             {selectedItem ? (
               <TaskView key={selectedItem.task.id} item={selectedItem} edges={['right']} onTop={toTop} />
             ) : (
-              <View style={styles.placeholder}>
-                <Text style={styles.empty}>Pick a task.</Text>
-                <Pressable onPress={() => router.push('/new')}>
-                  <Text style={{ color: colours.pilot, fontSize: 15 }}>New task</Text>
-                </Pressable>
-              </View>
+              <NewTask onDone={() => undefined} edges={['right']} autoFocus={false} />
             )}
           </View>
         </View>
@@ -327,8 +325,15 @@ export default function QueueScreen() {
   )
 }
 
-/** The tabs, on the bottom line: read inside Sides, which measures where this screen's bars are. */
-const BottomRow = ({ children }: { children: ReactNode }) => <View style={{ marginBottom: useBottomGap(TABS_HEIGHT) }}>{children}</View>
+/**
+ * The tabs, on the bottom line: read inside Sides, which measures where this screen's bars are.
+ * Beside a task (the split) their bottom edge lines up with the composer's instead.
+ */
+const BottomRow = ({ beside, children }: { beside: boolean; children: ReactNode }) => {
+  const centred = useBottomGap(TABS_HEIGHT)
+  const withComposer = useBottomGap(COMPOSER_BAR)
+  return <View style={{ marginBottom: beside ? withComposer : centred }}>{children}</View>
+}
 
 const Row = ({ item, selected, status, onPress }: { item: QueueItem; selected: boolean; status: boolean; onPress: () => void }) => (
   <Pressable
@@ -430,5 +435,4 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, lineHeight: 22, color: colours.text },
   meta: { marginTop: 3, fontSize: 13, color: colours.text3 },
   empty: { padding: 28, fontSize: 15, lineHeight: 22, color: colours.text3, textAlign: 'center' },
-  placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: colours.well },
 })

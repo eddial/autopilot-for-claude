@@ -1,4 +1,4 @@
-import { Linking, useWindowDimensions } from 'react-native'
+import { Alert, Linking, useWindowDimensions } from 'react-native'
 import type { QueueItem } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
 import { firstLookQuestions } from '@autopilot/client'
@@ -59,13 +59,24 @@ export const TaskToolbar = ({
     <>
       {/* Each its own item, directly in the toolbar: the native bar ignores fragments inside it. */}
       <Stack.Toolbar placement="right">
-        {live?.remoteControlUrl ? (
+        {session ? (
+          // Into the Claude session, as the Mac's Open session: through Remote Control while it runs. An
+          // ended one is kept on the Mac, so the phone says how to pick it up instead of doing nothing.
           <Stack.Toolbar.Button
             variant="prominent"
             tintColor={colours.text}
             icon="arrow.up.forward.app"
             accessibilityLabel="Open session"
-            onPress={() => void Linking.openURL(live.remoteControlUrl ?? '')}
+            onPress={() =>
+              live?.remoteControlUrl
+                ? void Linking.openURL(live.remoteControlUrl)
+                : Alert.alert(
+                    live ? 'The session is starting' : 'The session has ended',
+                    live
+                      ? 'It opens here through Remote Control once Claude is ready, in a moment.'
+                      : 'Reply below to pick it up again; it opens here once it runs. On your Mac it opens in Claude.',
+                  )
+            }
           />
         ) : item.band === 'new' && !asking ? (
           <Stack.Toolbar.Button

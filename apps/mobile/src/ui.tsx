@@ -464,18 +464,20 @@ export const KeyboardScreen = ({ children, style }: { children: ReactNode; style
     }
   }, [])
   return (
-    <View ref={box} style={[{ flex: 1 }, style]}>
+    <View ref={box} style={{ flex: 1 }}>
       <SafeAreaProvider style={{ flex: 1 }}>
-        <BottomGap covered={covered}>{children}</BottomGap>
+        <BottomGap covered={covered} style={style}>
+          {children}
+        </BottomGap>
       </SafeAreaProvider>
     </View>
   )
 }
 
-/** The keyboard's reach plus a small gap while it is up; the bottom gap otherwise. */
-const BottomGap = ({ covered, children }: { covered: number; children: ReactNode }) => {
+/** The keyboard's reach plus a small gap while it is up; the bottom gap otherwise. The screen's own style (its gaps) applies here, around its children. */
+const BottomGap = ({ covered, style, children }: { covered: number; style?: StyleProp<ViewStyle>; children: ReactNode }) => {
   const gap = useBottomGap(COMPOSER_BAR)
-  return <View style={{ flex: 1, paddingBottom: covered > 0 ? covered + 12 : gap }}>{children}</View>
+  return <View style={[{ flex: 1 }, style, { paddingBottom: covered > 0 ? covered + 12 : gap }]}>{children}</View>
 }
 
 /** The composer's text field: grows with what is written, up to a point. */
