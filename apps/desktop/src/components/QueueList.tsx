@@ -1,21 +1,34 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
-import type { Band, QueueItem } from '@autopilot/contracts'
+import type { QueueItem, Signal } from '@autopilot/contracts'
+import { workstreamMark } from '@autopilot/client'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
-import { BAND_TITLE } from '../view.ts'
-import { Banner, Button, SearchIcon } from '../ui.tsx'
+import { QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
+import { Banner, Button, Dot, NavIcon, SearchIcon, type NavIconName } from '../ui.tsx'
 
 type Props = {
-  title: string
+  tab: QueueView
+  onTab: (tab: QueueView) => void
+  /** How many tasks each tab holds; Done only once it has been read. */
+  counts: Partial<Record<QueueView, number>>
   items: QueueItem[]
-  /** Group by band (Needs me, a workstream), or one flat list. */
-  grouped: boolean
+  signals: Signal[]
+  view: View
+  go: (view: View) => void
   selected: string | null
   onSelect: (id: string) => void
   onOpen: (id: string) => void
   width: number
   banner: string | null
+}
+
+const TAB_ICON: Record<QueueView, NavIconName> = {
+  needs_me: 'inbox',
+  running: 'running',
+  waiting: 'waiting',
+  snoozed: 'snoozed',
+  done: 'done',
 }
 
 /** `ws:customers from:slack pricing`: tokens narrow by workstream and source, the rest matches titles. */
@@ -30,32 +43,47 @@ const matches = (item: QueueItem, filter: string): boolean =>
       return item.task.title.toLowerCase().includes(word) || item.task.id.toLowerCase() === word
     })
 
-type Entry = { kind: 'group'; band: Band; count: number } | { kind: 'item'; item: QueueItem }
+type Entry = { kind: 'group'; workstream: string; count: number; folded: boolean } | { kind: 'item'; item: QueueItem }
 
-export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, width, banner }: Props) => {
+/**
+ * The left of the window: the status tabs, search, and the tasks of the tab in a section per
+ * workstream, with the places (Signals, Servers, Set up) at the foot. It is the nav and the list
+ * in one, as on the phone.
+ */
+export const QueueList = (props: Props) => {
+  const { tab, onTab, counts, items, signals, view, go, selected, onSelect, onOpen, width, banner } = props
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [folded, setFolded] = useState<Set<string>>(new Set())
+  const title = QUEUE_VIEWS.find((q) => q.id === tab)?.title ?? ''
   const visible = useMemo(() => items.filter((i) => matches(i, filter)), [items, filter])
-  // One flat list of group headers and rows, so only what is on screen is rendered.
+  // Sections in the order of their most pressing task (the queue comes sorted), the inbox last.
   const entries = useMemo((): Entry[] => {
-    if (!grouped) return visible.map((item) => ({ kind: 'item', item }))
-    const bands: Band[] = ['your_turn', 'new', 'running', 'waiting', 'snoozed', 'done']
-    return bands.flatMap((band) => {
-      const inBand = visible.filter((i) => i.band === band)
-      return inBand.length === 0
-        ? []
-        : [{ kind: 'group' as const, band, count: inBand.length }, ...inBand.map((item) => ({ kind: 'item' as const, item }))]
+    const order = [...new Set(visible.map((i) => i.task.workstream))].toSorted((a, b) => Number(a === 'inbox') - Number(b === 'inbox'))
+    return order.flatMap((workstream) => {
+      const inSection = visible.filter((i) => i.task.workstream === workstream)
+      const shut = folded.has(workstream)
+      return [
+        { kind: 'group' as const, workstream, count: inSection.length, folded: shut },
+        ...(shut ? [] : inSection.map((item) => ({ kind: 'item' as const, item }))),
+      ]
     })
-  }, [visible, grouped])
+  }, [visible, folded])
+  const fold = (workstream: string) =>
+    setFolded((f) => {
+      const next = new Set(f)
+      if (!next.delete(workstream)) next.add(workstream)
+      return next
+    })
   const order = useMemo(() => entries.flatMap((e) => (e.kind === 'item' ? [e.item.task.id] : [])), [entries])
   const rows = useRef<HTMLDivElement>(null)
   const virtual = useVirtualizer({
     count: entries.length,
     getScrollElement: () => rows.current,
-    estimateSize: (i) => (entries[i]?.kind === 'group' ? 46 : 72),
+    estimateSize: (i) => (entries[i]?.kind === 'group' ? 40 : 70),
     getItemKey: (i) => {
       const e = entries[i]
-      return e?.kind === 'item' ? e.item.task.id : `group-${e?.band ?? i}`
+      return e?.kind === 'item' ? e.item.task.id : `group-${e?.workstream ?? i}`
     },
     overscan: 10,
   })
@@ -85,28 +113,67 @@ export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, w
     event.preventDefault()
   }
 
+  const failing = signals.some((s) => s.health.state === 'failing')
+  const place = (kind: 'signals' | 'servers' | 'setup', label: string, icon: NavIconName, alert?: string) => (
+    <Button
+      kind="icon"
+      aria-label={label}
+      title={label}
+      aria-current={view.kind === kind ? 'page' : undefined}
+      onClick={() => go({ kind })}
+    >
+      <NavIcon name={icon} />
+      {alert && (
+        <span className="place-alert">
+          <Dot tone="alert" label={alert} />
+        </span>
+      )}
+    </Button>
+  )
+
   return (
     // oxlint-disable-next-line react/forbid-dom-props -- the width the person dragged it to
     <section className="pane list" style={{ width }} aria-label={title}>
       <div className="titlebar drag" />
-      <div className="list-head">
-        <h1 className="serif">{title}</h1>
-        <span className="count">{visible.length}</span>
+      <h1 className="hidden-heading">{title}</h1>
+      <nav className="tabs" aria-label="Queue">
+        {QUEUE_VIEWS.map((q) => {
+          const count = counts[q.id]
+          return (
+            <Button
+              key={q.id}
+              kind="tab"
+              aria-label={count === undefined ? q.title : `${q.title}, ${count}`}
+              title={q.title}
+              aria-current={tab === q.id ? 'page' : undefined}
+              onClick={() => onTab(q.id)}
+            >
+              <NavIcon name={TAB_ICON[q.id]} size={15} />
+              {count !== undefined && <span className={q.id === 'needs_me' && count > 0 ? 'you' : undefined}>{count}</span>}
+            </Button>
+          )
+        })}
+      </nav>
+      <div className="search-row">
+        <label className="filter">
+          <SearchIcon />
+          <input aria-label="Filter tasks" placeholder="Search" value={filter} onChange={(e) => setFilter(e.target.value)} />
+        </label>
+        <Button
+          kind="icon"
+          aria-label="New task"
+          title="New task"
+          aria-current={view.kind === 'new' ? 'page' : undefined}
+          onClick={() => go({ kind: 'new' })}
+        >
+          <NavIcon name="compose" />
+        </Button>
       </div>
-      <label className="filter">
-        <SearchIcon />
-        <input
-          aria-label="Filter tasks"
-          placeholder="Filter, e.g. ws:customers from:slack"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-      </label>
       {banner && <Banner>{banner}</Banner>}
       <div className="rows" ref={rows} role="listbox" aria-label="Tasks" tabIndex={0} onKeyDown={onKeyDown}>
         {visible.length === 0 && (
           <div className="empty">
-            {filter ? 'Nothing matches the filter.' : 'Nothing here. Autopilot fills this as signals file and sessions hand over.'}
+            {filter ? 'Nothing matches the search.' : 'Nothing here. Autopilot fills this as signals file and sessions hand over.'}
           </div>
         )}
         {/* oxlint-disable-next-line react/forbid-dom-props -- measured by the virtualiser */}
@@ -123,10 +190,13 @@ export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, w
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }}
               >
                 {entry.kind === 'group' ? (
-                  <div className="group">
-                    <span className={`name ${entry.band}`}>{BAND_TITLE[entry.band]}</span>
-                    <span>{entry.count}</span>
-                  </div>
+                  <Button kind="section" aria-expanded={!entry.folded} onClick={() => fold(entry.workstream)}>
+                    <span className={`ws-mark ${workstreamMark(entry.workstream).tone}`} aria-hidden="true">
+                      {workstreamMark(entry.workstream).letters}
+                    </span>
+                    <span className="ws-name">{entry.workstream}</span>
+                    {entry.folded && <span className="ws-count">{entry.count}</span>}
+                  </Button>
                 ) : expanded === entry.item.task.id ? (
                   <Expanded item={entry.item} selected={selected === entry.item.task.id} onOpen={onOpen} onDone={() => setExpanded(null)} />
                 ) : (
@@ -136,6 +206,11 @@ export const QueueList = ({ title, items, grouped, selected, onSelect, onOpen, w
             )
           })}
         </div>
+      </div>
+      <div className="places">
+        {place('signals', 'Signals', 'signals', failing ? 'A signal is failing' : undefined)}
+        {place('servers', 'Servers', 'servers')}
+        {place('setup', 'Set up', 'setup')}
       </div>
     </section>
   )
@@ -159,7 +234,7 @@ const TaskRow = memo(
       <span className={`dot ${item.band}${item.unread ? '' : ' read'}`} aria-hidden="true" />
       <div className="text">
         <div className="title">{item.task.title}</div>
-        <div className="meta">{rowMeta(item)}</div>
+        <div className="meta">{rowMeta(item, false)}</div>
       </div>
       <span className="age">{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</span>
     </Button>

@@ -91,21 +91,20 @@ Autonomy levels, watchers, schedules, models and agent tokens are not part of on
 
 ## Screens
 
-### Mac, full window: three columns
+### Mac, full window: two columns
 
-1. **Navigation** (hideable): New task; queue views (Needs me, Running, Waiting on others, Snoozed,
-   Done); one view per workstream; saved views ("Customers, over 2 days"); Signals and Servers at the
-   bottom with a health dot.
-2. **List** (resizable): view title, grouping (whose turn, workstream, source, machine), filter
-   with tokens (`ws:customers from:slack`), select for bulk actions. Rows show title, update label,
-   workstream, source and age. Space opens a row in place to answer it without opening the task.
-   "Go through them" steps through Your turn or New one at a time.
-3. **Task** (closable): the conversation and the reply box with Open session, Snooze and Done.
+1. **List** (resizable), which is the navigation too: the status tabs on top (Needs me, Running,
+   Waiting on others, Snoozed, Done), each an icon and a count; search with tokens
+   (`ws:customers from:slack`) and New task beside it; the tab's tasks as cards in a section per
+   workstream, ordered by their most pressing task with the inbox last, each section folding away;
+   Signals, Servers and Set up at the foot, with a health dot. Space opens a row in place to answer
+   it without opening the task.
+2. **Task** (closable): the conversation and the reply box with Open session, Snooze and Done.
 
 ### Mac, beside Claude Code
 
-The same window narrowed: navigation hidden behind the sidebar button, list plus task. In the
-narrowest width the task replaces the list (back button), which is also the phone layout. The
+The same window narrowed: list plus task. In the narrowest width the task, or a place such as
+Signals, replaces the list (back button), which is also the phone layout. The
 session in Claude Code shows the task's state only through the existing `/ticket` hook.
 
 ### New task
@@ -140,7 +139,7 @@ the Duo asks.
 | --- | --- | --- |
 | Outer, 5.4" (about 466×678 pt) | Compact width, like any iPhone | The queue; a task replaces it; "New task…" at the bottom |
 | Inner, 7.6" (about 626×890 pt), in Split View beside Claude | Compact width per app | The queue or one task, next to the Claude session |
-| Inner, full screen | Regular in both directions | List and task side by side, navigation behind the sidebar button |
+| Inner, full screen | Regular in both directions | List and task side by side |
 
 The app keeps interactive content inside asymmetric safe areas, uses the fold's reserved region
 (`ReservedRegion`) for anything custom, and does not assume a fixed screen size.

@@ -35,7 +35,7 @@ pilot.
 
 | | Mac window (`apps/desktop/src/ui.tsx`) | iPhone (`apps/mobile/src/ui.tsx`) |
 | --- | --- | --- |
-| Buttons | `Button` with a `kind`: primary, secondary, tool, quiet, link, chip, icon, send, nav, row, menu | `Button` (primary, secondary, option, destructive), `Chip` |
+| Buttons | `Button` with a `kind`: primary, secondary, tool, quiet, link, chip, icon, send, tab, section, step, row, item, menu | `Button` (primary, secondary, option, destructive), `Chip` |
 | Status | `Dot`, `Banner`, `Pill`, by tone; `Tag` for properties | `Dot`, `Banner`, `Pill`, by tone; `Tag` for properties |
 | Who | `Avatar`: the pilot for Autopilot, Claude for the session, an eye for a watcher, a bolt for a signal, you | `Avatar`, with SF Symbols |
 | Text | `Meta`; headings are `h1.serif`; section labels are small capitals (`.section-label`) | `type.title`, `heading`, `body`, `name`, `lead`, `meta`, `note`, `label` |

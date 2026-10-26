@@ -26,16 +26,19 @@ export const BAND_TITLE: Record<Band, string> = {
   done: 'Done',
 }
 
-export const rowMeta = (item: QueueItem): string => {
+/** A row's second line; without the workstream where the list is already grouped by it. */
+export const rowMeta = (item: QueueItem, withWorkstream = true): string => {
   const what = item.openAsk
     ? updateLabel(item.openAsk)
     : item.task.id.startsWith('NEW-')
       ? 'Waiting to reach your Mac'
       : item.band === 'running'
         ? (item.session?.activity ?? 'Working')
-        : null
+        : item.band === 'new'
+          ? 'New'
+          : null
   const source = item.task.source.signal ? signalName(item.task.source.signal) : item.task.createdBy === 'system' ? 'Autopilot' : 'You'
-  return [what, titleCase(item.task.workstream), source].filter(Boolean).join(' · ')
+  return [what, withWorkstream ? titleCase(item.task.workstream) : null, source].filter(Boolean).join(' · ')
 }
 
 export { updateLabel }

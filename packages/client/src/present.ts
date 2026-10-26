@@ -81,6 +81,20 @@ const SOURCES: [RegExp, string][] = [
 /** A signal or source as its makers write it: GitHub, not Github. */
 export const signalName = (name: string): string => ({ github: 'GitHub' })[name] ?? name.charAt(0).toUpperCase() + name.slice(1)
 
+/**
+ * A workstream's badge in the list: two letters (the first of its first two words, or its first
+ * two) and one of three tints, the same for a name on every device. The inbox stays quiet.
+ */
+export const workstreamMark = (name: string): { letters: string; tone: 'pilot' | 'clay' | 'amber' | 'quiet' } => {
+  const words = name.split('-').filter(Boolean)
+  const letters = (words.length > 1 ? `${words[0]?.[0] ?? ''}${words[1]?.[0] ?? ''}` : name.slice(0, 2)).toUpperCase()
+  if (name === 'inbox') return { letters, tone: 'quiet' }
+  let hash = 0
+  for (const c of name) hash = (hash * 31 + (c.codePointAt(0) ?? 0)) % 9973
+  const tones = ['pilot', 'clay', 'amber'] as const
+  return { letters, tone: tones[hash % tones.length] ?? 'quiet' }
+}
+
 export const linkSource = (url: string): string => {
   // Not URL: React Native's has no hostname.
   if (url.startsWith('file:')) return 'File'

@@ -1,17 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem, Signal, Workstream } from '@autopilot/contracts'
 import { api, shell } from './api.ts'
-import { Nav, NavRail } from './components/Nav.tsx'
 import { NewTask } from './components/NewTask.tsx'
 import { QueueList } from './components/QueueList.tsx'
 import { Servers } from './components/Servers.tsx'
 import { Setup } from './components/Setup.tsx'
 import { Signals } from './components/Signals.tsx'
 import { TaskPane } from './components/TaskPane.tsx'
-import { titleCase } from './format.ts'
-import { Button, Pilot, SidebarIcon } from './ui.tsx'
+import { Button, Pilot } from './ui.tsx'
 import { useQueueItems, useStore } from './store.ts'
-import { QUEUE_VIEWS, type View } from './view.ts'
+import { QUEUE_VIEWS, type QueueView, type View } from './view.ts'
 
 const stored = (name: string, fallback: number): number => {
   try {
@@ -44,28 +42,20 @@ const useAttention = (items: QueueItem[], open: (id: string) => void) => {
   }, [])
 }
 
-/** The list a view shows, if it shows one. */
-const listOf = (view: View, items: QueueItem[], done: QueueItem[]) => {
-  if (view.kind === 'workstream')
-    return { title: titleCase(view.name), items: items.filter((i) => i.task.workstream === view.name), grouped: true }
-  if (view.kind === 'queue') {
-    const q = QUEUE_VIEWS.find((v) => v.id === view.queue) ?? QUEUE_VIEWS[0]
-    if (!q) return null
-    const source = q.id === 'done' ? done : items
-    return { title: q.title, items: source.filter((i) => q.bands.includes(i.band)), grouped: q.id === 'needs_me' }
-  }
-  return null
+/** The tasks a tab shows. Done is not in the live queue; it is read when shown. */
+const tabItems = (tab: QueueView, items: QueueItem[], done: QueueItem[]) => {
+  const q = QUEUE_VIEWS.find((v) => v.id === tab)
+  return q ? (q.id === 'done' ? done : items).filter((i) => q.bands.includes(i.band)) : []
 }
 
 export const App = () => {
   const items = useQueueItems()
   const { connection, error, queue } = useStore()
-  const [view, setView] = useState<View>({ kind: 'queue', queue: 'needs_me' })
+  const [tab, setTab] = useState<QueueView>('needs_me')
+  const [view, setView] = useState<View>({ kind: 'task' })
   const [selected, setSelected] = useState<string | null>(null)
   const [showingTask, setShowingTask] = useState(false)
-  const [navHidden, setNavHidden] = useState(false)
-  const [navOverlay, setNavOverlay] = useState(false)
-  const [listWidth, setListWidth] = useState(() => stored('listWidth', 520))
+  const [listWidth, setListWidth] = useState(() => stored('listWidth', 420))
   const [workstreams, setWorkstreams] = useState<Workstream[]>([])
   const [signals, setSignals] = useState<Signal[]>([])
   const [doneList, setDone] = useState<{ seq: number; items: QueueItem[] }>({ seq: -1, items: [] })
@@ -83,16 +73,28 @@ export const App = () => {
   }, [connection])
 
   // Done is not in the live queue; it is fetched when shown, again after each change.
-  const showingDone = view.kind === 'queue' && view.queue === 'done'
+  const [doneRead, setDoneRead] = useState(false)
+  const showingDone = tab === 'done'
   useEffect(() => {
     if (showingDone)
       void api.queue.list({ band: 'done' }).then(
-        (s) => setDone({ seq: queue.seq, items: s.items }),
+        (s) => {
+          setDone({ seq: queue.seq, items: s.items })
+          setDoneRead(true)
+        },
         () => {},
       )
   }, [showingDone, queue.seq])
 
-  useEffect(() => shell?.onNavigate((to) => to === 'new' && setView({ kind: 'new' })), [])
+  useEffect(
+    () =>
+      shell?.onNavigate((to) => {
+        if (to !== 'new') return
+        setView({ kind: 'new' })
+        setShowingTask(true)
+      }),
+    [],
+  )
   // For the smoke test and anyone looking: whether the window is live on the server.
   useEffect(() => {
     document.body.dataset.connection = connection
@@ -100,14 +102,20 @@ export const App = () => {
 
   // Stable, so list rows that did not change skip rendering.
   const openTask = useCallback((id: string) => {
-    setView((v) => (v.kind === 'queue' || v.kind === 'workstream' ? v : { kind: 'queue', queue: 'needs_me' }))
+    setView({ kind: 'task' })
     setSelected(id)
     setShowingTask(true)
   }, [])
   const selectTask = useCallback((id: string) => setSelected(id), [])
   useAttention(items, openTask)
 
-  const list = useMemo(() => listOf(view, items, done), [view, items, done])
+  const listed = useMemo(() => tabItems(tab, items, done), [tab, items, done])
+  const counts = useMemo(() => {
+    const counted: Partial<Record<QueueView, number>> = {}
+    for (const q of QUEUE_VIEWS) if (q.id !== 'done') counted[q.id] = tabItems(q.id, items, done).length
+    if (doneRead) counted.done = done.length
+    return counted
+  }, [items, done, doneRead])
 
   const current = [...items, ...done].find((i) => i.task.id === selected) ?? null
   const banner = connection === 'offline' ? `Not connected to the Autopilot server${error ? `: ${error}` : ''}. Retrying…` : null
@@ -132,60 +140,45 @@ export const App = () => {
     window.addEventListener('pointerup', up)
   }
 
+  // A place (New task, Signals, Servers, Set up) opens beside the list.
   const go = (v: View) => {
     setView(v)
-    setShowingTask(false)
-    setNavOverlay(false)
-    // Moving to another list leaves no task open from the last one. Only here: a task opened
-    // for you (just created, from a notification) stays open wherever it is.
-    if (selected && !listOf(v, items, done)?.items.some((i) => i.task.id === selected)) setSelected(null)
+    setShowingTask(true)
   }
 
-  // Too narrow for the sidebar beside the list, it opens over it.
-  const showNav = () => {
-    setNavHidden(false)
-    if (window.matchMedia('(max-width: 1080px)').matches) setNavOverlay(true)
+  // Another tab leaves no task open from the last one. Only here: a task opened for you (just
+  // created, from a notification) stays open wherever it is.
+  const switchTab = (next: QueueView) => {
+    setTab(next)
+    setView({ kind: 'task' })
+    setShowingTask(false)
+    if (selected && !tabItems(next, items, done).some((i) => i.task.id === selected)) setSelected(null)
   }
 
   return (
-    <div className={`app${showingTask || !list ? ' showing-task' : ''}${navHidden ? ' nav-hidden' : ''}`}>
-      {navOverlay && <div className="scrim" onClick={() => setNavOverlay(false)} aria-hidden="true" />}
-      {/* Beside the window's own buttons whenever the sidebar is folded, as in the Claude app. */}
-      <Button kind="icon" className="window-toggle" aria-label="Show sidebar" onClick={showNav}>
-        <SidebarIcon />
-      </Button>
-      {/* Shown when the sidebar is folded, or the window is too narrow for it (styles.css). */}
-      <NavRail view={view} go={go} items={items} workstreams={workstreams} signals={signals} />
-      {(!navHidden || navOverlay) && (
-        <Nav
-          view={view}
-          go={go}
-          overlay={navOverlay}
-          items={items}
-          workstreams={workstreams}
-          signals={signals}
-          onHide={() => {
-            setNavHidden(true)
-            setNavOverlay(false)
-          }}
-        />
-      )}
-      {list && (
-        <>
-          <QueueList
-            title={list.title}
-            items={list.items}
-            grouped={list.grouped}
-            selected={selected}
-            onSelect={selectTask}
-            onOpen={openTask}
-            width={listWidth}
-            banner={banner}
-          />
-          <div className="grip" role="separator" aria-label="Resize list" aria-orientation="vertical" onPointerDown={startResize}>
-            <span />
-          </div>
-        </>
+    <div className={`app${showingTask ? ' showing-task' : ''}`}>
+      <QueueList
+        tab={tab}
+        onTab={switchTab}
+        counts={counts}
+        items={listed}
+        signals={signals}
+        view={view}
+        go={go}
+        selected={selected}
+        onSelect={selectTask}
+        onOpen={openTask}
+        width={listWidth}
+        banner={banner}
+      />
+      <div className="grip" role="separator" aria-label="Resize list" aria-orientation="vertical" onPointerDown={startResize}>
+        <span />
+      </div>
+      {/* Too narrow for the list beside a place: the way back to it. */}
+      {view.kind !== 'task' && showingTask && (
+        <Button kind="quiet" className="narrow-back" onClick={() => setShowingTask(false)}>
+          Back to the list
+        </Button>
       )}
       {view.kind === 'new' ? (
         <NewTask workstreams={workstreams} onCreated={openTask} />
@@ -194,7 +187,7 @@ export const App = () => {
       ) : view.kind === 'servers' ? (
         <Servers />
       ) : view.kind === 'setup' ? (
-        <Setup onDone={() => setView({ kind: 'queue', queue: 'needs_me' })} />
+        <Setup onDone={() => setView({ kind: 'task' })} />
       ) : current ? (
         <TaskPane key={current.task.id} item={current} onClose={() => setShowingTask(false)} />
       ) : (

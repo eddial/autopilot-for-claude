@@ -67,121 +67,9 @@ button {
   -webkit-app-region: no-drag;
 }
 
-/* Drawn after the Claude app's sidebar: no logo, the toggle beside the window's buttons, icons
-   in the label's grey, roomy rows. */
-.nav {
-  width: 248px;
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  padding: 0 10px 12px;
-  background: var(--window);
-  overflow-y: auto;
-}
-
-/*
- * The title-bar row every pane starts with: 48 points, centred on the window's own buttons
- * (Electron puts them at 18, 18). The sidebar button sits just after them, at 80.
- */
-.nav-top {
-  display: flex;
-  align-items: center;
-  height: 48px;
-  padding: 0 0 0 70px;
-}
-
 .titlebar {
   height: 48px;
   flex: none;
-}
-
-.window-toggle {
-  position: fixed;
-  top: 9px;
-  left: 80px;
-  z-index: 15;
-  display: none;
-  -webkit-app-region: no-drag;
-}
-
-.app.nav-hidden .window-toggle {
-  display: flex;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 10px 14px;
-}
-
-.brand .serif {
-  font-size: 19px;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-height: 36px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-2);
-  font-size: 14px;
-  text-align: left;
-}
-
-.nav-item:hover {
-  background: var(--hover);
-}
-
-.nav-item[aria-current='page'] {
-  background: var(--raised);
-  color: var(--text);
-}
-
-.nav-item .count {
-  margin-left: auto;
-  font-size: 12.5px;
-  color: var(--text-3);
-}
-
-.nav-item .count.you {
-  color: var(--pilot);
-}
-
-.nav-item.new {
-  margin-bottom: 2px;
-}
-
-.nav-fill {
-  flex: 1;
-  min-height: 24px;
-}
-
-.nav-heading {
-  padding: 24px 10px 8px;
-  font-size: 13px;
-  color: var(--text-3);
-}
-
-/* New task's plus, in a quiet round well like the Claude app's New chat. */
-.plus {
-  width: 22px;
-  height: 22px;
-  margin: 0 -2px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--raised);
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  line-height: 1;
 }
 
 .health-dot {
@@ -202,7 +90,153 @@ button {
 
 .list {
   flex: none;
-  border-left: 0.5px solid var(--border);
+  background: var(--window);
+}
+
+/* The heading is for screen readers and tests; the tab says where you are. */
+.hidden-heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* The status tabs: an icon and a count each, in a well, the current one raised. */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 2px;
+  margin: 0 12px;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--well);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab[aria-current='page'] {
+  background: var(--button);
+  color: var(--text);
+}
+
+.tab .you {
+  color: var(--pilot-soft);
+}
+
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 12px 0;
+}
+
+.search-row .filter {
+  flex: 1;
+  margin: 0;
+}
+
+.icon-button[aria-current='page'] {
+  background: var(--raised);
+  color: var(--text);
+}
+
+/* A workstream's header: its mark and name; folded, how many it holds. */
+.ws-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: calc(100% - 16px);
+  margin: 0 8px;
+  padding: 16px 8px 7px;
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  text-align: left;
+}
+
+.ws-head:hover {
+  color: var(--text);
+}
+
+.ws-mark {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.ws-mark.pilot {
+  background: var(--pilot-tint);
+  color: var(--pilot-soft);
+}
+
+.ws-mark.clay {
+  background: var(--clay-tint);
+  color: var(--clay-soft);
+}
+
+.ws-mark.amber {
+  background: var(--amber-tint);
+  color: var(--amber-soft);
+}
+
+.ws-mark.quiet {
+  background: var(--raised);
+  color: var(--text-2);
+}
+
+.ws-head[aria-expanded='false'] .ws-name {
+  color: var(--text-3);
+}
+
+.ws-count {
+  margin-left: auto;
+  font-family: var(--sans);
+  color: var(--text-3);
+}
+
+/* Signals, Servers and Set up, at the foot of the list. */
+.places {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 12px;
+  border-top: 0.5px solid var(--border);
+}
+
+.places .icon-button {
+  position: relative;
+}
+
+.place-alert {
+  position: absolute;
+  top: 3px;
+  right: 3px;
 }
 
 .task {
@@ -308,19 +342,19 @@ button {
 .row {
   display: grid;
   grid-template-columns: 8px minmax(0, 1fr) auto;
-  column-gap: 14px;
+  column-gap: 12px;
   align-items: start;
-  width: calc(100% - 16px);
-  margin: 0 8px 2px;
-  padding: 12px 14px;
+  width: calc(100% - 24px);
+  margin: 0 12px 6px;
+  padding: 10px 12px;
   border: 0;
-  border-radius: 10px;
-  background: transparent;
+  border-radius: var(--radius-md);
+  background: var(--surface);
   text-align: left;
 }
 
 .row:hover {
-  background: var(--hover);
+  background: var(--open);
 }
 
 .row[aria-selected='true'] {
@@ -332,7 +366,7 @@ button {
 }
 
 .row .title {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.4;
   color: var(--text-body);
 }
@@ -507,155 +541,6 @@ button {
   display: flex;
   justify-content: center;
   margin-bottom: 16px;
-}
-
-.nav-mark {
-  width: 18px;
-  flex: none;
-  display: flex;
-  justify-content: center;
-}
-
-.nav-mark svg {
-  width: 18px;
-  height: 18px;
-}
-
-.initial {
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  background: var(--raised);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--text-2);
-}
-
-/* The sidebar folded to icons. Wide enough for the window's own buttons above them. */
-.rail {
-  width: 76px;
-  flex: none;
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 0 0 12px;
-  background: var(--window);
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.app.nav-hidden .rail {
-  display: flex;
-}
-
-.rail-top {
-  align-self: stretch;
-  height: 48px;
-  flex: none;
-}
-
-.rail-gap {
-  height: 14px;
-  flex: none;
-}
-
-.rail-item {
-  position: relative;
-  width: 36px;
-  height: 34px;
-  flex: none;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-3);
-}
-
-/* A touch larger in the rail, where the icon is all there is. */
-.rail-item > svg {
-  width: 18px;
-  height: 18px;
-}
-
-.rail-item:hover {
-  background: var(--hover);
-  color: var(--text-2);
-}
-
-.rail-item[aria-current='page'] {
-  background: var(--raised);
-  color: var(--text);
-}
-
-.rail-item.new {
-  margin: 6px 0 2px;
-}
-
-.rail-item .plus {
-  margin: 0;
-}
-
-.rail-item .badge {
-  position: absolute;
-  top: 1px;
-  right: 0;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 4px;
-  border-radius: 8px;
-  background: var(--raised);
-  color: var(--text-2);
-  font-size: 10px;
-  line-height: 15px;
-  font-variant-numeric: tabular-nums;
-}
-
-.rail-item .badge.you {
-  background: var(--pilot);
-  color: var(--well);
-}
-
-.rail-item .badge.dot {
-  min-width: 0;
-  padding: 0;
-  background: transparent;
-}
-
-/* The name beside a rail icon while the pointer or the keyboard is on it. */
-.flyout {
-  position: fixed;
-  left: var(--flyout-x);
-  top: var(--flyout-y);
-  z-index: 30;
-  display: none;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 9px;
-  border-radius: 7px;
-  border: 0.5px solid var(--border-strong);
-  background: var(--raised);
-  box-shadow: 0 6px 18px var(--shadow);
-  color: var(--text);
-  font-size: 12.5px;
-  white-space: nowrap;
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
-.rail-item:hover .flyout,
-.rail-item:focus-visible .flyout {
-  display: flex;
-}
-
-.flyout-count {
-  color: var(--text-3);
-  font-variant-numeric: tabular-nums;
 }
 
 /* ── task ── */
@@ -1250,33 +1135,13 @@ button {
 
 /* ── narrow: beside Claude Code ── */
 
-.scrim {
+.narrow-back {
   position: fixed;
-  inset: 0;
-  z-index: 19;
-  background: var(--scrim);
-}
-
-@media (max-width: 1080px) {
-  .nav.collapsible {
-    display: none;
-  }
-
-  .nav.collapsible.overlay {
-    display: flex;
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 20;
-    box-shadow: 0 0 40px var(--shadow);
-  }
-
-  /* Too narrow for the sidebar: the rail stands in for it, and the sidebar opens over the list. */
-  .rail,
-  .window-toggle {
-    display: flex;
-  }
+  top: 10px;
+  left: 84px;
+  z-index: 15;
+  display: none;
+  -webkit-app-region: no-drag;
 }
 
 @media (max-width: 760px) {
@@ -1294,14 +1159,12 @@ button {
     display: none;
   }
 
-  /* No rail either: the window's buttons and the sidebar button sit over the pane. */
-  .app .rail,
-  .app.nav-hidden .rail {
-    display: none;
+  .task-head {
+    padding-left: 90px;
   }
 
-  .task-head {
-    padding-left: 124px;
+  .app.showing-task .narrow-back {
+    display: flex;
   }
 }
 

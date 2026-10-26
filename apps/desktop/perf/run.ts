@@ -196,13 +196,13 @@ for (const [view, title] of [
   ['Needs me', 'Needs me'],
 ] as const) {
   const index = await page.evaluate(
-    (v) => [...document.querySelectorAll('nav .nav-item')].findIndex((b) => b.textContent?.startsWith(v)),
+    (v) => [...document.querySelectorAll('.tabs .tab')].findIndex((b) => b.getAttribute('title') === v),
     view,
   )
   switchTimes.push(
     await interaction(
       page,
-      `document.querySelectorAll('nav .nav-item')[${index}]`,
+      `document.querySelectorAll('.tabs .tab')[${index}]`,
       `document.querySelector('.list h1')?.textContent === '${title}'`,
     ),
   )

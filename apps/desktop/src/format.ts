@@ -22,7 +22,8 @@ export const sourceOf = (item: QueueItem): string =>
   item.task.source.signal ? signalName(item.task.source.signal) : item.task.createdBy === 'system' ? 'Autopilot' : 'You'
 
 /** The line under a row's title. */
-export const rowMeta = (item: QueueItem): string => {
+/** A row's second line; without the workstream where the list is already grouped by it. */
+export const rowMeta = (item: QueueItem, withWorkstream = true): string => {
   const what =
     item.openAsk !== null
       ? updateLabel(item.openAsk)
@@ -32,8 +33,10 @@ export const rowMeta = (item: QueueItem): string => {
           ? (item.session?.activity ?? 'Working')
           : item.band === 'snoozed' && item.task.snoozedUntil
             ? `Snoozed until ${new Date(item.task.snoozedUntil).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}`
-            : null
-  return [what, titleCase(item.task.workstream), sourceOf(item)].filter(Boolean).join(' · ')
+            : item.band === 'new'
+              ? 'New'
+              : null
+  return [what, withWorkstream ? titleCase(item.task.workstream) : null, sourceOf(item)].filter(Boolean).join(' · ')
 }
 
 export { updateLabel }

@@ -23,11 +23,12 @@ const BUTTON_CLASS = {
   icon: 'icon-button',
   /** The round send arrow in a composer. */
   send: 'send',
-  nav: 'nav-item',
-  /** An icon in the folded sidebar, named in a flyout on hover. */
-  rail: 'rail-item',
   /** A step in the set-up stepper: open once reached. */
   step: 'step',
+  /** A status tab above the list. */
+  tab: 'tab',
+  /** A workstream's header in the list, which folds its tasks away. */
+  section: 'ws-head',
   /** A row in a list; the list styles it. */
   row: 'row',
   /** A row in a short list of things, such as what a task links to. */
@@ -42,13 +43,6 @@ type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'style'> & { ki
 
 export const Button = ({ kind = 'secondary', className, type = 'button', ...props }: ButtonProps) => (
   <button type={type} className={[BUTTON_CLASS[kind], className].filter(Boolean).join(' ') || undefined} {...props} />
-)
-
-export const SidebarIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
-    <rect x="2" y="3" width="12" height="10" rx="2" />
-    <path d="M6 3v10" />
-  </svg>
 )
 
 export const SearchIcon = () => (
@@ -169,6 +163,13 @@ const NAV_ICONS = {
     <>
       <rect x="3.25" y="4.25" width="13.5" height="11.5" rx="1.75" />
       <path d="M3.25 8.25h13.5M3.25 12h13.5M8.25 8.25v7.5" />
+    </>
+  ),
+  /** A pencil on a page: a new task. */
+  compose: (
+    <>
+      <path d="M9.25 4.25h-4a1.5 1.5 0 0 0-1.5 1.5v9a1.5 1.5 0 0 0 1.5 1.5h9a1.5 1.5 0 0 0 1.5-1.5v-4" />
+      <path d="M13.75 3.5l2.75 2.75-6.25 6.25H7.5V9.75z" />
     </>
   ),
 } as const

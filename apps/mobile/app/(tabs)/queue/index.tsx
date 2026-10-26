@@ -1,23 +1,55 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Pressable, RefreshControl, SectionList, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native'
 import type { Band, QueueItem } from '@autopilot/contracts'
+import { workstreamMark } from '@autopilot/client'
+import { SymbolView, type SFSymbol } from 'expo-symbols'
 import { router, Stack } from 'expo-router'
 import { StatusLine } from '../../../src/components/StatusLine.tsx'
 import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
-import { age, BAND_TITLE, rowMeta } from '../../../src/format.ts'
+import { age, rowMeta } from '../../../src/format.ts'
 import { useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
 import { Sides } from '../../../src/ui.tsx'
 
-type QueueView = 'needs_me' | 'all' | 'running' | 'waiting' | 'snoozed'
-const VIEWS: { id: QueueView; title: string; bands: Band[] }[] = [
-  { id: 'needs_me', title: 'Needs me', bands: ['your_turn', 'new'] },
-  { id: 'all', title: 'Everything', bands: ['your_turn', 'new', 'running', 'waiting', 'snoozed'] },
-  { id: 'running', title: 'Running', bands: ['running'] },
-  { id: 'waiting', title: 'Waiting on others', bands: ['waiting'] },
-  { id: 'snoozed', title: 'Snoozed', bands: ['snoozed'] },
+type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
+const VIEWS: { id: QueueView; title: string; bands: Band[]; symbol: SFSymbol }[] = [
+  { id: 'needs_me', title: 'Needs me', bands: ['your_turn', 'new'], symbol: 'tray' },
+  { id: 'running', title: 'Running', bands: ['running'], symbol: 'sparkle' },
+  { id: 'waiting', title: 'Waiting on others', bands: ['waiting'], symbol: 'ellipsis.bubble' },
+  { id: 'snoozed', title: 'Snoozed', bands: ['snoozed'], symbol: 'clock' },
+  { id: 'done', title: 'Done', bands: ['done'], symbol: 'archivebox' },
 ]
+
+const TONE = {
+  pilot: { bg: colours.pilotTint, fg: colours.pilotSoft },
+  clay: { bg: colours.clayTint, fg: colours.claySoft },
+  amber: { bg: colours.amberTint, fg: colours.amberSoft },
+  quiet: { bg: colours.raised, fg: colours.text2 },
+}
+
+/** `ws:support from:gmail pricing`, as on the Mac. */
+const matches = (item: QueueItem, filter: string): boolean =>
+  filter
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((word) => {
+      if (word.startsWith('ws:')) return item.task.workstream.startsWith(word.slice(3))
+      if (word.startsWith('from:')) return (item.task.source.signal ?? 'you').startsWith(word.slice(5))
+      return item.task.title.toLowerCase().includes(word) || item.task.id.toLowerCase() === word
+    })
 
 /** Regular width (the Duo's inner display full screen): list and task side by side. */
 const SPLIT_WIDTH = 700
@@ -30,14 +62,43 @@ export default function QueueScreen() {
   const split = width >= SPLIT_WIDTH
   const [view, setView] = useState<QueueView>('needs_me')
   const [selected, setSelected] = useState<string | null>(null)
+  const [filter, setFilter] = useState('')
+  const [folded, setFolded] = useState<Set<string>>(new Set())
+  // Done is not kept on the phone: read from the Mac when the tab is opened.
+  const [done, setDone] = useState<QueueItem[] | null>(null)
   const current = VIEWS.find((v) => v.id === view) ?? VIEWS[0]
 
+  useEffect(() => {
+    if (view !== 'done') return
+    void sync
+      ?.online((api) => api.queue.list({ band: 'done' }))
+      .then((s) => setDone(s.items))
+      .catch(() => {})
+  }, [view, sync])
+
+  const counts = useMemo(
+    () =>
+      Object.fromEntries(VIEWS.map((v) => [v.id, v.id === 'done' ? done?.length : items.filter((i) => v.bands.includes(i.band)).length])),
+    [items, done],
+  )
+
+  // A section per workstream, in the order of its most pressing task; the inbox last.
   const sections = useMemo(() => {
     const bands = current?.bands ?? []
-    return bands
-      .map((band) => ({ band, title: BAND_TITLE[band], data: items.filter((i) => i.band === band) }))
-      .filter((s) => s.data.length > 0)
-  }, [items, current])
+    const listed = (view === 'done' ? (done ?? []) : items).filter((i) => bands.includes(i.band) && matches(i, filter))
+    const names = [...new Set(listed.map((i) => i.task.workstream))]
+    const order = [...names.filter((n) => n !== 'inbox'), ...names.filter((n) => n === 'inbox')]
+    return order.map((name) => {
+      const all = listed.filter((i) => i.task.workstream === name)
+      return { name, count: all.length, data: folded.has(name) ? [] : all }
+    })
+  }, [items, done, view, current, filter, folded])
+  const fold = (name: string) =>
+    setFolded((f) => {
+      const next = new Set(f)
+      if (!next.delete(name)) next.add(name)
+      return next
+    })
 
   const open = (id: string) => {
     if (split) setSelected(id)
@@ -56,37 +117,109 @@ export default function QueueScreen() {
     if (status === 'online' && top) void sync?.prefetch(top.split(','))
   }, [sync, status, top])
 
+  const tabs = (
+    <View style={styles.tabs} accessibilityRole="tablist">
+      {VIEWS.map((v) => {
+        const on = v.id === view
+        const count = counts[v.id]
+        return (
+          <Pressable
+            key={v.id}
+            style={[styles.tab, on && styles.tabOn]}
+            onPress={() => setView(v.id)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={count === undefined ? v.title : `${v.title}, ${count}`}
+          >
+            <SymbolView name={v.symbol} size={15} tintColor={on ? colours.text : colours.text3} />
+            {count !== undefined && (
+              <Text
+                style={[styles.tabCount, on && { color: colours.text }, v.id === 'needs_me' && count > 0 && { color: colours.pilotSoft }]}
+              >
+                {count}
+              </Text>
+            )}
+          </Pressable>
+        )
+      })}
+    </View>
+  )
+
+  const search = (
+    <View style={styles.search}>
+      <SymbolView name="magnifyingglass" size={15} tintColor={colours.text3} />
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Search"
+        placeholderTextColor={colours.text3}
+        value={filter}
+        onChangeText={setFilter}
+        autoCapitalize="none"
+        autoCorrect={false}
+        clearButtonMode="while-editing"
+        returnKeyType="search"
+        accessibilityLabel="Search tasks"
+      />
+    </View>
+  )
+
   const list = (
     <Sides>
-      <SectionList
-        style={{ flex: 1 }}
-        contentInsetAdjustmentBehavior="automatic"
-        sections={sections}
-        keyExtractor={(i) => i.task.id}
-        stickySectionHeadersEnabled={false}
-        refreshControl={<RefreshControl refreshing={false} tintColor={colours.text3} onRefresh={() => void sync?.syncOnce(0)} />}
-        ListHeaderComponent={<StatusLine />}
-        ListEmptyComponent={
-          <Text style={styles.empty}>
-            {status === 'online'
-              ? 'Nothing needs you. Autopilot fills this as signals file and sessions hand over.'
-              : 'Nothing cached yet.'}
-          </Text>
-        }
-        renderSectionHeader={({ section }) => (
-          <Text style={[styles.section, section.band === 'your_turn' && { color: colours.pilotSoft }]}>
-            {section.title} <Text style={{ color: colours.text3 }}>{section.data.length}</Text>
-          </Text>
-        )}
-        renderItem={({ item }) => <Row item={item} selected={split && item.task.id === selected} onPress={() => open(item.task.id)} />}
-      />
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <SectionList
+          style={{ flex: 1 }}
+          contentInsetAdjustmentBehavior="automatic"
+          sections={sections}
+          keyExtractor={(i) => i.task.id}
+          stickySectionHeadersEnabled={false}
+          refreshControl={<RefreshControl refreshing={false} tintColor={colours.text3} onRefresh={() => void sync?.syncOnce(0)} />}
+          keyboardDismissMode="on-drag"
+          ListHeaderComponent={
+            <>
+              <StatusLine />
+              {tabs}
+            </>
+          }
+          ListEmptyComponent={
+            <Text style={styles.empty}>
+              {filter
+                ? 'Nothing matches the search.'
+                : view === 'done' && done === null
+                  ? 'Done is read from your Mac when it is in reach.'
+                  : status === 'online' || view !== 'needs_me'
+                    ? 'Nothing here. Autopilot fills this as signals file and sessions hand over.'
+                    : 'Nothing cached yet.'}
+            </Text>
+          }
+          renderSectionHeader={({ section }) => {
+            const mark = workstreamMark(section.name)
+            const shut = folded.has(section.name)
+            return (
+              <Pressable
+                style={styles.section}
+                onPress={() => fold(section.name)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: !shut }}
+              >
+                <View style={[styles.mark, { backgroundColor: TONE[mark.tone].bg }]}>
+                  <Text style={[styles.markText, { color: TONE[mark.tone].fg }]}>{mark.letters}</Text>
+                </View>
+                <Text style={[styles.sectionName, shut && { color: colours.text3 }]}>{section.name}</Text>
+                {shut && <Text style={styles.sectionCount}>{section.count}</Text>}
+              </Pressable>
+            )
+          }}
+          renderItem={({ item }) => <Row item={item} selected={split && item.task.id === selected} onPress={() => open(item.task.id)} />}
+        />
+        {search}
+      </KeyboardAvoidingView>
     </Sides>
   )
 
   return (
     <>
       <Stack.Screen options={{ title: current?.title ?? 'Queue' }} />
-      {/* The prominent action is New task; then the view picker. On a selected task in the split, its actions. */}
+      {/* The prominent action is New task. On a selected task in the split, its actions. */}
       {selectedItem ? (
         <TaskToolbar item={selectedItem} closeAfter={false} />
       ) : (
@@ -98,13 +231,6 @@ export default function QueueScreen() {
             accessibilityLabel="New task"
             onPress={() => router.push('/new')}
           />
-          <Stack.Toolbar.Menu icon="line.3.horizontal.decrease.circle" accessibilityLabel="View" title="View">
-            {VIEWS.map((v) => (
-              <Stack.Toolbar.MenuAction key={v.id} isOn={v.id === view} onPress={() => setView(v.id)}>
-                {v.title}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
         </Stack.Toolbar>
       )}
       {split ? (
@@ -142,7 +268,7 @@ const Row = ({ item, selected, onPress }: { item: QueueItem; selected: boolean; 
         {item.task.title}
       </Text>
       <Text style={styles.meta} numberOfLines={1}>
-        {rowMeta(item)}
+        {rowMeta(item, false)}
       </Text>
     </View>
     <Text style={styles.meta}>{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</Text>
@@ -166,15 +292,38 @@ const dotStyle = (item: QueueItem) => {
 }
 
 const styles = StyleSheet.create({
-  section: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 6, fontSize: 13, color: colours.text3 },
+  tabs: { flexDirection: 'row', gap: 2, marginHorizontal: 12, marginTop: 4, padding: 3, borderRadius: 12, backgroundColor: colours.well },
+  tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 34, borderRadius: 9 },
+  tabOn: { backgroundColor: colours.button },
+  tabCount: { fontSize: 14, color: colours.text3, fontVariant: ['tabular-nums'] },
+  section: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 8 },
+  mark: { width: 22, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  markText: { fontSize: 10, fontWeight: '600' },
+  sectionName: { fontSize: 14, color: colours.text2, fontFamily: 'Menlo' },
+  sectionCount: { marginLeft: 'auto', fontSize: 13, color: colours.text3 },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 12,
+    marginTop: 6,
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colours.surface,
+  },
+  searchInput: { flex: 1, fontSize: 16, color: colours.text },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    marginHorizontal: 8,
+    marginHorizontal: 12,
+    marginBottom: 6,
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 11,
     borderRadius: 12,
+    backgroundColor: colours.surface,
   },
   dot: { width: 9, height: 9, borderRadius: 5, marginTop: 7 },
   title: { fontSize: 16, lineHeight: 22, color: colours.textBody },
