@@ -67,21 +67,43 @@ export const decisionHasOptions = <S extends z.ZodType<{ kind: string; options: 
 
 export const PostUpdate = decisionHasOptions(command(PostUpdateFields))
 
+/** Files the owner sent with an answer or an instruction: links from `files.upload`. */
+export const SentFiles = z.array(Link).max(10).optional()
+
 export const AnswerUpdateFields = {
   updateId: Id,
   optionId: z.string().optional(),
   text: z.string().max(20_000).optional(),
+  attachments: SentFiles,
 }
 
-export const hasAnswer = <S extends z.ZodType<{ optionId?: string | undefined; text?: string | undefined }>>(schema: S): S =>
-  schema.refine((a) => a.optionId !== undefined || (a.text !== undefined && a.text.length > 0), {
-    message: 'Pick an option or write an answer',
+export const hasAnswer = <
+  S extends z.ZodType<{ optionId?: string | undefined; text?: string | undefined; attachments?: Link[] | undefined }>,
+>(
+  schema: S,
+): S =>
+  schema.refine((a) => a.optionId !== undefined || (a.text !== undefined && a.text.length > 0) || (a.attachments?.length ?? 0) > 0, {
+    message: 'Pick an option, write an answer or send a file',
   })
 
 export const AnswerUpdate = hasAnswer(command(AnswerUpdateFields))
 
 /** Tells the task's session something without an open ask; starts a session when there is none. */
-export const Instruct = command({ taskId: TaskId, body: z.string().min(1).max(20_000) })
+export const Instruct = command({ taskId: TaskId, body: z.string().max(20_000), attachments: SentFiles }).refine(
+  (i) => i.body.trim().length > 0 || (i.attachments?.length ?? 0) > 0,
+  { message: 'Write something or send a file', path: ['body'] },
+)
+
+/**
+ * A file the owner pastes or drops into a reply, kept with the task on the Mac for its session to
+ * read. Base64, up to 20 MB; the same key writes the same file, so a retry stores it once.
+ */
+export const UploadFile = command({
+  taskId: TaskId,
+  name: z.string().min(1).max(200),
+  type: z.string().max(200),
+  data: z.base64().max(28_000_000),
+})
 
 export const AttachLink = command({ taskId: TaskId, link: Link })
 

@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { Task, Workstream } from '@autopilot/contracts'
 import { checkoutFor, prepareWorkspace, type Checkouts } from './checkouts.ts'
 import { isGitCheckout } from './git.ts'
@@ -322,7 +323,10 @@ export class Launcher {
     }
     if (detail.session?.state !== 'idle') return 'defer'
     const from = answer.author === 'watcher' ? 'News from a watcher' : answer.answers ? 'Answer from the owner' : 'From the owner'
-    live.pty.write(paste(`${from} on ${taskId}:\n\n${[answer.body, ...answer.attachments.map((a) => a.url)].join('\n\n')}`))
+    // Files the owner sent go as paths the session can read; other links as they are.
+    const sent = answer.attachments.map((a) => (a.url.startsWith('file:') ? fileURLToPath(a.url) : a.url))
+    const files = sent.length > 0 ? [`Attached:\n${sent.map((f) => `- ${f}`).join('\n')}`] : []
+    live.pty.write(paste(`${from} on ${taskId}:\n\n${[answer.body, ...files].filter(Boolean).join('\n\n')}`))
     service.setSession(live.sessionId, { state: 'working' })
     return 'done'
   }

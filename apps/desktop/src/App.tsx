@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem, Signal, Workstream } from '@autopilot/contracts'
+import { attentionKey } from '@autopilot/client'
 import { api, shell } from './api.ts'
 import { NewTask } from './components/NewTask.tsx'
 import { QueueList } from './components/QueueList.tsx'
@@ -17,7 +18,11 @@ const stored = (name: string, fallback: number): number => {
   }
 }
 
-/** Notifies when a task comes to your turn, and keeps the menu bar count. */
+/**
+ * Notifies once for each new thing that comes to your turn, and keeps the menu bar count. Once
+ * per ask, not per arrival: answering one takes its task out of your turn for a moment, and the
+ * same ask flickering back before the server's word arrives is nothing new.
+ */
 const useAttention = (items: QueueItem[], open: (id: string) => void) => {
   const seen = useRef<Set<string> | null>(null)
   const { connection } = useStore()
@@ -25,15 +30,14 @@ const useAttention = (items: QueueItem[], open: (id: string) => void) => {
     const yours = items.filter((i) => i.band === 'your_turn')
     shell?.setBadge(yours.length)
     if (connection !== 'live') return
-    const ids = new Set(yours.map((i) => i.task.id))
     if (seen.current && 'Notification' in window && Notification.permission === 'granted') {
       for (const item of yours) {
-        if (seen.current.has(item.task.id)) continue
+        if (seen.current.has(attentionKey(item))) continue
         const notice = new Notification(item.task.title, { body: item.openAsk?.body.slice(0, 180) ?? 'Your turn', silent: false })
         notice.addEventListener('click', () => open(item.task.id))
       }
     }
-    seen.current = ids
+    seen.current = new Set([...(seen.current ?? []), ...yours.map(attentionKey)])
   }, [items, connection, open])
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') void Notification.requestPermission()

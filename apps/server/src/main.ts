@@ -170,6 +170,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
         expiresAt,
       }
     },
+    files: join(paths.data, 'files'),
     log,
   })
   if (service.listDevices().length > 0) await openDevices()

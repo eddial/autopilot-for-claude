@@ -1,6 +1,7 @@
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Server } from 'node:http'
 import { ORPCError } from '@orpc/client'
@@ -35,6 +36,7 @@ beforeAll(async () => {
     setup: new Setup({ paths: resolvePaths({ AUTOPILOT_DATA: dir }), examples: join(dir, 'examples'), claude: 'claude' }),
     installService: () => {},
     startPairing: () => Promise.reject(new Error('no pairing here')),
+    files: join(dir, 'files'),
     detect: () => Promise.resolve({ connectors: [], github: { cli: false, user: null } }),
     signals: {
       list: () => [],
@@ -111,6 +113,23 @@ describe('API over the socket', () => {
     await owner.updates.answer({ idempotencyKey: k(), updateId: ask.id, text: 'yes' })
     const error = await errorOf(owner.updates.answer({ idempotencyKey: k(), updateId: ask.id, text: 'no' }))
     expect(error).toEqual({ code: 'CONFLICT', data: { reason: 'already_answered' } })
+  })
+
+  it('keeps a file the owner sends with the task and puts it on the instruction', async () => {
+    const task = await owner.tasks.create({ idempotencyKey: k(), title: 'Read my notes', start: false })
+    const upload = {
+      idempotencyKey: k(),
+      taskId: task.id,
+      name: 'notes.txt',
+      type: 'text/plain',
+      data: Buffer.from('hello').toString('base64'),
+    }
+    const link = await owner.files.upload(upload)
+    // A retry with the same key stores the same file.
+    expect(await owner.files.upload(upload)).toEqual(link)
+    expect(readFileSync(fileURLToPath(link.url), 'utf8')).toBe('hello')
+    const sent = await owner.updates.instruct({ idempotencyKey: k(), taskId: task.id, body: '', attachments: [link] })
+    expect(sent.attachments).toEqual([link])
   })
 
   it('streams a snapshot and then each change as it happens', async () => {

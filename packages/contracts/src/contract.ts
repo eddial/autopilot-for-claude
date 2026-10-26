@@ -18,6 +18,7 @@ import {
   InstallService,
   SetWorkspace,
   Instruct,
+  UploadFile,
   MatchItems,
   PairDevice,
   PauseSignal,
@@ -56,7 +57,7 @@ import {
 } from './entities.ts'
 import { Band, Scope } from './enums.ts'
 import { errors } from './errors.ts'
-import { TaskId } from './primitives.ts'
+import { Link, TaskId } from './primitives.ts'
 
 /**
  * Per-procedure access. A caller's token has one scope; the call is allowed
@@ -176,6 +177,11 @@ export const contract = {
       .meta({ scopes: ['session'], ownTask: true })
       .input(ReportSession)
       .output(Session),
+  },
+
+  files: {
+    /** Keeps a file with the task; the link it returns goes on an answer or instruction. */
+    upload: base.meta({ scopes: OWNER }).input(UploadFile).output(Link),
   },
 
   links: {

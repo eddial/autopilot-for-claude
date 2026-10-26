@@ -16,6 +16,7 @@ import {
 } from '@autopilot/contracts'
 import { implement, ORPCError } from '@orpc/server'
 import { DomainError, type Principal, type Service } from './service.ts'
+import { storeFile } from './files.ts'
 import { previewLink } from './link-preview.ts'
 import type { Setup } from './setup.ts'
 
@@ -42,6 +43,8 @@ export type Deps = {
   installService: () => void
   /** Opens the device listener if needed and makes a one-time invite. */
   startPairing: () => Promise<Pairing>
+  /** Where files the owner sends are kept, a folder per task. */
+  files: string
   log?: (message: string) => void
 }
 
@@ -77,6 +80,7 @@ export const createRouter = ({
   setup,
   installService,
   startPairing,
+  files,
   log = () => {},
 }: Deps) => {
   const os = implement(contract).$context<Context>()
@@ -214,6 +218,18 @@ export const createRouter = ({
 
     sessions: {
       report: guarded.sessions.report.handler(({ input }) => service.reportSession(input)),
+    },
+
+    files: {
+      upload: guarded.files.upload.handler(({ input }) => {
+        service.assertWritable(input.taskId)
+        try {
+          return storeFile(files, input)
+        } catch (error) {
+          if (error instanceof RangeError) throw new DomainError('BAD_REQUEST', { field: 'data' }, error.message)
+          throw error
+        }
+      }),
     },
 
     links: {

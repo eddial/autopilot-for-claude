@@ -453,6 +453,11 @@ export class Service {
     }
   }
 
+  /** For writes outside the database, such as a file sent with a task: the task exists and is open. */
+  assertWritable(taskId: string): void {
+    this.assertOpen(this.task(taskId))
+  }
+
   createTask(input: In<typeof CreateTask>, by: Author = 'owner'): Task {
     return this.idempotent(input.idempotencyKey, 'tasks.create', () => {
       const task = this.insertTask({
@@ -788,7 +793,13 @@ export class Service {
       const option = input.optionId ? ask.options.find((o) => o.id === input.optionId) : undefined
       if (input.optionId && !option) throw new DomainError('BAD_REQUEST', { field: 'optionId' }, 'Unknown option')
       const body = [option?.label, input.text].filter(Boolean).join('\n\n')
-      const instruction = this.insertUpdate(task, { kind: 'instruction', body, author: 'owner', answers: ask.id })
+      const instruction = this.insertUpdate(task, {
+        kind: 'instruction',
+        body,
+        author: 'owner',
+        answers: ask.id,
+        attachments: input.attachments ?? [],
+      })
       this.closeAsks(task.id)
       this.touch(task, { state: 'running', snoozedUntil: null, seenAt: this.iso() })
       if (this.liveSession(task)) this.enqueue('deliver_answer', { taskId: task.id, updateId: instruction.id })
@@ -801,7 +812,12 @@ export class Service {
     return this.idempotent(input.idempotencyKey, 'updates.instruct', () => {
       const task = this.task(input.taskId)
       this.assertOpen(task)
-      const instruction = this.insertUpdate(task, { kind: 'instruction', body: input.body, author: 'owner' })
+      const instruction = this.insertUpdate(task, {
+        kind: 'instruction',
+        body: input.body.trim(),
+        author: 'owner',
+        attachments: input.attachments ?? [],
+      })
       this.touch(task, { state: 'running', snoozedUntil: null, seenAt: this.iso() })
       if (this.liveSession(task)) this.enqueue('deliver_answer', { taskId: task.id, updateId: instruction.id })
       else this.enqueue('start_session', { taskId: task.id })

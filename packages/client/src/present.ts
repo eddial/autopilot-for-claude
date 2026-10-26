@@ -206,3 +206,10 @@ export const pasteSize = (text: string): string => {
   if (lines > 1) return `${lines} lines`
   return text.length >= 1000 ? `${(text.length / 1000).toFixed(1)}k characters` : `${text.length} characters`
 }
+
+/**
+ * What a "your turn" notification is about: the ask waiting on you, or the task when it waits
+ * without one. Both apps notify once per key, so an answered ask that flickers back into your
+ * turn before the server's word arrives is not news.
+ */
+export const attentionKey = (item: QueueItem): string => item.openAsk?.id ?? `task:${item.task.id}`

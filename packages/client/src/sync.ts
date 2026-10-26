@@ -11,6 +11,7 @@ import {
 import { isDefinedError, ORPCError } from '@orpc/client'
 import { execute, overlay, PENDING_PREFIX, type Command, type Conflict, type Pending } from './commands.ts'
 import { Link, Offline, timeoutSignal, type Api, type Connection, type PinnedFetch } from './connection.ts'
+import { attentionKey } from './present.ts'
 
 /** Key-value storage that survives the app being closed: expo-sqlite's kv-store on the phone. */
 export type Storage = {
@@ -78,6 +79,8 @@ export class Sync {
   private saveTimer: ReturnType<typeof setTimeout> | null = null
   /** Conversations being fetched, with the feed changes that arrived meanwhile (see `detail`). */
   private readonly fetching = new Map<string, Change[]>()
+  /** Every ask that has been in your turn here: notified once, however often it comes and goes. */
+  private readonly noticed = new Set<string>()
   private readonly listeners = new Set<() => void>()
   private running = false
   /** Each start gets a number; a loop from before a stop ends instead of running beside the new one. */
@@ -239,11 +242,7 @@ export class Sync {
   }
 
   private async catchUp(waitSeconds: number): Promise<void> {
-    const before = new Set(
-      this.items()
-        .filter((i) => i.band === 'your_turn')
-        .map((i) => i.task.id),
-    )
+    for (const item of this.items()) if (item.band === 'your_turn') this.noticed.add(attentionKey(item))
     // Never synced: start from a snapshot; afterwards only the changes since.
     const first = this.state.lastSyncedAt === null
     let queue = this.state.queue
@@ -270,7 +269,7 @@ export class Sync {
     }
     this.set({ queue, details })
     if (!first && this.o.onYourTurn) {
-      const fresh = this.items().filter((i) => i.band === 'your_turn' && !before.has(i.task.id))
+      const fresh = this.items().filter((i) => i.band === 'your_turn' && !this.noticed.has(attentionKey(i)))
       if (fresh.length > 0) this.o.onYourTurn(fresh)
     }
   }
