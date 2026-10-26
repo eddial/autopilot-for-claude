@@ -24,7 +24,7 @@ const snoozeTimes = (): { label: string; until: Date }[] => {
 
 /**
  * A task's actions as native bar items, in the order PRODUCT.md gives for the Duo's vertical bar:
- * the prominent action (Open session, or Start) in ink as on the Mac, then Snooze and Done.
+ * the prominent action (Open session, or Start) in ink as on the Mac, then ⋯ for the rest.
  */
 export const TaskToolbar = ({
   item,
@@ -65,20 +65,21 @@ export const TaskToolbar = ({
           onPress={() => void sync?.send({ kind: 'start', taskId: task.id })}
         />
       ) : null}
-      <Stack.Toolbar.Menu icon="moon.zzz" accessibilityLabel="Snooze" title="Snooze">
-        {snoozeTimes().map((t) => (
-          <Stack.Toolbar.MenuAction
-            key={t.label}
-            onPress={() => void sync?.send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() })}
-          >
-            {t.label}
-          </Stack.Toolbar.MenuAction>
-        ))}
-      </Stack.Toolbar.Menu>
-      <Stack.Toolbar.Menu icon="checkmark.circle" accessibilityLabel="Close" title="Close">
+      {/* The rest behind one ⋯, so the bar keeps room: Mark done, Snooze (its times a level down), Not for me. */}
+      <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More" title="More">
         <Stack.Toolbar.MenuAction icon="checkmark" onPress={() => done('done')}>
           Mark done
         </Stack.Toolbar.MenuAction>
+        <Stack.Toolbar.Menu icon="moon" title="Snooze">
+          {snoozeTimes().map((t) => (
+            <Stack.Toolbar.MenuAction
+              key={t.label}
+              onPress={() => void sync?.send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() })}
+            >
+              {t.label}
+            </Stack.Toolbar.MenuAction>
+          ))}
+        </Stack.Toolbar.Menu>
         <Stack.Toolbar.MenuAction icon="xmark" destructive onPress={() => done('canceled')}>
           Not for me
         </Stack.Toolbar.MenuAction>

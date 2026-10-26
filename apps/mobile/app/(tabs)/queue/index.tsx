@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,7 +19,7 @@ import { StatusLine } from '../../../src/components/StatusLine.tsx'
 import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
 import { age, rowMeta } from '../../../src/format.ts'
-import { useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
+import { serverName, unpair, useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
 import { Bars, EmptyList, Sides, WorkstreamBadge } from '../../../src/ui.tsx'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -56,7 +57,8 @@ const SPLIT_WIDTH = 700
 export default function QueueScreen() {
   const items = useItems()
   const sync = useSyncInstance()
-  const { status } = useSyncState()
+  const syncState = useSyncState()
+  const { status } = syncState
   const { width } = useWindowDimensions()
   const split = width >= SPLIT_WIDTH
   const [view, setView] = useState<QueueView>('needs_me')
@@ -263,9 +265,38 @@ export default function QueueScreen() {
           step={at >= 0 ? { previous: stepTo(order[at - 1]), next: stepTo(order[at + 1]) } : undefined}
         />
       ) : (
-        // New task in the side bar, where iOS puts a screen's actions on the Duo.
+        // New task in the side bar, where iOS puts a screen's actions on the Duo; under it, your Mac.
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button icon="plus" accessibilityLabel="New task" onPress={() => router.push('/new')} />
+          {/* No settings of its own (sources and workstreams are the Mac's): just your Mac, to sync or unpair. */}
+          <Stack.Toolbar.Menu icon="desktopcomputer" accessibilityLabel="Your Mac" title={macTitle(syncState)}>
+            <Stack.Toolbar.MenuAction icon="arrow.clockwise" onPress={() => void sync?.syncOnce(0)}>
+              Sync now
+            </Stack.Toolbar.MenuAction>
+            <Stack.Toolbar.MenuAction
+              icon="network"
+              onPress={() =>
+                Alert.alert(
+                  'Away from home',
+                  'Install Tailscale on this iPhone and your Mac with the same account and turn on VPN On Demand. Autopilot tries your home network first and Tailscale next.',
+                )
+              }
+            >
+              Use it away from home
+            </Stack.Toolbar.MenuAction>
+            <Stack.Toolbar.MenuAction
+              icon="xmark"
+              destructive
+              onPress={() =>
+                Alert.alert('Unpair this iPhone?', 'Anything still waiting to send is lost. You can pair again from the Mac.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Unpair', style: 'destructive', onPress: () => void unpair() },
+                ])
+              }
+            >
+              Unpair
+            </Stack.Toolbar.MenuAction>
+          </Stack.Toolbar.Menu>
         </Stack.Toolbar>
       )}
       {split ? (
@@ -318,6 +349,17 @@ const Row = ({ item, selected, status, onPress }: { item: QueueItem; selected: b
     </View>
   </Pressable>
 )
+
+const ROUTE = { lan: 'on your home network', tailscale: 'through Tailscale' } as const
+
+/** Your Mac, as the menu beside New task names it: which, how it is reached, when it last synced. */
+const macTitle = (state: ReturnType<typeof useSyncState>): string => {
+  const { status, routeKind, lastSyncedAt, outbox } = state
+  const reached =
+    status === 'online' ? `Connected ${routeKind ? ROUTE[routeKind] : ''}`.trim() : status === 'connecting' ? 'Connecting…' : 'Out of reach'
+  const synced = lastSyncedAt ? (age(lastSyncedAt) === 'now' ? 'synced just now' : `synced ${age(lastSyncedAt)} ago`) : 'not synced yet'
+  return [serverName(), reached, synced, outbox.length > 0 ? `${outbox.length} waiting to send` : null].filter(Boolean).join(' · ')
+}
 
 /** Each band as the symbol of the tab it shows under. */
 const BAND_SYMBOL: Record<QueueItem['band'], SFSymbol> = {

@@ -154,9 +154,9 @@ shared with the status bar. In Split View each app's bar sits on its outer edge 
 Claude right). Inner portrait keeps ordinary horizontal bars. Order, top to bottom:
 
 1. Back (only on a task).
-2. The prominent action: New task on the queue, Open session on a task (Clay).
-3. The other actions: view and filter on the queue; Snooze and Done on a task.
-4. A gap, then the tabs: Queue, Set up (read only), Servers.
+2. The prominent action: New task on the queue, Open session (or Start) on a task, in ink.
+3. The rest: your Mac (sync, unpair) on the queue; ⋯ on a task (Mark done, Snooze, Not for me),
+   then up and down through the list. No tabs: the phone has no settings of its own.
 
 In the full-screen split layout only the task column joins the vertical bar; the list column keeps
 its buttons in its own header. Only bars owned by the system containers move: the Expo app has to
