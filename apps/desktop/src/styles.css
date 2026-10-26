@@ -104,8 +104,7 @@ button {
 
 /* The status tabs: an icon and a count each, in a well, the current one raised. */
 .tabs {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  display: flex;
   gap: 2px;
   margin: 0 12px;
   padding: 3px;
@@ -114,6 +113,8 @@ button {
 }
 
 .tab {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -133,8 +134,15 @@ button {
 }
 
 .tab[aria-current='page'] {
+  flex: 2.6 1 0;
   background: var(--button);
   color: var(--text);
+}
+
+.tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tab .you {
@@ -151,6 +159,7 @@ button {
 .search-row .filter {
   flex: 1;
   margin: 0;
+  background: var(--surface);
 }
 
 .icon-button[aria-current='page'] {

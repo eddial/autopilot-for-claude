@@ -96,25 +96,28 @@ const NAV_ICONS = {
       <path d="M5.7 4.5h8.6l2.2 6.75v3.25A1.5 1.5 0 0 1 15 16H5a1.5 1.5 0 0 1-1.5-1.5v-3.25z" />
     </>
   ),
-  /** A spark, like Claude's own mark: a session at work. */
-  running: <path d="M10 3.5v3.5M10 13v3.5M3.5 10H7M13 10h3.5M5.4 5.4l2.3 2.3M12.3 12.3l2.3 2.3M5.4 14.6l2.3-2.3M12.3 7.7l2.3-2.3" />,
-  /** A reply pending: the next move is someone else's. */
-  waiting: (
-    <>
-      <path d="M4.25 4.75h11.5a1.5 1.5 0 0 1 1.5 1.5v6.5a1.5 1.5 0 0 1-1.5 1.5H9.5l-3.75 2.75v-2.75h-1.5a1.5 1.5 0 0 1-1.5-1.5v-6.5a1.5 1.5 0 0 1 1.5-1.5z" />
-      <path d="M7 9.5h.01M10 9.5h.01M13 9.5h.01" />
-    </>
+  /** Rays, like the iPhone's `rays`: a session at work. */
+  running: (
+    <path d="M10 3.25V6M10 14v2.75M3.25 10H6M14 10h2.75M5.2 5.2l1.95 1.95M12.85 12.85l1.95 1.95M5.2 14.8l1.95-1.95M12.85 7.15l1.95-1.95" />
   ),
-  snoozed: (
+  /** A clock: the next move is someone else's. */
+  waiting: (
     <>
       <circle cx="10" cy="10" r="6.75" />
       <path d="M10 6.25V10l2.5 1.5" />
     </>
   ),
+  /** A moon: put away until later. */
+  snoozed: <path d="M15.75 12.4A6.5 6.5 0 0 1 7.6 4.25a6.5 6.5 0 1 0 8.15 8.15z" />,
+  /** A chequered flag: finished. */
   done: (
     <>
-      <circle cx="10" cy="10" r="6.75" />
-      <path d="M7.25 10.25l1.9 1.9 3.6-4" />
+      <path d="M5 16.75V3.75h10.5v7H5" />
+      <path
+        d="M5 3.75h2.625v3.5H5zM10.25 3.75h2.625v3.5H10.25zM7.625 7.25h2.625v3.5H7.625zM12.875 7.25H15.5v3.5h-2.625z"
+        fill="currentColor"
+        stroke="none"
+      />
     </>
   ),
   signals: (

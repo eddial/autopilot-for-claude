@@ -50,3 +50,33 @@ dragged width) is the only exception, marked with a disable comment that says wh
 
 The phone draws native bars and tabs with the system's own controls (they are what the iPhone Duo
 moves); the building blocks are for what is inside them.
+
+## The list, the same on both
+
+The Mac's left column and the phone's queue are one design. When one changes, the other changes
+in the same commit, looked at in the Mac window and in the simulator before it lands.
+
+From the top:
+
+1. **Status tabs**, one row of five, each an icon and a count. The tab you are on also says its
+   name. Tapping it again shows every open task ("All open"), and once more goes back.
+
+   | Tab               | Mac (`NavIcon`) | iPhone (SF Symbol) |
+   | ----------------- | --------------- | ------------------ |
+   | Needs me          | `inbox` (tray)  | `tray`             |
+   | Running           | `running`       | `rays`             |
+   | Waiting on others | `waiting`       | `clock`            |
+   | Snoozed           | `snoozed`       | `moon`             |
+   | Done              | `done`          | `flag.checkered`   |
+
+2. **Search**, with tokens (`ws:engineering from:slack`), and New task beside it.
+3. **Sections**, one per workstream: its badge (`workstreamMark` in `@autopilot/client`: two
+   letters and a tint, the same for a name everywhere) and its name. Ordered by the most pressing
+   task in each, the inbox last. A section folds away and then shows its count.
+4. **Cards**: title, then the update label and the source (the workstream is the section), age on
+   the right, the status dot on the left.
+5. **Places**: Signals, Servers and Set up. On the Mac at the foot of the column; on the phone in
+   the tab bar, which iOS puts in the Duo's side bar.
+
+What is the platform's, not ours: the Mac's window buttons above the tabs and the resizable width;
+the phone's safe areas and its tab bar.

@@ -22,14 +22,15 @@ import { age, rowMeta } from '../../../src/format.ts'
 import { useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
 import { Sides } from '../../../src/ui.tsx'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
 const VIEWS: { id: QueueView; title: string; bands: Band[]; symbol: SFSymbol }[] = [
   { id: 'needs_me', title: 'Needs me', bands: ['your_turn', 'new'], symbol: 'tray' },
-  { id: 'running', title: 'Running', bands: ['running'], symbol: 'sparkle' },
-  { id: 'waiting', title: 'Waiting on others', bands: ['waiting'], symbol: 'ellipsis.bubble' },
-  { id: 'snoozed', title: 'Snoozed', bands: ['snoozed'], symbol: 'clock' },
-  { id: 'done', title: 'Done', bands: ['done'], symbol: 'archivebox' },
+  { id: 'running', title: 'Running', bands: ['running'], symbol: 'rays' },
+  { id: 'waiting', title: 'Waiting on others', bands: ['waiting'], symbol: 'clock' },
+  { id: 'snoozed', title: 'Snoozed', bands: ['snoozed'], symbol: 'moon' },
+  { id: 'done', title: 'Done', bands: ['done'], symbol: 'flag.checkered' },
 ]
 
 const TONE = {
@@ -61,6 +62,9 @@ export default function QueueScreen() {
   const { width } = useWindowDimensions()
   const split = width >= SPLIT_WIDTH
   const [view, setView] = useState<QueueView>('needs_me')
+  // Every open task: the current tab tapped again, as on the Mac.
+  const [all, setAll] = useState(false)
+  const insets = useSafeAreaInsets()
   const [selected, setSelected] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
   const [folded, setFolded] = useState<Set<string>>(new Set())
@@ -76,23 +80,30 @@ export default function QueueScreen() {
       .catch(() => {})
   }, [view, sync])
 
+  const openItems = useMemo(() => items.filter((i) => i.band !== 'done'), [items])
   const counts = useMemo(
     () =>
       Object.fromEntries(VIEWS.map((v) => [v.id, v.id === 'done' ? done?.length : items.filter((i) => v.bands.includes(i.band)).length])),
     [items, done],
   )
+  const pick = (id: QueueView) => {
+    setAll(id === view && id !== 'done' && !all)
+    setView(id)
+  }
 
   // A section per workstream, in the order of its most pressing task; the inbox last.
   const sections = useMemo(() => {
     const bands = current?.bands ?? []
-    const listed = (view === 'done' ? (done ?? []) : items).filter((i) => bands.includes(i.band) && matches(i, filter))
+    const listed = all
+      ? openItems.filter((i) => matches(i, filter))
+      : (view === 'done' ? (done ?? []) : items).filter((i) => bands.includes(i.band) && matches(i, filter))
     const names = [...new Set(listed.map((i) => i.task.workstream))]
     const order = [...names.filter((n) => n !== 'inbox'), ...names.filter((n) => n === 'inbox')]
     return order.map((name) => {
-      const all = listed.filter((i) => i.task.workstream === name)
-      return { name, count: all.length, data: folded.has(name) ? [] : all }
+      const inSection = listed.filter((i) => i.task.workstream === name)
+      return { name, count: inSection.length, data: folded.has(name) ? [] : inSection }
     })
-  }, [items, done, view, current, filter, folded])
+  }, [items, openItems, all, done, view, current, filter, folded])
   const fold = (name: string) =>
     setFolded((f) => {
       const next = new Set(f)
@@ -121,20 +132,30 @@ export default function QueueScreen() {
     <View style={styles.tabs} accessibilityRole="tablist">
       {VIEWS.map((v) => {
         const on = v.id === view
-        const count = counts[v.id]
+        const name = on && all ? 'All open' : v.title
+        const count = on && all ? openItems.length : counts[v.id]
         return (
           <Pressable
             key={v.id}
             style={[styles.tab, on && styles.tabOn]}
-            onPress={() => setView(v.id)}
+            onPress={() => pick(v.id)}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
-            accessibilityLabel={count === undefined ? v.title : `${v.title}, ${count}`}
+            accessibilityLabel={count === undefined ? name : `${name}, ${count}`}
           >
             <SymbolView name={v.symbol} size={15} tintColor={on ? colours.text : colours.text3} />
+            {on && (
+              <Text style={styles.tabName} numberOfLines={1}>
+                {name}
+              </Text>
+            )}
             {count !== undefined && (
               <Text
-                style={[styles.tabCount, on && { color: colours.text }, v.id === 'needs_me' && count > 0 && { color: colours.pilotSoft }]}
+                style={[
+                  styles.tabCount,
+                  on && { color: colours.text },
+                  v.id === 'needs_me' && !all && count > 0 && { color: colours.pilotSoft },
+                ]}
               >
                 {count}
               </Text>
@@ -160,26 +181,29 @@ export default function QueueScreen() {
         returnKeyType="search"
         accessibilityLabel="Search tasks"
       />
+      <Pressable onPress={() => router.push('/new')} accessibilityRole="button" accessibilityLabel="New task" hitSlop={8}>
+        <SymbolView name="square.and.pencil" size={17} tintColor={colours.text2} />
+      </Pressable>
     </View>
   )
 
   const list = (
     <Sides>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {/* The same column as on the Mac: tabs, then search with New task beside it, then the sections. */}
+        <View style={{ paddingTop: split ? 8 : insets.top + 8, gap: 8 }}>
+          <StatusLine />
+          {tabs}
+          {search}
+        </View>
         <SectionList
           style={{ flex: 1 }}
-          contentInsetAdjustmentBehavior="automatic"
           sections={sections}
           keyExtractor={(i) => i.task.id}
           stickySectionHeadersEnabled={false}
           refreshControl={<RefreshControl refreshing={false} tintColor={colours.text3} onRefresh={() => void sync?.syncOnce(0)} />}
           keyboardDismissMode="on-drag"
-          ListHeaderComponent={
-            <>
-              <StatusLine />
-              {tabs}
-            </>
-          }
+
           ListEmptyComponent={
             <Text style={styles.empty}>
               {filter
@@ -211,28 +235,15 @@ export default function QueueScreen() {
           }}
           renderItem={({ item }) => <Row item={item} selected={split && item.task.id === selected} onPress={() => open(item.task.id)} />}
         />
-        {search}
       </KeyboardAvoidingView>
     </Sides>
   )
 
   return (
     <>
-      <Stack.Screen options={{ title: current?.title ?? 'Queue' }} />
-      {/* The prominent action is New task. On a selected task in the split, its actions. */}
-      {selectedItem ? (
-        <TaskToolbar item={selectedItem} closeAfter={false} />
-      ) : (
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Button
-            variant="prominent"
-            tintColor={colours.pilot}
-            icon="plus"
-            accessibilityLabel="New task"
-            onPress={() => router.push('/new')}
-          />
-        </Stack.Toolbar>
-      )}
+      {/* The tab names itself, so there is no title bar; in the split it carries the selected task's actions. */}
+      <Stack.Screen options={{ title: all ? 'All open' : (current?.title ?? 'Queue'), headerShown: split, headerLargeTitle: false }} />
+      {selectedItem && <TaskToolbar item={selectedItem} closeAfter={false} />}
       {split ? (
         <View style={{ flex: 1, flexDirection: 'row' }}>
           <View
@@ -293,8 +304,9 @@ const dotStyle = (item: QueueItem) => {
 
 const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', gap: 2, marginHorizontal: 12, marginTop: 4, padding: 3, borderRadius: 12, backgroundColor: colours.well },
-  tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 34, borderRadius: 9 },
-  tabOn: { backgroundColor: colours.button },
+  tab: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 34, borderRadius: 9 },
+  tabOn: { flex: 2.6, backgroundColor: colours.button },
+  tabName: { flexShrink: 1, fontSize: 14, color: colours.text },
   tabCount: { fontSize: 14, color: colours.text3, fontVariant: ['tabular-nums'] },
   section: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 8 },
   mark: { width: 22, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
@@ -306,8 +318,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginHorizontal: 12,
-    marginTop: 6,
-    marginBottom: 10,
     paddingHorizontal: 12,
     height: 40,
     borderRadius: 12,

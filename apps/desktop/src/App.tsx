@@ -42,8 +42,9 @@ const useAttention = (items: QueueItem[], open: (id: string) => void) => {
   }, [])
 }
 
-/** The tasks a tab shows. Done is not in the live queue; it is read when shown. */
-const tabItems = (tab: QueueView, items: QueueItem[], done: QueueItem[]) => {
+/** The tasks a tab shows, or every open one. Done is not in the live queue; it is read when shown. */
+const tabItems = (tab: QueueView, items: QueueItem[], done: QueueItem[], all = false) => {
+  if (all) return items.filter((i) => i.band !== 'done')
   const q = QUEUE_VIEWS.find((v) => v.id === tab)
   return q ? (q.id === 'done' ? done : items).filter((i) => q.bands.includes(i.band)) : []
 }
@@ -52,6 +53,7 @@ export const App = () => {
   const items = useQueueItems()
   const { connection, error, queue } = useStore()
   const [tab, setTab] = useState<QueueView>('needs_me')
+  const [all, setAll] = useState(false)
   const [view, setView] = useState<View>({ kind: 'task' })
   const [selected, setSelected] = useState<string | null>(null)
   const [showingTask, setShowingTask] = useState(false)
@@ -109,13 +111,13 @@ export const App = () => {
   const selectTask = useCallback((id: string) => setSelected(id), [])
   useAttention(items, openTask)
 
-  const listed = useMemo(() => tabItems(tab, items, done), [tab, items, done])
+  const listed = useMemo(() => tabItems(tab, items, done, all), [tab, items, done, all])
   const counts = useMemo(() => {
-    const counted: Partial<Record<QueueView, number>> = {}
+    const counted: Partial<Record<QueueView | 'all', number>> = { all: tabItems(tab, items, done, true).length }
     for (const q of QUEUE_VIEWS) if (q.id !== 'done') counted[q.id] = tabItems(q.id, items, done).length
     if (doneRead) counted.done = done.length
     return counted
-  }, [items, done, doneRead])
+  }, [tab, items, done, doneRead])
 
   const current = [...items, ...done].find((i) => i.task.id === selected) ?? null
   const banner = connection === 'offline' ? `Not connected to the Autopilot server${error ? `: ${error}` : ''}. Retrying…` : null
@@ -149,16 +151,20 @@ export const App = () => {
   // Another tab leaves no task open from the last one. Only here: a task opened for you (just
   // created, from a notification) stays open wherever it is.
   const switchTab = (next: QueueView) => {
+    // The tab you are on, tapped again, shows every open task (Done stays Done).
+    const showAll = next === tab && next !== 'done' && !all
+    setAll(showAll)
     setTab(next)
     setView({ kind: 'task' })
     setShowingTask(false)
-    if (selected && !tabItems(next, items, done).some((i) => i.task.id === selected)) setSelected(null)
+    if (selected && !tabItems(next, items, done, showAll).some((i) => i.task.id === selected)) setSelected(null)
   }
 
   return (
     <div className={`app${showingTask ? ' showing-task' : ''}`}>
       <QueueList
         tab={tab}
+        all={all}
         onTab={switchTab}
         counts={counts}
         items={listed}

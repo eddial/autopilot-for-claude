@@ -9,9 +9,11 @@ import { Banner, Button, Dot, NavIcon, SearchIcon, type NavIconName } from '../u
 
 type Props = {
   tab: QueueView
+  /** Every open task, whatever its status: the current tab tapped again. */
+  all: boolean
   onTab: (tab: QueueView) => void
   /** How many tasks each tab holds; Done only once it has been read. */
-  counts: Partial<Record<QueueView, number>>
+  counts: Partial<Record<QueueView | 'all', number>>
   items: QueueItem[]
   signals: Signal[]
   view: View
@@ -51,11 +53,11 @@ type Entry = { kind: 'group'; workstream: string; count: number; folded: boolean
  * in one, as on the phone.
  */
 export const QueueList = (props: Props) => {
-  const { tab, onTab, counts, items, signals, view, go, selected, onSelect, onOpen, width, banner } = props
+  const { tab, all, onTab, counts, items, signals, view, go, selected, onSelect, onOpen, width, banner } = props
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [folded, setFolded] = useState<Set<string>>(new Set())
-  const title = QUEUE_VIEWS.find((q) => q.id === tab)?.title ?? ''
+  const title = all ? 'All open' : (QUEUE_VIEWS.find((q) => q.id === tab)?.title ?? '')
   const visible = useMemo(() => items.filter((i) => matches(i, filter)), [items, filter])
   // Sections in the order of their most pressing task (the queue comes sorted), the inbox last.
   const entries = useMemo((): Entry[] => {
@@ -137,19 +139,23 @@ export const QueueList = (props: Props) => {
       <div className="titlebar drag" />
       <h1 className="hidden-heading">{title}</h1>
       <nav className="tabs" aria-label="Queue">
+        {/* The tab you are on says its name; tapped again, it shows every open task. */}
         {QUEUE_VIEWS.map((q) => {
-          const count = counts[q.id]
+          const on = tab === q.id
+          const name = on && all ? 'All open' : q.title
+          const count = on && all ? counts.all : counts[q.id]
           return (
             <Button
               key={q.id}
               kind="tab"
-              aria-label={count === undefined ? q.title : `${q.title}, ${count}`}
-              title={q.title}
-              aria-current={tab === q.id ? 'page' : undefined}
+              aria-label={count === undefined ? name : `${name}, ${count}`}
+              title={on && q.id !== 'done' ? `${q.title} · click again for ${all ? q.title : 'all open'}` : q.title}
+              aria-current={on ? 'page' : undefined}
               onClick={() => onTab(q.id)}
             >
               <NavIcon name={TAB_ICON[q.id]} size={15} />
-              {count !== undefined && <span className={q.id === 'needs_me' && count > 0 ? 'you' : undefined}>{count}</span>}
+              {on && <span className="tab-name">{name}</span>}
+              {count !== undefined && <span className={q.id === 'needs_me' && !all && count > 0 ? 'you' : undefined}>{count}</span>}
             </Button>
           )
         })}

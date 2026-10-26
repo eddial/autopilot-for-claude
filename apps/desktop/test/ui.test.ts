@@ -90,6 +90,15 @@ describe('the Mac app window', () => {
     await expect.poll(() => heading.count()).toBe(0)
   }, 30_000)
 
+  it('shows every open task when the current tab is clicked again', async () => {
+    await page.getByRole('button', { name: 'Running' }).click()
+    await expect.poll(() => page.getByRole('heading', { name: 'Running' }).isVisible()).toBe(true)
+    await page.getByRole('button', { name: 'Running' }).click()
+    await expect.poll(() => page.getByRole('option', { name: /Renew the office lease/ }).count()).toBe(1)
+    await page.getByRole('button', { name: 'All open' }).click()
+    await expect.poll(() => page.getByRole('heading', { name: 'Running' }).isVisible()).toBe(true)
+  }, 30_000)
+
   it('shows signals and walks into set-up', async () => {
     await page.getByRole('button', { name: 'Signals' }).click()
     await expect.poll(() => page.getByRole('heading', { name: 'Signals and workstreams' }).isVisible()).toBe(true)
