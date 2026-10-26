@@ -521,11 +521,14 @@ export class Service {
     })
   }
 
-  /** A resumed session runs again under its own id, from the start of its Remote Control. */
+  /**
+   * A resumed session runs again under its own id, from the start of its Remote Control. It comes
+   * back without a prompt, waiting for whoever opens it: idle, so it holds no slot.
+   */
   reopenSession(id: string, pid: number | null): Session {
     return this.transaction(() => {
       this.sql('update sessions set pid = ?, remote_control_url = null where id = ?').run(pid, id)
-      return this.setSession(id, { state: 'starting', activity: null, remoteControlUrl: null })
+      return this.setSession(id, { state: 'idle', activity: null, remoteControlUrl: null })
     })
   }
 

@@ -139,7 +139,7 @@ describe('where a session works', () => {
     const detail = service.getTask(task.id)
     expect({ session: detail.session?.id, state: detail.session?.state, task: detail.task.state }).toEqual({
       session: first?.id,
-      state: 'starting',
+      state: 'idle',
       task: 'waiting',
     })
   })
