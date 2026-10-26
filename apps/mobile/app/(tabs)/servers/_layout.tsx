@@ -7,6 +7,8 @@ export default function TabStack() {
     <Stack
       screenOptions={{
         headerLargeTitle: true,
+        // No hairline under the bar: on the Duo it stops short at the side bar.
+        headerShadowVisible: false,
         headerStyle: { backgroundColor: colours.window },
         headerLargeTitleStyle: { fontFamily: fonts.serifNative, color: colours.text },
         headerTitleStyle: { color: colours.text },

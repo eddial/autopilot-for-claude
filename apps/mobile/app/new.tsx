@@ -53,7 +53,12 @@ export default function NewTaskScreen() {
   return (
     <>
       <Stack.Screen
-        options={{ title: 'New task', headerStyle: { backgroundColor: colours.surface }, headerTitleStyle: { color: colours.text } }}
+        options={{
+          title: 'New task',
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: colours.surface },
+          headerTitleStyle: { color: colours.text },
+        }}
       />
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button icon="xmark" accessibilityLabel="Cancel" onPress={() => router.back()} />
