@@ -155,6 +155,7 @@ A session works in a folder, and it is always a git repository:
 | `autopilot show AP-3` | A task with its updates |
 | `autopilot answer AP-3 opus` | Answer the open decision (option id or label) or question (text) |
 | `autopilot new "…" --save` | A task in New, without starting a session |
+| `autopilot devices` | Paired devices; `devices pair --link` pairs a simulator, `devices remove <id>` unpairs |
 | `autopilot token "Claude Desktop" read` | A token for another agent; add `autopilot mcp` with `AUTOPILOT_TOKEN` to its MCP config |
 | `autopilot service uninstall` | Stop the background server |
 

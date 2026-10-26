@@ -30,6 +30,9 @@ const HELP = `autopilot <command>
   connectors                     the connectors Claude Code has here, and which signal reads each
   routing [accept|reject <id>]   the nightly routing review's proposals, or decide one
   status                         server, signals and queue at a glance
+  devices [pair [--link] | remove <id>]
+                                 paired devices; pair prints an invite (--link: as the
+                                 autopilot:// link a simulator opens), remove unpairs one
   token <name> <scope> [--task <task>]
                                  create a token for an agent (scope: owner, read, create)
   mcp                            MCP server on stdio for Claude Code and other agents
@@ -199,6 +202,21 @@ const main = async (argv: string[]): Promise<void> => {
         console.log(
           `Signal ${s.name}: ${s.health.state}${s.health.message ? ` (${s.health.message})` : ''} · last run ${s.lastRunAt ?? 'never'}`,
         )
+      }
+      return
+    }
+    case 'devices': {
+      const { values, positionals } = parseArgs({ args: rest, allowPositionals: true, options: { link: { type: 'boolean' } } })
+      const [action, id = ''] = positionals
+      const { api } = client()
+      if (action === 'pair') {
+        const { invite } = await api.devices.startPairing({ idempotencyKey: key() })
+        const json = JSON.stringify(invite)
+        console.log(values.link ? `autopilot://pair?invite=${encodeURIComponent(json)}` : json)
+      } else if (action === 'remove') {
+        await api.devices.remove({ idempotencyKey: key(), id })
+      } else {
+        for (const d of await api.devices.list()) console.log(`${d.id.padEnd(20)} ${d.kind.padEnd(7)} ${d.name}`)
       }
       return
     }

@@ -70,8 +70,9 @@ xcrun simctl install booted build/Build/Products/Release-iphonesimulator/Autopil
   then tap Autopilot on the Home Screen half.
 - **Keyboard**: the simulator hides the on-screen keyboard (hardware keyboard). Use the simulator
   tool's `set_keyboard show`, then focus a field.
-- **Pair a simulator with the real server** for real data, and remove it afterwards: the scratch
-  script `invite.ts` (startPairing, then `autopilot://pair?invite=...`), and `devices.remove`.
+- **Pair a simulator with the running server** for real data, and unpair it afterwards:
+  `xcrun simctl openurl booted "$(pnpm -s autopilot devices pair --link)"`, then
+  `pnpm autopilot devices` and `pnpm autopilot devices remove <id>` (the simulator is "iPhone Duo").
 - **Screenshots lag a beat** behind taps: take a second one before judging.
 - **Coordinates are points of the lit screen**: outer 466x678, inner 951x669 (landscape).
 
