@@ -843,6 +843,13 @@ button {
   height: 13px;
 }
 
+/* A right-click menu: the same menu, where the pointer is, above everything. */
+.menu-items.context {
+  position: fixed;
+  z-index: 40;
+  min-width: 200px;
+}
+
 .menu-items.align-right {
   left: auto;
   right: 0;
@@ -990,46 +997,15 @@ button {
 }
 
 /* Its actions float to its left, over the page, while the pointer is on it. */
-.side-link-actions {
-  position: absolute;
-  top: 50%;
-  right: calc(100% - 2px);
-  z-index: 5;
-  display: none;
-  gap: 2px;
-  padding: 3px;
-  border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--raised);
-  box-shadow: 0 6px 18px var(--shadow);
-  transform: translateY(-50%);
-  white-space: nowrap;
-}
-
-.side-link:hover .side-link-actions,
-.side-link:focus-within .side-link-actions,
-.side-link.reading .side-link-actions {
-  display: flex;
-}
-
-.side-link-actions .btn,
-.side-link-actions button {
-  padding: 3px 8px;
-  font-size: 12px;
-}
-
+/* A file's first lines, read in the card under its row. */
 .side-link-preview {
-  position: absolute;
-  top: calc(50% + 22px);
-  right: calc(100% - 2px);
-  z-index: 6;
-  width: 460px;
-  max-height: 60vh;
+  max-height: 320px;
   overflow-y: auto;
-  border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--raised);
-  box-shadow: 0 10px 30px var(--shadow);
+  margin: 4px 0 6px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--open);
+  font-size: 12.5px;
 }
 
 .side-link-preview .link-preview {

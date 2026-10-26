@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Button, Icon } from '../ui.tsx'
 
 /** A choice in a menu; `detail` is lined up in columns beside the labels. */
@@ -77,4 +78,61 @@ export const Menu = ({
       )}
     </div>
   )
+}
+
+/**
+ * A right-click menu drawn like every other menu here, rather than the one macOS draws: `open`
+ * on contextmenu, and `menu` rendered anywhere (it goes to the end of the page).
+ */
+export const useContextMenu = () => {
+  const [at, setAt] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!at) return
+    const close = () => setAt(null)
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && close()
+    const away = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && close()
+    window.addEventListener('keydown', key)
+    window.addEventListener('pointerdown', away)
+    window.addEventListener('blur', close)
+    window.addEventListener('scroll', close, true)
+    return () => {
+      window.removeEventListener('keydown', key)
+      window.removeEventListener('pointerdown', away)
+      window.removeEventListener('blur', close)
+      window.removeEventListener('scroll', close, true)
+    }
+  }, [at])
+  const open = (e: MouseEvent, items: MenuItem[]) => {
+    e.preventDefault()
+    // Kept inside the window: a row is about 33 points tall, the menu at most 240 wide.
+    setAt({ x: Math.min(e.clientX, window.innerWidth - 248), y: Math.min(e.clientY, window.innerHeight - items.length * 33 - 16), items })
+  }
+  const menu =
+    at &&
+    createPortal(
+      <div
+        ref={ref}
+        className="menu-items context"
+        role="menu"
+        // oxlint-disable-next-line react/forbid-dom-props -- where the pointer was
+        style={{ left: at.x, top: at.y }}
+      >
+        {at.items.map((i) => (
+          <Button
+            key={i.label}
+            kind="menu"
+            role="menuitem"
+            onClick={() => {
+              setAt(null)
+              i.run()
+            }}
+          >
+            {i.label}
+          </Button>
+        ))}
+      </div>,
+      document.body,
+    )
+  return { open, menu }
 }

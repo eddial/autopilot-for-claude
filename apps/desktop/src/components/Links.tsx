@@ -1,9 +1,10 @@
-import { useEffect, useState, type MouseEvent } from 'react'
+import { useEffect, useState } from 'react'
 import { linkKind, linkSource } from '@autopilot/client'
 import type { LinkPreview, Link } from '@autopilot/contracts'
 import { api, shell } from '../api.ts'
 import { ago } from '../format.ts'
 import { Button, Chevron, Markdown, Meta, NavIcon } from '../ui.tsx'
+import { useContextMenu } from './Menu.tsx'
 
 /**
  * What a task points to: drafts, files, branches, pull requests. One quiet line until opened;
@@ -130,8 +131,8 @@ export const LinkIcon = ({ link }: { link: Link }) => <NavIcon name={linkKind(li
 
 /**
  * A link in the task's properties: its kind's icon, the title on one line, and what it is and
- * when it was linked. Its actions float beside it on hover, over the page, so nothing moves; a
- * readable file opens its first lines there too.
+ * when it was linked. A click opens it; right-click reads a file here, shows it in Finder or
+ * copies it.
  */
 export const SideLink = ({ taskId, link, at }: { taskId: string; link: Link; at: string | null }) => {
   const kind = linkKind(link)
@@ -140,25 +141,19 @@ export const SideLink = ({ taskId, link, at }: { taskId: string; link: Link; at:
   const title = titleOf(link)
   const hint = [title, file ? fileName(link.url) : null, link.subtitle].filter(Boolean).join('\n')
   const readable = READABLE.test(link.url)
-  // Right-click: what you can do with it, in a menu macOS draws.
-  const menu = (e: MouseEvent) => {
-    if (!shell) return
-    e.preventDefault()
-    const items = [
-      { id: 'open', label: 'Open' },
-      ...(readable ? [{ id: 'read', label: reading ? 'Close preview' : 'Read here' }] : []),
-      ...(file ? [{ id: 'finder', label: 'Show in Finder' }] : []),
-      { id: 'copy', label: file ? 'Copy path' : 'Copy link' },
-    ]
-    void shell.menu(items).then((chosen) => {
-      if (chosen === 'open') open(link.url)
-      if (chosen === 'read') setReading((r) => !r)
-      if (chosen === 'finder') shell?.reveal(link.url)
-      if (chosen === 'copy') void navigator.clipboard.writeText(file ? decodeURI(link.url.replace(/^file:\/\//, '')) : link.url)
-    })
-  }
+  // Right-click: what you can do with it.
+  const context = useContextMenu()
+  const items = [
+    { label: 'Open', run: () => open(link.url) },
+    ...(readable ? [{ label: reading ? 'Close preview' : 'Read here', run: () => setReading((r) => !r) }] : []),
+    ...(file && shell ? [{ label: 'Show in Finder', run: () => shell?.reveal(link.url) }] : []),
+    {
+      label: file ? 'Copy path' : 'Copy link',
+      run: () => void navigator.clipboard.writeText(file ? decodeURI(link.url.replace(/^file:\/\//, '')) : link.url),
+    },
+  ]
   return (
-    <li className={`side-link${reading ? ' reading' : ''}`} onContextMenu={menu}>
+    <li className={`side-link${reading ? ' reading' : ''}`} onContextMenu={(e) => context.open(e, items)}>
       <Button kind="item" className="side-link-main" title={hint} onClick={() => open(link.url)}>
         <span className="side-link-icon">
           <NavIcon name={kind.icon} size={15} />
@@ -171,26 +166,12 @@ export const SideLink = ({ taskId, link, at }: { taskId: string; link: Link; at:
           </span>
         </span>
       </Button>
-      {/* On hover, to its left: reading it here and Finder; the rest is on right-click. */}
-      {(readable || (file && shell)) && (
-        <div className="side-link-actions">
-          {readable && (
-            <Button kind="quiet" aria-expanded={reading} onClick={() => setReading((r) => !r)}>
-              {reading ? 'Close' : 'Read'}
-            </Button>
-          )}
-          {file && shell && (
-            <Button kind="quiet" onClick={() => shell?.reveal(link.url)}>
-              Finder
-            </Button>
-          )}
-        </div>
-      )}
       {reading && (
         <div className="side-link-preview">
           <Preview taskId={taskId} url={link.url} />
         </div>
       )}
+      {context.menu}
     </li>
   )
 }
