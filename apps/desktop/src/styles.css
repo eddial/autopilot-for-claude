@@ -845,6 +845,12 @@ button {
   height: 13px;
 }
 
+/* A menu floats above the page, placed by its button (inline), so no scrolling column clips it. */
+.menu-items.floating {
+  position: fixed;
+  z-index: 40;
+}
+
 /* A right-click menu: the same menu, where the pointer is, above everything. */
 .menu-items.context {
   position: fixed;

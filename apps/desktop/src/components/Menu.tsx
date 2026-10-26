@@ -29,53 +29,74 @@ export const Menu = ({
   chevron?: boolean
   align?: 'left' | 'right'
 }) => {
-  const [shown, setShown] = useState(false)
+  // Where it opens, worked out from its button: floating above the page, so no scrolling column
+  // clips it; upwards when there is no room below.
+  const [shown, setShown] = useState<{ top: number; left?: number; right?: number } | null>(null)
   const ref = useRef<HTMLDivElement>(null)
+  const list = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!shown) return
-    const key = (e: KeyboardEvent) => e.key === 'Escape' && setShown(false)
-    const away = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setShown(false)
+    const close = () => setShown(null)
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && close()
+    const away = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && !list.current?.contains(e.target as Node) && close()
     window.addEventListener('keydown', key)
     window.addEventListener('pointerdown', away)
+    window.addEventListener('resize', close)
+    window.addEventListener('scroll', close, true)
     return () => {
       window.removeEventListener('keydown', key)
       window.removeEventListener('pointerdown', away)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('scroll', close, true)
     }
   }, [shown])
+  const toggle = () => {
+    if (shown) return setShown(null)
+    const box = ref.current?.getBoundingClientRect()
+    if (!box) return
+    const tall = items.length * 33 + 16
+    const top = box.bottom + 6 + tall > window.innerHeight ? Math.max(8, box.top - 6 - tall) : box.bottom + 6
+    setShown(align === 'right' ? { top, right: window.innerWidth - box.right } : { top, left: box.left })
+  }
   return (
     <div className={`menu${trigger === 'prop' ? ' menu-prop' : ''}`} ref={ref}>
-      <Button kind={trigger} className={className} aria-haspopup="menu" aria-expanded={shown} onClick={() => setShown((s) => !s)}>
+      <Button kind={trigger} className={className} aria-haspopup="menu" aria-expanded={shown !== null} onClick={toggle}>
         {label}
         {chevron && <Icon name="more" />}
       </Button>
-      {shown && (
-        <div
-          className={`menu-items${align === 'right' ? ' align-right' : ''}${items.some((i) => i.checked !== undefined) ? ' with-checks' : ''}${items.some((i) => i.icon) ? ' with-icons' : ''}`}
-          role="menu"
-        >
-          {items.map((i) => (
-            <Button
-              key={i.label}
-              kind="menu"
-              role={i.checked === undefined ? 'menuitem' : 'menuitemradio'}
-              aria-checked={i.checked}
-              onClick={() => {
-                setShown(false)
-                i.run()
-              }}
-            >
-              {i.icon !== undefined && <span className="menu-icon">{i.icon}</span>}
-              {i.label}
-              {i.detail?.map((d) => (
-                <span key={d} className="menu-detail">
-                  {d}
-                </span>
-              ))}
-              {i.checked !== undefined && <span className="menu-check">{i.checked && <Icon name="done" />}</span>}
-            </Button>
-          ))}
-        </div>
-      )}
+      {shown &&
+        createPortal(
+          <div
+            ref={list}
+            className={`menu-items floating${items.some((i) => i.checked !== undefined) ? ' with-checks' : ''}${items.some((i) => i.icon) ? ' with-icons' : ''}`}
+            role="menu"
+            // oxlint-disable-next-line react/forbid-dom-props -- placed by its button
+            style={shown}
+          >
+            {items.map((i) => (
+              <Button
+                key={i.label}
+                kind="menu"
+                role={i.checked === undefined ? 'menuitem' : 'menuitemradio'}
+                aria-checked={i.checked}
+                onClick={() => {
+                  setShown(null)
+                  i.run()
+                }}
+              >
+                {i.icon !== undefined && <span className="menu-icon">{i.icon}</span>}
+                {i.label}
+                {i.detail?.map((d) => (
+                  <span key={d} className="menu-detail">
+                    {d}
+                  </span>
+                ))}
+                {i.checked !== undefined && <span className="menu-check">{i.checked && <Icon name="done" />}</span>}
+              </Button>
+            ))}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

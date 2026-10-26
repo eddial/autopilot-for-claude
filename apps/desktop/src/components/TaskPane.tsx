@@ -572,19 +572,19 @@ const Actions = ({ item, session: withSession = true, start = true }: { item: Qu
         </Button>
       )}
       {withSession && preferred && (
-        <div className="split tone-claude">
+        <div className="split">
           {/* One click opens it the way you last chose; the arrow picks another and keeps it. */}
-          <Button kind="tool" className="tinted split-main" title={preferred.label} onClick={() => open(preferred.url)}>
+          <Button kind="tool" className="split-main" title={preferred.label} onClick={() => open(preferred.url)}>
             <Claude pixel={0.875} />
             Open session
           </Button>
           {choices.length > 1 && (
-            <Menu className="tinted split-arrow" label={<span className="sr-only">Other ways to open the session</span>} items={choices} />
+            <Menu className="split-arrow" label={<span className="sr-only">Other ways to open the session</span>} items={choices} />
           )}
         </div>
       )}
       <Menu
-        className="tinted tone-paused"
+        className="with-icon"
         label={
           <>
             <Icon name="clock" />
