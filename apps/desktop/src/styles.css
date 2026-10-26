@@ -2655,10 +2655,10 @@ textarea.inline-reply {
   display: block;
 }
 
+/* Each control its own hint's anchor; Settings floats already (position: fixed). */
 .tab,
 .filter,
-.new-task,
-.settings-button {
+.new-task {
   position: relative;
 }
 
