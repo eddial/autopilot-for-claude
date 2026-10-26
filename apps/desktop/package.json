@@ -6,6 +6,7 @@
   "main": "dist/electron/main.js",
   "scripts": {
     "build": "node scripts/build.ts",
+    "package": "node scripts/package.ts",
     "dev": "node scripts/build.ts --dev",
     "start": "node scripts/build.ts && electron .",
     "typecheck": "tsc --noEmit",

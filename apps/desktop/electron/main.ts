@@ -23,7 +23,25 @@ const DOCUMENT = /\.(md|markdown|txt|csv|json|ya?ml|html?|eml|pdf|docx?|xlsx?|pp
 
 const paths = resolvePaths()
 /** The checkout this runs from: apps/desktop, so the server is next door. */
-const SERVER_BIN = join(app.getAppPath(), '..', 'server', 'bin', 'autopilot.js')
+/**
+ * Where the server's code and a Node 24 are, for starting the server when it is not running. Run
+ * from the repository, next to this app; packaged (`pnpm --filter @autopilot/desktop package`),
+ * from the checkout and Node it was packaged from, written into its package.json.
+ */
+const packaged = ((): { checkout?: string; node?: string } => {
+  if (!app.isPackaged) return {}
+  try {
+    return (
+      (JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')) as { autopilot?: { checkout?: string; node?: string } })
+        .autopilot ?? {}
+    )
+  } catch {
+    return {}
+  }
+})()
+const SERVER_BIN = packaged.checkout
+  ? join(packaged.checkout, 'apps', 'server', 'bin', 'autopilot.js')
+  : join(app.getAppPath(), '..', 'server', 'bin', 'autopilot.js')
 
 let window: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -68,7 +86,11 @@ const ensureServer = async (): Promise<Client> => {
   mkdirSync(paths.logs, { recursive: true })
   const log = openSync(join(paths.logs, 'server.log'), 'a')
   const { ELECTRON_RUN_AS_NODE: _electron, ...env } = process.env
-  const child = spawn(process.env.AUTOPILOT_NODE ?? 'node', [SERVER_BIN, 'serve'], { detached: true, stdio: ['ignore', log, log], env })
+  const child = spawn(process.env.AUTOPILOT_NODE ?? packaged.node ?? 'node', [SERVER_BIN, 'serve'], {
+    detached: true,
+    stdio: ['ignore', log, log],
+    env,
+  })
   child.unref()
   for (let i = 0; i < 50; i++) {
     await sleep(200)
