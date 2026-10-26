@@ -12,7 +12,7 @@ import {
   type Pending,
 } from '@autopilot/client'
 import type { QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contracts'
-import { filedBy, signalName, workstreamMark } from '@autopilot/client'
+import { filedBy, isPaste, pasteSize, signalName, workstreamMark } from '@autopilot/client'
 import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
 import { useDraft } from '../drafts.ts'
@@ -363,9 +363,34 @@ const Entry = ({ update, latest }: { update: Update; latest: boolean }) => {
         <span className="entry-label">{updateLabel(update)}</span>
         {by ? ` · ${by}` : ''} · {age(update.createdAt)}
       </div>
-      <Body text={update.body} full={latest} />
+      {update.author === 'owner' && isPaste(update.body) ? <Pasted text={update.body} /> : <Body text={update.body} full={latest} />}
       <Attachments links={update.attachments} />
     </li>
+  )
+}
+
+/** A long message of the owner's, most likely pasted: a card with its first words, opened on a click. */
+const Pasted = ({ text }: { text: string }) => {
+  const [shown, setShown] = useState(false)
+  return (
+    <div className={`pasted${shown ? ' open' : ''}`}>
+      <Button kind="item" className="pasted-head" aria-expanded={shown} onClick={() => setShown((s) => !s)}>
+        <NavIcon name="document" size={15} />
+        <span className="pasted-text">
+          <span className="pasted-title">Pasted text</span>
+          <span className="pasted-meta">
+            {pasteSize(text)} · {shown ? 'Hide' : 'Show'}
+          </span>
+        </span>
+      </Button>
+      {shown ? (
+        <div className="msg">
+          <Markdown text={text} onLink={open} />
+        </div>
+      ) : (
+        <div className="pasted-peek">{text.slice(0, 240)}</div>
+      )}
+    </div>
   )
 }
 
@@ -416,7 +441,7 @@ const PendingEntry = ({ pending, options }: { pending: Pending; options: { id: s
       <div className="entry-head">
         <span className="entry-label">You</span> · sending
       </div>
-      <div className="msg">{words}</div>
+      {isPaste(words) ? <Pasted text={words} /> : <div className="msg">{words}</div>}
     </li>
   ) : null
 }

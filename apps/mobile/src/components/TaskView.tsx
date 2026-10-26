@@ -2,6 +2,8 @@ import { useRef, useState, type ComponentRef, type ReactNode } from 'react'
 import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import {
   filedBy,
+  isPaste,
+  pasteSize,
   signalName,
   createdText,
   eventText,
@@ -16,6 +18,7 @@ import {
 } from '@autopilot/client'
 import type { QueueItem, Update } from '@autopilot/contracts'
 import * as Haptics from 'expo-haptics'
+import { SymbolView } from 'expo-symbols'
 import { age, ago, BAND_TITLE, titleCase } from '../format.ts'
 import { useDraft } from '../drafts.ts'
 import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
@@ -338,6 +341,7 @@ const Entry = ({
   tone = 'quiet',
   body,
   sending,
+  event,
   children,
 }: {
   label: string
@@ -365,10 +369,40 @@ const Entry = ({
       <Text style={{ color: colours.text2 }}>{label}</Text>
       {event ? (body ? ` ${body}` : '') : by ? ` · ${by}` : ''} · {at}
     </Text>
-    {event ? null : <Markdown text={body} onLink={open} />}
+    {event ? null : who === 'owner' && isPaste(body) ? <Pasted text={body} /> : <Markdown text={body} onLink={open} />}
     {children}
   </View>
 )
+
+/** A long message of the owner's, most likely pasted: a card with its first words, opened on a tap. */
+const Pasted = ({ text }: { text: string }) => {
+  const [shown, setShown] = useState(false)
+  return (
+    <View style={styles.pasted}>
+      <Pressable
+        style={styles.pastedHead}
+        onPress={() => setShown((s) => !s)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: shown }}
+      >
+        <SymbolView name="doc.text" size={16} tintColor={colours.text3} />
+        <View>
+          <Text style={styles.pastedTitle}>Pasted text</Text>
+          <Text style={type.meta}>
+            {pasteSize(text)} · {shown ? 'Hide' : 'Show'}
+          </Text>
+        </View>
+      </Pressable>
+      {shown ? (
+        <Markdown text={text} onLink={open} />
+      ) : (
+        <Text style={[type.meta, styles.pastedPeek]} numberOfLines={2}>
+          {text}
+        </Text>
+      )}
+    </View>
+  )
+}
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colours.surface },
@@ -378,6 +412,17 @@ const styles = StyleSheet.create({
   signal: { gap: 2, marginTop: 8, padding: 12, borderRadius: radius.md, backgroundColor: colours.surface },
   signalTitle: { fontSize: 15, lineHeight: 21, color: colours.textBody },
   folded: { maxHeight: 200, overflow: 'hidden' },
+  pasted: {
+    gap: 6,
+    padding: 12,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colours.borderStrong,
+    backgroundColor: colours.surface,
+  },
+  pastedHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  pastedTitle: { fontSize: 15, color: colours.textBody },
+  pastedPeek: { lineHeight: 18 },
   more: { marginTop: 6 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   ask: {

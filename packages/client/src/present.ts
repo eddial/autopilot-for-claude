@@ -193,3 +193,16 @@ export const createdText = (task: Task): string =>
 /** `Sun 25 Oct, 15:30`. */
 export const shortDate = (iso: string): string =>
   new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+
+/**
+ * A message long enough to have been pasted rather than typed: both apps show it as a pasted
+ * card, a few words of it and a click to read the rest, so it does not push the page apart.
+ */
+export const isPaste = (text: string): boolean => text.length > 600 || text.split('\n').length > 10
+
+/** What a pasted card says about its text: "48 lines", or "2.3k characters" on one line. */
+export const pasteSize = (text: string): string => {
+  const lines = text.trim().split('\n').length
+  if (lines > 1) return `${lines} lines`
+  return text.length >= 1000 ? `${(text.length / 1000).toFixed(1)}k characters` : `${text.length} characters`
+}
