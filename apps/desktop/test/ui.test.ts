@@ -36,13 +36,8 @@ const shot = async (name: string) => {
 /** A status tab, not a button of the same name in the open task. */
 const tab = (name: string) => page.getByRole('navigation', { name: 'Queue' }).getByRole('button', { name })
 
-/** Needs me as itself, not every open task (what a second click on the tab you are on shows). */
-const needsMe = async () => {
-  // The first tab; it is named "All open" while it shows every open task.
-  const first = page.getByRole('navigation', { name: 'Queue' }).getByRole('button').first()
-  await first.click()
-  if ((await page.getByRole('heading', { name: 'All open' }).count()) > 0) await first.click()
-}
+/** Needs me as itself, not every open task. */
+const needsMe = () => tab('Needs me').click()
 
 /** A task with a question waiting on you. */
 const asking = (title: string, n: number) => {
@@ -133,12 +128,12 @@ describe('the Mac app window', () => {
     await expect.poll(() => server.service.getTask(task).task.priority).toBe(1)
   }, 30_000)
 
-  it('shows every open task when the current tab is clicked again', async () => {
+  it('shows every open task across workstreams under All', async () => {
     await tab('Running').click()
     await expect.poll(() => page.getByRole('heading', { name: 'Running' }).isVisible()).toBe(true)
-    await tab('Running').click()
-    await expect.poll(() => page.getByRole('option', { name: /Renew the office lease/ }).count()).toBe(1)
     await tab('All open').click()
+    await expect.poll(() => page.getByRole('option', { name: /Renew the office lease/ }).count()).toBe(1)
+    await tab('Running').click()
     await expect.poll(() => page.getByRole('heading', { name: 'Running' }).isVisible()).toBe(true)
   }, 30_000)
 

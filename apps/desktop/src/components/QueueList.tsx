@@ -12,7 +12,8 @@ type Props = {
   tab: QueueView
   /** Every open task, whatever its status: the current tab tapped again. */
   all: boolean
-  onTab: (tab: QueueView) => void
+  /** A status, or every open task. */
+  onTab: (tab: QueueView | 'all') => void
   /** How many tasks each tab holds; Done only once it has been read. */
   counts: Partial<Record<QueueView | 'all', number>>
   items: QueueItem[]
@@ -75,7 +76,7 @@ const EmptyList = ({ tab, counts }: { tab: QueueView | null; counts: Props['coun
 }
 
 const TAB_ICON: Record<QueueView, NavIconName> = {
-  needs_me: 'inbox',
+  needs_me: 'needs',
   running: 'running',
   waiting: 'waiting',
   snoozed: 'snoozed',
@@ -203,24 +204,25 @@ export const QueueList = (props: Props) => {
           New
         </Button>
       </div>
+      {/* Every tab the same: its icon and how many, its name on hover; All first, across workstreams. */}
       <nav className="tabs" aria-label="Queue">
-        {/* The tab you are on says its name; tapped again, it shows every open task. */}
-        {QUEUE_VIEWS.map((q) => {
-          const on = tab === q.id
-          const name = on && all ? 'All open' : q.title
-          const count = on && all ? counts.all : counts[q.id]
+        {[
+          { id: 'all' as const, title: 'All open', icon: 'all' as NavIconName },
+          ...QUEUE_VIEWS.map((q) => ({ ...q, icon: TAB_ICON[q.id] })),
+        ].map((q) => {
+          const on = q.id === 'all' ? all : !all && tab === q.id
+          const count = counts[q.id]
           return (
             <Button
               key={q.id}
               kind="tab"
-              aria-label={count === undefined ? name : `${name}, ${count}`}
-              title={on && q.id !== 'done' ? `${q.title} · click again for ${all ? q.title : 'all open'}` : q.title}
+              aria-label={count === undefined ? q.title : `${q.title}, ${count}`}
+              title={q.title}
               aria-current={on ? 'page' : undefined}
               onClick={() => onTab(q.id)}
             >
-              <NavIcon name={TAB_ICON[q.id]} size={15} />
-              {on && <span className="tab-name">{name}</span>}
-              {count !== undefined && <span className={q.id === 'needs_me' && !all && count > 0 ? 'you' : undefined}>{count}</span>}
+              <NavIcon name={q.icon} size={15} />
+              {count !== undefined && <span className={q.id === 'needs_me' && count > 0 ? 'you' : undefined}>{count}</span>}
             </Button>
           )
         })}

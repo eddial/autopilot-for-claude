@@ -134,7 +134,6 @@ button {
 }
 
 .tab[aria-current='page'] {
-  flex: 2.6 1 0;
   /* Lifted off the well, as a segmented control's chosen segment. */
   background: var(--raised);
   box-shadow:
@@ -142,12 +141,6 @@ button {
     0 1px 2px var(--shadow);
   color: var(--text);
   font-weight: 500;
-}
-
-.tab-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .tab .you {

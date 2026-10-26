@@ -100,9 +100,28 @@ const NAV_ICONS = {
       <path d="M5.7 4.5h8.6l2.2 6.75v3.25A1.5 1.5 0 0 1 15 16H5a1.5 1.5 0 0 1-1.5-1.5v-3.25z" />
     </>
   ),
-  /** Rays, like the iPhone's `rays`: a session at work. */
+  /** A hammer: a session at work. */
   running: (
-    <path d="M10 3.25V6M10 14v2.75M3.25 10H6M14 10h2.75M5.2 5.2l1.95 1.95M12.85 12.85l1.95 1.95M5.2 14.8l1.95-1.95M12.85 7.15l1.95-1.95" />
+    <g transform="scale(0.8333)">
+      <path d="m15 12-8.373 8.373a1 1 0 1 1-3-3L12 9" />
+      <path d="m18 15 4-4" />
+      <path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-1.13a6 6 0 0 0-2.5-.59H11.5l.92.82A6.18 6.18 0 0 1 14 10.11V11l2 2h1.172a2 2 0 0 1 1.414.586L20.5 15.5" />
+    </g>
+  ),
+  /** Two speech bubbles: someone waits on your word. */
+  needs: (
+    <g transform="scale(0.8333)">
+      <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z" />
+      <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1" />
+    </g>
+  ),
+  /** Stacked layers: every open task, across workstreams. */
+  all: (
+    <g transform="scale(0.8333)">
+      <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" />
+      <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" />
+      <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" />
+    </g>
   ),
   /** A clock: the next move is someone else's. */
   waiting: (

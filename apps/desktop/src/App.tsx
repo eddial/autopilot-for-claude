@@ -213,9 +213,10 @@ export const App = () => {
 
   // Another tab leaves no task open from the last one. Only here: a task opened for you (just
   // created, from a notification) stays open wherever it is.
-  const switchTab = (next: QueueView) => {
-    // The tab you are on, tapped again, shows every open task (Done stays Done).
-    const showAll = next === tab && next !== 'done' && !all
+  const switchTab = (picked: QueueView | 'all') => {
+    // All is every open task across workstreams; it keeps the status tab you came from.
+    const showAll = picked === 'all'
+    const next = showAll ? tab : picked
     setAll(showAll)
     setTab(next)
     setView({ kind: 'task' })
