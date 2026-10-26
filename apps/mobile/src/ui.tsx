@@ -281,15 +281,57 @@ export const Button = ({
   label,
   kind = 'secondary',
   onPress,
+  disabled = false,
   style,
 }: {
   label: string
   kind?: keyof typeof BUTTON
   onPress: () => void
+  disabled?: boolean
   style?: StyleProp<ViewStyle>
 }) => (
-  <Pressable style={[styles.button, BUTTON[kind].box, style]} onPress={onPress} accessibilityRole="button">
+  <Pressable
+    style={[styles.button, BUTTON[kind].box, disabled && styles.disabled, style]}
+    onPress={onPress}
+    disabled={disabled}
+    accessibilityRole="button"
+    accessibilityState={{ disabled }}
+  >
     <Text style={[styles.buttonText, BUTTON[kind].text]}>{label}</Text>
+  </Pressable>
+)
+
+/**
+ * One item of a checklist: ticked by a tap, or by the app when it can tell for itself (`known`),
+ * then not untickable. What to do under the title; anything else (a button) below that.
+ */
+export const Check = ({
+  done,
+  known = false,
+  title,
+  detail,
+  onToggle,
+  children,
+}: {
+  done: boolean
+  known?: boolean
+  title: string
+  detail: string
+  onToggle: () => void
+  children?: ReactNode
+}) => (
+  <Pressable
+    style={styles.check}
+    onPress={known ? undefined : onToggle}
+    accessibilityRole="checkbox"
+    accessibilityState={{ checked: done }}
+  >
+    <SymbolView name={done ? 'checkmark.circle.fill' : 'circle'} size={22} tintColor={done ? colours.pilot : colours.borderStrong} />
+    <View style={styles.checkText}>
+      <Text style={[type.name, { flex: 0 }, done && styles.checkDone]}>{title}</Text>
+      <Text style={type.meta}>{detail}</Text>
+      {children}
+    </View>
   </Pressable>
 )
 
@@ -381,6 +423,10 @@ export const EmptyList = ({ view }: { view: string | null }) => {
 }
 
 const styles = StyleSheet.create({
+  disabled: { opacity: 0.4 },
+  check: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  checkText: { flex: 1, gap: 4 },
+  checkDone: { color: colours.text2 },
   mdRow: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colours.border },
   mdHeadRow: { borderBottomColor: colours.borderStrong },
   mdCell: { paddingVertical: 6, paddingRight: 12, fontSize: 15 },

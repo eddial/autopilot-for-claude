@@ -53,6 +53,12 @@ public class PinnedFetchModule: Module {
     Function("cancel") { (id: String) in
       self.forget(id)?.cancel()
     }
+
+    // This iPhone's Tailscale address, when Tailscale is connected: the VPN's tunnel interface
+    // carries an address in 100.64.0.0/10. Nil when it is off, so pairing can say so first.
+    Function("tailnetAddress") { () -> String? in
+      tailnetAddress()
+    }
   }
 
   private func remember(_ id: String, _ task: URLSessionDataTask) {
@@ -67,6 +73,23 @@ public class PinnedFetchModule: Module {
     defer { lock.unlock() }
     return tasks.removeValue(forKey: id)
   }
+}
+
+func tailnetAddress() -> String? {
+  var list: UnsafeMutablePointer<ifaddrs>?
+  guard getifaddrs(&list) == 0, let first = list else { return nil }
+  defer { freeifaddrs(list) }
+  for pointer in sequence(first: first, next: { $0.pointee.ifa_next }) {
+    let entry = pointer.pointee
+    guard String(cString: entry.ifa_name).hasPrefix("utun"), let address = entry.ifa_addr,
+      address.pointee.sa_family == UInt8(AF_INET)
+    else { continue }
+    let ip = address.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { UInt32(bigEndian: $0.pointee.sin_addr.s_addr) }
+    if ip & 0xFFC0_0000 == 0x6440_0000 {
+      return "\(ip >> 24).\((ip >> 16) & 0xFF).\((ip >> 8) & 0xFF).\(ip & 0xFF)"
+    }
+  }
+  return nil
 }
 
 /// Accepts the server only when its leaf certificate hashes to the pinned fingerprint.

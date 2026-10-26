@@ -12,6 +12,8 @@ type PinnedFetchNative = {
     fingerprint: string,
   ): Promise<NativeResponse>
   cancel(id: string): void
+  /** This iPhone's Tailscale address, or null when Tailscale isn't connected. */
+  tailnetAddress(): string | null
 }
 
 /** The Swift module in ios/PinnedFetchModule.swift. */

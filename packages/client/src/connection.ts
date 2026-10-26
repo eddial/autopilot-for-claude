@@ -32,6 +32,7 @@ export class Offline extends Error {
 }
 
 const PROBE_MS = 3_000
+const PAIR_MS = 15_000
 
 /** `AbortSignal.timeout`, which React Native does not have everywhere. */
 export const timeoutSignal = (ms: number): AbortSignal => {
@@ -40,6 +41,18 @@ export const timeoutSignal = (ms: number): AbortSignal => {
   // In Node, a pending timeout must not keep the process alive; React Native timers are numbers.
   if (typeof timer === 'object' && 'unref' in timer) timer.unref()
   return controller.signal
+}
+
+/**
+ * Gives up after `ms` even when the fetch underneath doesn't see the abort (React Native's `Request`
+ * can drop the signal): a route that never answers must not leave pairing spinning.
+ */
+const within = <T>(ms: number, run: (signal: AbortSignal) => Promise<T>): Promise<T> => {
+  const signal = timeoutSignal(ms)
+  return new Promise<T>((resolve, reject) => {
+    signal.addEventListener('abort', () => reject(new Offline()))
+    run(signal).then(resolve, reject)
+  })
 }
 
 type Target = {
@@ -109,7 +122,7 @@ export class Link {
       if (route.kind === 'socket') continue
       const api = clientFor(this.pinned, this.connection.fingerprint, { address: () => Promise.resolve(route.address) }, null)
       try {
-        await api.meta.version(undefined, { signal: timeoutSignal(PROBE_MS) })
+        await within(PROBE_MS, (signal) => api.meta.version(undefined, { signal }))
         this.current = route
         return route
       } catch {
@@ -135,6 +148,8 @@ export const pair = async (
 ): Promise<Connection> => {
   const link = new Link({ server: invite.server, routes: invite.routes, fingerprint: invite.fingerprint, token: '' }, pinned)
   if (!(await link.probe())) throw new Offline(`${invite.server} cannot be reached on this network`)
-  const { token } = await link.api.devices.pair({ idempotencyKey: key, code: invite.code, name: device.name, kind: device.kind })
+  const { token } = await within(PAIR_MS, (signal) =>
+    link.api.devices.pair({ idempotencyKey: key, code: invite.code, name: device.name, kind: device.kind }, { signal }),
+  )
   return { server: invite.server, routes: invite.routes, fingerprint: invite.fingerprint, token }
 }
