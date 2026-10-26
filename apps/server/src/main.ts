@@ -152,6 +152,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
       sweep: (names, days) => signals.sweep(names, days),
       pause: (name, paused) => signals.pause(name, paused),
       remove: (name) => signals.remove(name),
+      describe: (name, rules) => signals.describe(name, rules),
     },
     machine,
     applyRouting: (changes) => routing.apply(changes),

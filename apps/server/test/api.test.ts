@@ -47,6 +47,9 @@ beforeAll(async () => {
         throw new Error('no signals')
       },
       remove: () => [],
+      describe: () => {
+        throw new Error('no signals')
+      },
     },
     machine: () => ({
       id: 'local',

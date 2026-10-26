@@ -23,6 +23,7 @@ import {
   PairDevice,
   PauseSignal,
   RemoveSignal,
+  DescribeSignal,
   PostUpdate,
   RemoveDevice,
   RemoveWatcher,
@@ -230,6 +231,8 @@ export const contract = {
     /** A one-time import of what is still open at the source (`autopilot import linear`). */
     import: base.meta({ scopes: OWNER }).input(ImportSignal).output(z.array(Decision)),
     pause: base.meta({ scopes: OWNER }).input(PauseSignal).output(Signal),
+    /** What a source picks up, rewritten from Settings; its schedule and tools stay. */
+    describe: base.meta({ scopes: OWNER }).input(DescribeSignal).output(Signal),
     /** Takes a source out of the home (into `retired/`, where it can be put back); its tasks stay. Every source after. */
     remove: base.meta({ scopes: OWNER }).input(RemoveSignal).output(z.array(Signal)),
     /** The example signals onboarding offers, and whether each is added. */

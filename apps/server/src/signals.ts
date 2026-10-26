@@ -245,6 +245,7 @@ export class Signals {
     const paused = file.paused || state.paused
     return {
       name: file.name,
+      rules: file.rules,
       schedule: file.cron ? { cron: file.cron } : { every: file.every ?? '15m' },
       tools: file.tools,
       model: file.model,
@@ -273,6 +274,16 @@ export class Signals {
     }
     this.save(name, { ...this.state(name), paused })
     return this.toSignal(file)
+  }
+
+  /** Rewrites what a source picks up: the text under its settings, which stay as they are. */
+  describe(name: string, rules: string): Signal {
+    this.file(name)
+    const path = join(this.o.paths.home, 'signals', `${name}.md`)
+    const text = readFileSync(path, 'utf8')
+    const head = /^---\n[\s\S]*?\n---\n/.exec(text)?.[0] ?? ''
+    writeFileSync(path, `${head}${rules.trim()}\n`)
+    return this.toSignal(this.file(name))
   }
 
   /** Takes a source out: its file moves to `retired/signals`, where it can be put back. Its tasks stay. */

@@ -48,16 +48,9 @@ const Arrow = ({ dir }: { dir: 'up' | 'down' }) => (
   </svg>
 )
 
-/** Where else there is something: "2 waiting on others · 1 snoozed". */
-const elsewhere = (counts: Props['counts'], tab: QueueView | null) =>
-  QUEUE_VIEWS.filter((q) => q.id !== tab && q.id !== 'done' && (counts[q.id] ?? 0) > 0)
-    .map((q) => `${counts[q.id]} ${q.title.toLowerCase()}`)
-    .join(' · ')
-
 /** An empty list: the pilot flying past a few clouds, and a word about it. */
-const EmptyList = ({ tab, counts }: { tab: QueueView | null; counts: Props['counts'] }) => {
+const EmptyList = ({ tab }: { tab: QueueView | null }) => {
   const words = emptyWords(tab)
-  const rest = elsewhere(counts, tab)
   return (
     <div className="empty-list">
       <div className="sky" aria-hidden="true">
@@ -70,7 +63,6 @@ const EmptyList = ({ tab, counts }: { tab: QueueView | null; counts: Props['coun
       </div>
       <div className="empty-title">{words.title}</div>
       <div className="empty-line">{words.line}</div>
-      {rest && <div className="empty-rest">Elsewhere: {rest}</div>}
     </div>
   )
 }
@@ -274,8 +266,7 @@ export const QueueList = (props: Props) => {
       </p>
       {banner && <Banner>{banner}</Banner>}
       <div className="rows" ref={rows} role="listbox" aria-label="Tasks" tabIndex={0} onKeyDown={onKeyDown}>
-        {visible.length === 0 &&
-          (filter ? <div className="empty">Nothing matches the search.</div> : <EmptyList tab={all ? null : tab} counts={counts} />)}
+        {visible.length === 0 && (filter ? <div className="empty">Nothing matches the search.</div> : <EmptyList tab={all ? null : tab} />)}
         {/* oxlint-disable-next-line react/forbid-dom-props -- measured by the virtualiser */}
         <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
           {virtual.getVirtualItems().map((v) => {

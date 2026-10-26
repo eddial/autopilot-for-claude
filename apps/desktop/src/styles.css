@@ -1886,6 +1886,12 @@ button {
   overflow: hidden;
 }
 
+.rules-links {
+  display: flex;
+  gap: 14px;
+  margin-top: 4px;
+}
+
 .urgent-when {
   display: flex;
   align-items: baseline;
@@ -2826,11 +2832,5 @@ textarea.inline-reply {
   margin-top: 6px;
   font-size: 14px;
   line-height: 1.5;
-  color: var(--text-3);
-}
-
-.empty-rest {
-  margin-top: 14px;
-  font-size: 12.5px;
   color: var(--text-3);
 }

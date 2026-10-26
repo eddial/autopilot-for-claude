@@ -186,6 +186,9 @@ export const SetWorkspace = command({ path: z.string().min(1) })
 
 export const PauseSignal = command({ name: z.string(), paused: z.boolean() })
 
+/** Rewrites what a source picks up: the text under its settings. */
+export const DescribeSignal = command({ name: z.string(), rules: z.string().min(1).max(20_000) })
+
 /** Stops listening to a source for good; the tasks it filed stay. */
 export const RemoveSignal = command({ name: z.string() })
 

@@ -12,6 +12,75 @@ const schedule = (s: Signal) => ('every' in s.schedule ? `Every ${s.schedule.eve
 
 const HEALTH_TONE = { ok: 'pilot', failing: 'alert', paused: 'paused' } as const
 
+/** The file wraps its lines; read here, they flow, keeping paragraphs and list items. */
+const unwrap = (text: string) => text.replace(/([^\n])\n(?![\n\s]*([-*•]|\d+\.)\s|\n)/g, '$1 ')
+
+/**
+ * What a source picks up, in your words: the text each of its runs is given. Two lines until
+ * opened; edited in place, as a workstream's routing is.
+ */
+const Rules = ({ signal, onSaved }: { signal: Signal; onSaved: (s: Signal) => void }) => {
+  const [full, setFull] = useState(false)
+  const [draft, setDraft] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const rules = signal.rules ?? ''
+  if (draft !== null)
+    return (
+      <div className="settings-row-note">
+        {error && <Banner>{error}</Banner>}
+        <textarea
+          className="inline-reply"
+          rows={Math.min(16, Math.max(4, draft.split('\n').length + 1))}
+          aria-label={`What ${signalName(signal.name)} picks up`}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        <div className="step-bar">
+          <Button kind="tool" disabled={busy} onClick={() => setDraft(null)}>
+            Cancel
+          </Button>
+          <Button
+            kind="primary"
+            disabled={busy || !draft.trim()}
+            onClick={() => {
+              setBusy(true)
+              setError(null)
+              void api.signals.describe({ idempotencyKey: key(), name: signal.name, rules: draft }).then(
+                (saved) => {
+                  onSaved(saved)
+                  setDraft(null)
+                  setBusy(false)
+                },
+                (e: unknown) => {
+                  setError(e instanceof Error ? e.message : String(e))
+                  setBusy(false)
+                },
+              )
+            }}
+          >
+            {busy ? 'Saving…' : 'Save'}
+          </Button>
+        </div>
+      </div>
+    )
+  return (
+    <div className="settings-row-note">
+      {rules ? <p className={`prose routing${full ? '' : ' clamped'}`}>{unwrap(rules)}</p> : <Meta>Nothing written down yet.</Meta>}
+      <div className="rules-links">
+        {rules.length > 160 && (
+          <Button kind="link" onClick={() => setFull((f) => !f)}>
+            {full ? 'Show less' : 'Show more'}
+          </Button>
+        )}
+        <Button kind="link" onClick={() => setDraft(rules)}>
+          Edit what it picks up
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 /**
  * What set-up shows once it is done: what needs you (health issues, routing proposals) and every
  * source with its health, a preview of its last day, pause, and remove.
@@ -164,6 +233,7 @@ export const Sources = ({ items, onOpen }: Props) => {
                     />
                   </div>
                 )}
+                <Rules signal={s} onSaved={(saved) => setSignals((all) => all.map((x) => (x.name === saved.name ? saved : x)))} />
                 {s.health.message && <Meta className="settings-row-note">{s.health.message}</Meta>}
                 {Array.isArray(shown) && (
                   <pre className="diff settings-row-note">

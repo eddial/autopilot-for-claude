@@ -150,6 +150,15 @@ describe('switching a signal on', () => {
   })
 })
 
+describe('describing a signal', () => {
+  it('rewrites what it picks up and keeps its settings', () => {
+    const { signals, dir } = setup(() => Promise.resolve({ items: [] }))
+    writeFileSync(join(dir, 'home', 'signals', 'slack.md'), '---\nevery: 5m\n---\nDMs.\n')
+    expect(signals.describe('slack', 'DMs and mentions.').rules).toBe('DMs and mentions.')
+    expect(readFileSync(join(dir, 'home', 'signals', 'slack.md'), 'utf8')).toBe('---\nevery: 5m\n---\nDMs and mentions.\n')
+  })
+})
+
 describe('removing a signal', () => {
   it('moves its file to retired, where it can be put back', () => {
     const { signals, dir } = setup(() => Promise.resolve({ items: [] }))

@@ -5,6 +5,9 @@
     "name": {
       "type": "string"
     },
+    "rules": {
+      "type": "string"
+    },
     "schedule": {
       "anyOf": [
         {

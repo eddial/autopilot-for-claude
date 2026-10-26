@@ -84,6 +84,8 @@ export type QueueItem = z.infer<typeof QueueItem>
 
 export const Signal = z.object({
   name: z.string(),
+  /** What it picks up and how it looks, in the owner's words: the text its runs are given. */
+  rules: z.string().optional(),
   schedule: z.union([z.object({ every: Duration }), z.object({ cron: z.string() })]),
   tools: z.array(z.string()),
   model: z.string(),
