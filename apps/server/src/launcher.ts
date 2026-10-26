@@ -8,6 +8,7 @@ import { checkoutFor, prepareWorkspace, type Checkouts } from './checkouts.ts'
 import { isGitCheckout } from './git.ts'
 import type { Paths } from './paths.ts'
 import type { OutboxItem, Service } from './service.ts'
+import { Screen } from './screen.ts'
 import type { Hosted } from './session-host.ts'
 
 /** The bit of node-pty the launcher uses, so tests can pass a fake. */
@@ -58,20 +59,11 @@ export type LauncherOptions = {
   log?: (message: string) => void
 }
 
-type Live = { pty: Pty; sessionId: string; output: string; stuck: boolean }
+type Live = { pty: Pty; sessionId: string; screen: Screen; stuck: boolean }
 
 /** Startup screens a session can stop at; nobody is at the terminal to answer them. */
 const STARTUP_PROMPT = /trust this folder|Enter to confirm|Bypass Permissions mode|Do you want to proceed/i
 const STUCK_AFTER_MS = 45_000
-
-/** The screen as text: terminal escape sequences out. Matching control characters is the point here. */
-const plain = (text: string): string =>
-  text
-    // oxlint-disable-next-line no-control-regex
-    .replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '')
-    // oxlint-disable-next-line no-control-regex
-    .replace(/\u001b\][^\u0007]*\u0007/g, '')
-    .replace(/[^\S\n]+/g, ' ')
 
 /**
  * Claude Code asks "Do you trust this folder?" in a folder it has not seen, and the session never
@@ -287,7 +279,7 @@ export class Launcher {
       rows: 40,
       key: sessionId,
     })
-    const live: Live = { pty, sessionId, output: '', stuck: false }
+    const live: Live = { pty, sessionId, screen: new Screen(), stuck: false }
     this.live.set(task.id, live)
 
     if (resumed) service.reopenSession(sessionId, pty.pid)
@@ -308,9 +300,10 @@ export class Launcher {
     // A session held at a startup screen never reports in; say what the screen shows, then stop it.
     setTimeout(() => {
       const session = service.session(sessionId)
-      if (!session || session.state !== 'starting' || !STARTUP_PROMPT.test(plain(live.output))) return
+      if (!session || session.state !== 'starting' || !STARTUP_PROMPT.test(live.screen.text())) return
       live.stuck = true
-      const screen = plain(live.output)
+      const screen = live.screen
+        .text()
         .split('\n')
         .map((l) => l.trim())
         .filter(Boolean)
@@ -344,14 +337,13 @@ export class Launcher {
       // None yet, or one read wrongly before (anything but a session's whole link).
       const known = session?.remoteControlUrl
       if (session && !(known && REMOTE_CONTROL_URL.test(`${known} `))) {
-        const url = REMOTE_CONTROL_URL.exec(plain(live.output))?.[0]
+        const url = REMOTE_CONTROL_URL.exec(live.screen.text())?.[0]
         if (url && url !== known) service.setSession(sessionId, { remoteControlUrl: url })
       }
     }
-    link()
+    live.screen.write('', link)
     pty.onData((data) => {
-      live.output = (live.output + data).slice(-20_000)
-      link()
+      live.screen.write(data, link)
     })
     pty.onExit(({ exitCode }) => this.exited(taskId, sessionId, exitCode))
   }
@@ -371,7 +363,8 @@ export class Launcher {
         hosted.pty.kill()
         continue
       }
-      const live: Live = { pty: hosted.pty, sessionId: hosted.key, output: hosted.output, stuck: false }
+      const live: Live = { pty: hosted.pty, sessionId: hosted.key, screen: new Screen(), stuck: false }
+      live.screen.write(hosted.screen)
       this.live.set(session.taskId, live)
       this.watch(session.taskId, live)
       log(`reattached ${session.taskId}`)

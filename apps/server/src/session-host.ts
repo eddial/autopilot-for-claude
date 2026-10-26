@@ -4,6 +4,7 @@ import { existsSync, rmSync } from 'node:fs'
 import { createConnection, createServer, type Socket } from 'node:net'
 import type { Pty, SpawnPty } from './launcher.ts'
 import { loadPty } from './pty.ts'
+import { Screen } from './screen.ts'
 
 /**
  * Sessions outlive the server. The terminals Claude Code runs in belong to this small process,
@@ -23,10 +24,7 @@ type Event =
   | { type: 'failed'; key: string; message: string }
   | { type: 'data'; key: string; data: string }
   | { type: 'exit'; key: string; exitCode: number }
-  | { type: 'sessions'; running: { key: string; pid: number; output: string }[]; exited: { key: string; exitCode: number }[] }
-
-/** What a reattaching server needs to read where the screen is: the last of it. */
-const KEEP = 20_000
+  | { type: 'sessions'; running: { key: string; pid: number; screen: string }[]; exited: { key: string; exitCode: number }[] }
 
 /** Reads lines of JSON from a socket. */
 const lines = <T>(socket: Socket, each: (message: T) => void) => {
@@ -51,7 +49,7 @@ const send = (socket: Socket, message: Request | Event) => {
 /** The host itself: `autopilot session-host`. Runs until stopped; stopping it ends its sessions. */
 export const runSessionHost = async (socketPath: string, spawn?: SpawnPty): Promise<{ close: () => Promise<void> }> => {
   const start = spawn ?? (await loadPty())
-  const sessions = new Map<string, { pty: Pty; output: string }>()
+  const sessions = new Map<string, { pty: Pty; screen: Screen }>()
   // Ended while no server was listening: told to the next one that asks.
   const exited = new Map<string, number>()
   const clients = new Set<Socket>()
@@ -74,14 +72,15 @@ export const runSessionHost = async (socketPath: string, spawn?: SpawnPty): Prom
               cols: request.cols,
               rows: request.rows,
             })
-            const session = { pty, output: '' }
+            const session = { pty, screen: new Screen(request.cols, request.rows) }
             sessions.set(request.key, session)
             pty.onData((data) => {
-              session.output = (session.output + data).slice(-KEEP)
+              session.screen.write(data)
               tell({ type: 'data', key: request.key, data })
             })
             pty.onExit(({ exitCode }) => {
               sessions.delete(request.key)
+              session.screen.dispose()
               if (clients.size === 0) exited.set(request.key, exitCode)
               tell({ type: 'exit', key: request.key, exitCode })
             })
@@ -100,7 +99,7 @@ export const runSessionHost = async (socketPath: string, spawn?: SpawnPty): Prom
         case 'list':
           send(socket, {
             type: 'sessions',
-            running: [...sessions].map(([key, s]) => ({ key, pid: s.pty.pid, output: s.output })),
+            running: [...sessions].map(([key, s]) => ({ key, pid: s.pty.pid, screen: s.screen.serialize() })),
             exited: [...exited].map(([key, exitCode]) => ({ key, exitCode })),
           })
           exited.clear()
@@ -121,8 +120,8 @@ export const runSessionHost = async (socketPath: string, spawn?: SpawnPty): Prom
   }
 }
 
-/** A session as the launcher sees it, with what was on its screen when the server reattached. */
-export type Hosted = { key: string; pty: Pty; output: string }
+/** A session as the launcher sees it, with its screen when the server reattached, as what draws it again. */
+export type Hosted = { key: string; pty: Pty; screen: string }
 
 /** The server's side: a `spawn` for the launcher, and the sessions still running after a restart. */
 export type HostClient = {
@@ -210,7 +209,7 @@ export const connectSessionHost = async (socketPath: string, startHost: (() => v
         send(socket, { op: 'list' })
       })
       listing = null
-      return { running: event.running.map((s) => ({ key: s.key, pty: remote(s.key, s.pid), output: s.output })), exited: event.exited }
+      return { running: event.running.map((s) => ({ key: s.key, pty: remote(s.key, s.pid), screen: s.screen })), exited: event.exited }
     },
     close: () => socket.end(),
   }
