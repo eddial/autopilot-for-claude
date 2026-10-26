@@ -205,6 +205,7 @@ export const createRouter = ({
       create: guarded.tasks.create.handler(({ input, context }) => service.createTask(input, authorOf(context.principal))),
       edit: guarded.tasks.edit.handler(({ input }) => service.editTask(input)),
       start: guarded.tasks.start.handler(({ input }) => service.startTask(input)),
+      resume: guarded.tasks.resume.handler(({ input }) => service.resumeTask(input)),
       snooze: guarded.tasks.snooze.handler(({ input }) => service.snoozeTask(input)),
       wait: guarded.tasks.wait.handler(({ input, context }) => service.waitOn(input, authorOf(context.principal))),
       close: guarded.tasks.close.handler(({ input }) => service.closeTask(input)),

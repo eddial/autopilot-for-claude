@@ -153,6 +153,8 @@ export const contract = {
       .output(Task),
     edit: base.meta({ scopes: OWNER }).input(EditTask).output(Task),
     start: base.meta({ scopes: OWNER }).input(TaskRef).output(Task),
+    /** Brings back the task's last session, the same conversation, with Remote Control: to open it from anywhere. */
+    resume: base.meta({ scopes: OWNER }).input(TaskRef).output(Task),
     snooze: base.meta({ scopes: OWNER }).input(SnoozeTask).output(Task),
     wait: base
       .meta({ scopes: ['owner', 'session'], ownTask: true })

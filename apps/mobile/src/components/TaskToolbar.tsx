@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Alert, Linking, useWindowDimensions } from 'react-native'
 import type { QueueItem } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
@@ -42,6 +43,7 @@ export const TaskToolbar = ({
   onTop?: () => void
 }) => {
   const sync = useSyncInstance()
+  const opening = useRef(false)
   // A short screen (the Duo folded, in landscape) has room in its bar for only so many buttons:
   // back to the top goes first, so the way through the list stays out of the overflow menu.
   const short = useWindowDimensions().height < 500
@@ -50,6 +52,20 @@ export const TaskToolbar = ({
   // Before I start in the timeline starts it when the first look has questions: one Start, there.
   const detail = useDetail(task.id)
   const asking = item.band === 'new' && firstLookQuestions(detail?.updates ?? []).length > 0
+  const running = session && session.state !== 'ended' ? session.remoteControlUrl : null
+  const openSession = () => {
+    if (running) return void Linking.openURL(running)
+    opening.current = true
+    if (session?.state === 'ended') void sync?.send({ kind: 'resume', taskId: task.id })
+    Alert.alert('Opening the session', 'Your Mac is bringing it back with Remote Control. It opens here in a moment.')
+  }
+  // Asked to open: the link once the session has one.
+  useEffect(() => {
+    if (opening.current && running) {
+      opening.current = false
+      void Linking.openURL(running)
+    }
+  }, [running])
   const done = (outcome: 'done' | 'canceled') => {
     void sync?.send({ kind: 'close', taskId: task.id, outcome })
     if (closeAfter && router.canGoBack()) router.back()
@@ -59,18 +75,15 @@ export const TaskToolbar = ({
       {/* Each its own item, directly in the toolbar: the native bar ignores fragments inside it. */}
       <Stack.Toolbar placement="right">
         {session ? (
-          // Into the Claude session, as the Mac's Open session: its Remote Control link, kept after it ends,
-          // opens the conversation in the Claude app. Replying here starts it again.
+          // Into the Claude session, as the Mac's Open session. Running: its Remote Control link. Ended
+          // (handed over, or the Mac's server restarted): the Mac brings the same conversation back with
+          // Remote Control, and its new link opens as soon as it is there.
           <Stack.Toolbar.Button
             variant="prominent"
             tintColor={colours.text}
             icon="arrow.up.forward.app"
             accessibilityLabel="Open session"
-            onPress={() =>
-              session.remoteControlUrl
-                ? void Linking.openURL(session.remoteControlUrl)
-                : Alert.alert('The session is starting', 'It opens here through Remote Control once Claude is ready, in a moment.')
-            }
+            onPress={openSession}
           />
         ) : item.band === 'new' && !asking ? (
           <Stack.Toolbar.Button

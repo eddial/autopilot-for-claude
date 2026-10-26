@@ -60,7 +60,13 @@ export class DomainError extends Error {
 export type Principal = { tokenId: string; name: string; scope: Scope; taskId: string | null }
 
 export type OutboxKind = 'start_session' | 'deliver_answer' | 'end_session'
-export type OutboxItem = { id: number; kind: OutboxKind; payload: { taskId: string; updateId?: string }; attempts: number }
+export type OutboxItem = {
+  id: number
+  kind: OutboxKind
+  /** `resume`: the session to bring back, its conversation and all, instead of a new one. */
+  payload: { taskId: string; updateId?: string; resume?: string }
+  attempts: number
+}
 
 type Row = Record<string, SQLInputValue>
 
@@ -498,6 +504,29 @@ export class Service {
     const started = this.touch(task, { state: 'running', snoozedUntil: null })
     if (!this.liveSession(task)) this.enqueue('start_session', { taskId: task.id })
     return started
+  }
+
+  /**
+   * Brings back the task's last session as it was, without changing where the task stands: Claude
+   * keeps the conversation, the launcher runs it again with Remote Control. Already running: as is.
+   */
+  resumeTask(input: In<typeof TaskRef>): Task {
+    return this.idempotent(input.idempotencyKey, 'tasks.resume', () => {
+      const task = this.task(input.id)
+      this.assertOpen(task)
+      const last = this.session(task.sessionId)
+      if (!last) throw new DomainError('BAD_REQUEST', { field: 'id' }, 'This task has no session to resume yet. Start it instead.')
+      if (last.state === 'ended') this.enqueue('start_session', { taskId: task.id, resume: last.id })
+      return task
+    })
+  }
+
+  /** A resumed session runs again under its own id, from the start of its Remote Control. */
+  reopenSession(id: string, pid: number | null): Session {
+    return this.transaction(() => {
+      this.sql('update sessions set pid = ?, remote_control_url = null where id = ?').run(pid, id)
+      return this.setSession(id, { state: 'starting', activity: null, remoteControlUrl: null })
+    })
   }
 
   private liveSession(task: Task): Session | null {

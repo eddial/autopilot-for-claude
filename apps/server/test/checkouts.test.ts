@@ -104,6 +104,46 @@ describe('where a session works', () => {
     expect({ sessions: exits.length, head: head() }).toEqual({ sessions: 2, head: 'claude/ap-1' })
   })
 
+  it('brings an ended session back as the same conversation, with Remote Control, leaving the task where it stands', async () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'ap-resume-')))
+    const paths = resolvePaths({ AUTOPILOT_DATA: join(dir, 'data'), AUTOPILOT_HOME: join(dir, 'home') })
+    const service = new Service({ db: openDatabase(':memory:') })
+    const runs: string[][] = []
+    const exits: ((e: { exitCode: number }) => void)[] = []
+    const pty: Pty = { pid: 1, write: () => {}, kill: () => {}, onData: () => {}, onExit: (f) => void exits.push(f) }
+    const launcher = new Launcher({
+      service,
+      paths,
+      workstreams: () => [],
+      spawn: (_file, args) => {
+        runs.push(args)
+        return pty
+      },
+      self: { node: process.execPath, script: 'autopilot.js' },
+      checkouts: () => ({ repos: {}, fallback: null }),
+      workspace: () => join(dir, 'Autopilot'),
+    })
+    const task = service.createTask(CreateTask.parse({ idempotencyKey: 'rs-000001', title: 'Draft the update' }))
+    await launcher.drain()
+    const first = service.getTask(task.id).session
+    service.waitOn({ idempotencyKey: 'rs-000002', id: task.id, on: 'Gabriel' }, 'session')
+    exits[0]?.({ exitCode: 0 })
+
+    service.resumeTask({ idempotencyKey: 'rs-000003', id: task.id })
+    await launcher.drain()
+    const again = runs[1] ?? []
+    expect(again.slice(0, 2)).toEqual(['--resume', first?.id])
+    expect(again).toContain('--remote-control')
+    // Brought back to be opened, not to work: no prompt, and still waiting on Gabriel.
+    expect(again.at(-1)).not.toMatch(/autopilot:work/)
+    const detail = service.getTask(task.id)
+    expect({ session: detail.session?.id, state: detail.session?.state, task: detail.task.state }).toEqual({
+      session: first?.id,
+      state: 'starting',
+      task: 'waiting',
+    })
+  })
+
   it('keeps a server with data of its own, as in tests, out of ~/Autopilot', () => {
     expect(resolvePaths({ AUTOPILOT_DATA: '/tmp/ap-test' }).workspace).toBe('/tmp/ap-test/workspace')
   })

@@ -10,6 +10,8 @@ export type Command =
   | { kind: 'instruct'; taskId: string; body: string; attachments?: Link[] }
   | { kind: 'create'; title: string; brief: string; workstream?: string; priority?: number; start: boolean }
   | { kind: 'start'; taskId: string }
+  /** Brings back an ended session with Remote Control, to open it; where the task stands is unchanged. */
+  | { kind: 'resume'; taskId: string }
   | { kind: 'snooze'; taskId: string; until: string }
   | { kind: 'close'; taskId: string; outcome: 'done' | 'canceled' }
   | { kind: 'edit'; taskId: string; workstream?: string; priority?: number }
@@ -50,6 +52,8 @@ export const execute = async (api: Api, { id, command: c }: Pending): Promise<un
       })
     case 'start':
       return api.tasks.start({ idempotencyKey, id: c.taskId })
+    case 'resume':
+      return api.tasks.resume({ idempotencyKey, id: c.taskId })
     case 'snooze':
       return api.tasks.snooze({ idempotencyKey, id: c.taskId, until: c.until })
     case 'close':
@@ -83,6 +87,8 @@ export const overlay = (queue: LiveQueue, outbox: Pending[], now: Date): LiveQue
       case 'instruct':
       case 'start':
         touch(c.taskId, { state: 'running', snoozedUntil: null })
+        break
+      case 'resume':
         break
       case 'snooze':
         touch(c.taskId, { state: 'snoozed', snoozedUntil: c.until })
