@@ -125,6 +125,30 @@ export const fonts = {
 
 export const radius = { sm: 8, md: 10, lg: 12, xl: 18, round: 999 } as const
 
+/**
+ * The shape of each building block both apps draw: its corner, its edge and its fill, by colour
+ * name. The Mac reads them as `--shape-<block>-<part>` variables, the phone imports them, so a
+ * row or a button cannot drift between the two. The Mac's look leads: change it here, not in one app.
+ */
+export const shapes = {
+  /** A task in the list: edged like the buttons above it, so the column reads as one set. */
+  row: { radius: radius.md, edge: 'borderStrong', fill: 'surface', selected: 'button' },
+  /** The status tabs: a well with the chosen tab lifted out of it. */
+  tabs: { radius: radius.md },
+  tab: { radius: radius.sm, edge: 'borderStrong', selected: 'raised' },
+  /** An answer, Snooze, Mark done: everything that is not the one primary action. */
+  button: { radius: 9, edge: 'borderStrong', fill: 'raised' },
+  /** A small choice or link inside the page. */
+  chip: { radius: 7, edge: 'borderStrong', fill: 'raised' },
+  /** A panel of facts: status, workstream, where it came from. */
+  card: { radius: radius.lg, edge: 'border', fill: 'surface' },
+  /** What waits on you: a question or a decision, in the activity. */
+  ask: { radius: 14, edge: 'borderStrong', fill: 'surface' },
+} as const satisfies Record<
+  string,
+  { radius: number; edge?: keyof typeof colours; fill?: keyof typeof colours; selected?: keyof typeof colours }
+>
+
 /** Spacing steps; layout primitives take only these. */
 export const space = { 0: 0, 1: 4, 2: 6, 3: 8, 4: 10, 5: 12, 6: 14, 7: 16, 8: 20, 9: 24, 10: 32 } as const
 

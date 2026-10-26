@@ -1,4 +1,4 @@
-import { colours, fonts, lightColours, radius, space, toneColours } from './tokens.ts'
+import { colours, fonts, lightColours, radius, shapes, space, toneColours } from './tokens.ts'
 
 const kebab = (name: string): string => name.replace(/([a-z])([A-Z0-9])/g, '$1-$2').toLowerCase()
 
@@ -19,6 +19,11 @@ export const css = (): string => {
       .map(([name, value]) => `  --${kebab(name)}: ${value};`),
     ...Object.entries(radius).map(([name, value]) => `  --radius-${name}: ${value}px;`),
     ...Object.entries(space).map(([name, value]) => `  --space-${name}: ${value}px;`),
+    ...Object.entries(shapes).flatMap(([block, shape]) =>
+      Object.entries(shape).map(([part, value]) =>
+        typeof value === 'number' ? `  --shape-${block}-${part}: ${value}px;` : `  --shape-${block}-${part}: var(--${kebab(value)});`,
+      ),
+    ),
   ]
   const toneClasses = Object.entries(toneColours).map(
     ([name, t]) =>

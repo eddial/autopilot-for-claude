@@ -43,6 +43,7 @@ import {
   composerInput,
   GUTTER,
   KeyboardScreen,
+  shaped,
   type,
 } from '../ui.tsx'
 
@@ -573,14 +574,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   // A plain box, as on the Mac: the avatar on the rail says who asks.
-  ask: {
-    gap: 8,
-    padding: 14,
-    borderRadius: radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colours.borderStrong,
-    backgroundColor: colours.surface,
-  },
+  ask: { ...shaped('ask'), gap: 8, padding: 14 },
   entryBody: { gap: 4 },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
   linkText: { flex: 1, gap: 2 },

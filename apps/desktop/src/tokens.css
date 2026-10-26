@@ -51,6 +51,26 @@
   --space-8: 20px;
   --space-9: 24px;
   --space-10: 32px;
+  --shape-row-radius: 10px;
+  --shape-row-edge: var(--border-strong);
+  --shape-row-fill: var(--surface);
+  --shape-row-selected: var(--button);
+  --shape-tabs-radius: 10px;
+  --shape-tab-radius: 8px;
+  --shape-tab-edge: var(--border-strong);
+  --shape-tab-selected: var(--raised);
+  --shape-button-radius: 9px;
+  --shape-button-edge: var(--border-strong);
+  --shape-button-fill: var(--raised);
+  --shape-chip-radius: 7px;
+  --shape-chip-edge: var(--border-strong);
+  --shape-chip-fill: var(--raised);
+  --shape-card-radius: 12px;
+  --shape-card-edge: var(--border);
+  --shape-card-fill: var(--surface);
+  --shape-ask-radius: 14px;
+  --shape-ask-edge: var(--border-strong);
+  --shape-ask-fill: var(--surface);
   color-scheme: dark;
 }
 

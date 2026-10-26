@@ -12,7 +12,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
-import { claude, colours, fonts, pilot, radius, space, tones, type Tone } from '@autopilot/design'
+import { claude, colours, fonts, pilot, radius, shapes, space, tones, type Tone } from '@autopilot/design'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { emptyWords, linkKind, parseMarkdown, workstreamMark, type Inline, type LinkKind } from '@autopilot/client'
@@ -38,6 +38,16 @@ export const GUTTER = 16
  * leaves it out for its own bottom bars, which sit on the same line.
  */
 export const edgeSpace = (height: number, inset = 0): number => Math.max(inset + 8, EDGE - height / 2)
+
+/** A building block's shape from the shared tokens (the Mac's look): its corner, edge and fill. */
+export const shaped = (name: keyof typeof shapes) => {
+  const shape: { radius: number; edge?: keyof typeof colours; fill?: keyof typeof colours } = shapes[name]
+  return {
+    borderRadius: shape.radius,
+    ...(shape.edge ? { borderWidth: StyleSheet.hairlineWidth, borderColor: colours[shape.edge] } : {}),
+    ...(shape.fill ? { backgroundColor: colours[shape.fill] } : {}),
+  }
+}
 
 /** Text styles every screen shares. */
 export const type = StyleSheet.create({
@@ -314,9 +324,9 @@ const BUTTON = {
   /** The one thing to do next. */
   primary: { box: { backgroundColor: colours.text }, text: { color: colours.surface, fontWeight: '600' } },
   /** An answer to a question. */
-  option: { box: { backgroundColor: colours.button, borderWidth: StyleSheet.hairlineWidth, borderColor: colours.borderStrong }, text: {} },
+  option: { box: shaped('button'), text: {} },
   /** Anything else. */
-  secondary: { box: { backgroundColor: colours.raised }, text: {} },
+  secondary: { box: shaped('button'), text: {} },
   /** Undoes something that matters. */
   destructive: { box: { backgroundColor: colours.raised }, text: { color: colours.claySoft } },
 } as const
@@ -613,26 +623,12 @@ const styles = StyleSheet.create({
   em: { fontStyle: 'italic' },
   code: { fontFamily: 'Menlo', fontSize: 14, color: colours.text },
   link: { color: colours.pilotSoft, textDecorationLine: 'underline' },
-  card: {
-    padding: space[6],
-    borderRadius: radius.lg,
-    backgroundColor: colours.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colours.border,
-    gap: space[2],
-  },
+  card: { ...shaped('card'), padding: space[6], gap: space[2] },
   head: { flexDirection: 'row', alignItems: 'center', gap: space[3] },
   dot: { width: 8, height: 8, borderRadius: 4 },
   banner: { paddingHorizontal: space[5], paddingVertical: space[3], borderRadius: radius.md, gap: space[3] },
   bannerText: { fontSize: 14 },
-  chip: {
-    paddingHorizontal: space[5],
-    paddingVertical: 7,
-    borderRadius: radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colours.borderStrong,
-    backgroundColor: colours.raised,
-  },
+  chip: { ...shaped('chip'), paddingHorizontal: space[5], paddingVertical: 7 },
   chipOn: { borderColor: colours.text },
   chipPill: {
     height: 36,

@@ -14,6 +14,28 @@ screens to them. The look itself is in `PRODUCT.md`.
 - A test fails when `tokens.css` is stale or when a colour literal (`#…`, `rgb(…)`) appears in
   either app's sources. Need a new colour? Add it to the tokens, with a name for what it means.
 
+## Shapes
+
+`shapes` in the tokens gives each block both apps draw its corner, edge and fill: the list `row`
+(and its selected fill), the status `tabs` and the chosen `tab`, `button` (everything but the one
+primary action), `chip`, `card` and the `ask` card. The Mac leads: its look is what the tokens say.
+
+- The Mac reads them as `--shape-<block>-<part>` variables (`var(--shape-row-radius)`).
+- The phone spreads `shaped('row')` from `src/ui.tsx` into a style, or reads `shapes.tab.radius`.
+- A test fails when a block in `shapes` is not drawn from it in either app. Changing how a row or a
+  button looks is one edit in `tokens.ts`, and both apps follow.
+
+What the phone does differently, on purpose, and stays out of `shapes`:
+
+- **The ground is the well** (`#141413`), as dark as Claude's iPhone app; the Mac's window is a step
+  lighter, as Claude's Mac app is.
+- **The composer** is Claude's iPhone composer: a 26-point-radius box, round 36-point buttons, the
+  choices as pills, send in clay. On the Mac it is the smaller composer with the send arrow.
+- **Icons** are SF Symbols, the nearest to each of the Mac's line icons (`hand.raised`, `hammer`,
+  `clock`, `moon`, `flag.checkered`, `square.3.layers.3d` for the tabs; `arrow.up` and `arrow.down` to
+  step through the list, the Mac's thin arrows).
+- **Bars** are the system's (see "The iPhone on the Duo").
+
 ## What the colours mean
 
 Pilot green is Autopilot's own colour and leads; Claude's clay marks Claude at work. That keeps

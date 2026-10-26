@@ -20,8 +20,8 @@ import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
 import { age, rowMeta } from '../../../src/format.ts'
 import { doneItem, rememberDone, serverName, unpair, useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
-import { colours } from '@autopilot/design'
-import { Bars, EmptyList, Sides, WorkstreamBadge, edgeSpace, GUTTER, type, useBottomGap } from '../../../src/ui.tsx'
+import { colours, shapes } from '@autopilot/design'
+import { Bars, EmptyList, Sides, WorkstreamBadge, edgeSpace, GUTTER, shaped, type, useBottomGap } from '../../../src/ui.tsx'
 
 type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
 const VIEWS: { id: QueueView; title: string; about: string; bands: Band[]; symbol: SFSymbol }[] = [
@@ -331,7 +331,11 @@ export default function QueueScreen() {
 const BottomRow = ({ children }: { children: ReactNode }) => <View style={{ marginBottom: useBottomGap(TABS_HEIGHT) }}>{children}</View>
 
 const Row = ({ item, selected, status, onPress }: { item: QueueItem; selected: boolean; status: boolean; onPress: () => void }) => (
-  <Pressable style={[styles.row, selected && { backgroundColor: colours.raised }]} onPress={onPress} accessibilityRole="button">
+  <Pressable
+    style={[styles.row, selected && { backgroundColor: colours[shapes.row.selected] }]}
+    onPress={onPress}
+    accessibilityRole="button"
+  >
     {/* Under All: where it stands, as its tab draws it; green only when it is your turn. */}
     {status && (
       <View style={styles.status}>
@@ -384,15 +388,24 @@ const styles = StyleSheet.create({
     marginHorizontal: GUTTER,
     marginTop: 8,
     padding: 3,
-    borderRadius: 12,
+    borderRadius: shapes.tabs.radius,
     backgroundColor: colours.window,
   },
-  tab: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 34, borderRadius: 9 },
+  tab: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    height: 34,
+    borderRadius: shapes.tab.radius,
+  },
   // Lifted off the well, as the Mac's.
   tabOn: {
-    backgroundColor: colours.raised,
+    backgroundColor: colours[shapes.tab.selected],
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colours.borderStrong,
+    borderColor: colours[shapes.tab.edge],
     shadowColor: colours.shadow,
     shadowOpacity: 1,
     shadowRadius: 2,
@@ -410,8 +423,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     paddingHorizontal: 12,
     paddingVertical: 11,
-    borderRadius: 12,
-    backgroundColor: colours.surface,
+    ...shaped('row'),
   },
   status: { width: 16, height: 22, alignItems: 'center', justifyContent: 'center' },
   rowEnd: { alignItems: 'flex-end', gap: 8 },
