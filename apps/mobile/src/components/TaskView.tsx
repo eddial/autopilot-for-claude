@@ -41,6 +41,9 @@ import {
   Tag,
   bannerText,
   composerInput,
+  COMPOSER_BAR,
+  edgeSpace,
+  GUTTER,
   type,
 } from '../ui.tsx'
 
@@ -286,7 +289,7 @@ export const TaskView = ({
           ))}
         </ScrollView>
         <FileChips files={files.files} onRemove={files.remove} />
-        <View style={styles.composerWrap}>
+        <View style={[styles.composerWrap, { marginBottom: edgeSpace(COMPOSER_BAR) }]}>
           <Composer ready={ready} onSend={reply} tools={<ComposerTool symbol="plus" label="Attach files" onPress={files.pick} />}>
             <TextInput
               style={composerInput}
@@ -544,10 +547,11 @@ const Pasted = ({ text }: { text: string }) => {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colours.surface },
-  page: { padding: 20, gap: 24, paddingBottom: 32 },
+  page: { paddingHorizontal: GUTTER, paddingTop: 20, gap: 24, paddingBottom: 32 },
   head: { gap: 6 },
   section: { gap: 8 },
-  signal: { gap: 2, marginTop: 8, padding: 12, borderRadius: radius.md, backgroundColor: colours.surface },
+  // On the page's own colour: no box, so its text starts on the page's margin like the rest.
+  signal: { gap: 2, marginTop: 8, paddingVertical: 6 },
   signalTitle: { fontSize: 15, lineHeight: 21, color: colours.textBody },
   folded: { maxHeight: 200, overflow: 'hidden' },
   pasted: {
@@ -596,7 +600,7 @@ const styles = StyleSheet.create({
   nowDot: { width: 8, height: 8, borderRadius: 4 },
   entry: { gap: 4 },
   avatar: { position: 'absolute', left: -36, top: 0 },
-  composerWrap: { margin: 12 },
+  composerWrap: { marginHorizontal: GUTTER, marginTop: 12 },
 })
 
 /** A long brief folded to its first lines, as on the Mac; Show more opens it. */

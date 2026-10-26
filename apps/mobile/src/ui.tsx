@@ -21,10 +21,27 @@ import { emptyWords, linkKind, parseMarkdown, workstreamMark, type Inline, type 
  * tokens. Screens compose these; a colour written anywhere else fails the tokens test.
  */
 
+/**
+ * The line a screen's first and last things sit on, from the top and bottom edges. On the Duo's
+ * outer screen the camera and the side bar's last button are centred this far in; a screen's title
+ * and its bottom bar are centred on the same lines, so each lines up with what is beside it.
+ */
+export const EDGE = 48
+
+/** The margin at a screen's sides: titles, cards, bars and the composer all start and end on it. */
+export const GUTTER = 16
+
+/**
+ * Space between an edge and a block `height` tall, so its middle sits on EDGE. At the top, never
+ * under the status bar (`inset`); at the bottom the home indicator's inset is left out, as iOS
+ * leaves it out for its own bottom bars, which sit on the same line.
+ */
+export const edgeSpace = (height: number, inset = 0): number => Math.max(inset + 8, EDGE - height / 2)
+
 /** Text styles every screen shares. */
 export const type = StyleSheet.create({
   title: { fontFamily: fonts.serifNative, fontSize: 24, lineHeight: 30, color: colours.text },
-  heading: { fontFamily: fonts.serifNative, fontSize: 28, color: colours.text },
+  heading: { fontFamily: fonts.serifNative, fontSize: 28, lineHeight: 34, color: colours.text },
   body: { fontSize: 16, lineHeight: 24, color: colours.textBody },
   name: { flex: 1, fontSize: 16, color: colours.textBody },
   lead: { fontSize: 15, lineHeight: 22, color: colours.text2 },
@@ -377,6 +394,9 @@ export const Composer = ({
     </View>
   </View>
 )
+
+/** Twice the distance from the composer's bottom edge to the middle of its send: what edgeSpace centres. */
+export const COMPOSER_BAR = 54
 
 /** A round tool in the composer's bar: attach, and the like. */
 export const ComposerTool = ({ symbol, label, onPress }: { symbol: SFSymbol; label: string; onPress: () => void }) => (

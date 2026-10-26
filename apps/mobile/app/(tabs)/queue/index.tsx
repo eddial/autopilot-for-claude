@@ -20,7 +20,7 @@ import { TaskView } from '../../../src/components/TaskView.tsx'
 import { age, rowMeta } from '../../../src/format.ts'
 import { doneItem, rememberDone, serverName, unpair, useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
-import { Bars, EmptyList, Sides, WorkstreamBadge } from '../../../src/ui.tsx'
+import { Bars, EmptyList, Sides, WorkstreamBadge, edgeSpace, GUTTER, type } from '../../../src/ui.tsx'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
@@ -49,6 +49,10 @@ const matches = (item: QueueItem, filter: string): boolean =>
       if (word.startsWith('from:')) return (item.task.source.signal ?? 'you').startsWith(word.slice(5))
       return item.task.title.toLowerCase().includes(word) || item.task.id.toLowerCase() === word
     })
+
+/** The title's line, and the tab bar's: what edgeSpace centres on the edge line. */
+const TITLE_HEIGHT = 34
+const TABS_HEIGHT = 40
 
 /** Regular width (the Duo's inner display full screen): list and task side by side. */
 const SPLIT_WIDTH = 700
@@ -172,13 +176,15 @@ export default function QueueScreen() {
     <Sides edges={split ? ['left'] : undefined}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* The same column as on the Mac: search, then the tabs, then the sections. */}
-        <View style={{ paddingTop: insets.top + 16, gap: 8 }}>
-          <StatusLine />
+        {/* The title level with the camera beside it, as the tabs are with the last button. */}
+        <View style={{ paddingTop: edgeSpace(TITLE_HEIGHT, insets.top), gap: 4 }}>
+          <Text style={[type.heading, styles.heading]} numberOfLines={1}>
+            {all ? 'All open' : current?.title}
+          </Text>
           <Text style={styles.caption} numberOfLines={1}>
-            <Text style={styles.captionName}>{all ? 'All open' : current?.title}</Text>
-            {' · '}
             {all ? 'Every open task, across workstreams' : current?.about}
           </Text>
+          <StatusLine />
         </View>
         <SectionList
           style={{ flex: 1 }}
@@ -221,7 +227,7 @@ export default function QueueScreen() {
           )}
         />
         {/* The tabs under the list, where the thumb is; search and New in the bar below them. */}
-        {tabs}
+        <View style={{ marginBottom: edgeSpace(TABS_HEIGHT) }}>{tabs}</View>
       </KeyboardAvoidingView>
     </Sides>
   )
@@ -350,13 +356,13 @@ const BAND_SYMBOL: Record<QueueItem['band'], SFSymbol> = {
 }
 
 const styles = StyleSheet.create({
-  caption: { marginHorizontal: 20, fontSize: 13, color: colours.text3 },
-  captionName: { fontWeight: '500', color: colours.text2 },
+  heading: { marginHorizontal: GUTTER },
+  caption: { marginHorizontal: GUTTER, fontSize: 13, color: colours.text3 },
   tabs: {
     flexDirection: 'row',
     gap: 2,
-    marginHorizontal: 12,
-    marginVertical: 8,
+    marginHorizontal: GUTTER,
+    marginTop: 8,
     padding: 3,
     borderRadius: 12,
     backgroundColor: colours.well,
@@ -373,14 +379,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
   },
   tabCount: { fontSize: 14, color: colours.text3, fontVariant: ['tabular-nums'] },
-  section: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 8 },
+  section: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: GUTTER, paddingTop: 18, paddingBottom: 8 },
   sectionName: { fontSize: 14, fontWeight: '500', color: colours.text2 },
   sectionCount: { marginLeft: 'auto', fontSize: 13, color: colours.text3 },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    marginHorizontal: 12,
+    marginHorizontal: GUTTER,
     marginBottom: 6,
     paddingHorizontal: 12,
     paddingVertical: 11,

@@ -7,7 +7,7 @@ import { SymbolView } from 'expo-symbols'
 import { useDraft } from '../src/drafts.ts'
 import { useSyncInstance } from '../src/store.ts'
 import { colours } from '@autopilot/design'
-import { Chip, Composer, Pilot, Sides, composerInput, type } from '../src/ui.tsx'
+import { COMPOSER_BAR, Chip, Composer, Pilot, Sides, composerInput, edgeSpace, GUTTER, type } from '../src/ui.tsx'
 
 const PRIORITIES = [
   { value: 1, label: 'Urgent' },
@@ -87,7 +87,10 @@ export default function NewTaskScreen() {
         <Stack.Toolbar.Button icon="xmark" accessibilityLabel="Cancel" onPress={() => router.back()} />
       </Stack.Toolbar>
       <Sides colour={colours.window}>
-        <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView
+          style={[styles.screen, { paddingBottom: edgeSpace(COMPOSER_BAR) }]}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <View style={styles.hello}>
             <Pilot pixel={4} />
             <Text style={type.heading}>What needs doing?</Text>
@@ -131,7 +134,7 @@ export default function NewTaskScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, justifyContent: 'flex-end', padding: 12, paddingBottom: 12, gap: 12 },
+  screen: { flex: 1, justifyContent: 'flex-end', paddingHorizontal: GUTTER, paddingTop: 12, gap: 12 },
   hello: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
   pills: { flexDirection: 'row', gap: 8 },
 })
