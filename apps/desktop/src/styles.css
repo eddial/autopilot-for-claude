@@ -801,6 +801,10 @@ button {
   grid-template-columns: 22px 1fr auto auto;
 }
 
+.menu-items.with-checks.with-icons {
+  grid-template-columns: 16px 22px 1fr auto auto;
+}
+
 .menu-items.with-icons button {
   align-items: center;
 }
@@ -813,7 +817,15 @@ button {
 .menu-check {
   display: inline-flex;
   align-items: center;
-  color: var(--pilot);
+  min-width: 16px;
+  color: var(--text);
+}
+
+/* The tick keeps its size in its narrow column. */
+.menu-check svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
 }
 
 .menu-items.align-right {
@@ -1553,15 +1565,6 @@ button {
 .start .composer textarea {
   margin-top: 8px;
   color: var(--text-2);
-}
-
-.pick {
-  padding: 5px 10px;
-  border-radius: 8px;
-  border: 0.5px solid var(--border-strong);
-  background: transparent;
-  color: var(--text-2);
-  font-size: 13px;
 }
 
 .below {

@@ -2,21 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import type { Workstream } from '@autopilot/contracts'
 import { api, key } from '../api.ts'
 import { useDraft } from '../drafts.ts'
-import { ArrowUp, Banner, Button, Meta, Pilot, Row } from '../ui.tsx'
+import { ArrowUp, Banner, Bars, Button, Meta, Pilot, Row, WorkstreamMark } from '../ui.tsx'
+import { Menu } from './Menu.tsx'
 
 type Props = { workstreams: Workstream[]; onCreated: (id: string) => void }
 
-const PRIORITIES = [
-  { value: 1, label: 'Urgent' },
-  { value: 2, label: 'High priority' },
-  { value: 3, label: 'Normal priority' },
-  { value: 4, label: 'Low priority' },
-]
+/** The priorities as the task's own Priority property names them. */
+const PRIORITIES: Record<number, string> = { 1: 'Urgent', 2: 'High', 3: 'Normal', 4: 'Low' }
 
 export const NewTask = ({ workstreams, onCreated }: Props) => {
   const [title, setTitle] = useDraft('new:title')
   const [brief, setBrief] = useDraft('new:brief')
-  const [workstream, setWorkstream] = useState('')
+  const [workstream, setWorkstream] = useState('inbox')
   const [priority, setPriority] = useState(3)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -33,7 +30,7 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
         idempotencyKey: key(),
         title: title.trim().slice(0, 120),
         brief: brief.trim(),
-        ...(workstream ? { workstream } : {}),
+        ...(workstream !== 'inbox' ? { workstream } : {}),
         priority,
         start,
       })
@@ -81,21 +78,37 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
             }}
           />
           <div className="composer-bar">
-            <select className="pick" aria-label="Workstream" value={workstream} onChange={(e) => setWorkstream(e.target.value)}>
-              <option value="">Inbox</option>
-              {workstreams.map((w) => (
-                <option key={w.name} value={w.name}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
-            <select className="pick" aria-label="Priority" value={priority} onChange={(e) => setPriority(Number(e.target.value))}>
-              {PRIORITIES.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
+            {/* The same menus as the task's own Workstream and Priority. */}
+            <Menu
+              className="with-icon"
+              label={
+                <>
+                  <WorkstreamMark name={workstream} />
+                  {workstream}
+                </>
+              }
+              items={[...new Set([...workstreams.map((w) => w.name).filter((n) => n !== 'autopilot'), 'inbox'])].map((name) => ({
+                label: name,
+                icon: <WorkstreamMark name={name} />,
+                checked: name === workstream,
+                run: () => setWorkstream(name),
+              }))}
+            />
+            <Menu
+              className="with-icon"
+              label={
+                <>
+                  <Bars priority={priority} />
+                  {PRIORITIES[priority]}
+                </>
+              }
+              items={[1, 2, 3, 4].map((p) => ({
+                label: PRIORITIES[p] ?? '',
+                icon: <Bars priority={p} />,
+                checked: p === priority,
+                run: () => setPriority(p),
+              }))}
+            />
             <Button kind="send" type="submit" aria-label="Create and start" disabled={busy || !title.trim()}>
               <ArrowUp />
             </Button>

@@ -63,7 +63,8 @@ describe('the Mac app window', () => {
     await page.getByRole('button', { name: 'New task' }).click()
     await page.getByLabel('Title').fill('Decide on prompt caching for agent-service')
     await page.getByLabel('Brief').fill('Measure Opus first; do not touch prod.')
-    await page.getByLabel('Workstream').selectOption('engineering')
+    await page.getByRole('button', { name: 'inbox' }).click()
+    await page.getByRole('menuitemradio', { name: 'engineering' }).click()
     await shot('new-task')
     await page.getByRole('button', { name: 'Create and start' }).click()
 
