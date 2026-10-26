@@ -20,7 +20,7 @@ import { TaskView } from '../../../src/components/TaskView.tsx'
 import { age, rowMeta } from '../../../src/format.ts'
 import { useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
-import { Bars, Sides, WorkstreamBadge } from '../../../src/ui.tsx'
+import { Bars, EmptyList, Sides, WorkstreamBadge } from '../../../src/ui.tsx'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
@@ -103,11 +103,15 @@ export default function QueueScreen() {
       return next
     })
 
+  // The list as it reads, top to bottom: what the task screen steps through with its chevrons.
+  const order = sections.flatMap((section) => section.data.map((i) => i.task.id))
   const open = (id: string) => {
     if (split) setSelected(id)
-    else router.push({ pathname: '/queue/[id]', params: { id } })
+    else router.push({ pathname: '/queue/[id]', params: { id, list: order.join(',') } })
   }
   const selectedItem = split ? items.find((i) => i.task.id === selected) : undefined
+  const at = selected ? order.indexOf(selected) : -1
+  const stepTo = (to: string | undefined) => (to ? () => setSelected(to) : null)
 
   // A phone has no hover: once online, fetch the conversations at the top of the queue in the
   // background, so opening them needs no request.
@@ -194,15 +198,17 @@ export default function QueueScreen() {
           keyboardDismissMode="on-drag"
 
           ListEmptyComponent={
-            <Text style={styles.empty}>
-              {filter
-                ? 'Nothing matches the search.'
-                : view === 'done' && done === null
-                  ? 'Done is read from your Mac when it is in reach.'
-                  : status === 'online' || view !== 'needs_me'
-                    ? 'Nothing here. Autopilot fills this as signals file and sessions hand over.'
+            filter || (view === 'done' && done === null) || (status !== 'online' && view === 'needs_me' && items.length === 0) ? (
+              <Text style={styles.empty}>
+                {filter
+                  ? 'Nothing matches the search.'
+                  : view === 'done'
+                    ? 'Done is read from your Mac when it is in reach.'
                     : 'Nothing cached yet.'}
-            </Text>
+              </Text>
+            ) : (
+              <EmptyList view={all ? null : view} />
+            )
           }
           renderSectionHeader={({ section }) => {
             const shut = folded.has(section.name)
@@ -243,7 +249,11 @@ export default function QueueScreen() {
         }
       />
       {selectedItem ? (
-        <TaskToolbar item={selectedItem} closeAfter={false} />
+        <TaskToolbar
+          item={selectedItem}
+          closeAfter={false}
+          step={at >= 0 ? { previous: stepTo(order[at - 1]), next: stepTo(order[at + 1]) } : undefined}
+        />
       ) : (
         // New task in the side bar, where iOS puts a screen's actions on the Duo.
         <Stack.Toolbar placement="right">

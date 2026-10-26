@@ -21,12 +21,13 @@ import * as Haptics from 'expo-haptics'
 import { SymbolView } from 'expo-symbols'
 import { age, ago, BAND_TITLE } from '../format.ts'
 import { useDraft } from '../drafts.ts'
+import { FileChips, useFiles } from '../files.tsx'
 import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
 import { colours, radius, tones, type Tone } from '@autopilot/design'
 import { Avatar, Banner, Button, Chip, LinkIcon, Markdown, Pill, Sides, Tag, bannerText, type } from '../ui.tsx'
 
 /** A task: its brief, what waits on you, and its activity; the same in a pushed screen and in the wide split. */
-export const TaskView = ({ item }: { item: QueueItem }) => {
+export const TaskView = ({ item, onTitleOff }: { item: QueueItem; onTitleOff?: (off: boolean) => void }) => {
   const sync = useSyncInstance()
   const { conflicts, outbox } = useSyncState()
   const { task, openAsk } = item
@@ -37,6 +38,16 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
   // you are there; scrolled up, it stays put.
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null)
   const pinned = useRef(true)
+  // Where the title ends on the page, and whether it is out of sight (the bar then says it).
+  const titleEnd = useRef(0)
+  const titleOff = useRef(false)
+  const viewport = useRef(0)
+  const showTitle = (offset: number) => {
+    const off = offset > titleEnd.current
+    if (off === titleOff.current) return
+    titleOff.current = off
+    onTitleOff?.(off)
+  }
 
   const pending = outbox.filter((p) => 'taskId' in p.command && p.command.taskId === task.id)
   const answered = new Set(pending.flatMap((p) => (p.command.kind === 'answer' ? [p.command.updateId] : [])))
@@ -45,6 +56,12 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
   const ask = updates.find((u) => u.open && !answered.has(u.id)) ?? null
   const activity = updates.filter((u) => u !== ask)
   const options = updates.flatMap((u) => u.options)
+  const send = async (command: Parameters<NonNullable<typeof sync>['send']>[0]) => {
+    if (!sync) return
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    await sync.send(command)
+  }
+
   // From how it began to where it stands now, read downwards like a conversation.
   const entries = [
     <Entry key="created" label={createdText(task)} by={null} at={shortDate(task.createdAt)} who={task.createdBy} body="" event />,
@@ -64,21 +81,47 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
       const words = pendingText(command) ?? (command.kind === 'answer' ? options.find((o) => o.id === command.optionId)?.label : undefined)
       return words ? [<Entry key={p.id} label="You" by={null} at="waiting to reach your Mac" who="owner" body={words} sending />] : []
     }),
-    <Entry key="now" label="Now" by={null} at={nowText(item)} who="now" tone={nowTone(item)} body="" event />,
+    // Where it stands now: what waits on you, as the last entry with its answers, or the Now line.
+    ask ? (
+      <Entry key="ask" label={updateLabel(ask)} by={null} at={age(ask.createdAt)} who={ask.author} body={ask.body} card>
+        <Links update={ask} />
+        {ask.kind === 'done' && (
+          <View style={styles.row}>
+            <Button kind="primary" label="Close it" onPress={() => void send({ kind: 'close', taskId: task.id, outcome: 'done' })} />
+          </View>
+        )}
+        {ask.options.length > 0 && (
+          <View style={styles.row}>
+            {ask.options.map((o, i) => (
+              <Button
+                key={o.id}
+                kind={i === 0 ? 'primary' : 'option'}
+                label={o.label}
+                onPress={() => void send({ kind: 'answer', taskId: task.id, updateId: ask.id, optionId: o.id })}
+              />
+            ))}
+          </View>
+        )}
+      </Entry>
+    ) : (
+      <Entry key="now" label="Now" by={null} at={nowText(item)} who="now" tone={nowTone(item)} body="" event />
+    ),
   ]
   const refused = conflicts.filter((c) => 'taskId' in c.command && c.command.taskId === task.id)
 
-  const send = async (command: Parameters<NonNullable<typeof sync>['send']>[0]) => {
-    if (!sync) return
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    await sync.send(command)
-  }
-
+  const files = useFiles(task.id)
+  const ready = (text.trim().length > 0 || files.links.length > 0) && !files.busy
   const reply = () => {
     const body = text.trim()
-    if (!body) return
+    if (!ready) return
+    const attachments = files.links.length > 0 ? { attachments: files.links } : {}
     setText('')
-    void send(ask ? { kind: 'answer', taskId: task.id, updateId: ask.id, text: body } : { kind: 'instruct', taskId: task.id, body })
+    files.clear()
+    void send(
+      ask
+        ? { kind: 'answer', taskId: task.id, updateId: ask.id, text: body, ...attachments }
+        : { kind: 'instruct', taskId: task.id, body, ...attachments },
+    )
   }
 
   return (
@@ -92,12 +135,24 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
           scrollEventThrottle={100}
           onScroll={({ nativeEvent: e }) => {
             pinned.current = e.contentSize.height - e.contentOffset.y - e.layoutMeasurement.height < 24
+            showTitle(e.contentOffset.y + e.contentInset.top)
           }}
-          onContentSizeChange={() => {
-            if (pinned.current) scroll.current?.scrollToEnd({ animated: false })
+          onLayout={(e) => {
+            viewport.current = e.nativeEvent.layout.height
+          }}
+          onContentSizeChange={(_, height) => {
+            if (!pinned.current) return
+            scroll.current?.scrollToEnd({ animated: false })
+            // Jumping to the end sends no scroll event: say where the title is from the sizes.
+            showTitle(height - viewport.current)
           }}
         >
-          <View style={styles.head}>
+          <View
+            style={styles.head}
+            onLayout={(e) => {
+              titleEnd.current = e.nativeEvent.layout.y + e.nativeEvent.layout.height
+            }}
+          >
             <Text style={type.meta}>
               {task.id}
               {task.source.mirrors ? ` · ${task.source.mirrors}` : ''}
@@ -143,21 +198,18 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
             </View>
           )}
           {task.links.length > 0 && <Linked taskId={task.id} links={task.links} />}
-          {/* With only an ask so far, the card is the whole story. */}
-          {!(ask && activity.length === 0 && pending.length === 0) && (
-            <View style={styles.section}>
-              <Text style={type.label}>Activity</Text>
-              <View style={styles.feed}>
-                {/* The rail runs from one avatar to the next; the last entry has none below it. */}
-                {entries.map((entry, i) => (
-                  <View key={entry.key} style={styles.slot}>
-                    {i < entries.length - 1 && <View style={styles.rail} />}
-                    {entry}
-                  </View>
-                ))}
-              </View>
+          <View style={styles.section}>
+            <Text style={type.label}>Activity</Text>
+            <View style={styles.feed}>
+              {/* The rail runs from one avatar to the next; the last entry has none below it. */}
+              {entries.map((entry, i) => (
+                <View key={entry.key} style={styles.slot}>
+                  {i < entries.length - 1 && <View style={styles.rail} />}
+                  {entry}
+                </View>
+              ))}
             </View>
-          )}
+          </View>
           {refused.map((c) => (
             <Banner key={c.id}>
               <Text style={bannerText()}>
@@ -182,34 +234,12 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
               </View>
             </Banner>
           ))}
-          {ask && (
-            <View style={styles.ask} accessibilityLabel="Needs you">
-              <Text style={[type.meta, { color: colours.pilot }]}>
-                {updateLabel(ask)} · {age(ask.createdAt)}
-              </Text>
-              <Markdown text={ask.body} onLink={open} />
-              <Links update={ask} />
-              {ask.kind === 'done' && (
-                <View style={styles.row}>
-                  <Button kind="primary" label="Close it" onPress={() => void send({ kind: 'close', taskId: task.id, outcome: 'done' })} />
-                </View>
-              )}
-              {ask.options.length > 0 && (
-                <View style={styles.row}>
-                  {ask.options.map((o, i) => (
-                    <Button
-                      key={o.id}
-                      kind={i === 0 ? 'primary' : 'option'}
-                      label={o.label}
-                      onPress={() => void send({ kind: 'answer', taskId: task.id, updateId: ask.id, optionId: o.id })}
-                    />
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
         </ScrollView>
+        <FileChips files={files.files} onRemove={files.remove} />
         <View style={styles.composer}>
+          <Pressable style={styles.attach} onPress={files.pick} hitSlop={6} accessibilityRole="button" accessibilityLabel="Attach files">
+            <SymbolView name="paperclip" size={18} tintColor={colours.text2} />
+          </Pressable>
           <TextInput
             style={styles.input}
             placeholder={ask?.kind === 'done' ? 'Or ask for more…' : ask ? 'Or answer in words…' : 'Tell the session…'}
@@ -219,12 +249,7 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
             multiline
             accessibilityLabel="Reply to Autopilot"
           />
-          <Pressable
-            style={[styles.send, !text.trim() && { opacity: 0.4 }]}
-            onPress={reply}
-            disabled={!text.trim()}
-            accessibilityLabel="Send"
-          >
+          <Pressable style={[styles.send, !ready && { opacity: 0.4 }]} onPress={reply} disabled={!ready} accessibilityLabel="Send">
             <Text style={styles.sendText}>↑</Text>
           </Pressable>
         </View>
@@ -342,6 +367,7 @@ const Entry = ({
   body,
   sending,
   event,
+  card,
   children,
 }: {
   label: string
@@ -353,6 +379,8 @@ const Entry = ({
   sending?: boolean
   /** A one-line event: "Session linked …". */
   event?: boolean
+  /** What waits on you: its words and answers in a card on the rail. */
+  card?: boolean
   children?: ReactNode
 }) => (
   <View style={[styles.entry, sending && { opacity: 0.6 }]}>
@@ -365,12 +393,14 @@ const Entry = ({
         <Avatar who={who} />
       )}
     </View>
-    <Text style={[type.meta, styles.entryHead]}>
-      <Text style={{ color: colours.text2 }}>{label}</Text>
-      {event ? (body ? ` ${body}` : '') : by ? ` · ${by}` : ''} · {at}
-    </Text>
-    {event ? null : who === 'owner' && isPaste(body) ? <Pasted text={body} /> : <Markdown text={body} onLink={open} />}
-    {children}
+    <View style={card ? styles.ask : styles.entryBody} accessibilityLabel={card ? 'Needs you' : undefined}>
+      <Text style={[type.meta, styles.entryHead]}>
+        <Text style={{ color: colours.text2 }}>{label}</Text>
+        {event ? (body ? ` ${body}` : '') : by ? ` · ${by}` : ''} · {at}
+      </Text>
+      {event ? null : who === 'owner' && isPaste(body) ? <Pasted text={body} /> : <Markdown text={body} onLink={open} />}
+      {children}
+    </View>
   </View>
 )
 
@@ -425,14 +455,16 @@ const styles = StyleSheet.create({
   pastedPeek: { lineHeight: 18 },
   more: { marginTop: 6 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  // Neutral, as on the Mac: the avatar on the rail says who asks.
   ask: {
     gap: 8,
-    padding: 16,
+    padding: 14,
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colours.pilot,
-    backgroundColor: colours.pilotTint,
+    borderColor: colours.borderStrong,
+    backgroundColor: colours.open,
   },
+  entryBody: { gap: 4 },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
   linkText: { flex: 1, gap: 2 },
   fullWidth: { width: '100%' },
@@ -460,12 +492,13 @@ const styles = StyleSheet.create({
     gap: 8,
     margin: 12,
     padding: 8,
-    paddingLeft: 14,
+    paddingLeft: 6,
     borderRadius: radius.xl,
     backgroundColor: colours.raised,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colours.borderStrong,
   },
+  attach: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
   input: { flex: 1, maxHeight: 140, fontSize: 16, color: colours.text, paddingVertical: 6 },
   send: { width: 34, height: 34, borderRadius: 10, backgroundColor: colours.pilot, alignItems: 'center', justifyContent: 'center' },
   sendText: { fontSize: 18, fontWeight: '700', color: colours.well },

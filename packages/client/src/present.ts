@@ -213,3 +213,21 @@ export const pasteSize = (text: string): string => {
  * turn before the server's word arrives is not news.
  */
 export const attentionKey = (item: QueueItem): string => item.openAsk?.id ?? `task:${item.task.id}`
+
+/** What an empty list says, by tab (null: every open task), the same on both apps. */
+export const emptyWords = (view: string | null): { title: string; line: string } => {
+  switch (view) {
+    case 'needs_me':
+      return { title: 'All clear', line: 'Nothing needs you. The pilot has the controls.' }
+    case 'running':
+      return { title: 'Engines idle', line: 'No session is working. Start one with New.' }
+    case 'waiting':
+      return { title: 'Nobody owes you anything', line: 'Nothing is waiting on someone else.' }
+    case 'snoozed':
+      return { title: 'Wide awake', line: 'Nothing is snoozed.' }
+    case 'done':
+      return { title: 'A clean slate', line: 'Nothing done yet. Give it a day.' }
+    default:
+      return { title: 'Clear skies', line: 'No open tasks anywhere. Autopilot fills this as signals file and sessions hand over.' }
+  }
+}

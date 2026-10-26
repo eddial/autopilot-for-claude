@@ -1,9 +1,20 @@
-import type { ReactNode } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import { useEffect, useState, type ReactNode } from 'react'
+import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native'
 import { claude, colours, fonts, pilot, radius, space, tones, type Tone } from '@autopilot/design'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { linkKind, parseMarkdown, workstreamMark, type Inline, type LinkKind } from '@autopilot/client'
+import { emptyWords, linkKind, parseMarkdown, workstreamMark, type Inline, type LinkKind } from '@autopilot/client'
 
 /**
  * The phone's building blocks, the same kinds as the Mac window's `src/ui.tsx` and from the same
@@ -248,7 +259,7 @@ export const Chip = ({ label, on, icon, onPress }: { label: string; on?: boolean
 
 const BUTTON = {
   /** The one thing to do next. */
-  primary: { box: { backgroundColor: colours.pilot }, text: { color: colours.well, fontWeight: '600' } },
+  primary: { box: { backgroundColor: colours.text }, text: { color: colours.surface, fontWeight: '600' } },
   /** An answer to a question. */
   option: { box: { backgroundColor: colours.button, borderWidth: StyleSheet.hairlineWidth, borderColor: colours.borderStrong }, text: {} },
   /** Anything else. */
@@ -297,6 +308,69 @@ const Mascot = ({
 /** The pilot, Autopilot's mascot. */
 export const Pilot = ({ pixel = 3 }: { pixel?: number }) => <Mascot art={pilot} pixel={pixel} label="Autopilot" />
 
+/** A cloud going by behind the pilot, its speed and height its own; still when Reduce Motion is on. */
+const Cloud = ({ top, width, seconds, delay, still }: { top: number; width: number; seconds: number; delay: number; still: boolean }) => {
+  const [x] = useState(() => new Animated.Value(220))
+  useEffect(() => {
+    if (still) return
+    const run = Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(x, { toValue: -80, duration: seconds * 1000, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(x, { toValue: 220, duration: 0, useNativeDriver: true }),
+      ]),
+    )
+    run.start()
+    return () => run.stop()
+  }, [x, seconds, delay, still])
+  return <Animated.View style={[styles.cloud, { top, width, transform: [{ translateX: still ? 60 : x }] }]} />
+}
+
+/** An empty list, as on the Mac: the pilot drifting along past a few clouds, and a word about it. */
+export const EmptyList = ({ view }: { view: string | null }) => {
+  const words = emptyWords(view)
+  const [still, setStill] = useState(false)
+  const [bob] = useState(() => new Animated.Value(0))
+  useEffect(() => {
+    void AccessibilityInfo.isReduceMotionEnabled().then(setStill)
+  }, [])
+  useEffect(() => {
+    if (still) return
+    const run = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bob, { toValue: 1, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(bob, { toValue: 0, duration: 1600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    )
+    run.start()
+    return () => run.stop()
+  }, [bob, still])
+  return (
+    <View style={styles.emptyList}>
+      <View style={styles.sky} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <Cloud top={18} width={44} seconds={9} delay={0} still={still} />
+        <Cloud top={52} width={28} seconds={6} delay={1500} still={still} />
+        <Cloud top={80} width={60} seconds={12} delay={3000} still={still} />
+        <Animated.View
+          style={[
+            styles.flying,
+            {
+              transform: [
+                { translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) },
+                { rotate: bob.interpolate({ inputRange: [0, 1], outputRange: ['-2deg', '2deg'] }) },
+              ],
+            },
+          ]}
+        >
+          <Pilot pixel={4} />
+        </Animated.View>
+      </View>
+      <Text style={styles.emptyTitle}>{words.title}</Text>
+      <Text style={styles.emptyLine}>{words.line}</Text>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   mdRow: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colours.border },
   mdHeadRow: { borderBottomColor: colours.borderStrong },
@@ -336,9 +410,16 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colours.borderStrong,
+    backgroundColor: colours.raised,
   },
-  chipOn: { backgroundColor: colours.raised, borderColor: colours.pilot },
-  chipText: { fontSize: 14, color: colours.text2 },
+  chipOn: { borderColor: colours.text },
+  chipText: { fontSize: 14, color: colours.text },
+  emptyList: { alignItems: 'center', paddingTop: 48, paddingHorizontal: 28 },
+  sky: { width: 200, height: 96, marginBottom: 18, overflow: 'hidden' },
+  cloud: { position: 'absolute', left: 0, height: 6, borderRadius: 3, backgroundColor: colours.borderStrong },
+  flying: { position: 'absolute', top: 26, left: 68 },
+  emptyTitle: { fontFamily: fonts.serifNative, fontSize: 22, color: colours.text },
+  emptyLine: { marginTop: 6, fontSize: 15, lineHeight: 21, textAlign: 'center', color: colours.text3, maxWidth: 300 },
   button: { paddingHorizontal: space[6], paddingVertical: 9, borderRadius: radius.md, alignSelf: 'flex-start' },
   buttonText: { fontSize: 15, color: colours.text },
   pilotRow: { flexDirection: 'row' },

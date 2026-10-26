@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem } from '@autopilot/contracts'
+import { emptyWords } from '@autopilot/client'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useDraft } from '../drafts.ts'
 import { prefetch, send } from '../store.ts'
@@ -28,16 +29,6 @@ type Props = {
   lingering: string | null
 }
 
-/** What an empty list says, by tab: a line to smile at, and what to do next. */
-const EMPTY: Record<QueueView | 'all', { title: string; line: string }> = {
-  needs_me: { title: 'All clear', line: 'Nothing needs you. The pilot has the controls.' },
-  running: { title: 'Engines idle', line: 'No session is working. Start one with New.' },
-  waiting: { title: 'Nobody owes you anything', line: 'Nothing is waiting on someone else.' },
-  snoozed: { title: 'Wide awake', line: 'Nothing is snoozed.' },
-  done: { title: 'A clean slate', line: 'Nothing done yet. Give it a day.' },
-  all: { title: 'Clear skies', line: 'No open tasks anywhere. Autopilot fills this as signals file and sessions hand over.' },
-}
-
 /** Where else there is something: "2 waiting on others · 1 snoozed". */
 const elsewhere = (counts: Props['counts'], tab: QueueView | null) =>
   QUEUE_VIEWS.filter((q) => q.id !== tab && q.id !== 'done' && (counts[q.id] ?? 0) > 0)
@@ -46,7 +37,7 @@ const elsewhere = (counts: Props['counts'], tab: QueueView | null) =>
 
 /** An empty list: the pilot flying past a few clouds, and a word about it. */
 const EmptyList = ({ tab, counts }: { tab: QueueView | null; counts: Props['counts'] }) => {
-  const words = EMPTY[tab ?? 'all']
+  const words = emptyWords(tab)
   const rest = elsewhere(counts, tab)
   return (
     <div className="empty-list">

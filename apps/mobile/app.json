@@ -28,7 +28,15 @@
       "expo-background-task",
       ["expo-splash-screen", { "image": "./assets/splash.png", "backgroundColor": "#1F1E1D", "resizeMode": "contain" }],
       ["expo-build-properties", { "ios": { "deploymentTarget": "16.4" } }],
-      ["expo-font", { "fonts": ["./assets/fonts/SourceSerif4-Regular.ttf"] }]
+      ["expo-font", { "fonts": ["./assets/fonts/SourceSerif4-Regular.ttf"] }],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Autopilot sends the photos you pick to the task's session on your Mac.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": { "typedRoutes": true }
   }

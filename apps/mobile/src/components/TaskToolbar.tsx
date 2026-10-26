@@ -25,7 +25,16 @@ const snoozeTimes = (): { label: string; until: Date }[] => {
  * A task's actions as native bar items, in the order PRODUCT.md gives for the Duo's vertical bar:
  * the prominent action (Open session, or Start), then Snooze and Done.
  */
-export const TaskToolbar = ({ item, closeAfter }: { item: QueueItem; closeAfter: boolean }) => {
+export const TaskToolbar = ({
+  item,
+  closeAfter,
+  step,
+}: {
+  item: QueueItem
+  closeAfter: boolean
+  /** Through the list the task was opened from, as Mail goes through messages: up and down. */
+  step?: { previous: (() => void) | null; next: (() => void) | null }
+}) => {
   const sync = useSyncInstance()
   const { task, session } = item
   const live = session && session.state !== 'ended' ? session : null
@@ -70,6 +79,18 @@ export const TaskToolbar = ({ item, closeAfter }: { item: QueueItem; closeAfter:
           Not for me
         </Stack.Toolbar.MenuAction>
       </Stack.Toolbar.Menu>
+      {/* Each its own item: the native toolbar takes its buttons directly, not inside a fragment. */}
+      {step && (
+        <Stack.Toolbar.Button
+          icon="chevron.up"
+          accessibilityLabel="Previous task"
+          disabled={!step.previous}
+          onPress={() => step.previous?.()}
+        />
+      )}
+      {step && (
+        <Stack.Toolbar.Button icon="chevron.down" accessibilityLabel="Next task" disabled={!step.next} onPress={() => step.next?.()} />
+      )}
     </Stack.Toolbar>
   )
 }
