@@ -79,7 +79,7 @@ const matches = (item: QueueItem, filter: string): boolean =>
 type Entry = { kind: 'group'; workstream: string; count: number; folded: boolean } | { kind: 'item'; item: QueueItem }
 
 /**
- * The left of the window: the status tabs, search, and the tasks of the tab in a section per
+ * The left of the window: search, the status tabs, and the tasks of the tab in a section per
  * workstream. It is the nav and the list in one, as on the phone; Settings sits at the window's
  * top right.
  */
@@ -168,6 +168,23 @@ export const QueueList = (props: Props) => {
     <section className="pane list" style={{ width }} aria-label={title}>
       <div className="titlebar drag" />
       <h1 className="hidden-heading">{title}</h1>
+      <div className="search-row">
+        <label className="filter">
+          <SearchIcon />
+          <input aria-label="Filter tasks" placeholder="Search" value={filter} onChange={(e) => setFilter(e.target.value)} />
+        </label>
+        <Button
+          kind="tool"
+          className="with-icon new-task"
+          aria-label="New task"
+          title="New task"
+          aria-current={view.kind === 'new' ? 'page' : undefined}
+          onClick={() => go({ kind: 'new' })}
+        >
+          <NavIcon name="plus" size={14} />
+          New
+        </Button>
+      </div>
       <nav className="tabs" aria-label="Queue">
         {/* The tab you are on says its name; tapped again, it shows every open task. */}
         {QUEUE_VIEWS.map((q) => {
@@ -190,23 +207,6 @@ export const QueueList = (props: Props) => {
           )
         })}
       </nav>
-      <div className="search-row">
-        <label className="filter">
-          <SearchIcon />
-          <input aria-label="Filter tasks" placeholder="Search" value={filter} onChange={(e) => setFilter(e.target.value)} />
-        </label>
-        <Button
-          kind="tool"
-          className="with-icon new-task"
-          aria-label="New task"
-          title="New task"
-          aria-current={view.kind === 'new' ? 'page' : undefined}
-          onClick={() => go({ kind: 'new' })}
-        >
-          <NavIcon name="plus" size={14} />
-          New
-        </Button>
-      </div>
       {banner && <Banner>{banner}</Banner>}
       <div className="rows" ref={rows} role="listbox" aria-label="Tasks" tabIndex={0} onKeyDown={onKeyDown}>
         {visible.length === 0 &&

@@ -106,7 +106,7 @@ button {
 .tabs {
   display: flex;
   gap: 2px;
-  margin: 0 12px;
+  margin: 8px 12px 0;
   padding: 3px;
   border-radius: var(--radius-md);
   background: var(--well);
@@ -135,8 +135,13 @@ button {
 
 .tab[aria-current='page'] {
   flex: 2.6 1 0;
-  background: var(--button);
+  /* Lifted off the well, as a segmented control's chosen segment. */
+  background: var(--raised);
+  box-shadow:
+    0 0 0 0.5px var(--border-strong),
+    0 1px 2px var(--shadow);
   color: var(--text);
+  font-weight: 500;
 }
 
 .tab-name {
@@ -153,7 +158,7 @@ button {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 8px 12px 0;
+  margin: 0 12px;
 }
 
 .search-row .filter {

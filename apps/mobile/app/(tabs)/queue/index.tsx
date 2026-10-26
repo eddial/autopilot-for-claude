@@ -60,17 +60,20 @@ export default function QueueScreen() {
   const [selected, setSelected] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
   const [folded, setFolded] = useState<Set<string>>(new Set())
-  // Done is not kept on the phone: read from the Mac when the tab is opened.
+  // Done is not kept on the phone: read from the Mac for its tab's count, again when a task leaves
+  // the open ones, and when the tab is opened.
   const [done, setDone] = useState<QueueItem[] | null>(null)
   const current = VIEWS.find((v) => v.id === view) ?? VIEWS[0]
+  const stillOpen = items.filter((i) => i.band !== 'done').length
 
   useEffect(() => {
-    if (view !== 'done') return
     void sync
       ?.online((api) => api.queue.list({ band: 'done' }))
       .then((s) => setDone(s.items))
       .catch(() => {})
-  }, [view, sync])
+    // view and stillOpen are when to read again, not what is read.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, sync, stillOpen])
 
   const openItems = useMemo(() => items.filter((i) => i.band !== 'done'), [items])
   const counts = useMemo(
@@ -183,11 +186,11 @@ export default function QueueScreen() {
   const list = (
     <Sides>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {/* The same column as on the Mac: tabs, then search with New task beside it, then the sections. */}
+        {/* The same column as on the Mac: search, then the tabs, then the sections. */}
         <View style={{ paddingTop: split ? 8 : insets.top + 8, gap: 8 }}>
           <StatusLine />
-          {tabs}
           {search}
+          {tabs}
         </View>
         <SectionList
           style={{ flex: 1 }}
@@ -325,7 +328,17 @@ const dotStyle = (item: QueueItem) => {
 const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', gap: 2, marginHorizontal: 12, marginTop: 4, padding: 3, borderRadius: 12, backgroundColor: colours.well },
   tab: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 34, borderRadius: 9 },
-  tabOn: { flex: 2.6, backgroundColor: colours.button },
+  // Lifted off the well, as the Mac's.
+  tabOn: {
+    flex: 2.6,
+    backgroundColor: colours.raised,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colours.borderStrong,
+    shadowColor: colours.shadow,
+    shadowOpacity: 1,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+  },
   tabName: { flexShrink: 1, fontSize: 14, color: colours.text },
   tabCount: { fontSize: 14, color: colours.text3, fontVariant: ['tabular-nums'] },
   section: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 8 },

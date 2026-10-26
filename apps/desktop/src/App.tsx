@@ -78,19 +78,22 @@ export const App = () => {
     return () => clearInterval(timer)
   }, [connection])
 
-  // Done is not in the live queue; it is fetched when shown, again after each change.
+  // Done is not in the live queue. It is fetched after the first frame for its tab's count, again
+  // when a task leaves the open ones, and after every change while it is shown.
   const [doneRead, setDoneRead] = useState(false)
   const showingDone = tab === 'done'
+  const doneTrigger = showingDone ? `seq ${queue.seq}` : `open ${items.length}`
   useEffect(() => {
-    if (showingDone)
-      void api.queue.list({ band: 'done' }).then(
-        (s) => {
-          setDone({ seq: queue.seq, items: s.items })
-          setDoneRead(true)
-        },
-        () => {},
-      )
-  }, [showingDone, queue.seq])
+    void api.queue.list({ band: 'done' }).then(
+      (s) => {
+        setDone({ seq: queue.seq, items: s.items })
+        setDoneRead(true)
+      },
+      () => {},
+    )
+    // Only when the trigger changes; queue.seq alone changes on every event.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [doneTrigger])
 
   useEffect(
     () =>
