@@ -11,18 +11,18 @@ import {
   updateTone,
   type Pending,
 } from '@autopilot/client'
-import type { QueueItem, Update } from '@autopilot/contracts'
-import { filedBy, signalName } from '@autopilot/client'
+import type { QueueItem, Update, Workstream } from '@autopilot/contracts'
+import { filedBy, signalName, workstreamMark } from '@autopilot/client'
 import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
 import { useDraft } from '../drafts.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
 import type { Tone } from '@autopilot/design'
-import { ArrowUp, Avatar, Banner, Button, Claude, Dot, Icon, Markdown, Meta, Pill, Spacer, Tag } from '../ui.tsx'
+import { ArrowUp, Avatar, Banner, Button, Claude, Dot, Icon, Markdown, Meta, NavIcon, Pill, Spacer, Tag } from '../ui.tsx'
 import { LinkIcon, LinkRow, Linked } from './Links.tsx'
 import { BAND_TITLE } from '../view.ts'
 
-type Props = { item: QueueItem; onClose: () => void }
+type Props = { item: QueueItem; workstreams: Workstream[]; onClose: () => void }
 
 const open = (url: string) => {
   if (shell) shell.openExternal(url)
@@ -81,7 +81,7 @@ const snoozeTimes = (): { label: string; day: string; time: string; until: Date 
     .map((t) => ({ ...t, day: day(t.until), time: time(t.until) }))
 }
 
-export const TaskPane = ({ item, onClose }: Props) => {
+export const TaskPane = ({ item, workstreams, onClose }: Props) => {
   const { task } = item
   // The task comes from the window's store, kept current by the feed: no request on open once it
   // has been seen. Until then, the ask from the queue shows straight away.
@@ -180,7 +180,7 @@ export const TaskPane = ({ item, onClose }: Props) => {
           </div>
           {!ask && <Composer item={item} />}
         </div>
-        <Properties item={item} />
+        <Properties item={item} workstreams={workstreams} />
       </div>
     </section>
   )
@@ -411,7 +411,22 @@ const PendingEntry = ({ pending, options }: { pending: Pending; options: { id: s
 /** A choice in a menu; `detail` is lined up in columns beside the labels. */
 type MenuItem = { label: string; detail?: string[]; run: () => void }
 
-const Menu = ({ label, className, items }: { label: ReactNode; className?: string; items: MenuItem[] }) => {
+const Menu = ({
+  label,
+  className,
+  items,
+  trigger = 'tool',
+  chevron = true,
+  align = 'left',
+}: {
+  label: ReactNode
+  className?: string
+  items: MenuItem[]
+  /** The button that opens it: a toolbar button, or a property row. */
+  trigger?: 'tool' | 'prop'
+  chevron?: boolean
+  align?: 'left' | 'right'
+}) => {
   const [shown, setShown] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -426,13 +441,13 @@ const Menu = ({ label, className, items }: { label: ReactNode; className?: strin
     }
   }, [shown])
   return (
-    <div className="menu" ref={ref}>
-      <Button kind="tool" className={className} aria-haspopup="menu" aria-expanded={shown} onClick={() => setShown((s) => !s)}>
+    <div className={`menu${trigger === 'prop' ? ' menu-prop' : ''}`} ref={ref}>
+      <Button kind={trigger} className={className} aria-haspopup="menu" aria-expanded={shown} onClick={() => setShown((s) => !s)}>
         {label}
-        <Icon name="more" />
+        {chevron && <Icon name="more" />}
       </Button>
       {shown && (
-        <div className="menu-items" role="menu">
+        <div className={`menu-items${align === 'right' ? ' align-right' : ''}`} role="menu">
           {items.map((i) => (
             <Button
               key={i.label}
@@ -548,7 +563,7 @@ const Composer = ({ item }: { item: QueueItem }) => {
   )
 }
 
-/** A label and its value in the properties column. */
+/** A label and its value in the properties column, as in Linear: the value is what you click. */
 const Prop = ({ label, children }: { label: string; children: ReactNode }) => (
   <div className="prop">
     <span className="prop-label">{label}</span>
@@ -556,51 +571,149 @@ const Prop = ({ label, children }: { label: string; children: ReactNode }) => (
   </div>
 )
 
+/** Four bars, as many lit as the priority is high. */
+const Bars = ({ priority }: { priority: number }) => (
+  <span className={`bars p${priority}`} aria-hidden="true">
+    {[1, 2, 3].map((b) => (
+      <span key={b} className={b <= 4 - priority ? 'lit' : ''} />
+    ))}
+  </span>
+)
+
 /**
- * What a task is, beside what happened to it, as in Linear: status, workstream, priority, where
- * it came from, the session, and what it links to. Shown when the pane is wide enough.
+ * What a task is, beside what happened to it, as in Linear: status, workstream and priority to
+ * change in place, where it came from, its session, and what it links to. It stays put while the
+ * page scrolls; shown when the pane is wide enough.
  */
-const Properties = ({ item }: { item: QueueItem }) => {
+const Properties = ({ item, workstreams }: { item: QueueItem; workstreams: Workstream[] }) => {
   const { task, session } = item
+  const live = session && session.state !== 'ended' ? session : null
+  const closed = item.band === 'done'
+  const status: MenuItem[] = closed
+    ? []
+    : [
+        ...(item.band === 'new' && !live ? [{ label: 'Start', run: () => send({ kind: 'start', taskId: task.id }) }] : []),
+        ...snoozeTimes().map((t) => ({
+          label: `Snooze: ${t.label}`,
+          detail: [t.day, t.time],
+          run: () => send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() }),
+        })),
+        { label: 'Mark done', run: () => send({ kind: 'close', taskId: task.id, outcome: 'done' }) },
+        { label: 'Not for me', run: () => send({ kind: 'close', taskId: task.id, outcome: 'canceled' }) },
+      ]
+  const streams: MenuItem[] = [...new Set([...workstreams.map((w) => w.name).filter((n) => n !== 'autopilot'), 'inbox'])]
+    .filter((name) => name !== task.workstream)
+    .map((name) => ({ label: titleCase(name), run: () => send({ kind: 'edit', taskId: task.id, workstream: name }) }))
+  const priorities: MenuItem[] = [1, 2, 3, 4]
+    .filter((p) => p !== task.priority)
+    .map((p) => ({ label: PRIORITY[p] ?? '', run: () => send({ kind: 'edit', taskId: task.id, priority: p }) }))
+  const sessionLinks: MenuItem[] = [
+    ...(live?.resumeUrl ? [{ label: 'Open in Claude on this Mac', run: () => open(live.resumeUrl ?? '') }] : []),
+    ...(live?.remoteControlUrl ? [{ label: 'Open through Remote Control', run: () => open(live.remoteControlUrl ?? '') }] : []),
+  ]
+  const mark = workstreamMark(task.workstream)
   return (
     <aside className="task-side" aria-label="Properties">
-      <Prop label="Status">
-        <Pill tone={BAND_TONE[item.band]}>{BAND_TITLE[item.band]}</Pill>
-      </Prop>
-      <Prop label="Workstream">
-        <Tag>{titleCase(task.workstream)}</Tag>
-      </Prop>
-      <Prop label="Priority">
-        <span className="meta">{PRIORITY[task.priority] ?? 'Normal'}</span>
-      </Prop>
-      <Prop label="From">
-        <span className="meta">
-          {task.source.signal ? signalName(task.source.signal) : task.createdBy === 'system' ? 'Autopilot' : 'You'} · {ago(task.createdAt)}
-        </span>
-        {task.source.url && (
-          <Button kind="link" onClick={() => open(task.source.url ?? '')}>
-            Open the source
-          </Button>
+      <div className="side-group">
+        <Prop label="Status">
+          {status.length > 0 ? (
+            <Menu
+              trigger="prop"
+              chevron={false}
+              align="right"
+              label={<Pill tone={BAND_TONE[item.band]}>{BAND_TITLE[item.band]}</Pill>}
+              items={status}
+            />
+          ) : (
+            <Pill tone={BAND_TONE[item.band]}>{BAND_TITLE[item.band]}</Pill>
+          )}
+        </Prop>
+        <Prop label="Workstream">
+          <Menu
+            trigger="prop"
+            chevron={false}
+            align="right"
+            label={
+              <>
+                <span className={`ws-mark ${mark.tone}`} aria-hidden="true">
+                  {mark.letters}
+                </span>
+                {titleCase(task.workstream)}
+              </>
+            }
+            items={streams}
+          />
+        </Prop>
+        <Prop label="Priority">
+          <Menu
+            trigger="prop"
+            chevron={false}
+            align="right"
+            label={
+              <>
+                <Bars priority={task.priority} />
+                {PRIORITY[task.priority] ?? 'Normal'}
+              </>
+            }
+            items={priorities}
+          />
+        </Prop>
+      </div>
+
+      <div className="side-group">
+        <Prop label="From">
+          {task.source.url ? (
+            <Button kind="prop" onClick={() => open(task.source.url ?? '')} title={task.source.url}>
+              {task.source.signal ? signalName(task.source.signal) : task.createdBy === 'system' ? 'Autopilot' : 'You'}
+              <NavIcon name="link" size={13} />
+            </Button>
+          ) : (
+            <span className="prop-text">
+              {task.source.signal ? signalName(task.source.signal) : task.createdBy === 'system' ? 'Autopilot' : 'You'}
+            </span>
+          )}
+        </Prop>
+        <Prop label="Created">
+          <span className="prop-text" title={new Date(task.createdAt).toLocaleString('en-GB')}>
+            {ago(task.createdAt)}
+          </span>
+        </Prop>
+        {task.source.mirrors && (
+          <Prop label="Mirrors">
+            <span className="prop-text">{task.source.mirrors}</span>
+          </Prop>
         )}
-      </Prop>
-      {task.source.mirrors && (
-        <Prop label="Mirrors">
-          <span className="meta">{task.source.mirrors}</span>
-        </Prop>
-      )}
-      {session && (
-        <Prop label="Session">
-          <span className="meta">{session.state === 'ended' ? 'Ended' : (session.activity ?? SESSION_STATE[session.state])}</span>
-        </Prop>
-      )}
+        {session && (
+          <Prop label="Session">
+            {sessionLinks.length > 0 ? (
+              <Menu
+                trigger="prop"
+                chevron={false}
+                align="right"
+                label={
+                  <>
+                    <Claude pixel={0.75} />
+                    {session.activity ?? SESSION_STATE[session.state]}
+                  </>
+                }
+                items={sessionLinks}
+              />
+            ) : (
+              <span className="prop-text">{session.state === 'ended' ? 'Ended' : (session.activity ?? SESSION_STATE[session.state])}</span>
+            )}
+          </Prop>
+        )}
+      </div>
+
       {task.links.length > 0 && (
-        <Prop label="Linked">
+        <div className="side-group">
+          <span className="side-heading">Linked</span>
           <ul className="side-links">
             {task.links.toReversed().map((l) => (
               <LinkRow key={l.url} taskId={task.id} link={l} />
             ))}
           </ul>
-        </Prop>
+        </div>
       )}
     </aside>
   )

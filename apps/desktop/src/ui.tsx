@@ -23,6 +23,8 @@ const BUTTON_CLASS = {
   icon: 'icon-button',
   /** The round send arrow in a composer. */
   send: 'send',
+  /** A value in a task's properties: quiet until hovered, then a button. */
+  prop: 'prop-button',
   /** A step in the set-up stepper: open once reached. */
   step: 'step',
   /** A status tab above the list. */

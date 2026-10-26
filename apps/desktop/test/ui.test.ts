@@ -99,6 +99,16 @@ describe('the Mac app window', () => {
     await expect.poll(() => page.getByLabel('Reply to Autopilot').inputValue()).toBe('Half an answer about the lease')
   }, 30_000)
 
+  it("changes a task's priority from its properties", async () => {
+    await page.getByRole('button', { name: 'Needs me' }).click()
+    await page.getByRole('option', { name: /Renew the office lease/ }).click()
+    const side = page.getByRole('complementary', { name: 'Properties' })
+    await side.getByRole('button', { name: 'Normal' }).click()
+    await side.getByRole('menuitem', { name: 'Urgent' }).click()
+    const task = server.service.queue().items.find((i) => i.task.title === 'Renew the office lease')?.task.id ?? ''
+    await expect.poll(() => server.service.getTask(task).task.priority).toBe(1)
+  }, 30_000)
+
   it('shows every open task when the current tab is clicked again', async () => {
     await page.getByRole('button', { name: 'Running' }).click()
     await expect.poll(() => page.getByRole('heading', { name: 'Running' }).isVisible()).toBe(true)

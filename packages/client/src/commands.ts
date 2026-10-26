@@ -12,6 +12,7 @@ export type Command =
   | { kind: 'start'; taskId: string }
   | { kind: 'snooze'; taskId: string; until: string }
   | { kind: 'close'; taskId: string; outcome: 'done' | 'canceled' }
+  | { kind: 'edit'; taskId: string; workstream?: string; priority?: number }
 
 /** A command waiting to be sent. Its id is the idempotency key, so sending it twice applies it once. */
 export type Pending = { id: string; n: number; at: string; command: Command }
@@ -47,6 +48,13 @@ export const execute = async (api: Api, { id, command: c }: Pending): Promise<un
       return api.tasks.snooze({ idempotencyKey, id: c.taskId, until: c.until })
     case 'close':
       return api.tasks.close({ idempotencyKey, id: c.taskId, outcome: c.outcome })
+    case 'edit':
+      return api.tasks.edit({
+        idempotencyKey,
+        id: c.taskId,
+        ...(c.workstream ? { workstream: c.workstream } : {}),
+        ...(c.priority ? { priority: c.priority } : {}),
+      })
   }
 }
 
@@ -75,6 +83,9 @@ export const overlay = (queue: LiveQueue, outbox: Pending[], now: Date): LiveQue
         break
       case 'close':
         touch(c.taskId, { state: c.outcome })
+        break
+      case 'edit':
+        touch(c.taskId, { ...(c.workstream ? { workstream: c.workstream } : {}), ...(c.priority ? { priority: c.priority } : {}) })
         break
       case 'create': {
         const id = `${PENDING_PREFIX}${n}`

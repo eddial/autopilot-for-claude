@@ -198,7 +198,7 @@ export const App = () => {
           onDone={() => setView({ kind: 'task' })}
         />
       ) : current ? (
-        <TaskPane key={current.task.id} item={current} onClose={() => setShowingTask(false)} />
+        <TaskPane key={current.task.id} item={current} workstreams={workstreams} onClose={() => setShowingTask(false)} />
       ) : (
         <section className="pane task">
           <div className="task-head drag" />
