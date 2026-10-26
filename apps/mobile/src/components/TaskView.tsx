@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ComponentRef, type ReactNode } from 'react'
 import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import {
   filedBy,
@@ -16,7 +16,6 @@ import {
 } from '@autopilot/client'
 import type { QueueItem, Update } from '@autopilot/contracts'
 import * as Haptics from 'expo-haptics'
-import KV from 'expo-sqlite/kv-store'
 import { age, ago, BAND_TITLE, titleCase } from '../format.ts'
 import { useDraft } from '../drafts.ts'
 import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
@@ -31,16 +30,19 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
   // From the phone's own copy, kept current by the feed; the ask from the queue until it has one.
   const detail = useDetail(task.id)
   const [text, setText] = useDraft(`${task.id}:composer`)
+  // The page opens at its end, the newest entry above the reply, and follows new entries while
+  // you are there; scrolled up, it stays put.
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null)
+  const pinned = useRef(true)
 
   const pending = outbox.filter((p) => 'taskId' in p.command && p.command.taskId === task.id)
   const answered = new Set(pending.flatMap((p) => (p.command.kind === 'answer' ? [p.command.updateId] : [])))
   const updates = detail?.updates ?? (openAsk ? [openAsk] : [])
-  // What needs the owner goes on top; the activity below is everything else, oldest first.
+  // What needs the owner comes last, after the activity: everything else, oldest first.
   const ask = updates.find((u) => u.open && !answered.has(u.id)) ?? null
   const activity = updates.filter((u) => u !== ask)
   const options = updates.flatMap((u) => u.options)
-  const [order, setOrder] = useOrder()
-  // Oldest first as they happened.
+  // From how it began to where it stands now, read downwards like a conversation.
   const entries = [
     <Entry key="created" label={createdText(task)} by={null} at={shortDate(task.createdAt)} who={task.createdBy} body="" event />,
     ...activity.map((u) =>
@@ -61,7 +63,6 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
     }),
     <Entry key="now" label="Now" by={null} at={nowText(item)} who="now" tone={nowTone(item)} body="" event />,
   ]
-  const shown = order === 'newest' ? [...entries].reverse() : entries
   const refused = conflicts.filter((c) => 'taskId' in c.command && c.command.taskId === task.id)
 
   const send = async (command: Parameters<NonNullable<typeof sync>['send']>[0]) => {
@@ -80,7 +81,19 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={20}>
       <Sides>
-        <ScrollView contentContainerStyle={styles.page} contentInsetAdjustmentBehavior="automatic" keyboardDismissMode="interactive">
+        <ScrollView
+          ref={scroll}
+          contentContainerStyle={styles.page}
+          contentInsetAdjustmentBehavior="automatic"
+          keyboardDismissMode="interactive"
+          scrollEventThrottle={100}
+          onScroll={({ nativeEvent: e }) => {
+            pinned.current = e.contentSize.height - e.contentOffset.y - e.layoutMeasurement.height < 24
+          }}
+          onContentSizeChange={() => {
+            if (pinned.current) scroll.current?.scrollToEnd({ animated: false })
+          }}
+        >
           <View style={styles.head}>
             <Text style={type.meta}>
               {task.id}
@@ -127,6 +140,21 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
             </View>
           )}
           {task.links.length > 0 && <Linked taskId={task.id} links={task.links} />}
+          {/* With only an ask so far, the card is the whole story. */}
+          {!(ask && activity.length === 0 && pending.length === 0) && (
+            <View style={styles.section}>
+              <Text style={type.label}>Activity</Text>
+              <View style={styles.feed}>
+                {/* The rail runs from one avatar to the next; the last entry has none below it. */}
+                {entries.map((entry, i) => (
+                  <View key={entry.key} style={styles.slot}>
+                    {i < entries.length - 1 && <View style={styles.rail} />}
+                    {entry}
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
           {refused.map((c) => (
             <Banner key={c.id}>
               <Text style={bannerText()}>
@@ -175,27 +203,6 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
                   ))}
                 </View>
               )}
-            </View>
-          )}
-          {/* With only an ask so far, the card is the whole story. */}
-          {!(ask && activity.length === 0 && pending.length === 0) && (
-            <View style={styles.section}>
-              <View style={styles.sectionHead}>
-                <Text style={type.label}>Activity</Text>
-                <Chip
-                  label={order === 'newest' ? 'Newest first' : 'Oldest first'}
-                  onPress={() => setOrder(order === 'newest' ? 'oldest' : 'newest')}
-                />
-              </View>
-              <View style={styles.feed}>
-                {/* The rail runs from one avatar to the next; the last entry has none below it. */}
-                {shown.map((entry, i) => (
-                  <View key={entry.key} style={styles.slot}>
-                    {i < shown.length - 1 && <View style={styles.rail} />}
-                    {entry}
-                  </View>
-                ))}
-              </View>
             </View>
           )}
         </ScrollView>
@@ -288,20 +295,6 @@ const LinkRow = ({ taskId, link }: { taskId: string; link: QueueItem['task']['li
       )}
     </View>
   )
-}
-
-type Order = 'newest' | 'oldest'
-
-/** Newest first unless the owner chose otherwise; remembered on the phone. */
-const useOrder = (): [Order, (order: Order) => void] => {
-  const [order, setOrder] = useState<Order>(() => (KV.getItemSync('autopilot.order') === 'oldest' ? 'oldest' : 'newest'))
-  return [
-    order,
-    (next) => {
-      setOrder(next)
-      void KV.setItem('autopilot.order', next)
-    },
-  ]
 }
 
 const BAND_TONE: Record<QueueItem['band'], Tone> = {
@@ -401,7 +394,6 @@ const styles = StyleSheet.create({
   linkTitle: { fontSize: 15, color: colours.text },
   preview: { marginLeft: 26, marginBottom: 6, padding: 12, borderRadius: 10, backgroundColor: colours.window },
   mono: { fontFamily: 'Menlo', fontSize: 13, lineHeight: 19 },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   feed: { paddingLeft: 36 },
   slot: { paddingBottom: 20 },
   rail: { position: 'absolute', left: -25, top: 26, bottom: 4, width: 1, backgroundColor: colours.borderStrong },

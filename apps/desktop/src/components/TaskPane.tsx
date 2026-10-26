@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import {
   createdText,
   eventText,
@@ -101,15 +101,15 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
     if (item.unread) markSeen(task.id)
   }, [task.id, item.unread])
 
-  const [order, setOrder] = useOrder()
-  // Oldest first as they happened; the newest one shows in full.
-  // From how it began to where it stands now; the newest one shows in full.
+  const body = usePinnedToEnd()
+  // From how it began to where it stands now, read downwards like a conversation; the newest
+  // one shows in full.
   const entries = [
     <Marker key="created" who={task.createdBy} label={createdText(task)} at={shortDate(task.createdAt)} />,
     ...activity.map((u, i) => <Entry key={u.id} update={u} latest={i === activity.length - 1 && pending.length === 0} />),
     ...pending.map((p) => <PendingEntry key={p.id} pending={p} options={updates.flatMap((u) => u.options)} />),
     <Now key="now" item={item} />,
-    // What you write next sits where it will appear: the newest entry (first, newest first).
+    // What you write next sits where it will appear: after the newest entry.
     ...(ask ? [] : [<Composer key="composer" item={item} />]),
   ]
 
@@ -136,7 +136,7 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
           </span>
         )}
       </div>
-      <div className="task-body">
+      <div className="task-body" ref={body}>
         <div className="task-col">
           <div className="timeline">
             <div className="task-main">
@@ -162,22 +162,14 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
               <div className="linked-inline">
                 <Linked taskId={task.id} links={task.links} />
               </div>
+              <section className="section">
+                <div className="section-label">Activity</div>
+                <ol className="feed">{entries}</ol>
+              </section>
+              {/* What waits on the owner comes last, where the reading ends and the page opens. */}
               {refused && <Banner>{refused}</Banner>}
               {ask && <AskCard update={ask} />}
               {!ask && item.band === 'new' && <BeforeStart taskId={task.id} updates={updates} />}
-              <section className="section">
-                <div className="section-head">
-                  <div className="section-label">Activity</div>
-                  <Button
-                    kind="quiet"
-                    aria-label="Order of the activity"
-                    onClick={() => setOrder(order === 'newest' ? 'oldest' : 'newest')}
-                  >
-                    {order === 'newest' ? 'Newest first' : 'Oldest first'}
-                  </Button>
-                </div>
-                <ol className="feed">{order === 'newest' ? entries.toReversed() : entries}</ol>
-              </section>
             </div>
           </div>
         </div>
@@ -187,27 +179,35 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
   )
 }
 
-type Order = 'newest' | 'oldest'
-const ORDER_KEY = 'autopilot.order'
-
-/** Newest first unless the person chose otherwise; remembered in this window. */
-const useOrder = (): [Order, (order: Order) => void] => {
-  const [order, setOrder] = useState<Order>(() => {
-    try {
-      return localStorage.getItem(ORDER_KEY) === 'oldest' ? 'oldest' : 'newest'
-    } catch {
-      return 'newest'
+/**
+ * The page opens at its end, where the newest entry and the reply are, and stays there as entries
+ * arrive while you are at the end; scroll up and it stays where you put it. Scrolled, the page
+ * fades in under its head so you can tell there is more above. Each task mounts its own pane.
+ */
+const usePinnedToEnd = () => {
+  const ref = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    let pinned = true
+    const toEnd = () => {
+      if (pinned) el.scrollTop = el.scrollHeight
     }
-  })
-  const choose = (next: Order) => {
-    setOrder(next)
-    try {
-      localStorage.setItem(ORDER_KEY, next)
-    } catch {
-      // Not remembered; the choice still holds for now.
+    const onScroll = () => {
+      pinned = el.scrollHeight - el.scrollTop - el.clientHeight < 24
+      el.classList.toggle('scrolled', el.scrollTop > 0)
     }
-  }
-  return [order, choose]
+    toEnd()
+    onScroll()
+    const grown = new ResizeObserver(toEnd)
+    for (const child of el.children) grown.observe(child)
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      grown.disconnect()
+      el.removeEventListener('scroll', onScroll)
+    }
+  }, [])
+  return ref
 }
 
 /** Long text shows its first lines; a click shows the rest. */

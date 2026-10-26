@@ -590,6 +590,19 @@ button {
   overflow-y: auto;
 }
 
+/* Scrolled off the top, the page fades in under the head: there is more above. */
+.task-body.scrolled .task-col::before {
+  content: '';
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex: none;
+  height: 28px;
+  margin-bottom: -28px;
+  background: linear-gradient(var(--surface), transparent);
+  pointer-events: none;
+}
+
 .task-col {
   /* Reading width (720) plus its padding; narrower when the pane is. */
   flex: 0 1 784px;
