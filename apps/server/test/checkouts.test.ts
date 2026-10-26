@@ -69,6 +69,10 @@ describe('where a session works', () => {
     expect(existsSync(join(dir, 'Autopilot', '.claude', 'worktrees', 'AP-2', '.git'))).toBe(true)
   })
 
+  it('keeps a server with data of its own, as in tests, out of ~/Autopilot', () => {
+    expect(resolvePaths({ AUTOPILOT_DATA: '/tmp/ap-test' }).workspace).toBe('/tmp/ap-test/workspace')
+  })
+
   it('takes a new or empty folder, or a repository, as the workspace, never a folder of files', () => {
     const dir = realpathSync(mkdtempSync(join(tmpdir(), 'ap-workspace-')))
     const home = join(dir, 'home')

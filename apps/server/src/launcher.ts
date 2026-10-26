@@ -102,7 +102,7 @@ export class Launcher {
       claudeConfig: null,
       maxParallel: 4,
       checkouts: () => ({ repos: {}, fallback: null }),
-      workspace: () => join(options.paths.data, 'workspace'),
+      workspace: () => options.paths.workspace,
       log: () => {},
       ...options,
     }

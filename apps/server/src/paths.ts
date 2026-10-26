@@ -10,15 +10,21 @@ export type Paths = {
   db: string
   socket: string
   logs: string
+  /**
+   * Where tasks with no repository work, unless checkouts.yaml says otherwise: ~/Autopilot for the
+   * Mac's own data, a folder inside it for any other (tests), so a test never writes to ~/Autopilot.
+   */
+  workspace: string
 }
 
 export const resolvePaths = (env: NodeJS.ProcessEnv = process.env): Paths => {
-  const data =
-    env.AUTOPILOT_DATA ??
-    (platform() === 'darwin'
+  const usual =
+    platform() === 'darwin'
       ? join(homedir(), 'Library', 'Application Support', 'Autopilot')
-      : join(env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share'), 'autopilot'))
+      : join(env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share'), 'autopilot')
+  const data = env.AUTOPILOT_DATA ?? usual
   return {
+    workspace: data === usual ? join(homedir(), 'Autopilot') : join(data, 'workspace'),
     data,
     home: env.AUTOPILOT_HOME ?? join(data, 'home'),
     db: join(data, 'autopilot.sqlite'),

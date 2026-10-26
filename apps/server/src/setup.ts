@@ -81,7 +81,7 @@ export class Setup {
       claude: { installed: version !== null, version },
       service: existsSync(join(homedir(), 'Library', 'LaunchAgents', 'autopilot.server.plist')),
       home: this.o.paths.home,
-      workspace: loadWorkspace(this.o.paths.home),
+      workspace: loadWorkspace(this.o.paths.home, this.o.paths.workspace),
       signals: readSignals(this.o.paths.home).length,
       workstreams: readWorkstreams(this.o.paths.home).length,
     }

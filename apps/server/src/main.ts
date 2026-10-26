@@ -106,7 +106,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     maxParallel: options.maxParallel ?? 4,
     // Finding checkouts walks a few folders; once in ten minutes is plenty.
     checkouts: keepSync(10 * 60_000, () => loadCheckouts(paths.home)),
-    workspace: () => loadWorkspace(paths.home),
+    workspace: () => loadWorkspace(paths.home, paths.workspace),
     log,
   })
   launcher.reconcile()

@@ -94,13 +94,11 @@ export const checkoutFor = (task: Task, checkouts: Checkouts): string | null => 
 /**
  * Where a task with no repository works: one folder, a repository of its own, with a worktree per
  * task under `.claude/worktrees`, so the Claude app lists every such session under one name instead
- * of a folder each. `workspace:` in checkouts.yaml; `~/Autopilot` when it does not say.
+ * of a folder each. `workspace:` in checkouts.yaml; `fallback` (Paths.workspace) when it does not say.
  */
-export const DEFAULT_WORKSPACE = '~/Autopilot'
-
-export const loadWorkspace = (home: string): string => {
+export const loadWorkspace = (home: string, fallback: string): string => {
   const set = readSettings(home).workspace
-  return expand(typeof set === 'string' && set.trim() ? set.trim() : DEFAULT_WORKSPACE)
+  return typeof set === 'string' && set.trim() ? expand(set.trim()) : fallback
 }
 
 const git = (dir: string, ...args: string[]) => execFileSync('git', ['-C', dir, ...args], { stdio: 'ignore' })
