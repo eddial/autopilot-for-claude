@@ -1057,6 +1057,23 @@ button {
   flex-wrap: wrap;
 }
 
+/* In the column: Start or the session on a row of its own, the rest sharing the next evenly. */
+.side-actions .task-actions > * {
+  flex: 1 1 0;
+}
+
+.side-actions .task-actions > .btn.primary,
+.side-actions .task-actions > .split {
+  flex-basis: 100%;
+}
+
+.side-actions .task-actions > .btn,
+.side-actions .task-actions > .tool,
+.side-actions .task-actions .menu > .tool {
+  width: 100%;
+  justify-content: center;
+}
+
 .side-id {
   font-size: 13px;
   color: var(--text-2);
@@ -1221,12 +1238,23 @@ button {
   margin-top: 4px;
 }
 
-/* What waits on the owner, above the activity: warm, so it reads first. */
+/* What waits on the owner, at the end of the activity: a plain box, like the one for writing. */
 .ask-card {
-  padding: 16px 18px;
+  padding: 14px 16px;
   border-radius: 14px;
   border: 0.5px solid var(--border-strong);
-  background: var(--open);
+  background: var(--surface);
+}
+
+.ask-card textarea.inline-reply {
+  resize: none;
+}
+
+.ask-card .options kbd {
+  margin-left: 8px;
+  font-family: var(--sans);
+  font-size: 12px;
+  opacity: 0.6;
 }
 
 .ask-head {
@@ -2338,6 +2366,7 @@ textarea.inline-reply {
 }
 
 .ask-card .questions {
+  list-style: disc;
   margin: 4px 0 10px;
   padding-left: 18px;
   font-size: 14px;

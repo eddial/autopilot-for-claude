@@ -134,6 +134,7 @@ export const TaskPane = ({ item, workstreams, upNext = null, onClose }: Props) =
     ...pending.map((p) => <PendingEntry key={p.id} pending={p} options={updates.flatMap((u) => u.options)} />),
     // Where it stands now: what waits on you, with its answer, or the line saying how it stands
     // and the box for what you write next, after the newest entry.
+    // A new task whose first look has questions asks them there, in place of the box.
     ...(ask
       ? [
           <li key="ask" className="entry ask-entry">
@@ -141,7 +142,14 @@ export const TaskPane = ({ item, workstreams, upNext = null, onClose }: Props) =
             <AskCard update={ask} />
           </li>,
         ]
-      : [<Now key="now" item={item} />, <Composer key="composer" item={item} />]),
+      : item.band === 'new' && firstLookQuestions(updates).length > 0
+        ? [
+            <li key="before" className="entry ask-entry">
+              <Avatar who="scout" />
+              <BeforeStart taskId={task.id} updates={updates} />
+            </li>,
+          ]
+        : [<Now key="now" item={item} />, <Composer key="composer" item={item} />]),
   ]
 
   const session = item.session
@@ -203,7 +211,6 @@ export const TaskPane = ({ item, workstreams, upNext = null, onClose }: Props) =
               </section>
               {/* What waits on the owner comes last, where the reading ends and the page opens. */}
               {refused && <Banner>{refused}</Banner>}
-              {!ask && item.band === 'new' && <BeforeStart taskId={task.id} updates={updates} />}
               {/* Nothing moves you on by itself: you see your reply land, then go when you are ready. */}
               {upNext && <UpNext {...upNext} />}
             </div>
@@ -281,9 +288,11 @@ const UpNext = ({ next, hasPrevious, at, total, list, move }: UpNextProps) => (
     ) : (
       <span className="up-next-task up-next-done">Nothing after this in {list}</span>
     )}
-    <Meta as="span" className="up-next-where">
-      {at} of {total} in {list}
-    </Meta>
+    {next && (
+      <Meta as="span" className="up-next-where">
+        {at} of {total} in {list}
+      </Meta>
+    )}
     <Button kind="tool" disabled={!hasPrevious} onClick={() => move(-1)} aria-label="Previous task" title="Previous task (←)">
       ←
     </Button>
@@ -375,10 +384,10 @@ const BeforeStart = ({ taskId, updates }: { taskId: string; updates: Update[] })
         }}
       />
       <div className="options">
-        <Button kind="primary" onClick={start}>
+        <Button kind="primary" title="⌘↩" onClick={start}>
           {text.trim() ? 'Start with these answers' : 'Start without answering'}
+          <kbd>⌘↩</kbd>
         </Button>
-        <Meta as="span">⌘↩</Meta>
       </div>
     </section>
   )
@@ -648,7 +657,7 @@ const Actions = ({ item, session: withSession = true }: { item: QueueItem; sessi
         Mark done
       </Button>
       {item.band === 'new' && (
-        <Button kind="quiet" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'canceled' })}>
+        <Button kind="tool" className="with-icon" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'canceled' })}>
           <Icon name="dismiss" />
           Not for me
         </Button>
