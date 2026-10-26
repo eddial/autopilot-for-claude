@@ -13,6 +13,37 @@ import { QUEUE_VIEWS, type QueueView, type View } from './view.ts'
 /** The keys that move through the list, and which way. */
 const STEP_KEYS: Record<string, number> = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }
 
+/**
+ * Which modifier is held long enough to show its shortcuts: ⌘ for the places (tabs, New, Search,
+ * Settings, back and forward), ⌥ for the tasks. Let go, or use one, and they hide.
+ */
+const useHeldKey = (): 'cmd' | 'alt' | null => {
+  const [held, setHeld] = useState<'cmd' | 'alt' | null>(null)
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const clear = () => {
+      clearTimeout(timer)
+      setHeld(null)
+    }
+    const down = (e: KeyboardEvent) => {
+      const which = e.key === 'Meta' ? 'cmd' : e.key === 'Alt' ? 'alt' : null
+      if (!which) return clear()
+      clearTimeout(timer)
+      timer = setTimeout(() => setHeld(which), 400)
+    }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', clear)
+    window.addEventListener('blur', clear)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', clear)
+      window.removeEventListener('blur', clear)
+    }
+  }, [])
+  return held
+}
+
 const stored = (name: string, fallback: number): number => {
   try {
     return Number(localStorage.getItem(name)) || fallback
@@ -142,6 +173,67 @@ export const App = () => {
   }, [])
   useAttention(items, openTask)
 
+  // Back and forward through where you have been (a tab, a task, New), as a browser: the mouse's
+  // side buttons, or ⌘[ and ⌘].
+  type Place = { tab: QueueView; all: boolean; selected: string | null; kind: View['kind'] }
+  const here: Place = { tab, all, selected, kind: view.kind }
+  const trail = useRef({ past: [] as Place[], future: [] as Place[], last: here, moving: false })
+  useEffect(() => {
+    const t = trail.current
+    const now = { tab, all, selected, kind: view.kind }
+    const same = t.last.tab === now.tab && t.last.all === now.all && t.last.selected === now.selected && t.last.kind === now.kind
+    if (t.moving) t.moving = false
+    else if (!same) {
+      t.past = [...t.past.slice(-99), t.last]
+      t.future = []
+    }
+    t.last = now
+  }, [tab, all, selected, view.kind])
+  const travel = useCallback((delta: -1 | 1) => {
+    const t = trail.current
+    const to = delta < 0 ? t.past.at(-1) : t.future.at(-1)
+    if (!to) return
+    if (delta < 0) {
+      t.past = t.past.slice(0, -1)
+      t.future = [...t.future, t.last]
+    } else {
+      t.future = t.future.slice(0, -1)
+      t.past = [...t.past, t.last]
+    }
+    t.moving = true
+    setTab(to.tab)
+    setAll(to.all)
+    setSelected(to.selected)
+    setView({ kind: to.kind })
+    setShowingTask(to.kind !== 'task' || to.selected !== null)
+  }, [])
+  useEffect(() => {
+    // Mouse buttons 4 and 5 are back and forward.
+    const mouse = (e: MouseEvent) => {
+      if (e.button !== 3 && e.button !== 4) return
+      e.preventDefault()
+      travel(e.button === 3 ? -1 : 1)
+    }
+    const keys = (e: KeyboardEvent) => {
+      if (!e.metaKey || e.altKey || e.shiftKey) return
+      if (e.key === '[' || e.key === ']') {
+        e.preventDefault()
+        travel(e.key === '[' ? -1 : 1)
+      }
+      if (e.key === ',') {
+        e.preventDefault()
+        setSettings(true)
+      }
+    }
+    window.addEventListener('mouseup', mouse)
+    window.addEventListener('keydown', keys)
+    return () => {
+      window.removeEventListener('mouseup', mouse)
+      window.removeEventListener('keydown', keys)
+    }
+  }, [travel])
+  const held = useHeldKey()
+
   // The open task stays where it was in its tab after it leaves it (you answered, so it runs), so
   // you see your reply land; it goes when you move on or change tab.
   const lingering =
@@ -230,7 +322,7 @@ export const App = () => {
   }
 
   return (
-    <div className={`app${showingTask ? ' showing-task' : ''}`}>
+    <div className={`app${showingTask ? ' showing-task' : ''}${held ? ` hold-${held}` : ''}`}>
       <QueueList
         tab={tab}
         all={all}
@@ -291,6 +383,7 @@ export const App = () => {
         onClick={() => setSettings(true)}
       >
         <NavIcon name="settings" />
+        <kbd className="hint hint-cmd">⌘,</kbd>
         {signals.some((s) => s.health.state === 'failing') && (
           <span className="place-alert">
             <Dot tone="alert" label="A source is failing" />

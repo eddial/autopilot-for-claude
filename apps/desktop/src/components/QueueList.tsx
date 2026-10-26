@@ -93,6 +93,9 @@ const TAB_ICON: Record<QueueView, NavIconName> = {
   done: 'done',
 }
 
+/** The tabs in order: each status, then All. ⌘1 to ⌘6 pick them. */
+const TABS = [...QUEUE_VIEWS.map((q) => ({ ...q, icon: TAB_ICON[q.id] })), { id: 'all' as const, ...ALL_OPEN, icon: 'all' as NavIconName }]
+
 /** `ws:customers from:slack pricing`: tokens narrow by workstream and source, the rest matches titles. */
 const matches = (item: QueueItem, filter: string): boolean =>
   filter
@@ -145,6 +148,33 @@ export const QueueList = (props: Props) => {
       return next
     })
   const order = useMemo(() => entries.flatMap((e) => (e.kind === 'item' ? [e.item.task.id] : [])), [entries])
+  const search = useRef<HTMLInputElement>(null)
+  // ⌘1 to ⌘6 a tab, ⌘F the search; ⌥1 to ⌥9 the first nine tasks as listed (outside a text box).
+  useEffect(() => {
+    const keys = (e: KeyboardEvent) => {
+      const n = /^Digit([1-9])$/.exec(e.code)?.[1]
+      if (e.metaKey && !e.altKey && !e.shiftKey) {
+        const picked = n ? TABS[Number(n) - 1] : undefined
+        if (picked) {
+          e.preventDefault()
+          onTab(picked.id)
+        } else if (e.key === 'f') {
+          e.preventDefault()
+          search.current?.focus()
+        }
+        return
+      }
+      if (e.altKey && !e.metaKey && n) {
+        const field = e.target instanceof HTMLElement && e.target.closest('input, textarea, [contenteditable]')
+        const id = order[Number(n) - 1]
+        if (field || !id) return
+        e.preventDefault()
+        onSelect(id)
+      }
+    }
+    window.addEventListener('keydown', keys)
+    return () => window.removeEventListener('keydown', keys)
+  }, [order, onTab, onSelect])
   const rows = useRef<HTMLDivElement>(null)
   const virtual = useVirtualizer({
     count: entries.length,
@@ -200,7 +230,8 @@ export const QueueList = (props: Props) => {
       <div className="search-row">
         <label className="filter">
           <SearchIcon />
-          <input aria-label="Filter tasks" placeholder="Search" value={filter} onChange={(e) => setFilter(e.target.value)} />
+          <input ref={search} aria-label="Filter tasks" placeholder="Search" value={filter} onChange={(e) => setFilter(e.target.value)} />
+          <kbd className="hint hint-cmd">⌘F</kbd>
         </label>
         <Button
           kind="tool"
@@ -212,29 +243,29 @@ export const QueueList = (props: Props) => {
         >
           <NavIcon name="plus" size={14} />
           New
+          <kbd className="hint hint-cmd">⌘N</kbd>
         </Button>
       </div>
       {/* Every tab the same: its icon and how many; the one you are on named under them. All last. */}
       <nav className="tabs" aria-label="Queue">
-        {[...QUEUE_VIEWS.map((q) => ({ ...q, icon: TAB_ICON[q.id] })), { id: 'all' as const, ...ALL_OPEN, icon: 'all' as NavIconName }].map(
-          (q) => {
-            const on = q.id === 'all' ? all : !all && tab === q.id
-            const count = counts[q.id]
-            return (
-              <Button
-                key={q.id}
-                kind="tab"
-                aria-label={count === undefined ? q.title : `${q.title}, ${count}`}
-                title={`${q.title}: ${q.about}`}
-                aria-current={on ? 'page' : undefined}
-                onClick={() => onTab(q.id)}
-              >
-                <NavIcon name={q.icon} size={15} />
-                {count !== undefined && <span className={q.id === 'needs_me' && count > 0 ? 'you' : undefined}>{count}</span>}
-              </Button>
-            )
-          },
-        )}
+        {TABS.map((q, i) => {
+          const on = q.id === 'all' ? all : !all && tab === q.id
+          const count = counts[q.id]
+          return (
+            <Button
+              key={q.id}
+              kind="tab"
+              aria-label={count === undefined ? q.title : `${q.title}, ${count}`}
+              title={`${q.title}: ${q.about}`}
+              aria-current={on ? 'page' : undefined}
+              onClick={() => onTab(q.id)}
+            >
+              <NavIcon name={q.icon} size={15} />
+              {count !== undefined && <span className={q.id === 'needs_me' && count > 0 ? 'you' : undefined}>{count}</span>}
+              <kbd className="hint hint-cmd">⌘{i + 1}</kbd>
+            </Button>
+          )
+        })}
       </nav>
       <p className="tab-caption">
         <span className="tab-caption-name">{all ? ALL_OPEN.title : QUEUE_VIEWS.find((q) => q.id === tab)?.title}</span>
@@ -271,6 +302,7 @@ export const QueueList = (props: Props) => {
                     item={entry.item}
                     selected={selected === entry.item.task.id}
                     left={lingering === entry.item.task.id}
+                    hint={order.indexOf(entry.item.task.id) < 9 ? order.indexOf(entry.item.task.id) + 1 : undefined}
                     onSelect={onSelect}
                     onOpen={onOpen}
                   />
@@ -307,6 +339,8 @@ export const QueueList = (props: Props) => {
 type RowProps = {
   item: QueueItem
   selected: boolean
+  /** Its number while ⌥ is held: ⌥1 to ⌥9 pick the first nine. */
+  hint?: number | undefined
   /** It has left this tab (you answered it) and stays, faded, until you move on. */
   left?: boolean
   onSelect?: (id: string) => void
@@ -318,7 +352,7 @@ const PRIORITY_NAME: Record<number, string> = { 1: 'Urgent', 2: 'High priority',
 
 /** Rerenders only when what it shows changed: the store keeps unchanged tasks and asks as the same objects. */
 const TaskRow = memo(
-  ({ item, selected, left = false, onSelect, onOpen }: RowProps) => (
+  ({ item, selected, left = false, hint, onSelect, onOpen }: RowProps) => (
     <Button
       kind="row"
       className={[item.unread ? null : 'read', left ? 'left' : null].filter(Boolean).join(' ') || undefined}
@@ -332,6 +366,7 @@ const TaskRow = memo(
       {/* Where it stands, as the tab it is under draws it; green only when it is your turn. */}
       <span className={`row-status ${item.band}`} aria-hidden="true">
         <NavIcon name={BAND_ICON[item.band]} size={14} />
+        {hint !== undefined && <kbd className="hint hint-alt">⌥{hint}</kbd>}
       </span>
       <div className="text">
         <div className="title">{item.task.title}</div>
@@ -349,6 +384,7 @@ const TaskRow = memo(
   (a, b) =>
     a.selected === b.selected &&
     a.left === b.left &&
+    a.hint === b.hint &&
     a.item.task === b.item.task &&
     a.item.openAsk === b.item.openAsk &&
     a.item.session === b.item.session &&
