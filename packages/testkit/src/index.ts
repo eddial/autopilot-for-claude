@@ -55,6 +55,8 @@ export const startTestServer = async (options: TestServerOptions = {}): Promise<
     runClaude: () => Promise.resolve({ items: [] }),
     spawn: quietPty,
     devicePort: 0,
+    // No Tailscale on a test machine: loopback stands in for the tailnet.
+    tailnet: () => '127.0.0.1',
     log: () => {},
     ...rest,
   })

@@ -7,8 +7,6 @@ import { colours } from '@autopilot/design'
 import { ago } from '../format.ts'
 import { Banner, Button, Dot, Meta, Row } from '../ui.tsx'
 
-const ROUTE_LABEL = { socket: 'Socket', lan: 'Home network', tailscale: 'Tailscale' } as const
-
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 /** Settings, Devices: machines, paired devices, agent tokens, and pairing a new iPhone by QR code. */
@@ -23,6 +21,8 @@ export const Devices = () => {
   const [invite, setInvite] = useState('')
   const [switching, setSwitching] = useState(false)
   const [copied, setCopied] = useState(false)
+  /** Pair a device opens a short journey: Tailscale on this Mac, then on the iPhone, then the code. */
+  const [journey, setJourney] = useState(false)
 
   useEffect(() => {
     void shell?.mode().then(setMode)
@@ -87,6 +87,7 @@ export const Devices = () => {
         if (fresh) {
           setPaired(fresh.name)
           setPairing(null)
+          setJourney(false)
         }
       })
     }, 2000)
@@ -120,8 +121,8 @@ export const Devices = () => {
             {mode.kind === 'local' && (
               <>
                 <Meta top={4}>
-                  To use an always-on Mac instead: on that Mac open Servers, choose Pair a device, then Copy invite for a Mac, and paste it
-                  here.
+                  To use an always-on Mac instead: on that Mac open Settings, Devices, choose Pair a device, then Copy invite for a Mac, and
+                  paste it here.
                 </Meta>
                 <textarea
                   className="inline-reply"
@@ -153,15 +154,9 @@ export const Devices = () => {
             </span>
           </div>
           <Meta top={3} className="prose">
-            {mac.routes.filter((r) => r.kind !== 'socket').length === 0
-              ? 'Not reachable from other devices until you pair one.'
-              : mac.routes
-                  .filter((r) => r.kind !== 'socket')
-                  .map((r) => (
-                    <div key={r.address}>
-                      {ROUTE_LABEL[r.kind]}: {r.address}
-                    </div>
-                  ))}
+            {mac.tailscale
+              ? `On Tailscale as ${mac.tailscale}: your devices reach it from anywhere.`
+              : "Tailscale isn't running, so your devices can't reach this Mac."}
           </Meta>
         </div>
       )}
@@ -197,8 +192,8 @@ export const Devices = () => {
             <div className="name">Scan this in Autopilot on your iPhone</div>
             <ol className="meta steps-list">
               <li>Install Autopilot on the iPhone from TestFlight.</li>
-              <li>Be on the same Wi-Fi as this Mac, or both on Tailscale.</li>
-              <li>Open it and scan. The code works once and for five minutes.</li>
+              <li>Have Tailscale on, on the iPhone and on this Mac.</li>
+              <li>Open Autopilot and scan. The code works once and for five minutes.</li>
             </ol>
             <div className="meta">
               Or type the code: <span className="code">{pairing.pairing.invite.code}</span>
@@ -219,9 +214,63 @@ export const Devices = () => {
             </Row>
           </div>
         </div>
+      ) : journey ? (
+        // Devices reach this Mac over Tailscale only, at home as anywhere: so pairing starts there.
+        <div className="card pair-journey">
+          <ol className="journey">
+            <li className={mac?.tailscale ? 'done' : ''}>
+              <span className="name">Tailscale on this Mac</span>
+              <Meta>
+                {mac?.tailscale
+                  ? `Running, as ${mac.tailscale}.`
+                  : 'Install Tailscale for Mac, open it and sign in. It is how your iPhone reaches this Mac, at home and away.'}
+              </Meta>
+              {!mac?.tailscale && (
+                <Row gap={3} top={2}>
+                  <Button kind="tool" onClick={() => shell?.openExternal('https://tailscale.com/download/mac')}>
+                    Get Tailscale for Mac
+                  </Button>
+                  <Button kind="tool" onClick={load}>
+                    Check again
+                  </Button>
+                </Row>
+              )}
+            </li>
+            <li>
+              <span className="name">Tailscale on your iPhone</span>
+              <Meta>
+                Install Tailscale from the App Store and sign in with the same account. Turn on VPN On Demand in its settings, so it
+                reconnects by itself.
+              </Meta>
+              <Row gap={3} top={2}>
+                <Button kind="tool" onClick={() => shell?.openExternal('https://apps.apple.com/app/tailscale/id1470499037')}>
+                  Tailscale in the App Store
+                </Button>
+              </Row>
+            </li>
+            <li>
+              <span className="name">Scan the code</span>
+              <Meta>Then open Autopilot on the iPhone and scan the code this shows.</Meta>
+              <Row gap={3} top={2}>
+                <Button kind="primary" disabled={!mac?.tailscale} onClick={() => void startPairing()}>
+                  Show the code
+                </Button>
+                <Button kind="tool" onClick={() => setJourney(false)}>
+                  Cancel
+                </Button>
+              </Row>
+            </li>
+          </ol>
+        </div>
       ) : (
         <Row top={3}>
-          <Button kind="primary" onClick={() => void startPairing()}>
+          <Button
+            kind="primary"
+            onClick={() => {
+              setJourney(true)
+              load()
+            }}
+          >
             Pair a device
           </Button>
         </Row>

@@ -2205,6 +2205,52 @@ textarea.inline-reply {
 
 /* ── servers ── */
 
+/* Pair a device: Tailscale here, Tailscale there, then the code; a step done shows a tick. */
+.journey {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.journey li {
+  position: relative;
+  padding-left: 34px;
+  counter-increment: step;
+}
+
+.journey li::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 50%;
+  color: var(--text-2);
+  font-size: 12px;
+  content: counter(step);
+}
+
+.journey li.done::before {
+  border-color: var(--pilot);
+  color: var(--pilot);
+  content: '✓';
+}
+
+.journey .name {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
 .pairing {
   display: flex;
   gap: 20px;

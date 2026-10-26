@@ -78,7 +78,7 @@ const clientFor = (pinned: PinnedFetch, fingerprint: string, target: Target, tok
   )
 
 /**
- * Reaches a server by the first route that answers, LAN before Tailscale, and stays on it until
+ * Reaches a server by the first route that answers (its Tailscale address; older invites may list more), and stays on it until
  * a call fails; then the next call probes the routes again.
  */
 export class Link {

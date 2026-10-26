@@ -61,6 +61,12 @@
         "additionalProperties": false
       }
     },
+    "tailscale": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "health": {
       "type": "string",
       "enum": [

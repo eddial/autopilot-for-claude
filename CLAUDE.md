@@ -17,7 +17,7 @@ product, architecture, API and plan; `docs/decisions/` records why things are th
   which keeps the queue with `applyEvent` from the contracts. `pnpm desktop` runs it;
   `pnpm --filter @autopilot/desktop web` serves the window in a browser against the running server.
   `test/ui.test.ts` drives the real window in Chromium against a real server.
-- `packages/client`: what a paired device runs: routes probed LAN first, TLS pinned to the Mac's
+- `packages/client`: what a paired device runs: the Mac reached over Tailscale only, TLS pinned to the Mac's
   certificate, the queue cached from the change feed, and the offline outbox. Tested against a
   real server over TLS.
 - `packages/design`: the tokens (colours, fonts, radii, spacing, tones, the pilot) both apps draw

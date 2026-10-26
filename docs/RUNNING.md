@@ -104,17 +104,18 @@ npx expo run:ios --device     # builds with Xcode and installs on the phone
 With the paid developer account, `eas build --profile production` and `eas submit` put it on
 TestFlight instead.
 
-Pair it: on the Mac, Servers → Pair a device, then scan the code with the app. The phone needs
-the same Wi-Fi as the Mac, or Tailscale on both (free; sign in with the same account and turn on
-VPN On Demand on the phone). Answers, replies and new tasks made while the Mac is out of reach
-wait on the phone and arrive when it is back.
+Pair it: on the Mac, Settings → Devices → Pair a device, which walks through it. The phone reaches
+the Mac over Tailscale only, at home and away: install Tailscale on both (free), sign in with the
+same account, and turn on VPN On Demand on the phone. Then scan the code with the app. Answers,
+replies and new tasks made while the Mac is out of reach wait on the phone and arrive when it is
+back.
 
 ## A MacBook using an always-on Mac
 
 Set up Autopilot on the Mac mini as above (`autopilot service install` keeps it running). On the
-Mac mini: Servers → Pair a device → Copy invite for a Mac. Send yourself the text, and on the
-MacBook: Servers → This app → paste → Use that Mac. Both Macs must be on the same network or
-Tailscale. "Use this Mac instead" switches back.
+Mac mini: Settings → Devices → Pair a device → Copy invite for a Mac. Send yourself the text, and
+on the MacBook: Settings → Devices → This app → paste → Use that Mac. Both Macs need Tailscale,
+signed in to the same account. "Use this Mac instead" switches back.
 
 ## Moving from Linear
 

@@ -151,6 +151,8 @@ describe('the Mac app window', () => {
     await page.getByRole('button', { name: 'Skip to settings' }).click()
     await page.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Devices' }).click()
     await page.getByRole('button', { name: 'Pair a device' }).click()
+    // Tailscale first (loopback stands in for it here), then the code.
+    await page.getByRole('button', { name: 'Show the code' }).click()
     await expect.poll(() => page.getByText('Waiting for your phone').isVisible()).toBe(true)
     await shot('pairing')
     const code = (await page.getByText(/^Or type the code:/).textContent())?.replace('Or type the code:', '').trim() ?? ''

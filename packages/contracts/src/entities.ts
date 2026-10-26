@@ -178,6 +178,8 @@ export const Machine = z.object({
   running: z.int().min(0),
   workstreams: z.array(z.string()),
   routes: z.array(Route),
+  /** Its Tailscale address, which devices pair over; null while Tailscale is not running. */
+  tailscale: z.string().nullable().optional(),
   health: z.enum(['online', 'offline', 'asleep']),
   lastSeenAt: Timestamp.nullable(),
 })

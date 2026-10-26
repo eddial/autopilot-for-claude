@@ -271,17 +271,6 @@ export default function QueueScreen() {
           {/* No settings of its own (sources and workstreams are the Mac's): just your Mac: how it is reached, and a way to unpair. Syncing runs by itself. */}
           <Stack.Toolbar.Menu icon="desktopcomputer" accessibilityLabel="Your Mac" title={macTitle(syncState)}>
             <Stack.Toolbar.MenuAction
-              icon="network"
-              onPress={() =>
-                Alert.alert(
-                  'Away from home',
-                  'Install Tailscale on this iPhone and your Mac with the same account and turn on VPN On Demand. Autopilot tries your home network first and Tailscale next.',
-                )
-              }
-            >
-              Use it away from home
-            </Stack.Toolbar.MenuAction>
-            <Stack.Toolbar.MenuAction
               icon="xmark"
               destructive
               onPress={() =>
@@ -347,7 +336,7 @@ const Row = ({ item, selected, status, onPress }: { item: QueueItem; selected: b
   </Pressable>
 )
 
-const ROUTE = { lan: 'on your home network', tailscale: 'through Tailscale' } as const
+const ROUTE = { lan: 'on your home network', tailscale: 'over Tailscale' } as const
 
 /** Your Mac, as the menu beside New task names it: which, how it is reached, when it last synced. */
 const macTitle = (state: ReturnType<typeof useSyncState>): string => {

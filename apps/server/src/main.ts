@@ -9,7 +9,7 @@ import { detect, keepFor, keepSync } from './detect.ts'
 import { openDatabase } from './db.ts'
 import { readWorkstreams } from './home.ts'
 import { listen } from './http.ts'
-import { deviceRoutes, DEVICE_PORT, listenDevices } from './network.ts'
+import { deviceRoutes, DEVICE_PORT, listenDevices, tailnetAddress } from './network.ts'
 import { ensureCertificate } from './tls.ts'
 import type { AddressInfo } from 'node:net'
 import type { Server as HttpsServer } from 'node:https'
@@ -17,7 +17,7 @@ import { Launcher, type SpawnPty } from './launcher.ts'
 import { loadPty } from './pty.ts'
 import { ensureDataDir, ensureOwnerToken } from './owner.ts'
 import type { Paths } from './paths.ts'
-import { Service } from './service.ts'
+import { DomainError, Service } from './service.ts'
 import { KEEP_AFTER_CLOSE_MS, sweepFiles } from './files.ts'
 import { claudeHeadless, Signals, type RunClaude } from './signals.ts'
 import { Routing } from './routing.ts'
@@ -42,6 +42,8 @@ export type ServerOptions = {
   claudeConfig?: string | null
   /** The HTTPS port for paired devices; 0 picks a free one (tests). */
   devicePort?: number
+  /** This Mac's Tailscale address, which devices pair over; tests stand loopback in for it. */
+  tailnet?: () => string | null
   log?: (message: string) => void
 }
 
@@ -122,6 +124,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   const routing = new Routing({ service, paths, runClaude, owner, log })
   const scout = new Scout({ service, paths, workstreams, runClaude, prompts, owner, log })
 
+  const tailnet = options.tailnet ?? tailnetAddress
   const machine = (): Machine => ({
     id: service.machineId,
     name: hostname(),
@@ -129,7 +132,8 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     capacity: options.maxParallel ?? 4,
     running: service.queue({ band: 'running' }).items.length,
     workstreams: workstreams().map((w) => w.name),
-    routes: [{ kind: 'socket', address: paths.socket }, ...(devices ? deviceRoutes(openPort()) : [])],
+    routes: [{ kind: 'socket', address: paths.socket }, ...(devices ? deviceRoutes(openPort(), tailnet()) : [])],
+    tailscale: tailnet(),
     health: 'online',
     lastSeenAt: service.now().toISOString(),
   })
@@ -161,14 +165,21 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     setup: new Setup({ paths, examples: join(ROOT, 'examples', 'home'), claude: options.claude ?? 'claude' }),
     installService: () => void installService({ ...options.self, paths }),
     startPairing: async () => {
+      // Devices reach the Mac over Tailscale only: without it there is no code to show.
+      if (!tailnet())
+        throw new DomainError(
+          'BAD_REQUEST',
+          { field: 'tailscale' },
+          "Tailscale isn't running on this Mac. Open it and sign in, then pair again.",
+        )
       await openDevices()
       const { code, expiresAt } = service.newPairingCode()
-      const routes = deviceRoutes(openPort())
+      const routes = deviceRoutes(openPort(), tailnet())
       return {
         invite: {
           v: 1 as const,
           server: hostname().split('.')[0] ?? 'Mac',
-          routes: routes.length > 0 ? routes : [{ kind: 'lan' as const, address: `127.0.0.1:${openPort()}` }],
+          routes,
           fingerprint: ensureCertificate(paths).fingerprint,
           code,
         },

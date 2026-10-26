@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:https'
 import { BlockList, isIPv4, Socket } from 'node:net'
-import { hostname, networkInterfaces } from 'node:os'
+import { networkInterfaces } from 'node:os'
 import type { Route } from '@autopilot/contracts'
 import { RPCHandler } from '@orpc/server/node'
 import type { Router } from './api.ts'
@@ -9,21 +9,16 @@ import type { Certificate } from './tls.ts'
 
 export const DEVICE_PORT = 7311
 
-/** Who may connect at all: this Mac, private networks and the tailnet. Nothing from the internet. */
+/**
+ * Who may connect at all: this Mac and the tailnet. Devices reach the Mac over Tailscale only,
+ * at home as anywhere else: not the home network, and nothing from the internet.
+ */
 const allowed = (() => {
   const list = new BlockList()
-  for (const [net, bits] of [
-    ['127.0.0.0', 8],
-    ['10.0.0.0', 8],
-    ['172.16.0.0', 12],
-    ['192.168.0.0', 16],
-    ['169.254.0.0', 16],
-    ['100.64.0.0', 10],
-  ] as const)
-    list.addSubnet(net, bits, 'ipv4')
+  list.addSubnet('127.0.0.0', 8, 'ipv4')
+  list.addSubnet('100.64.0.0', 10, 'ipv4')
   list.addAddress('::1', 'ipv6')
-  list.addSubnet('fc00::', 7, 'ipv6')
-  list.addSubnet('fe80::', 10, 'ipv6')
+  list.addSubnet('fd7a:115c:a1e0::', 48, 'ipv6')
   return list
 })()
 
@@ -41,24 +36,16 @@ export const isAllowedAddress = (address: string | undefined): boolean => {
   return allowed.check(ip, isIPv4(ip) ? 'ipv4' : 'ipv6')
 }
 
-/**
- * How a device can reach this Mac, best first: its Bonjour name and LAN addresses at home, then
- * its Tailscale address from anywhere.
- */
-export const deviceRoutes = (port: number): Route[] => {
-  const lan: Route[] = []
-  const tailnet: Route[] = []
-  for (const addresses of Object.values(networkInterfaces())) {
-    for (const a of addresses ?? []) {
-      if (a.internal || a.family !== 'IPv4') continue
-      if (TAILSCALE.check(a.address, 'ipv4')) tailnet.push({ kind: 'tailscale', address: `${a.address}:${port}` })
-      else if (isAllowedAddress(a.address) && !a.address.startsWith('169.254.')) lan.push({ kind: 'lan', address: `${a.address}:${port}` })
-    }
-  }
-  const name = hostname().split('.')[0]
-  const bonjour: Route[] = name && lan.length > 0 ? [{ kind: 'lan', address: `${name}.local:${port}` }] : []
-  return [...bonjour, ...lan, ...tailnet]
+/** This Mac's Tailscale address, or null when Tailscale is not running or not signed in. */
+export const tailnetAddress = (): string | null => {
+  for (const addresses of Object.values(networkInterfaces()))
+    for (const a of addresses ?? []) if (!a.internal && a.family === 'IPv4' && TAILSCALE.check(a.address, 'ipv4')) return a.address
+  return null
 }
+
+/** How a device reaches this Mac: its Tailscale address, from anywhere; none without Tailscale. */
+export const deviceRoutes = (port: number, address: string | null): Route[] =>
+  address ? [{ kind: 'tailscale', address: `${address}:${port}` }] : []
 
 /** The API for paired devices over HTTPS, same router and tokens as the local socket. */
 export const listenDevices = async (router: Router, service: Service, certificate: Certificate, port: number): Promise<Server> => {
