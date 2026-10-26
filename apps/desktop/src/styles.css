@@ -604,15 +604,6 @@ button {
 }
 
 /* The composer rides at the bottom of the view while the page scrolls under it. */
-.task-col .composer-wrap {
-  position: sticky;
-  bottom: 0;
-  width: 100%;
-  max-width: 784px;
-  margin: 0 auto;
-  background: linear-gradient(to bottom, transparent, var(--surface) 22px);
-}
-
 .task-side {
   position: sticky;
   top: 0;
@@ -1275,8 +1266,14 @@ button {
   white-space: nowrap;
 }
 
-.composer-wrap {
-  padding: 10px 24px 18px;
+/* The composer as a timeline entry: its avatar centred on the one-line box, the rail below it. */
+.entry.composer-entry .avatar {
+  /* (49px box - 22px avatar) / 2: centred on its first line as it grows. */
+  top: 13.5px;
+}
+
+.entry.composer-entry:not(:last-child)::after {
+  top: 40px;
 }
 
 .composer {

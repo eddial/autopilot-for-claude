@@ -109,6 +109,8 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
     ...activity.map((u, i) => <Entry key={u.id} update={u} latest={i === activity.length - 1 && pending.length === 0} />),
     ...pending.map((p) => <PendingEntry key={p.id} pending={p} options={updates.flatMap((u) => u.options)} />),
     <Now key="now" item={item} />,
+    // What you write next sits where it will appear: the newest entry (first, newest first).
+    ...(ask ? [] : [<Composer key="composer" item={item} />]),
   ]
 
   const session = item.session
@@ -178,7 +180,6 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
               </section>
             </div>
           </div>
-          {!ask && <Composer item={item} />}
         </div>
         <Properties item={item} workstreams={workstreams} signals={detail?.signals ?? []} updates={updates} />
       </div>
@@ -576,7 +577,7 @@ const Actions = ({ item }: { item: QueueItem }) => {
   )
 }
 
-/** A line for telling the session something; it grows while you write. */
+/** The timeline's newest entry: a line for telling the session something; it grows while you write. */
 const Composer = ({ item }: { item: QueueItem }) => {
   const { task, session } = item
   const [text, setText] = useDraft(`${task.id}:composer`)
@@ -588,7 +589,8 @@ const Composer = ({ item }: { item: QueueItem }) => {
   }
   const live = session && session.state !== 'ended'
   return (
-    <div className="composer-wrap">
+    <li className="entry composer-entry">
+      <Avatar who="owner" />
       <div className="composer compact">
         <textarea
           aria-label="Reply to Autopilot"
@@ -607,7 +609,7 @@ const Composer = ({ item }: { item: QueueItem }) => {
           <ArrowUp />
         </Button>
       </div>
-    </div>
+    </li>
   )
 }
 
