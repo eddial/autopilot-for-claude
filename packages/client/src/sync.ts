@@ -253,6 +253,12 @@ export class Sync {
     } else {
       for (let wait = waitSeconds; ; wait = 0) {
         const page = await this.link.api.changes.since({ after: queue.seq, wait }, { signal: timeoutSignal((wait + 15) * 1000) })
+        // The Mac's history starts again lower than ours (its queue was wiped): start over from it.
+        if (page.latest < queue.seq) {
+          queue = applyEvent(queue, { type: 'snapshot', snapshot: await this.link.api.queue.list({}) })
+          details = {}
+          break
+        }
         for (const change of page.changes) {
           queue = applyEvent(queue, change)
           for (const missed of this.fetching.values()) missed.push(change)

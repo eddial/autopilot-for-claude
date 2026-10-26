@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { DatabaseSync } from 'node:sqlite'
 import { AnswerUpdate, CreateTask, PostUpdate } from '@autopilot/contracts'
 import { keys, localInvite, startTestServer, type TestServer, type TestServerOptions } from '@autopilot/testkit'
 import { afterAll, describe, expect, it, vi } from 'vitest'
@@ -146,6 +147,22 @@ describe('the phone against the Mac', () => {
     gate.release?.()
     await fetching
     expect(sync.cachedDetail(task.id)?.updates.map((u) => u.kind)).toEqual(['question'])
+  }, 30_000)
+
+  it('starts over from the Mac when its queue was wiped', async () => {
+    const { handle, invite, paths } = await setup()
+    const connection = await pair(invite, { name: 'Test iPhone', kind: 'iphone' }, pinned, key())
+    const sync = new Sync({ newKey: randomUUID, connection, pinned, storage: memoryStorage() })
+    handle.service.createTask(CreateTask.parse({ idempotencyKey: key(), title: 'Old task', start: false }))
+    await sync.syncOnce()
+    expect(sync.items().map((i) => i.task.title)).toEqual(['Old task'])
+
+    // Wiped: the tasks and the feed gone, the pairing kept.
+    const db = new DatabaseSync(paths.db)
+    db.exec('DELETE FROM updates; DELETE FROM tasks; DELETE FROM changes;')
+    db.close()
+    await sync.syncOnce()
+    expect(sync.items()).toEqual([])
   }, 30_000)
 
   it('will not talk to a server whose certificate is not the paired one', async () => {
