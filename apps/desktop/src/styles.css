@@ -572,8 +572,11 @@ button {
   align-items: center;
   gap: 10px;
   height: 48px;
+  flex: none;
   /* Its right edge keeps clear of Settings at the window's top right. */
   padding: 0 56px 0 24px;
+  /* A hairline under the bar, across the pane: the page scrolls beneath it. */
+  border-bottom: 0.5px solid var(--border);
 }
 
 .task-title h2 {
