@@ -161,7 +161,9 @@ describe('the Mac app window', () => {
     await expect.poll(() => page.getByText('Paired with Badr’s iPhone.').isVisible(), { timeout: 10_000 }).toBe(true)
   }, 30_000)
 
-  it('opens a task picked while Settings is open', async () => {
+  it('closes Settings with Escape and opens a task picked after', async () => {
+    await page.keyboard.press('Escape')
+    await expect.poll(() => page.getByRole('dialog', { name: 'Settings' }).count()).toBe(0)
     await tab('Needs me').click()
     await page.getByRole('option', { name: /Renew the office lease/ }).click()
     await expect.poll(() => page.getByRole('heading', { level: 2, name: 'Renew the office lease' }).count()).toBe(1)

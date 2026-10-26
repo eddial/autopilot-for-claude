@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Workstream } from '@autopilot/contracts'
 import { api, key } from '../api.ts'
 import { useDraft } from '../drafts.ts'
-import { ArrowUp, Banner, Bars, Button, Meta, Pilot, Row, WorkstreamMark } from '../ui.tsx'
+import { ArrowUp, Banner, Bars, Button, Pilot, Row, Spacer, WorkstreamMark } from '../ui.tsx'
 import { Menu } from './Menu.tsx'
 
 type Props = { workstreams: Workstream[]; onCreated: (id: string) => void }
@@ -78,45 +78,46 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
             }}
           />
           <div className="composer-bar">
-            {/* The same menus as the task's own Workstream and Priority. */}
-            <Menu
-              className="with-icon"
-              label={
-                <>
-                  <WorkstreamMark name={workstream} />
-                  {workstream}
-                </>
-              }
-              items={[...new Set([...workstreams.map((w) => w.name).filter((n) => n !== 'autopilot'), 'inbox'])].map((name) => ({
-                label: name,
-                icon: <WorkstreamMark name={name} />,
-                checked: name === workstream,
-                run: () => setWorkstream(name),
-              }))}
-            />
-            <Menu
-              className="with-icon"
-              label={
-                <>
-                  <Bars priority={priority} />
-                  {PRIORITIES[priority]}
-                </>
-              }
-              items={[1, 2, 3, 4].map((p) => ({
-                label: PRIORITIES[p] ?? '',
-                icon: <Bars priority={p} />,
-                checked: p === priority,
-                run: () => setPriority(p),
-              }))}
-            />
-            <Button kind="send" type="submit" aria-label="Create and start" disabled={busy || !title.trim()}>
+            <Button kind="send" type="submit" aria-label="Create and start" title="Create and start (⌘↩)" disabled={busy || !title.trim()}>
               <ArrowUp />
             </Button>
           </div>
         </form>
+        {/* Under the box, as Claude puts the folder and the model: where it goes, and how much it matters. */}
         <div className="below">
-          <Meta as="span">Starts a session with this brief right away. ⌘↩ from the brief.</Meta>
-          <Button kind="link" disabled={busy || !title.trim()} onClick={() => void create(false)}>
+          <Menu
+            trigger="prop"
+            label={
+              <>
+                <WorkstreamMark name={workstream} />
+                {workstream}
+              </>
+            }
+            items={[...new Set([...workstreams.map((w) => w.name).filter((n) => n !== 'autopilot'), 'inbox'])].map((name) => ({
+              label: name,
+              icon: <WorkstreamMark name={name} />,
+              checked: name === workstream,
+              run: () => setWorkstream(name),
+            }))}
+          />
+          <Spacer />
+          <Menu
+            trigger="prop"
+            align="right"
+            label={
+              <>
+                <Bars priority={priority} />
+                {PRIORITIES[priority]}
+              </>
+            }
+            items={[1, 2, 3, 4].map((p) => ({
+              label: PRIORITIES[p] ?? '',
+              icon: <Bars priority={p} />,
+              checked: p === priority,
+              run: () => setPriority(p),
+            }))}
+          />
+          <Button kind="prop" disabled={busy || !title.trim()} onClick={() => void create(false)}>
             Save without starting
           </Button>
         </div>

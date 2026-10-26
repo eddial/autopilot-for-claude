@@ -1593,7 +1593,9 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 110px 32px 32px;
+  /* In the middle of the pane, as Claude's new chat; a little above, where the eye lands. */
+  justify-content: center;
+  padding: 32px 32px 12vh;
 }
 
 .start h1 {
@@ -1605,9 +1607,10 @@ button {
 .start .composer {
   width: 100%;
   max-width: 640px;
-  margin-top: 32px;
+  margin-top: 28px;
   border-radius: 20px;
   padding: 16px 16px 12px;
+  box-shadow: 0 4px 16px -6px var(--shadow);
 }
 
 .start .title-input {
@@ -1624,9 +1627,10 @@ button {
   width: 100%;
   max-width: 640px;
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 0 8px;
 }
 
 .link {
@@ -1665,11 +1669,9 @@ button {
 
 .page h2 {
   margin: 30px 0 10px;
-  font-size: 11.5px;
+  font-size: 15px;
   font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-3);
+  color: var(--text);
 }
 
 .card {
@@ -1714,19 +1716,91 @@ button {
   margin-bottom: 6px;
 }
 
-.settings-tabs {
-  display: inline-flex;
-  gap: 2px;
-  margin: 14px 0 6px;
-  padding: 3px;
-  border-radius: var(--radius-md);
-  background: var(--well);
+/* Settings float above the window, as Claude's: a dimmed window, a rounded panel in the middle. */
+.dialog-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 40px;
+  background: var(--scrim);
+  -webkit-app-region: no-drag;
 }
 
-.settings-tabs .tab,
-.settings-tabs .tab[aria-current='page'] {
+.dialog {
+  width: min(1040px, 100%);
+  height: min(760px, 100%);
+  display: flex;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 0.5px solid var(--border-strong);
+  background: var(--surface);
+  box-shadow: 0 24px 64px -12px var(--shadow);
+}
+
+.dialog > .pane {
+  flex: 1;
+}
+
+.dialog .task-head {
+  padding: 0 12px 0 24px;
+}
+
+/* Settings, laid out as Claude's: a title bar, the sections down the left behind a hairline, and
+   the open one on the right under its name. */
+.settings-top h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.settings-top {
+  border-bottom: 0.5px solid var(--border-strong);
+}
+
+.settings-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.settings-nav {
+  width: 220px;
   flex: none;
-  padding: 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 12px;
+  border-right: 0.5px solid var(--border-strong);
+}
+
+.settings-nav .item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+  text-align: left;
+}
+
+.settings-nav .item:hover {
+  background: var(--hover);
+}
+
+.settings-nav .item[aria-current='page'] {
+  background: var(--button);
+}
+
+.settings-nav-end {
+  flex: 1;
+}
+
+.page h2.settings-title {
+  margin: 4px 0 6px;
+  font-size: 17px;
 }
 
 /* Settings at the window's top right, above whatever pane is open. */

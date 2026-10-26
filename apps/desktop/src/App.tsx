@@ -57,6 +57,14 @@ export const App = () => {
   const [tab, setTab] = useState<QueueView>('needs_me')
   const [all, setAll] = useState(false)
   const [view, setView] = useState<View>({ kind: 'task' })
+  // Settings and set-up float above the window, as Claude's do; Escape or a click beside closes them.
+  const [settings, setSettings] = useState(false)
+  useEffect(() => {
+    if (!settings) return
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && !e.defaultPrevented && setSettings(false)
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [settings])
   const [selected, setSelected] = useState<string | null>(null)
   // Where the open task sat in its tab when it was picked, to keep it there once it leaves.
   const [stay, setStay] = useState<{ id: string; tab: QueueView; all: boolean; at: number } | null>(null)
@@ -236,14 +244,6 @@ export const App = () => {
       <div className="grip" role="separator" aria-label="Resize list" aria-orientation="vertical" onPointerDown={startResize} />
       {view.kind === 'new' ? (
         <NewTask workstreams={workstreams} onCreated={openTask} />
-      ) : view.kind === 'setup' ? (
-        <Setup
-          items={items}
-          workstreams={workstreams}
-          onWorkstreams={setWorkstreams}
-          onOpen={openTask}
-          onDone={() => setView({ kind: 'task' })}
-        />
       ) : current ? (
         <TaskPane
           key={current.task.id}
@@ -286,8 +286,8 @@ export const App = () => {
         className="settings-button"
         aria-label="Settings"
         title="Settings"
-        aria-current={view.kind === 'setup' ? 'page' : undefined}
-        onClick={() => go({ kind: 'setup' })}
+        aria-current={settings ? 'page' : undefined}
+        onClick={() => setSettings(true)}
       >
         <NavIcon name="settings" />
         {signals.some((s) => s.health.state === 'failing') && (
@@ -301,6 +301,27 @@ export const App = () => {
         <Button kind="quiet" className="narrow-back" onClick={() => setShowingTask(false)}>
           Back to the list
         </Button>
+      )}
+      {settings && (
+        <div
+          className="dialog-scrim"
+          onPointerDown={(e) => {
+            if (e.target === e.currentTarget) setSettings(false)
+          }}
+        >
+          <div className="dialog" role="dialog" aria-modal="true" aria-label="Settings">
+            <Setup
+              items={items}
+              workstreams={workstreams}
+              onWorkstreams={setWorkstreams}
+              onOpen={(id) => {
+                setSettings(false)
+                openTask(id)
+              }}
+              onDone={() => setSettings(false)}
+            />
+          </div>
+        </div>
       )}
     </div>
   )

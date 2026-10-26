@@ -169,6 +169,7 @@ await page.getByRole('button', { name: 'Run set-up again' }).click()
 await shot('08-set-up')
 
 // Beside Claude Code: the window at a third of the screen.
+await page.keyboard.press('Escape')
 await page.getByRole('button', { name: 'Needs me' }).click()
 await page.setViewportSize({ width: 620, height: 900 })
 await shot('09-narrow-list')

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Decision, Detected, QueueItem, SetupStatus, SignalExample, Workstream } from '@autopilot/contracts'
 import { signalName } from '@autopilot/client'
 import { api, key } from '../api.ts'
-import { Banner, Button, Dot, Meta, NavIcon, Pilot, Row } from '../ui.tsx'
+import { Banner, Button, Dot, Icon, Meta, NavIcon, Pilot, Row, Spacer, type NavIconName } from '../ui.tsx'
 import { Devices } from './Devices.tsx'
 import { Sources } from './Sources.tsx'
 import { WorkstreamsEditor } from './Workstreams.tsx'
@@ -12,17 +12,29 @@ type Props = {
   workstreams: Workstream[]
   onWorkstreams: (all: Workstream[]) => void
   onOpen: (id: string) => void
+  /** Closes the dialog: when set-up is switched on, or on the close button. */
   onDone: () => void
 }
+
+/** The dialog's title bar: its name, and the way out. */
+const Head = ({ title, onClose }: { title: string; onClose: () => void }) => (
+  <div className="task-head settings-top">
+    <h1>{title}</h1>
+    <Spacer />
+    <Button kind="icon" aria-label="Close" title="Close (Esc)" onClick={onClose}>
+      <Icon name="dismiss" size={14} />
+    </Button>
+  </div>
+)
 
 const STEPS = ['Get ready', 'Sources', 'Workstreams', 'Preview', 'Switch on']
 
 type SettingsTab = 'general' | 'sources' | 'workstreams' | 'devices'
-const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
-  { id: 'general', label: 'General' },
-  { id: 'sources', label: 'Sources' },
-  { id: 'workstreams', label: 'Workstreams' },
-  { id: 'devices', label: 'Devices' },
+const SETTINGS_TABS: { id: SettingsTab; label: string; icon: NavIconName }[] = [
+  { id: 'general', label: 'General', icon: 'settings' },
+  { id: 'sources', label: 'Sources', icon: 'signals' },
+  { id: 'workstreams', label: 'Workstreams', icon: 'inbox' },
+  { id: 'devices', label: 'Devices', icon: 'servers' },
 ]
 
 /** How far back the sweep reads. */
@@ -292,80 +304,78 @@ export const Setup = ({ items, workstreams, onWorkstreams, onOpen, onDone }: Pro
   if (!wizard)
     return (
       <section className="pane task" aria-label="Settings">
-        <div className="task-head drag" />
-        <div className="page narrow settings">
-          <div className="settings-head">
-            <h1 className="serif">Settings</h1>
-            <Button kind="tool" className="with-icon" onClick={() => walk(0)}>
-              <NavIcon name="again" size={14} />
-              Run set-up again
-            </Button>
-          </div>
-          <nav className="settings-tabs" aria-label="Settings">
+        <Head title="Settings" onClose={onDone} />
+        {/* As Claude's own settings: the sections down the left, the one open on the right. */}
+        <div className="settings-layout">
+          <nav className="settings-nav" aria-label="Settings">
             {SETTINGS_TABS.map((t) => (
-              <Button key={t.id} kind="tab" aria-current={settingsTab === t.id ? 'page' : undefined} onClick={() => setSettingsTab(t.id)}>
+              <Button key={t.id} kind="item" aria-current={settingsTab === t.id ? 'page' : undefined} onClick={() => setSettingsTab(t.id)}>
+                <NavIcon name={t.icon} size={17} />
                 {t.label}
               </Button>
             ))}
+            <span className="settings-nav-end" />
+            <Button kind="item" onClick={() => walk(0)}>
+              <NavIcon name="again" size={17} />
+              Run set-up again
+            </Button>
           </nav>
-          {error && <Banner>{error}</Banner>}
+          <div className="page narrow settings">
+            <h2 className="settings-title">{SETTINGS_TABS.find((t) => t.id === settingsTab)?.label}</h2>
+            {error && <Banner>{error}</Banner>}
 
-          {settingsTab === 'general' && (
-            <>
-              <h2>This Mac</h2>
-              {checks}
-            </>
-          )}
+            {settingsTab === 'general' && checks}
 
-          {settingsTab === 'sources' && (
-            <>
-              <Sources items={items} onOpen={onOpen} />
-              <div className="settings-actions">
-                <Button kind="tool" onClick={() => walk(1)}>
-                  Add a source
-                </Button>
-                <Button
-                  kind="tool"
-                  onClick={() => {
-                    walk(3)
-                    startPreview()
-                  }}
-                >
-                  What I would have picked up yesterday
-                </Button>
-              </div>
-            </>
-          )}
-
-          {settingsTab === 'workstreams' && (
-            <>
-              <WorkstreamsEditor
-                workstreams={workstreams}
-                items={items}
-                onChange={onWorkstreams}
-                actions={
+            {settingsTab === 'sources' && (
+              <>
+                <Sources items={items} onOpen={onOpen} />
+                <div className="settings-actions">
+                  <Button kind="tool" onClick={() => walk(1)}>
+                    Add a source
+                  </Button>
                   <Button
                     kind="tool"
                     onClick={() => {
-                      walk(2)
-                      void startSweep()
+                      walk(3)
+                      startPreview()
                     }}
                   >
-                    Look through two weeks for more
+                    What I would have picked up yesterday
                   </Button>
-                }
-              />
-            </>
-          )}
+                </div>
+              </>
+            )}
 
-          {settingsTab === 'devices' && <Devices />}
+            {settingsTab === 'workstreams' && (
+              <>
+                <WorkstreamsEditor
+                  workstreams={workstreams}
+                  items={items}
+                  onChange={onWorkstreams}
+                  actions={
+                    <Button
+                      kind="tool"
+                      onClick={() => {
+                        walk(2)
+                        void startSweep()
+                      }}
+                    >
+                      Look through two weeks for more
+                    </Button>
+                  }
+                />
+              </>
+            )}
+
+            {settingsTab === 'devices' && <Devices />}
+          </div>
         </div>
       </section>
     )
 
   return (
     <section className="pane task" aria-label="Set up">
-      <div className="task-head drag" />
+      <Head title="Set up" onClose={onDone} />
       <div className="page narrow">
         <div className="settings-head">
           <Button kind="quiet" onClick={() => setWalking(false)}>
