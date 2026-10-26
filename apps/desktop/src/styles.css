@@ -2124,3 +2124,15 @@ textarea.inline-reply {
   border: 0;
   border-top: 0.5px solid var(--border);
 }
+
+/* In light mode fields are white on the page's near-white, the way Claude draws its input. */
+@media (prefers-color-scheme: light) {
+  .inline-reply,
+  .filter {
+    background: var(--raised);
+  }
+
+  .filter {
+    box-shadow: inset 0 0 0 0.5px var(--border);
+  }
+}
