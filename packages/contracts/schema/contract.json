@@ -2053,6 +2053,49 @@
             ],
             "additionalProperties": false
           }
+        },
+        "signals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "signal": {
+                "type": "string"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "created",
+                  "updated"
+                ]
+              },
+              "url": {
+                "type": "string"
+              },
+              "sender": {
+                "type": "string"
+              },
+              "channel": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "signal",
+              "action",
+              "url",
+              "sender",
+              "channel",
+              "at",
+              "title"
+            ],
+            "additionalProperties": false
+          }
         }
       },
       "required": [

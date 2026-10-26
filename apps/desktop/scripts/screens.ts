@@ -151,14 +151,16 @@ await page.getByLabel('Filter tasks').fill('')
 await page.getByRole('button', { name: 'New task' }).click()
 await shot('05-new-task')
 await page.getByRole('button', { name: 'Set up' }).click()
-await page.getByRole('heading', { name: 'Set up', exact: true }).waitFor()
+await page.getByRole('region', { name: 'Set up' }).waitFor()
 await shot('06-settings')
 await page.getByRole('button', { name: 'Servers' }).click()
 await page.getByRole('button', { name: 'Pair a device' }).click()
 await page.getByText('Waiting for your phone').waitFor()
 await shot('07-servers-pairing')
 await page.getByRole('button', { name: 'Set up' }).click()
-await page.getByRole('button', { name: 'Walk through the steps again' }).click()
+// Set up before: the settings; the first time: the steps already.
+const walk = page.getByRole('button', { name: 'Walk through the steps again' })
+if (await walk.isVisible()) await walk.click()
 await shot('08-set-up')
 
 // Beside Claude Code: the window at a third of the screen.

@@ -74,12 +74,26 @@ const base = oc.$meta<Meta>({ scopes: ['owner'] }).errors(errors)
 const OWNER = ['owner'] as const
 const READERS = ['owner', 'read', 'create'] as const
 
+/** A message a signal filed into the task, or added to it: what the task came from. */
+export const TaskSignal = z.object({
+  signal: z.string(),
+  action: z.enum(['created', 'updated']),
+  url: z.string(),
+  sender: z.string(),
+  channel: z.string(),
+  at: z.string(),
+  title: z.string(),
+})
+export type TaskSignal = z.infer<typeof TaskSignal>
+
 export const TaskDetail = z.object({
   task: Task,
   band: Band,
   updates: z.array(Update),
   session: Session.nullable(),
   watchers: z.array(Watcher),
+  /** Oldest first. Missing from servers before it was added. */
+  signals: z.array(TaskSignal).optional(),
 })
 export type TaskDetail = z.infer<typeof TaskDetail>
 

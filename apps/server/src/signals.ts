@@ -348,7 +348,7 @@ export class Signals {
         cwd: this.o.paths.home,
       })
       const parsed = SignalOutput.parse(typeof output === 'string' ? JSON.parse(output) : output)
-      const decisions = dry ? parsed.items.map((i) => this.preview(name, i)) : parsed.items.map((i) => this.apply(name, i))
+      const decisions = dry ? parsed.items.map((i) => this.preview(name, i)) : parsed.items.map((i) => this.applyOne(name, i))
       if (!dry) {
         this.save(name, {
           ...state,
@@ -463,6 +463,20 @@ export class Signals {
         })
     } finally {
       service.db.prepare('update tokens set revoked_at = ? where id = ?').run(service.now().toISOString(), token.id)
+    }
+  }
+
+  /**
+   * One item at a time: an item the server refuses (a link that is not a URL, say) is recorded as
+   * not filed, with why, and the rest of the run still counts.
+   */
+  private applyOne(name: string, item: SignalOutput['items'][number]): Decision {
+    try {
+      return this.apply(name, item)
+    } catch (error) {
+      const why = error instanceof z.ZodError ? error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') : String(error)
+      this.o.log?.(`signal ${name}: could not file "${item.title}": ${why}`)
+      return { ...this.preview(name, item), action: 'dropped', reason: `Not filed, the server refused it (${why}): ${item.title}` }
     }
   }
 

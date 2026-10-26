@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import {
   filedBy,
+  signalName,
   createdText,
   eventText,
   linkKind,
@@ -101,6 +102,30 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
               <Folded text={task.brief} onLink={open} />
             </View>
           ) : null}
+          {(detail?.signals ?? []).length > 0 && (
+            <View style={styles.section}>
+              <Text style={type.label}>Signal</Text>
+              {(detail?.signals ?? []).map((m) => (
+                <Pressable
+                  key={`${m.url}-${m.at}`}
+                  style={styles.signal}
+                  onPress={() => /^https?:\/\//.test(m.url) && open(m.url)}
+                  accessibilityRole="link"
+                  accessibilityLabel={`${signalName(m.signal)}: ${m.title}`}
+                >
+                  <Text style={type.meta}>
+                    {signalName(m.signal)}
+                    {m.channel ? ` · ${m.channel}` : ''}
+                  </Text>
+                  <Text style={styles.signalTitle}>{m.title}</Text>
+                  <Text style={type.meta}>
+                    {m.sender} · {Number.isNaN(Date.parse(m.at)) ? m.at : ago(m.at)}
+                    {m.action === 'updated' ? ' · added' : ''}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
           {task.links.length > 0 && <Linked taskId={task.id} links={task.links} />}
           {refused.map((c) => (
             <Banner key={c.id}>
@@ -357,6 +382,8 @@ const styles = StyleSheet.create({
   page: { padding: 20, gap: 24, paddingBottom: 32 },
   head: { gap: 6 },
   section: { gap: 8 },
+  signal: { gap: 2, marginTop: 8, padding: 12, borderRadius: radius.md, backgroundColor: colours.surface },
+  signalTitle: { fontSize: 15, lineHeight: 21, color: colours.textBody },
   folded: { maxHeight: 200, overflow: 'hidden' },
   more: { marginTop: 6 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },

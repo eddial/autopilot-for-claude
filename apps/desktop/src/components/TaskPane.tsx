@@ -11,7 +11,7 @@ import {
   updateTone,
   type Pending,
 } from '@autopilot/client'
-import type { QueueItem, Update, Workstream } from '@autopilot/contracts'
+import type { QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contracts'
 import { filedBy, signalName, workstreamMark } from '@autopilot/client'
 import { shell } from '../api.ts'
 import { age, ago, titleCase, updateLabel } from '../format.ts'
@@ -180,7 +180,7 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
           </div>
           {!ask && <Composer item={item} />}
         </div>
-        <Properties item={item} workstreams={workstreams} />
+        <Properties item={item} workstreams={workstreams} signals={detail?.signals ?? []} />
       </div>
     </section>
   )
@@ -472,14 +472,39 @@ const Menu = ({
   )
 }
 
+type OpenWith = 'mac' | 'remote'
+const OPEN_WITH_KEY = 'autopilot.openWith'
+
+/** How Open session opens a session by default: the last way picked from its arrow. */
+const useOpenWith = (): [OpenWith, (w: OpenWith) => void] => {
+  const [value, setValue] = useState<OpenWith>(() => {
+    try {
+      return localStorage.getItem(OPEN_WITH_KEY) === 'remote' ? 'remote' : 'mac'
+    } catch {
+      return 'mac'
+    }
+  })
+  const set = (w: OpenWith) => {
+    setValue(w)
+    try {
+      localStorage.setItem(OPEN_WITH_KEY, w)
+    } catch {
+      // Not remembered: the default stays this Mac.
+    }
+  }
+  return [value, set]
+}
+
 /** What can be done with the task as a whole. */
 const Actions = ({ item }: { item: QueueItem }) => {
   const { task, session } = item
   const live = session && session.state !== 'ended' ? session : null
-  const sessionLinks = [
-    ...(live?.resumeUrl ? [{ label: 'In Claude on this Mac', run: () => open(live.resumeUrl ?? '') }] : []),
-    ...(live?.remoteControlUrl ? [{ label: 'Through Remote Control', run: () => open(live.remoteControlUrl ?? '') }] : []),
+  const [openWith, setOpenWith] = useOpenWith()
+  const ways: { id: OpenWith; label: string; url: string }[] = [
+    ...(live?.resumeUrl ? [{ id: 'mac' as const, label: 'In Claude on this Mac', url: live.resumeUrl }] : []),
+    ...(live?.remoteControlUrl ? [{ id: 'remote' as const, label: 'Through Remote Control', url: live.remoteControlUrl }] : []),
   ]
+  const preferred = ways.find((w) => w.id === openWith) ?? ways[0]
   return (
     <div className="task-actions">
       {item.band === 'new' && !live && (
@@ -488,17 +513,27 @@ const Actions = ({ item }: { item: QueueItem }) => {
           Start
         </Button>
       )}
-      {sessionLinks.length > 0 && (
-        <Menu
-          className="tinted tone-claude"
-          label={
-            <>
-              <Claude pixel={0.875} />
-              Open session
-            </>
-          }
-          items={sessionLinks}
-        />
+      {preferred && (
+        <div className="split tone-claude">
+          {/* One click opens it the way you last chose; the arrow picks another and keeps it. */}
+          <Button kind="tool" className="tinted split-main" title={preferred.label} onClick={() => open(preferred.url)}>
+            <Claude pixel={0.875} />
+            Open session
+          </Button>
+          {ways.length > 1 && (
+            <Menu
+              className="tinted split-arrow"
+              label={<span className="sr-only">Other ways to open the session</span>}
+              items={ways.map((w) => ({
+                label: w.id === preferred.id ? `${w.label} (default)` : w.label,
+                run: () => {
+                  setOpenWith(w.id)
+                  open(w.url)
+                },
+              }))}
+            />
+          )}
+        </div>
       )}
       <Menu
         className="tinted tone-paused"
@@ -585,7 +620,7 @@ const Bars = ({ priority }: { priority: number }) => (
  * change in place, where it came from, its session, and what it links to. It stays put while the
  * page scrolls; shown when the pane is wide enough.
  */
-const Properties = ({ item, workstreams }: { item: QueueItem; workstreams: Workstream[] }) => {
+const Properties = ({ item, workstreams, signals }: { item: QueueItem; workstreams: Workstream[]; signals: TaskSignal[] }) => {
   const { task, session } = item
   const live = session && session.state !== 'ended' ? session : null
   const closed = item.band === 'done'
@@ -705,6 +740,15 @@ const Properties = ({ item, workstreams }: { item: QueueItem; workstreams: Works
         )}
       </div>
 
+      {signals.length > 0 && (
+        <div className="side-group">
+          <span className="side-heading">Signal</span>
+          {signals.map((m) => (
+            <SignalRow key={`${m.url}-${m.at}`} mention={m} />
+          ))}
+        </div>
+      )}
+
       {task.links.length > 0 && (
         <div className="side-group">
           <span className="side-heading">Linked</span>
@@ -716,6 +760,32 @@ const Properties = ({ item, workstreams }: { item: QueueItem; workstreams: Works
         </div>
       )}
     </aside>
+  )
+}
+
+/** A message a signal filed or added: where, from whom, when; opens the message. */
+const SignalRow = ({ mention }: { mention: TaskSignal }) => {
+  const link = /^https?:\/\//.test(mention.url)
+  const body = (
+    <>
+      <span className="signal-head">
+        <NavIcon name="signals" size={13} />
+        {signalName(mention.signal)}
+        {mention.channel ? ` · ${mention.channel}` : ''}
+      </span>
+      <span className="signal-title">{mention.title}</span>
+      <span className="signal-meta">
+        {mention.sender} · {Number.isNaN(Date.parse(mention.at)) ? mention.at : ago(mention.at)}
+        {mention.action === 'updated' ? ' · added' : ''}
+      </span>
+    </>
+  )
+  return link ? (
+    <Button kind="prop" className="signal-row" title={mention.url} onClick={() => open(mention.url)}>
+      {body}
+    </Button>
+  ) : (
+    <div className="prop-text signal-row">{body}</div>
   )
 }
 

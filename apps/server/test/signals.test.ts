@@ -76,6 +76,19 @@ describe('signal runs', () => {
     expect(service.queue().items).toEqual([])
   })
 
+  it('files the rest of a run when one item has a link that is not a URL', async () => {
+    const { service, signals, advance } = setup(() =>
+      Promise.resolve({ items: [item({ url: '#devs', title: 'No link' }), item({ url: 'https://example.slack.com/y', title: 'Good' })] }),
+    )
+    await signals.run('slack')
+    // The first run starts from now; the next one files.
+    advance(5)
+    const decisions = await signals.run('slack')
+    expect(decisions.map((d) => d.action)).toEqual(['dropped', 'created'])
+    expect(service.queue().items.map((i) => i.task.title)).toEqual(['Good'])
+    expect(signals.list()[0]?.health.state).toBe('ok')
+  })
+
   it('keeps the window and reports failing when a run fails', async () => {
     let fail = false
     const { signals, advance } = setup(() => (fail ? Promise.reject(new Error('Slack unreachable')) : Promise.resolve({ items: [] })))

@@ -307,7 +307,28 @@ export class Service {
       this.toUpdate(r),
     )
     const watchers = (this.sql('select * from watchers where task_id = ?').all(id) as Row[]).map((r) => this.toWatcher(r))
-    return { task, band: item.band, updates, session: item.session, watchers }
+    const signals = (
+      this.sql(`select action, item from decisions where task_id = ? and action in ('created', 'updated') order by at`).all(id) as Row[]
+    ).map((r) => {
+      const source = JSON.parse(String(r.item)) as {
+        signal: string
+        url: string
+        sender: string
+        channel: string
+        at: string
+        title: string
+      }
+      return {
+        signal: source.signal,
+        action: r.action as 'created' | 'updated',
+        url: source.url,
+        sender: source.sender,
+        channel: source.channel,
+        at: source.at,
+        title: source.title,
+      }
+    })
+    return { task, band: item.band, updates, session: item.session, watchers, signals }
   }
 
   queue(
