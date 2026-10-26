@@ -36,7 +36,7 @@ export const rowMeta = (item: QueueItem, withWorkstream = true): string => {
             : item.band === 'new'
               ? 'New'
               : null
-  return [what, withWorkstream ? titleCase(item.task.workstream) : null, sourceOf(item)].filter(Boolean).join(' · ')
+  return [what, withWorkstream ? item.task.workstream : null, sourceOf(item)].filter(Boolean).join(' · ')
 }
 
 export { updateLabel }

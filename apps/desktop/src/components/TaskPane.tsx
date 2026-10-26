@@ -12,14 +12,30 @@ import {
   type Pending,
 } from '@autopilot/client'
 import type { QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contracts'
-import { filedBy, isPaste, pasteSize, signalName, workstreamMark } from '@autopilot/client'
+import { filedBy, isPaste, pasteSize, signalName } from '@autopilot/client'
 import { shell } from '../api.ts'
-import { age, ago, titleCase, updateLabel } from '../format.ts'
+import { age, ago, updateLabel } from '../format.ts'
 import { useDraft } from '../drafts.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
 import { FileChips, useFiles } from './Files.tsx'
 import type { Tone } from '@autopilot/design'
-import { ArrowUp, Avatar, Bars, Banner, Button, Claude, Dot, Icon, Markdown, Meta, NavIcon, Pill, Spacer, Tag } from '../ui.tsx'
+import {
+  ArrowUp,
+  Avatar,
+  Bars,
+  WorkstreamMark,
+  Banner,
+  Button,
+  Claude,
+  Dot,
+  Icon,
+  Markdown,
+  Meta,
+  NavIcon,
+  Pill,
+  Spacer,
+  Tag,
+} from '../ui.tsx'
 import { LinkIcon, Linked, SideLink } from './Links.tsx'
 import { BAND_TITLE } from '../view.ts'
 
@@ -153,7 +169,7 @@ export const TaskPane = ({ item, workstreams, next = null, onNext, onClose }: Pr
                 {/* Narrow, the properties sit here; wide, in the column on the right (styles.css). */}
                 <div className="props">
                   <Pill tone={BAND_TONE[item.band]}>{BAND_TITLE[item.band]}</Pill>
-                  <Tag>{titleCase(task.workstream)}</Tag>
+                  <Tag>{task.workstream}</Tag>
                   {task.priority <= 2 && <Tag>{task.priority === 1 ? 'Urgent' : 'High priority'}</Tag>}
                   <Meta as="span">
                     {filed} · {ago(task.createdAt)}
@@ -488,7 +504,15 @@ const PendingEntry = ({ pending, options }: { pending: Pending; options: { id: s
 }
 
 /** A choice in a menu; `detail` is lined up in columns beside the labels. */
-type MenuItem = { label: string; detail?: string[]; run: () => void; /** A choice that is on: ticked at the start. */ checked?: boolean }
+type MenuItem = {
+  label: string
+  detail?: string[]
+  run: () => void
+  /** A choice that is on: ticked at the start. */
+  checked?: boolean
+  /** What it looks like where it shows: a workstream's mark, a priority's bars. */
+  icon?: ReactNode
+}
 
 const Menu = ({
   label,
@@ -527,7 +551,7 @@ const Menu = ({
       </Button>
       {shown && (
         <div
-          className={`menu-items${align === 'right' ? ' align-right' : ''}${items.some((i) => i.checked !== undefined) ? ' with-checks' : ''}`}
+          className={`menu-items${align === 'right' ? ' align-right' : ''}${items.some((i) => i.checked !== undefined) ? ' with-checks' : ''}${items.some((i) => i.icon) ? ' with-icons' : ''}`}
           role="menu"
         >
           {items.map((i) => (
@@ -542,6 +566,7 @@ const Menu = ({
               }}
             >
               {i.checked !== undefined && <span className="menu-check">{i.checked && <Icon name="done" />}</span>}
+              {i.icon !== undefined && <span className="menu-icon">{i.icon}</span>}
               {i.label}
               {i.detail?.map((d) => (
                 <span key={d} className="menu-detail">
@@ -740,12 +765,19 @@ const Properties = ({
       ]
   const streams: MenuItem[] = [...new Set([...workstreams.map((w) => w.name).filter((n) => n !== 'autopilot'), 'inbox'])]
     .filter((name) => name !== task.workstream)
-    .map((name) => ({ label: titleCase(name), run: () => send({ kind: 'edit', taskId: task.id, workstream: name }) }))
+    .map((name) => ({
+      label: name,
+      icon: <WorkstreamMark name={name} />,
+      run: () => send({ kind: 'edit', taskId: task.id, workstream: name }),
+    }))
   const priorities: MenuItem[] = [1, 2, 3, 4]
     .filter((p) => p !== task.priority)
-    .map((p) => ({ label: PRIORITY[p] ?? '', run: () => send({ kind: 'edit', taskId: task.id, priority: p }) }))
+    .map((p) => ({
+      label: PRIORITY[p] ?? '',
+      icon: <Bars priority={p} />,
+      run: () => send({ kind: 'edit', taskId: task.id, priority: p }),
+    }))
   const { preferred, choices } = useOpenSession(session)
-  const mark = workstreamMark(task.workstream)
   return (
     <aside className="task-side" aria-label="Properties">
       <div className="side-top">
@@ -783,10 +815,8 @@ const Properties = ({
             align="right"
             label={
               <>
-                <span className={`ws-mark ${mark.tone}`} aria-hidden="true">
-                  {mark.letters}
-                </span>
-                {titleCase(task.workstream)}
+                <WorkstreamMark name={task.workstream} />
+                {task.workstream}
               </>
             }
             items={streams}

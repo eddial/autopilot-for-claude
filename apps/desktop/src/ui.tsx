@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
-import { parseMarkdown, type Inline } from '@autopilot/client'
+import { parseMarkdown, workstreamMark, type Inline } from '@autopilot/client'
 import { claude, pilot, space, type Space, type Tone } from '@autopilot/design'
 
 /**
@@ -246,6 +246,16 @@ export const Bars = ({ priority }: { priority: number }) => (
     ))}
   </span>
 )
+
+/** A workstream's two-letter mark in its tint, the same wherever the workstream shows. */
+export const WorkstreamMark = ({ name }: { name: string }) => {
+  const mark = workstreamMark(name)
+  return (
+    <span className={`ws-mark ${mark.tone}`} aria-hidden="true">
+      {mark.letters}
+    </span>
+  )
+}
 
 /** A quiet property: a workstream, a priority. */
 export const Tag = ({ children }: { children: ReactNode }) => <span className="tag">{children}</span>

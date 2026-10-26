@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import type { Workstream } from '@autopilot/contracts'
 import { api, key } from '../api.ts'
 import { useDraft } from '../drafts.ts'
-import { titleCase } from '../format.ts'
 import { ArrowUp, Banner, Button, Meta, Pilot, Row } from '../ui.tsx'
 
 type Props = { workstreams: Workstream[]; onCreated: (id: string) => void }
@@ -86,7 +85,7 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
               <option value="">Inbox</option>
               {workstreams.map((w) => (
                 <option key={w.name} value={w.name}>
-                  {titleCase(w.name)}
+                  {w.name}
                 </option>
               ))}
             </select>

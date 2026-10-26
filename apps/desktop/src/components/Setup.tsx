@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import type { Decision, Detected, QueueItem, SetupStatus, SignalExample, Workstream } from '@autopilot/contracts'
 import { signalName } from '@autopilot/client'
 import { api, key } from '../api.ts'
-import { titleCase } from '../format.ts'
 import { Banner, Button, Dot, Meta, Pilot, Row } from '../ui.tsx'
 import { Devices } from './Devices.tsx'
 import { Sources } from './Sources.tsx'
@@ -638,7 +637,7 @@ export const Setup = ({ items, workstreams, onWorkstreams, onOpen, onDone }: Pro
             ))}
             {byWorkstream.map(([ws, inWorkstream]) => (
               <div key={ws}>
-                <h2>{titleCase(ws)}</h2>
+                <h2>{ws}</h2>
                 {inWorkstream?.map((d) => (
                   <div key={d.id} className="card">
                     <div className="card-head">
@@ -679,7 +678,7 @@ export const Setup = ({ items, workstreams, onWorkstreams, onOpen, onDone }: Pro
             <Check ok title={`Listening to ${list(chosenNames)}, from now on`} detail="Nothing from before today is filed." />
             <Check
               ok
-              title={`Sorting into ${list((drafts ?? []).map((d) => titleCase(d.name)))}`}
+              title={`Sorting into ${list((drafts ?? []).map((d) => d.name))}`}
               detail="Correct me by moving a task; I learn from it overnight."
             />
             <Check ok title="Sessions prepare drafts and branches" detail="You send and merge." />

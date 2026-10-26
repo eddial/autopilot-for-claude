@@ -3,7 +3,6 @@ import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-nat
 import type { Workstream } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
 import KV from 'expo-sqlite/kv-store'
-import { titleCase } from '../src/format.ts'
 import { useDraft } from '../src/drafts.ts'
 import { useSyncInstance } from '../src/store.ts'
 import { colours } from '@autopilot/design'
@@ -103,7 +102,7 @@ export default function NewTaskScreen() {
             {workstreams
               .filter((w) => w.name !== 'autopilot')
               .map((w) => (
-                <Chip key={w.name} label={titleCase(w.name)} on={workstream === w.name} onPress={() => setWorkstream(w.name)} />
+                <Chip key={w.name} label={w.name} on={workstream === w.name} onPress={() => setWorkstream(w.name)} />
               ))}
           </View>
           <Text style={[type.meta, styles.label]}>Priority</Text>

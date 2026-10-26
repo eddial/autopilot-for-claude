@@ -794,6 +794,19 @@ button {
   grid-template-columns: 16px 1fr auto auto;
 }
 
+.menu-items.with-icons {
+  grid-template-columns: 22px 1fr auto auto;
+}
+
+.menu-items.with-icons button {
+  align-items: center;
+}
+
+.menu-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
 .menu-check {
   display: inline-flex;
   align-items: center;

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { QueueItem, Workstream } from '@autopilot/contracts'
 import { api, key } from '../api.ts'
-import { titleCase } from '../format.ts'
 import { Banner, Button, Meta } from '../ui.tsx'
 
 /** What each autonomy level lets a workstream's sessions do, in the owner's words. */
@@ -95,7 +94,7 @@ const WorkstreamCard = ({
     return (
       <div className="card">
         <div className="card-head">
-          <span className="name">{titleCase(workstream.name)}</span>
+          <span className="name">{workstream.name}</span>
           <span className="meta">
             {AUTONOMY[workstream.autonomy]} ·{' '}
             {workstream.repo
@@ -122,7 +121,7 @@ const WorkstreamCard = ({
     <div className="card workstream-draft">
       <div className="card-head">
         {workstream ? (
-          <span className="name">{titleCase(workstream.name)}</span>
+          <span className="name">{workstream.name}</span>
         ) : (
           <input
             className="draft-name"

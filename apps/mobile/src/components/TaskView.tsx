@@ -19,7 +19,7 @@ import {
 import type { QueueItem, Update } from '@autopilot/contracts'
 import * as Haptics from 'expo-haptics'
 import { SymbolView } from 'expo-symbols'
-import { age, ago, BAND_TITLE, titleCase } from '../format.ts'
+import { age, ago, BAND_TITLE } from '../format.ts'
 import { useDraft } from '../drafts.ts'
 import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
 import { colours, radius, tones, type Tone } from '@autopilot/design'
@@ -105,7 +105,7 @@ export const TaskView = ({ item }: { item: QueueItem }) => {
             <Text style={type.title}>{task.title}</Text>
             <View style={styles.row}>
               <Pill tone={BAND_TONE[item.band]} label={BAND_TITLE[item.band]} />
-              <Tag label={titleCase(task.workstream)} />
+              <Tag label={task.workstream} />
               {task.priority <= 2 && <Tag label={task.priority === 1 ? 'Urgent' : 'High priority'} />}
               <Text style={type.meta}>
                 {filedBy(task)} · {ago(task.createdAt)}

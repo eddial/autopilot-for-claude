@@ -1,12 +1,11 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem } from '@autopilot/contracts'
-import { workstreamMark } from '@autopilot/client'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useDraft } from '../drafts.ts'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
 import { QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
-import { Banner, Bars, Button, NavIcon, SearchIcon, type NavIconName } from '../ui.tsx'
+import { Banner, Bars, Button, WorkstreamMark, NavIcon, SearchIcon, type NavIconName } from '../ui.tsx'
 
 type Props = {
   tab: QueueView
@@ -211,9 +210,7 @@ export const QueueList = (props: Props) => {
               >
                 {entry.kind === 'group' ? (
                   <Button kind="section" aria-expanded={!entry.folded} onClick={() => fold(entry.workstream)}>
-                    <span className={`ws-mark ${workstreamMark(entry.workstream).tone}`} aria-hidden="true">
-                      {workstreamMark(entry.workstream).letters}
-                    </span>
+                    <WorkstreamMark name={entry.workstream} />
                     <span className="ws-name">{entry.workstream}</span>
                     {entry.folded && <span className="ws-count">{entry.count}</span>}
                   </Button>
