@@ -146,10 +146,11 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
             <path d="M9 2L4 7l5 5" />
           </svg>
         </Button>
-        <Meta as="span" className="head-id">
+        {/* Its number, once, where Linear puts it: at the top; a click copies it. */}
+        <Button kind="quiet" className="head-id" title={`Copy ${task.id}`} onClick={() => void navigator.clipboard.writeText(task.id)}>
           {task.id}
           {task.source.mirrors ? ` · ${task.source.mirrors}` : ''}
-        </Meta>
+        </Button>
         <Button kind="quiet" className="head-title" tabIndex={-1} onClick={() => body.current?.scrollTo({ top: 0, behavior: 'smooth' })}>
           {task.title}
         </Button>
@@ -179,7 +180,7 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
                     {filed} · {ago(task.createdAt)}
                   </Meta>
                 </div>
-                <Actions item={item} />
+                <Actions item={item} start={!(item.band === 'new' && firstLookQuestions(updates).length > 0)} />
               </header>
               {task.brief && (
                 <section className="section">
@@ -552,13 +553,17 @@ const useOpenSession = (session: QueueItem['session']) => {
 
 /** What can be done with the task as a whole. */
 /** What you can do to a task. In the properties column Open session is left out: its Session row opens it. */
-const Actions = ({ item, session: withSession = true }: { item: QueueItem; session?: boolean }) => {
+/**
+ * What you can do with the task: Start (unless Before I start in the timeline starts it), the
+ * session, Snooze and Mark done; Not for me behind the ⋯, being rarer.
+ */
+const Actions = ({ item, session: withSession = true, start = true }: { item: QueueItem; session?: boolean; start?: boolean }) => {
   const { task, session } = item
   const live = session && session.state !== 'ended' ? session : null
   const { preferred, choices } = useOpenSession(session)
   return (
     <div className="task-actions">
-      {item.band === 'new' && !live && (
+      {start && item.band === 'new' && !live && (
         <Button kind="primary" className="with-icon" onClick={() => send({ kind: 'start', taskId: task.id })}>
           <Icon name="play" />
           Start
@@ -595,10 +600,18 @@ const Actions = ({ item, session: withSession = true }: { item: QueueItem; sessi
         Mark done
       </Button>
       {item.band === 'new' && (
-        <Button kind="tool" className="with-icon" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'canceled' })}>
-          <Icon name="dismiss" />
-          Not for me
-        </Button>
+        <Menu
+          className="icon-only"
+          chevron={false}
+          align="right"
+          label={
+            <>
+              <NavIcon name="ellipsis" />
+              <span className="sr-only">More</span>
+            </>
+          }
+          items={[{ label: 'Not for me', run: () => send({ kind: 'close', taskId: task.id, outcome: 'canceled' }) }]}
+        />
       )}
     </div>
   )
@@ -692,23 +705,9 @@ const Properties = ({
   const { preferred, choices } = useOpenSession(session)
   return (
     <aside className="task-side" aria-label="Properties">
-      <div className="side-top">
-        <span className="side-id">
-          {task.id}
-          {task.source.mirrors ? ` · ${task.source.mirrors}` : ''}
-        </span>
-        <Button
-          kind="icon"
-          aria-label={`Copy ${task.id}`}
-          title={`Copy ${task.id}`}
-          onClick={() => void navigator.clipboard.writeText(task.id)}
-        >
-          <NavIcon name="document" size={13} />
-        </Button>
-      </div>
       {!closed && (
         <div className="side-actions">
-          <Actions item={item} session={false} />
+          <Actions item={item} session={false} start={!(item.band === 'new' && firstLookQuestions(updates).length > 0)} />
         </div>
       )}
       <div className="side-group">

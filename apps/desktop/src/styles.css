@@ -1042,18 +1042,9 @@ button {
   .task-title .task-actions,
   .task-title .props,
   .linked-inline,
-  .task-head .head-id,
   .task-head .head-session {
     display: none;
   }
-}
-
-.side-top {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 32px;
-  padding-left: 8px;
 }
 
 /* The actions, at the top of the properties: one place for them, beside the title. */
@@ -1065,9 +1056,13 @@ button {
   flex-wrap: wrap;
 }
 
-/* In the column: Start or the session on a row of its own, the rest sharing the next evenly. */
+/* In the column: Start or the session on a row of its own, the rest sharing the next evenly, the ⋯ at its end. */
 .side-actions .task-actions > * {
   flex: 1 1 0;
+}
+
+.side-actions .task-actions > .menu:has(.icon-only) {
+  flex: none;
 }
 
 .side-actions .task-actions > .btn.primary,
@@ -1077,26 +1072,22 @@ button {
 
 .side-actions .task-actions > .btn,
 .side-actions .task-actions > .tool,
-.side-actions .task-actions .menu > .tool {
+.side-actions .task-actions .menu > .tool:not(.icon-only) {
   width: 100%;
   justify-content: center;
 }
 
-.side-id {
+/* The task's number at the top left; quiet until hovered, a click copies it. */
+.task-head .head-id {
+  flex: none;
+  padding: 0 6px;
   font-size: 13px;
-  color: var(--text-2);
+  color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 
-.side-top .icon-button {
-  width: 24px;
-  height: 24px;
-  opacity: 0;
-}
-
-.side-top:hover .icon-button,
-.side-top .icon-button:focus-visible {
-  opacity: 1;
+.task-head .head-id:hover {
+  color: var(--text);
 }
 
 /* Back to the list only means something when the list is hidden (a narrow window). */
@@ -1368,7 +1359,9 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--raised);
+  /* A ring, not a fill: the same on light and dark. */
+  border: 0.5px solid var(--border-strong);
+  background: var(--surface);
   color: var(--text-2);
 }
 
