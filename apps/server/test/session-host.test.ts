@@ -18,9 +18,13 @@ afterEach(async () => {
 describe('the session host', () => {
   it('keeps a session running while the server restarts, and the new server picks it up, link and all', async () => {
     const dir = realpathSync(mkdtempSync(join(tmpdir(), 'ap-host-')))
-    // Stands in for Claude Code: says its Remote Control link, then stays until stopped.
+    // Stands in for Claude Code resuming: its conversation again, another claude.ai link in it, then
+    // its Remote Control link; it stays until stopped.
     const claude = join(dir, 'claude.sh')
-    writeFileSync(claude, '#!/bin/sh\necho "https://claude.ai/code/session_kept"\nsleep 60\n')
+    writeFileSync(
+      claude,
+      '#!/bin/sh\necho "See https://claude.ai/artifact/abc for the table"\necho "https://claude.ai/code/session_kept"\nsleep 60\n',
+    )
     chmodSync(claude, 0o755)
     const paths = resolvePaths({ AUTOPILOT_DATA: join(dir, 'data'), AUTOPILOT_HOME: join(dir, 'home') })
     const socket = join(dir, 'h.sock')

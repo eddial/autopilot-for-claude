@@ -89,8 +89,12 @@ export const trustFolder = (config: string, folder: string): void => {
   renameSync(`${config}.autopilot.tmp`, config)
 }
 
-/** The link Remote Control prints; read from the screen with escape sequences taken out. */
-const REMOTE_CONTROL_URL = /https:\/\/claude\.ai\/[^\s"'<>]+/
+/**
+ * The link Remote Control prints, read from the screen with escape sequences taken out: a session's
+ * link only (a resumed session prints its conversation again, other claude.ai links and all), and
+ * whole, with something after it, so a link still arriving is not taken cut short.
+ */
+const REMOTE_CONTROL_URL = /https:\/\/claude\.ai\/code\/session_[A-Za-z0-9]+(?=[^A-Za-z0-9])/
 
 /** Pasted as one block, so a multi-line answer is not sent line by line. */
 export const paste = (text: string): string => `\u001b[200~${text}\u001b[201~\r`
@@ -337,9 +341,11 @@ export class Launcher {
     const { pty, sessionId } = live
     const link = () => {
       const session = service.session(sessionId)
-      if (session && !session.remoteControlUrl) {
+      // None yet, or one read wrongly before (anything but a session's whole link).
+      const known = session?.remoteControlUrl
+      if (session && !(known && REMOTE_CONTROL_URL.test(`${known} `))) {
         const url = REMOTE_CONTROL_URL.exec(plain(live.output))?.[0]
-        if (url) service.setSession(sessionId, { remoteControlUrl: url })
+        if (url && url !== known) service.setSession(sessionId, { remoteControlUrl: url })
       }
     }
     link()
