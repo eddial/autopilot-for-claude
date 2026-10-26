@@ -1349,6 +1349,13 @@ button {
   background: var(--border-strong);
 }
 
+/* The box at the end (writing, or what waits on you) centres its avatar lower down: the rail
+   above it reaches that far. */
+.entry:has(+ .composer-entry)::after,
+.entry:has(+ .ask-entry)::after {
+  bottom: -16px;
+}
+
 .avatar {
   position: absolute;
   left: -36px;
@@ -1359,8 +1366,8 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* A ring, not a fill: the same on light and dark. */
-  border: 0.5px solid var(--border-strong);
+  /* On the page's own colour, no ring: it covers the rail where they meet. */
+  z-index: 1;
   background: var(--surface);
   color: var(--text-2);
 }
