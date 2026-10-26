@@ -65,8 +65,8 @@ export const TaskToolbar = ({
           onPress={() => void sync?.send({ kind: 'start', taskId: task.id })}
         />
       ) : null}
-      {/* The rest behind one ⋯, so the bar keeps room: Mark done, Snooze (its times a level down), Not for me. */}
-      <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More" title="More">
+      {/* The rest behind one ⋯, so the bar keeps room: Mark done, Snooze (its times a level down), Not for me. None once done. */}
+      <Stack.Toolbar.Menu icon="ellipsis.circle" accessibilityLabel="More" title="More" hidden={item.band === 'done'}>
         <Stack.Toolbar.MenuAction icon="checkmark" onPress={() => done('done')}>
           Mark done
         </Stack.Toolbar.MenuAction>

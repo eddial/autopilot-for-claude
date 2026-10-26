@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
-import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import { ActionSheetIOS, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native'
 import type { Workstream } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
 import KV from 'expo-sqlite/kv-store'
+import { SymbolView } from 'expo-symbols'
 import { useDraft } from '../src/drafts.ts'
 import { useSyncInstance } from '../src/store.ts'
 import { colours } from '@autopilot/design'
-import { Chip, Sides, type } from '../src/ui.tsx'
+import { Chip, Composer, Pilot, Sides, composerInput, type } from '../src/ui.tsx'
 
 const PRIORITIES = [
   { value: 1, label: 'Urgent' },
@@ -15,11 +16,22 @@ const PRIORITIES = [
   { value: 4, label: 'Low' },
 ]
 
-/** New task, as a sheet. Works offline: it waits in the outbox and reaches the Mac later. */
+/** A list to pick one from, the native sheet over the keyboard; the current one ticked. */
+const pickFrom = (title: string, options: string[], current: number, then: (index: number) => void) =>
+  ActionSheetIOS.showActionSheetWithOptions(
+    { title, options: [...options.map((o, i) => (i === current ? `${o} ✓` : o)), 'Cancel'], cancelButtonIndex: options.length },
+    (index) => index < options.length && then(index),
+  )
+
+/**
+ * New task, as Claude's own composer: what to do in one box, the workstream and priority as pills
+ * above it, starting and sending inside it. All of it sits on the keyboard, so it fits the Duo's
+ * outer screen. The first line is the title, the rest the brief. Works offline: it waits in the
+ * outbox and reaches the Mac later.
+ */
 export default function NewTaskScreen() {
   const sync = useSyncInstance()
-  const [title, setTitle] = useDraft('new:title')
-  const [brief, setBrief] = useDraft('new:brief')
+  const [text, setText] = useDraft('new:text')
   const [workstream, setWorkstream] = useState<string | null>(null)
   const [priority, setPriority] = useState(3)
   const [start, setStart] = useState(true)
@@ -37,96 +49,89 @@ export default function NewTaskScreen() {
       .catch(() => {})
   }, [sync])
 
+  const streams = workstreams.filter((w) => w.name !== 'autopilot').map((w) => w.name)
+  const priorityLabel = PRIORITIES.find((p) => p.value === priority)?.label ?? 'Normal'
+  const [first = '', ...rest] = text.trim().split('\n')
+  const title = first.trim().slice(0, 120)
+
   const create = () => {
-    if (!sync || !title.trim()) return
+    if (!sync || !title) return
     void sync.send({
       kind: 'create',
-      title: title.trim().slice(0, 120),
-      brief: brief.trim(),
+      title,
+      brief: [first.trim().slice(120), ...rest].join('\n').trim(),
       start,
       priority,
       ...(workstream ? { workstream } : {}),
     })
-    setTitle('')
-    setBrief('')
+    setText('')
     router.back()
   }
 
+  const pickWorkstream = () =>
+    pickFrom('Workstream', ['Automatic', ...streams], workstream ? streams.indexOf(workstream) + 1 : 0, (i) =>
+      setWorkstream(i === 0 ? null : (streams[i - 1] ?? null)),
+    )
+  const pickPriority = () =>
+    pickFrom(
+      'Priority',
+      PRIORITIES.map((p) => p.label),
+      PRIORITIES.findIndex((p) => p.value === priority),
+      (i) => setPriority(PRIORITIES[i]?.value ?? 3),
+    )
+
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: 'New task',
-          headerShadowVisible: false,
-          headerStyle: { backgroundColor: colours.surface },
-          headerTitleStyle: { color: colours.text },
-        }}
-      />
+      <Stack.Screen options={{ title: '', headerTransparent: true, headerShadowVisible: false }} />
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button icon="xmark" accessibilityLabel="Cancel" onPress={() => router.back()} />
       </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          variant="prominent"
-          tintColor={colours.pilot}
-          icon="arrow.up"
-          accessibilityLabel={start ? 'Create and start' : 'Save'}
-          disabled={!title.trim()}
-          onPress={create}
-        />
-      </Stack.Toolbar>
-      <Sides colour={colours.surface}>
-        <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
-          <TextInput
-            style={styles.title}
-            placeholder="Title"
-            placeholderTextColor={colours.text3}
-            value={title}
-            onChangeText={setTitle}
-            maxLength={120}
-            autoFocus
-            accessibilityLabel="Title"
-          />
-          <TextInput
-            style={styles.brief}
-            placeholder="Details for the session"
-            placeholderTextColor={colours.text3}
-            value={brief}
-            onChangeText={setBrief}
-            multiline
-            accessibilityLabel="Brief"
-          />
-          <Text style={[type.meta, styles.label]}>Workstream</Text>
-          <View style={styles.chips}>
-            <Chip label="Automatic" on={workstream === null} onPress={() => setWorkstream(null)} />
-            {workstreams
-              .filter((w) => w.name !== 'autopilot')
-              .map((w) => (
-                <Chip key={w.name} label={w.name} on={workstream === w.name} onPress={() => setWorkstream(w.name)} />
-              ))}
+      <Sides colour={colours.window}>
+        <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.hello}>
+            <Pilot pixel={4} />
+            <Text style={type.heading}>What needs doing?</Text>
           </View>
-          <Text style={[type.meta, styles.label]}>Priority</Text>
-          <View style={styles.chips}>
-            {PRIORITIES.map((p) => (
-              <Chip key={p.value} label={p.label} on={priority === p.value} onPress={() => setPriority(p.value)} />
-            ))}
+          {/* The choices as pills over the box, left-aligned as Claude's are. */}
+          <View style={styles.pills}>
+            <Chip
+              label={workstream ?? 'Automatic'}
+              icon={<SymbolView name="square.stack" size={14} tintColor={colours.text2} />}
+              onPress={pickWorkstream}
+            />
+            <Chip label={priorityLabel} icon={<SymbolView name="chart.bar" size={14} tintColor={colours.text2} />} onPress={pickPriority} />
           </View>
-          <View style={styles.switchRow}>
-            <Text style={styles.switchText}>Start a session right away</Text>
-            <Switch value={start} onValueChange={setStart} trackColor={{ true: colours.pilot }} />
-          </View>
-        </ScrollView>
+          <Composer
+            ready={Boolean(title)}
+            onSend={create}
+            sendLabel={start ? 'Create and start' : 'Save'}
+            tools={
+              <Chip
+                label={start ? 'Start now' : 'Start later'}
+                icon={<SymbolView name={start ? 'play.fill' : 'pause'} size={12} tintColor={colours.text2} />}
+                onPress={() => setStart(!start)}
+              />
+            }
+          >
+            <TextInput
+              style={composerInput}
+              placeholder="Describe a task. The first line is its title."
+              placeholderTextColor={colours.text3}
+              value={text}
+              onChangeText={setText}
+              multiline
+              autoFocus
+              accessibilityLabel="Task"
+            />
+          </Composer>
+        </KeyboardAvoidingView>
       </Sides>
     </>
   )
 }
 
 const styles = StyleSheet.create({
-  form: { padding: 20, gap: 12 },
-  title: { fontSize: 18, fontWeight: '600', color: colours.text, paddingVertical: 8 },
-  brief: { minHeight: 120, fontSize: 16, lineHeight: 22, color: colours.text2, textAlignVertical: 'top' },
-  label: { marginTop: 12 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  switchRow: { marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  switchText: { fontSize: 15, color: colours.textBody },
+  screen: { flex: 1, justifyContent: 'flex-end', padding: 12, paddingBottom: 12, gap: 12 },
+  hello: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
+  pills: { flexDirection: 'row', gap: 8 },
 })

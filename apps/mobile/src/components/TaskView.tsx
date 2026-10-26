@@ -27,7 +27,22 @@ import { useDraft } from '../drafts.ts'
 import { FileChips, useFiles } from '../files.tsx'
 import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
 import { colours, radius, tones, type Tone } from '@autopilot/design'
-import { Avatar, Banner, Button, Chip, Dot, LinkIcon, Markdown, Sides, Tag, bannerText, type } from '../ui.tsx'
+import {
+  Avatar,
+  Banner,
+  Button,
+  Chip,
+  Composer,
+  ComposerTool,
+  Dot,
+  LinkIcon,
+  Markdown,
+  Sides,
+  Tag,
+  bannerText,
+  composerInput,
+  type,
+} from '../ui.tsx'
 
 /** A task: its brief, what waits on you, and its activity; the same in a pushed screen and in the wide split. */
 export const TaskView = ({
@@ -271,34 +286,30 @@ export const TaskView = ({
           ))}
         </ScrollView>
         <FileChips files={files.files} onRemove={files.remove} />
-        <View style={styles.composer}>
-          <Pressable style={styles.attach} onPress={files.pick} hitSlop={6} accessibilityRole="button" accessibilityLabel="Attach files">
-            <SymbolView name="paperclip" size={18} tintColor={colours.text2} />
-          </Pressable>
-          <TextInput
-            style={styles.input}
-            placeholder={
-              asking
-                ? 'Answer what you know…'
-                : ask?.kind === 'done'
-                  ? 'Or ask for changes…'
-                  : ask
-                    ? 'Or answer in your own words…'
-                    : item.session && item.session.state !== 'ended'
-                      ? 'Reply to the session…'
-                      : item.session
-                        ? 'Reply to pick it up again…'
-                        : 'Reply to start a session…'
-            }
-            placeholderTextColor={colours.text3}
-            value={text}
-            onChangeText={setText}
-            multiline
-            accessibilityLabel="Reply to Autopilot"
-          />
-          <Pressable style={[styles.send, !ready && { opacity: 0.4 }]} onPress={reply} disabled={!ready} accessibilityLabel="Send">
-            <Text style={styles.sendText}>↑</Text>
-          </Pressable>
+        <View style={styles.composerWrap}>
+          <Composer ready={ready} onSend={reply} tools={<ComposerTool symbol="plus" label="Attach files" onPress={files.pick} />}>
+            <TextInput
+              style={composerInput}
+              placeholder={
+                asking
+                  ? 'Answer what you know…'
+                  : ask?.kind === 'done'
+                    ? 'Or ask for changes…'
+                    : ask
+                      ? 'Or answer in your own words…'
+                      : item.session && item.session.state !== 'ended'
+                        ? 'Reply to the session…'
+                        : item.session
+                          ? 'Reply to pick it up again…'
+                          : 'Reply to start a session…'
+              }
+              placeholderTextColor={colours.text3}
+              value={text}
+              onChangeText={setText}
+              multiline
+              accessibilityLabel="Reply to Autopilot"
+            />
+          </Composer>
         </View>
       </Sides>
     </KeyboardAvoidingView>
@@ -585,24 +596,7 @@ const styles = StyleSheet.create({
   nowDot: { width: 8, height: 8, borderRadius: 4 },
   entry: { gap: 4 },
   avatar: { position: 'absolute', left: -36, top: 0 },
-  composer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    margin: 12,
-    padding: 8,
-    paddingLeft: 6,
-    borderRadius: radius.xl,
-    backgroundColor: colours.raised,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colours.borderStrong,
-  },
-  attach: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
-  // Two lines to start with, room to write a real answer.
-  input: { flex: 1, minHeight: 48, maxHeight: 140, fontSize: 16, color: colours.text, paddingVertical: 6 },
-  // Ink, as the Mac's primary: no colour of its own.
-  send: { width: 34, height: 34, borderRadius: 17, backgroundColor: colours.text, alignItems: 'center', justifyContent: 'center' },
-  sendText: { fontSize: 18, fontWeight: '700', color: colours.surface },
+  composerWrap: { margin: 12 },
 })
 
 /** A long brief folded to its first lines, as on the Mac; Show more opens it. */

@@ -344,6 +344,57 @@ export const Check = ({
   </Pressable>
 )
 
+/**
+ * A box to write in, as Claude's own: the text on top, under it the tools on the left and a round
+ * send on the right. New task and a task's reply both use it.
+ */
+export const Composer = ({
+  children,
+  tools,
+  ready,
+  onSend,
+  sendLabel = 'Send',
+}: {
+  children: ReactNode
+  tools?: ReactNode
+  ready: boolean
+  onSend: () => void
+  sendLabel?: string
+}) => (
+  <View style={styles.composer}>
+    {children}
+    <View style={styles.composerBar}>
+      <View style={styles.composerTools}>{tools}</View>
+      <Pressable
+        style={[styles.composerSend, !ready && styles.disabled]}
+        onPress={onSend}
+        disabled={!ready}
+        accessibilityRole="button"
+        accessibilityLabel={sendLabel}
+      >
+        <SymbolView name="arrow.up" size={16} weight="semibold" tintColor={colours.window} />
+      </Pressable>
+    </View>
+  </View>
+)
+
+/** A round tool in the composer's bar: attach, and the like. */
+export const ComposerTool = ({ symbol, label, onPress }: { symbol: SFSymbol; label: string; onPress: () => void }) => (
+  <Pressable style={styles.composerTool} onPress={onPress} hitSlop={4} accessibilityRole="button" accessibilityLabel={label}>
+    <SymbolView name={symbol} size={17} tintColor={colours.text2} />
+  </Pressable>
+)
+
+/** The composer's text field: grows with what is written, up to a point. */
+export const composerInput = {
+  minHeight: 44,
+  maxHeight: 160,
+  fontSize: 16,
+  lineHeight: 22,
+  color: colours.text,
+  paddingHorizontal: 4,
+} as const
+
 /** Pixel art drawn in squares: the pilot, or Claude. */
 const Mascot = ({
   art,
@@ -433,6 +484,26 @@ export const EmptyList = ({ view }: { view: string | null }) => {
 
 const styles = StyleSheet.create({
   disabled: { opacity: 0.4 },
+  composer: {
+    borderRadius: radius.xl,
+    backgroundColor: colours.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colours.borderStrong,
+    padding: 10,
+    paddingTop: 12,
+    gap: 8,
+  },
+  composerBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  composerTools: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
+  composerTool: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colours.raised,
+  },
+  composerSend: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colours.clay },
   check: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   checkText: { flex: 1, gap: 4 },
   checkDone: { color: colours.text2 },

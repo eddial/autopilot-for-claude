@@ -8,7 +8,6 @@ import {
   SectionList,
   StyleSheet,
   Text,
-  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native'
@@ -19,7 +18,7 @@ import { StatusLine } from '../../../src/components/StatusLine.tsx'
 import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
 import { age, rowMeta } from '../../../src/format.ts'
-import { serverName, unpair, useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
+import { doneItem, rememberDone, serverName, unpair, useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
 import { Bars, EmptyList, Sides, WorkstreamBadge } from '../../../src/ui.tsx'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -77,7 +76,10 @@ export default function QueueScreen() {
   useEffect(() => {
     void sync
       ?.online((api) => api.queue.list({ band: 'done' }))
-      .then((s) => setDone(s.items))
+      .then((s) => {
+        rememberDone(s.items)
+        setDone(s.items)
+      })
       .catch(() => {})
     // view and stillOpen are when to read again, not what is read.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
@@ -121,7 +123,7 @@ export default function QueueScreen() {
     if (split) setSelected(id)
     else router.push({ pathname: '/queue/[id]', params: { id, list: order.join(',') } })
   }
-  const selectedItem = split ? items.find((i) => i.task.id === selected) : undefined
+  const selectedItem = split && selected ? (items.find((i) => i.task.id === selected) ?? doneItem(selected)) : undefined
   const at = selected ? order.indexOf(selected) : -1
   const stepTo = (to: string | undefined) => (to ? () => setSelected(to) : null)
 
@@ -165,33 +167,13 @@ export default function QueueScreen() {
     </View>
   )
 
-  const search = (
-    <View style={styles.search}>
-      <SymbolView name="magnifyingglass" size={15} tintColor={colours.text3} />
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Search"
-        placeholderTextColor={colours.text3}
-        value={filter}
-        onChangeText={setFilter}
-        autoCapitalize="none"
-        autoCorrect={false}
-        clearButtonMode="while-editing"
-        returnKeyType="search"
-        accessibilityLabel="Search tasks"
-      />
-    </View>
-  )
-
   const list = (
     // In the split the list is the left column: the right edge's inset (the Duo's bar) is the task's.
     <Sides edges={split ? ['left'] : undefined}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* The same column as on the Mac: search, then the tabs, then the sections. */}
-        <View style={{ paddingTop: split ? 8 : insets.top + 8, gap: 8 }}>
+        <View style={{ paddingTop: insets.top + 16, gap: 8 }}>
           <StatusLine />
-          {search}
-          {tabs}
           <Text style={styles.caption} numberOfLines={1}>
             <Text style={styles.captionName}>{all ? 'All open' : current?.title}</Text>
             {' · '}
@@ -238,34 +220,37 @@ export default function QueueScreen() {
             <Row item={item} selected={split && item.task.id === selected} status={all} onPress={() => open(item.task.id)} />
           )}
         />
+        {/* The tabs under the list, where the thumb is; search and New in the bar below them. */}
+        {tabs}
       </KeyboardAvoidingView>
     </Sides>
   )
 
   return (
     <>
-      {/* The tab names itself, so there is no title bar; in the split it carries the selected task's actions. */}
+      {/* No title bar: the tabs say where you are. The header stays, empty and see-through, for its buttons. */}
       <Stack.Screen
-        options={
-          split
-            ? // Every key the narrow options set, set back: options merge, so turning the phone would keep a see-through header.
-              {
-                title: all ? 'All open' : (current?.title ?? 'Queue'),
-                headerLargeTitle: false,
-                headerTransparent: false,
-                headerStyle: { backgroundColor: colours.window },
-                scrollEdgeEffects: { top: 'automatic' },
-              }
-            : // The toolbar needs a header; an empty, see-through one puts New in the side bar alone.
-              {
-                title: '',
-                headerLargeTitle: false,
-                headerTransparent: true,
-                headerStyle: { backgroundColor: 'transparent' },
-                scrollEdgeEffects: { top: 'hidden' },
-              }
-        }
+        options={{
+          title: '',
+          headerLargeTitle: false,
+          headerTransparent: true,
+          headerStyle: { backgroundColor: 'transparent' },
+          scrollEdgeEffects: { top: 'hidden' },
+        }}
       />
+      {/* Search folds into the bar at the bottom, beside New: both in reach of the thumb. */}
+      <Stack.SearchBar
+        placeholder="Search"
+        autoCapitalize="none"
+        hideWhenScrolling={false}
+        onChangeText={(e) => setFilter(e.nativeEvent.text)}
+        onCancelButtonPress={() => setFilter('')}
+      />
+      <Stack.Toolbar placement="bottom">
+        <Stack.Toolbar.SearchBarSlot />
+        <Stack.Toolbar.Spacer />
+        <Stack.Toolbar.Button icon="plus" accessibilityLabel="New task" onPress={() => router.push('/new')} />
+      </Stack.Toolbar>
       {selectedItem ? (
         <TaskToolbar
           item={selectedItem}
@@ -273,11 +258,10 @@ export default function QueueScreen() {
           step={at >= 0 ? { previous: stepTo(order[at - 1]), next: stepTo(order[at + 1]) } : undefined}
         />
       ) : (
-        // New task in the side bar, where iOS puts a screen's actions on the Duo; under it, your Mac.
+        // Settings at the top: the phone has none of its own (sources and workstreams are the Mac's), just your Mac:
+        // how it is reached, and a way to unpair. Syncing runs by itself.
         <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Button icon="plus" accessibilityLabel="New task" onPress={() => router.push('/new')} />
-          {/* No settings of its own (sources and workstreams are the Mac's): just your Mac: how it is reached, and a way to unpair. Syncing runs by itself. */}
-          <Stack.Toolbar.Menu icon="desktopcomputer" accessibilityLabel="Your Mac" title={macTitle(syncState)}>
+          <Stack.Toolbar.Menu icon="gearshape" accessibilityLabel="Settings" title={macTitle(syncState)}>
             <Stack.Toolbar.MenuAction
               icon="xmark"
               destructive
@@ -368,7 +352,15 @@ const BAND_SYMBOL: Record<QueueItem['band'], SFSymbol> = {
 const styles = StyleSheet.create({
   caption: { marginHorizontal: 20, fontSize: 13, color: colours.text3 },
   captionName: { fontWeight: '500', color: colours.text2 },
-  tabs: { flexDirection: 'row', gap: 2, marginHorizontal: 12, marginTop: 4, padding: 3, borderRadius: 12, backgroundColor: colours.well },
+  tabs: {
+    flexDirection: 'row',
+    gap: 2,
+    marginHorizontal: 12,
+    marginVertical: 8,
+    padding: 3,
+    borderRadius: 12,
+    backgroundColor: colours.well,
+  },
   tab: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 34, borderRadius: 9 },
   // Lifted off the well, as the Mac's.
   tabOn: {
@@ -384,17 +376,6 @@ const styles = StyleSheet.create({
   section: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 8 },
   sectionName: { fontSize: 14, fontWeight: '500', color: colours.text2 },
   sectionCount: { marginLeft: 'auto', fontSize: 13, color: colours.text3 },
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginHorizontal: 12,
-    paddingHorizontal: 12,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colours.surface,
-  },
-  searchInput: { flex: 1, fontSize: 16, color: colours.text },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',

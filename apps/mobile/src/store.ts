@@ -135,6 +135,16 @@ export const useSyncState = (): SyncState => {
   )
 }
 
+/**
+ * Done tasks as last read from the Mac. The phone keeps no copy of closed work, but one opened
+ * from the Done tab still needs its row; its conversation is fetched like any other.
+ */
+let doneItems: QueueItem[] = []
+export const rememberDone = (items: QueueItem[]): void => {
+  doneItems = items
+}
+export const doneItem = (taskId: string): QueueItem | undefined => doneItems.find((i) => i.task.id === taskId)
+
 /** The queue as shown: the cache with the outbox on top, recomputed each minute for snoozes. */
 export const useItems = (): QueueItem[] => {
   const { queue, outbox } = useSyncState()

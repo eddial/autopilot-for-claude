@@ -3,7 +3,7 @@ import { Text, View } from 'react-native'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
-import { useItems } from '../../../src/store.ts'
+import { doneItem, useItems } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
 
 /** A way to another task in the same screen, or none at the end of the list. */
@@ -15,7 +15,7 @@ export default function TaskScreen() {
   const order = list ? list.split(',') : []
   const at = order.indexOf(id)
   const step = at >= 0 ? { previous: go(order[at - 1]), next: go(order[at + 1]) } : undefined
-  const item = useItems().find((i) => i.task.id === id)
+  const item = useItems().find((i) => i.task.id === id) ?? doneItem(id)
   const [titleOff, setTitleOff] = useState(false)
   if (!item) {
     return (
