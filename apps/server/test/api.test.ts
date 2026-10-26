@@ -46,6 +46,7 @@ beforeAll(async () => {
       pause: () => {
         throw new Error('no signals')
       },
+      remove: () => [],
     },
     machine: () => ({
       id: 'local',

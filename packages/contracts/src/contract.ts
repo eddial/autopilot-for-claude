@@ -22,6 +22,7 @@ import {
   MatchItems,
   PairDevice,
   PauseSignal,
+  RemoveSignal,
   PostUpdate,
   RemoveDevice,
   RemoveWatcher,
@@ -229,6 +230,8 @@ export const contract = {
     /** A one-time import of what is still open at the source (`autopilot import linear`). */
     import: base.meta({ scopes: OWNER }).input(ImportSignal).output(z.array(Decision)),
     pause: base.meta({ scopes: OWNER }).input(PauseSignal).output(Signal),
+    /** Takes a source out of the home (into `retired/`, where it can be put back); its tasks stay. Every source after. */
+    remove: base.meta({ scopes: OWNER }).input(RemoveSignal).output(z.array(Signal)),
     /** The example signals onboarding offers, and whether each is added. */
     examples: base.meta({ scopes: OWNER }).output(z.array(SignalExample)),
     /** Copies an example into the home, paused until it is resumed. */

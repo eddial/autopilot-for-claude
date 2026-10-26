@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Decision, Detected, QueueItem, SetupStatus, SignalExample, Workstream } from '@autopilot/contracts'
 import { signalName } from '@autopilot/client'
 import { api, key } from '../api.ts'
-import { Banner, Button, Dot, Meta, Pilot, Row } from '../ui.tsx'
+import { Banner, Button, Dot, Meta, NavIcon, Pilot, Row } from '../ui.tsx'
 import { Devices } from './Devices.tsx'
 import { Sources } from './Sources.tsx'
 import { WorkstreamsEditor } from './Workstreams.tsx'
@@ -296,7 +296,8 @@ export const Setup = ({ items, workstreams, onWorkstreams, onOpen, onDone }: Pro
         <div className="page narrow settings">
           <div className="settings-head">
             <h1 className="serif">Settings</h1>
-            <Button kind="quiet" onClick={() => walk(0)}>
+            <Button kind="tool" className="with-icon" onClick={() => walk(0)}>
+              <NavIcon name="again" size={14} />
               Run set-up again
             </Button>
           </div>
@@ -338,18 +339,22 @@ export const Setup = ({ items, workstreams, onWorkstreams, onOpen, onDone }: Pro
 
           {settingsTab === 'workstreams' && (
             <>
-              <WorkstreamsEditor workstreams={workstreams} items={items} onChange={onWorkstreams} />
-              <div className="settings-actions">
-                <Button
-                  kind="tool"
-                  onClick={() => {
-                    walk(2)
-                    void startSweep()
-                  }}
-                >
-                  Look through two weeks for more
-                </Button>
-              </div>
+              <WorkstreamsEditor
+                workstreams={workstreams}
+                items={items}
+                onChange={onWorkstreams}
+                actions={
+                  <Button
+                    kind="tool"
+                    onClick={() => {
+                      walk(2)
+                      void startSweep()
+                    }}
+                  >
+                    Look through two weeks for more
+                  </Button>
+                }
+              />
             </>
           )}
 

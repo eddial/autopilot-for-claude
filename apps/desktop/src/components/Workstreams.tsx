@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { QueueItem, Workstream } from '@autopilot/contracts'
 import { api, key } from '../api.ts'
-import { Banner, Button, Meta } from '../ui.tsx'
+import { Bars, Banner, Button, Meta, WorkstreamMark } from '../ui.tsx'
 
 /** What each autonomy level lets a workstream's sessions do, in the owner's words. */
 export const AUTONOMY = ['', 'Files only', 'Prepares when started', 'Starts by itself', 'Finishes within its rules']
@@ -50,6 +50,7 @@ const WorkstreamCard = ({
   onCancel?: () => void
 }) => {
   const [editing, setEditing] = useState(workstream === null)
+  const [full, setFull] = useState(false)
   const [draft, setDraft] = useState(() => draftOf(workstream))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -90,12 +91,14 @@ const WorkstreamCard = ({
     }
   }
 
-  if (!editing && workstream)
+  if (!editing && workstream) {
+    const routing = unwrap(workstream.routing)
     return (
-      <div className="card">
-        <div className="card-head">
-          <span className="name">{workstream.name}</span>
-          <span className="meta">
+      <li className="settings-row">
+        <WorkstreamMark name={workstream.name} />
+        <div className="settings-row-main">
+          <span className="settings-row-name">{workstream.name}</span>
+          <Meta as="span">
             {AUTONOMY[workstream.autonomy]} ·{' '}
             {workstream.repo
               ? `worktrees of ${tilde(workstream.repo)}`
@@ -103,22 +106,34 @@ const WorkstreamCard = ({
                 ? `in ${tilde(workstream.folder)}`
                 : 'in its own folders'}{' '}
             · {open} open
-          </span>
-          <div className="actions">
-            <Button kind="tool" onClick={() => setEditing(true)}>
-              Edit
-            </Button>
-          </div>
+          </Meta>
         </div>
-        <Meta top={3} className="prose">
-          {unwrap(workstream.routing)}
-          {workstream.urgent ? `\nUrgent: ${workstream.urgent}` : ''}
-        </Meta>
-      </div>
+        <div className="settings-row-actions">
+          <Button kind="tool" onClick={() => setEditing(true)}>
+            Edit
+          </Button>
+        </div>
+        {/* What lands here, a few lines until opened; when it is urgent, under it. */}
+        <div className="settings-row-note">
+          <p className={`prose routing${full ? '' : ' clamped'}`}>{routing}</p>
+          {routing.length > 240 && (
+            <Button kind="link" onClick={() => setFull((f) => !f)}>
+              {full ? 'Show less' : 'Show more'}
+            </Button>
+          )}
+          {workstream.urgent && (
+            <p className="urgent-when">
+              <Bars priority={1} />
+              {workstream.urgent}
+            </p>
+          )}
+        </div>
+      </li>
     )
+  }
 
   return (
-    <div className="card workstream-draft">
+    <li className="settings-row workstream-draft">
       <div className="card-head">
         {workstream ? (
           <span className="name">{workstream.name}</span>
@@ -202,50 +217,58 @@ const WorkstreamCard = ({
           {busy ? 'Saving…' : 'Save'}
         </Button>
       </div>
-    </div>
+    </li>
   )
 }
 
-/** Every workstream, each editable in place, and a way to add one. */
+/** Every workstream, each editable in place, and a way to add one beside any other `actions`. */
 export const WorkstreamsEditor = ({
   workstreams,
   items,
   onChange,
+  actions,
 }: {
   workstreams: Workstream[]
   items: QueueItem[]
   onChange: (all: Workstream[]) => void
+  actions?: ReactNode
 }) => {
   const [adding, setAdding] = useState(false)
   const saved = (w: Workstream) =>
     onChange(workstreams.some((x) => x.name === w.name) ? workstreams.map((x) => (x.name === w.name ? w : x)) : [...workstreams, w])
   return (
     <>
-      {workstreams.map((w) => (
-        <WorkstreamCard
-          key={w.name}
-          workstream={w}
-          open={items.filter((i) => i.task.workstream === w.name).length}
-          onSaved={saved}
-          onRemoved={onChange}
-        />
-      ))}
-      {adding ? (
-        <WorkstreamCard
-          workstream={null}
-          open={0}
-          onSaved={(w) => {
-            saved(w)
-            setAdding(false)
-          }}
-          onRemoved={onChange}
-          onCancel={() => setAdding(false)}
-        />
-      ) : (
-        <Button kind="tool" onClick={() => setAdding(true)}>
-          Add a workstream
-        </Button>
-      )}
+      <ul className="settings-list" aria-label="Workstreams">
+        {workstreams.map((w) => (
+          <WorkstreamCard
+            key={w.name}
+            workstream={w}
+            open={items.filter((i) => i.task.workstream === w.name).length}
+            onSaved={saved}
+            onRemoved={onChange}
+          />
+        ))}
+        {adding && (
+          <WorkstreamCard
+            workstream={null}
+            open={0}
+            onSaved={(w) => {
+              saved(w)
+              setAdding(false)
+            }}
+            onRemoved={onChange}
+            onCancel={() => setAdding(false)}
+          />
+        )}
+      </ul>
+      <div className="settings-actions">
+        {!adding && (
+          <Button kind="tool" onClick={() => setAdding(true)}>
+            Add a workstream
+          </Button>
+        )}
+        {actions}
+      </div>
     </>
   )
 }

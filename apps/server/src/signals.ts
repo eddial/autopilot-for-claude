@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { FileItem, SuggestedWorkstream, type Decision, type Signal, type Workstream } from '@autopilot/contracts'
@@ -273,6 +273,15 @@ export class Signals {
     }
     this.save(name, { ...this.state(name), paused })
     return this.toSignal(file)
+  }
+
+  /** Takes a source out: its file moves to `retired/signals`, where it can be put back. Its tasks stay. */
+  remove(name: string): Signal[] {
+    this.file(name)
+    const retired = join(this.o.paths.home, 'retired', 'signals')
+    mkdirSync(retired, { recursive: true })
+    renameSync(join(this.o.paths.home, 'signals', `${name}.md`), join(retired, `${name}.md`))
+    return this.list()
   }
 
   /**

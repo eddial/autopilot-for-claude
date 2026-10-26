@@ -136,6 +136,21 @@ const NAV_ICONS = {
       <path d="M7.5 16.5h5M10 13.5v3" />
     </>
   ),
+  /** Three dots: more for this row. */
+  ellipsis: (
+    <>
+      <circle cx="5" cy="10" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="10" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="10" r="1.1" fill="currentColor" stroke="none" />
+    </>
+  ),
+  /** A turning arrow: go through it again. */
+  again: (
+    <>
+      <path d="M15.75 10a5.75 5.75 0 1 1-1.7-4.07" />
+      <path d="M14.5 3.25v3.25h-3.25" />
+    </>
+  ),
   setup: (
     <>
       <path d="M3.5 6.5h7M14.5 6.5h2M3.5 13.5h2M9.5 13.5h7" />

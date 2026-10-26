@@ -186,6 +186,9 @@ export const SetWorkspace = command({ path: z.string().min(1) })
 
 export const PauseSignal = command({ name: z.string(), paused: z.boolean() })
 
+/** Stops listening to a source for good; the tasks it filed stay. */
+export const RemoveSignal = command({ name: z.string() })
+
 /** From the new device, with the code from the invite. The device gets its own token back. */
 export const PairDevice = command({
   code: z.string().min(6).max(64),

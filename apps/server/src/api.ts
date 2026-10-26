@@ -28,6 +28,7 @@ export type SignalsApi = {
   importOpen(name: string, dry: boolean): Promise<Decision[]>
   sweep(names: string[], days: number): Promise<SuggestedWorkstream[]>
   pause(name: string, paused: boolean): Signal
+  remove(name: string): Signal[]
 }
 
 export type Deps = {
@@ -257,6 +258,7 @@ export const createRouter = ({
       run: guarded.signals.run.handler(({ input }) => signals.run(input.name, input.dryMinutes)),
       import: guarded.signals.import.handler(({ input }) => signals.importOpen(input.name, input.dry)),
       pause: guarded.signals.pause.handler(({ input }) => signals.pause(input.name, input.paused)),
+      remove: guarded.signals.remove.handler(({ input }) => signals.remove(input.name)),
       examples: guarded.signals.examples.handler(() => setup.signalExamples()),
       add: guarded.signals.add.handler(async ({ input }) => {
         await setup.addSignal(input.name, input.values)

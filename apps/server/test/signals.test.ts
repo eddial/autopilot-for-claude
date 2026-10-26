@@ -150,6 +150,15 @@ describe('switching a signal on', () => {
   })
 })
 
+describe('removing a signal', () => {
+  it('moves its file to retired, where it can be put back', () => {
+    const { signals, dir } = setup(() => Promise.resolve({ items: [] }))
+    writeFileSync(join(dir, 'home', 'signals', 'slack.md'), '---\nevery: 5m\n---\nDMs.\n')
+    expect(signals.remove('slack')).toEqual([])
+    expect(readFileSync(join(dir, 'home', 'retired', 'signals', 'slack.md'), 'utf8')).toBe('---\nevery: 5m\n---\nDMs.\n')
+  })
+})
+
 describe('signal health', () => {
   it('reports a signal failing for an hour and three runs once, and closes it when it runs again', async () => {
     let fail = true

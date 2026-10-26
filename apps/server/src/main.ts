@@ -149,6 +149,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
       importOpen: (name, dry) => signals.importOpen(name, dry),
       sweep: (names, days) => signals.sweep(names, days),
       pause: (name, paused) => signals.pause(name, paused),
+      remove: (name) => signals.remove(name),
     },
     machine,
     applyRouting: (changes) => routing.apply(changes),
