@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef } from 'react'
 import { Text, View } from 'react-native'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
@@ -16,7 +16,6 @@ export default function TaskScreen() {
   const at = order.indexOf(id)
   const step = at >= 0 ? { previous: go(order[at - 1]), next: go(order[at + 1]) } : undefined
   const item = useItems().find((i) => i.task.id === id) ?? doneItem(id)
-  const [titleOff, setTitleOff] = useState(false)
   const pageTop = useRef<(() => void) | null>(null)
   const toTop = useCallback((scrollUp: () => void) => {
     pageTop.current = scrollUp
@@ -31,12 +30,11 @@ export default function TaskScreen() {
   }
   return (
     <>
-      {/* The bar says the title once the page has scrolled past it, as iOS does with its own titles. */}
-      <Stack.Screen
-        options={{ title: titleOff ? item.task.title : '', headerLargeTitle: false, headerStyle: { backgroundColor: colours.well } }}
-      />
+      {/* The bar says the title from the start: setting it once the page had jumped to its end moved
+          everything down a beat after the screen slid in. */}
+      <Stack.Screen options={{ title: item.task.title, headerLargeTitle: false, headerStyle: { backgroundColor: colours.well } }} />
       <TaskToolbar item={item} closeAfter step={step} onTop={() => pageTop.current?.()} />
-      <TaskView key={item.task.id} item={item} onTitleOff={setTitleOff} onTop={toTop} />
+      <TaskView key={item.task.id} item={item} onTop={toTop} />
     </>
   )
 }

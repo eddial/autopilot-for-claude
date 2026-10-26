@@ -322,6 +322,8 @@ export class Launcher {
     if (live?.sessionId === sessionId) this.live.delete(taskId)
     service.setSession(sessionId, { state: 'ended', activity: null })
     service.revokeTaskTokens(taskId)
+    const cwd = service.session(sessionId)?.cwd
+    if (cwd) release(cwd)
     // Stopped at a startup screen: that was already reported.
     if (live?.sessionId === sessionId && live.stuck) return
     const detail = service.getTask(taskId)
@@ -401,11 +403,33 @@ export class Launcher {
   }
 }
 
+/**
+ * A session's worktree gives up its branch when the session ends, keeping its files and commits:
+ * Claude on the Mac resumes the session in a worktree of its own, on the same branch, and git
+ * checks a branch out in one folder only. The next session here takes the branch back.
+ */
+const release = (cwd: string): void => {
+  if (!cwd.includes(`${join('.claude', 'worktrees')}/`)) return
+  try {
+    execFileSync('git', ['-C', cwd, 'switch', '--detach'], { stdio: 'ignore' })
+  } catch {
+    // Not a worktree any more, or already detached: nothing holds the branch.
+  }
+}
+
 /** A worktree of `repo` for the task, on `claude/<id>`, made the first time and reused after. */
 const worktree = (repo: string, id: string): { cwd: string; branch: string } => {
   const cwd = join(repo, '.claude', 'worktrees', id)
   const branch = `claude/${id.toLowerCase()}`
-  if (!existsSync(cwd)) {
+  if (existsSync(cwd)) {
+    try {
+      // Back on the branch a previous session released; if Claude on the Mac has it open there,
+      // this session works from the same commit, detached, until that one lets go.
+      execFileSync('git', ['-C', cwd, 'switch', branch], { stdio: 'ignore' })
+    } catch {
+      // Held elsewhere, or the folder is not a worktree: run as it is.
+    }
+  } else {
     const exists = (() => {
       try {
         execFileSync('git', ['-C', repo, 'rev-parse', '--verify', '--quiet', branch], { stdio: 'ignore' })

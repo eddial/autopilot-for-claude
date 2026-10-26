@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { router, Stack } from 'expo-router'
+import { DarkTheme, router, Stack, ThemeProvider } from 'expo-router'
 import * as Notifications from 'expo-notifications'
 import { StatusBar } from 'expo-status-bar'
 import {
@@ -15,6 +15,11 @@ import {
 } from '../src/store.ts'
 import { colours } from '@autopilot/design'
 import { colourScheme } from '../src/theme.ts'
+
+const NAV_THEME = {
+  ...DarkTheme,
+  colors: { ...DarkTheme.colors, background: colours.well, card: colours.well, border: colours.border, text: colours.text },
+}
 
 export default function Root() {
   // Ready at once when the pairing and cache were read before the first frame (the usual case).
@@ -59,7 +64,9 @@ export default function Root() {
 
   if (!ready) return null
   return (
-    <>
+    // The navigator's own ground, behind every screen and every transition: ours, not the default
+    // white that showed at the corners while a screen slid in.
+    <ThemeProvider value={NAV_THEME}>
       <StatusBar style={colourScheme === 'light' ? 'dark' : 'light'} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colours.well } }}>
         <Stack.Screen name="index" />
@@ -71,6 +78,6 @@ export default function Root() {
           <Stack.Screen name="pair" />
         </Stack.Protected>
       </Stack>
-    </>
+    </ThemeProvider>
   )
 }

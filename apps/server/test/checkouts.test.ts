@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { CreateTask } from '@autopilot/contracts'
+import { CreateTask, Instruct } from '@autopilot/contracts'
 import { describe, expect, it } from 'vitest'
 import { loadCheckouts, saveWorkspace } from '../src/checkouts.ts'
 import { openDatabase } from '../src/db.ts'
@@ -67,6 +67,41 @@ describe('where a session works', () => {
       join(dir, 'Autopilot', '.claude', 'worktrees', 'AP-2'),
     ])
     expect(existsSync(join(dir, 'Autopilot', '.claude', 'worktrees', 'AP-2', '.git'))).toBe(true)
+  })
+
+  it('frees the branch when a session ends, so Claude on the Mac can resume it, and takes it back to start again', async () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'ap-release-')))
+    const paths = resolvePaths({ AUTOPILOT_DATA: join(dir, 'data'), AUTOPILOT_HOME: join(dir, 'home') })
+    const service = new Service({ db: openDatabase(':memory:') })
+    const exits: ((e: { exitCode: number }) => void)[] = []
+    const pty: Pty = { pid: 1, write: () => {}, kill: () => {}, onData: () => {}, onExit: (f) => void exits.push(f) }
+    const workspace = join(dir, 'Autopilot')
+    const launcher = new Launcher({
+      service,
+      paths,
+      workstreams: () => [],
+      spawn: () => pty,
+      self: { node: process.execPath, script: 'autopilot.js' },
+      checkouts: () => ({ repos: {}, fallback: null }),
+      workspace: () => workspace,
+    })
+    const task = service.createTask(CreateTask.parse({ idempotencyKey: 'rl-000001', title: 'Draft the update' }))
+    await launcher.drain()
+    const tree = join(workspace, '.claude', 'worktrees', task.id)
+    const head = () => execFileSync('git', ['-C', tree, 'rev-parse', '--abbrev-ref', 'HEAD'], { encoding: 'utf8' }).trim()
+    expect(head()).toBe('claude/ap-1')
+
+    exits[0]?.({ exitCode: 0 })
+    expect(head()).toBe('HEAD')
+    // What Claude on the Mac does to resume it: the branch in a folder of its own.
+    const elsewhere = join(dir, 'resumed')
+    execFileSync('git', ['-C', workspace, 'worktree', 'add', elsewhere, 'claude/ap-1'], { stdio: 'ignore' })
+    execFileSync('git', ['-C', workspace, 'worktree', 'remove', elsewhere], { stdio: 'ignore' })
+
+    // A reply after it ended starts the next session there.
+    service.instruct(Instruct.parse({ idempotencyKey: 'rl-000002', taskId: task.id, body: 'carry on' }))
+    await launcher.drain()
+    expect({ sessions: exits.length, head: head() }).toEqual({ sessions: 2, head: 'claude/ap-1' })
   })
 
   it('keeps a server with data of its own, as in tests, out of ~/Autopilot', () => {

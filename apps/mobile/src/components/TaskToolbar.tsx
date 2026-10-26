@@ -46,7 +46,6 @@ export const TaskToolbar = ({
   // back to the top goes first, so the way through the list stays out of the overflow menu.
   const short = useWindowDimensions().height < 500
   const { task, session } = item
-  const live = session && session.state !== 'ended' ? session : null
   const closed = item.band === 'done'
   // Before I start in the timeline starts it when the first look has questions: one Start, there.
   const detail = useDetail(task.id)
@@ -60,22 +59,17 @@ export const TaskToolbar = ({
       {/* Each its own item, directly in the toolbar: the native bar ignores fragments inside it. */}
       <Stack.Toolbar placement="right">
         {session ? (
-          // Into the Claude session, as the Mac's Open session: through Remote Control while it runs. An
-          // ended one is kept on the Mac, so the phone says how to pick it up instead of doing nothing.
+          // Into the Claude session, as the Mac's Open session: its Remote Control link, kept after it ends,
+          // opens the conversation in the Claude app. Replying here starts it again.
           <Stack.Toolbar.Button
             variant="prominent"
             tintColor={colours.text}
             icon="arrow.up.forward.app"
             accessibilityLabel="Open session"
             onPress={() =>
-              live?.remoteControlUrl
-                ? void Linking.openURL(live.remoteControlUrl)
-                : Alert.alert(
-                    live ? 'The session is starting' : 'The session has ended',
-                    live
-                      ? 'It opens here through Remote Control once Claude is ready, in a moment.'
-                      : 'Reply below to pick it up again; it opens here once it runs. On your Mac it opens in Claude.',
-                  )
+              session.remoteControlUrl
+                ? void Linking.openURL(session.remoteControlUrl)
+                : Alert.alert('The session is starting', 'It opens here through Remote Control once Claude is ready, in a moment.')
             }
           />
         ) : item.band === 'new' && !asking ? (
