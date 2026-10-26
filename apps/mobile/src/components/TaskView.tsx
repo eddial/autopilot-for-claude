@@ -91,7 +91,16 @@ export const TaskView = ({ item, onTitleOff }: { item: QueueItem; onTitleOff?: (
           <Links update={u} />
         </Entry>
       ) : (
-        <Entry key={u.id} label={updateLabel(u)} by={updateAuthor(u)} at={age(u.createdAt)} who={u.author} body={u.body}>
+        <Entry
+          key={u.id}
+          label={updateLabel(u)}
+          by={updateAuthor(u)}
+          at={age(u.createdAt)}
+          who={u.author}
+          body={u.body}
+          // The newest shows in full; older long ones fold.
+          folds={u !== activity.at(-1) || ask !== null || asking}
+        >
           <Links update={u} />
         </Entry>
       ),
@@ -438,6 +447,7 @@ const Entry = ({
   sending,
   event,
   card,
+  folds,
   children,
 }: {
   label: string
@@ -451,6 +461,8 @@ const Entry = ({
   event?: boolean
   /** What waits on you: its words and answers in a card on the rail. */
   card?: boolean
+  /** An older long entry: its first lines, the rest on a tap, as on the Mac. */
+  folds?: boolean
   children?: ReactNode
 }) => (
   <View style={[styles.entry, sending && { opacity: 0.6 }]}>
@@ -468,7 +480,13 @@ const Entry = ({
         <Text style={{ color: colours.text2 }}>{label}</Text>
         {event ? (body ? ` ${body}` : '') : by ? ` · ${by}` : ''} · {at}
       </Text>
-      {event ? null : who === 'owner' && isPaste(body) ? <Pasted text={body} /> : <Markdown text={body} onLink={open} />}
+      {event ? null : who === 'owner' && isPaste(body) ? (
+        <Pasted text={body} />
+      ) : folds ? (
+        <Folded text={body} onLink={open} />
+      ) : (
+        <Markdown text={body} onLink={open} />
+      )}
       {children}
     </View>
   </View>

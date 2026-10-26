@@ -24,7 +24,7 @@ const snoozeTimes = (): { label: string; until: Date }[] => {
 
 /**
  * A task's actions as native bar items, in the order PRODUCT.md gives for the Duo's vertical bar:
- * the prominent action (Open session, or Start), then Snooze and Done.
+ * the prominent action (Open session, or Start) in ink as on the Mac, then Snooze and Done.
  */
 export const TaskToolbar = ({
   item,
@@ -51,7 +51,7 @@ export const TaskToolbar = ({
       {live?.remoteControlUrl ? (
         <Stack.Toolbar.Button
           variant="prominent"
-          tintColor={colours.clay}
+          tintColor={colours.text}
           icon="arrow.up.forward.app"
           accessibilityLabel="Open session"
           onPress={() => void Linking.openURL(live.remoteControlUrl ?? '')}
@@ -59,7 +59,7 @@ export const TaskToolbar = ({
       ) : item.band === 'new' && !asking ? (
         <Stack.Toolbar.Button
           variant="prominent"
-          tintColor={colours.pilot}
+          tintColor={colours.text}
           icon="play.fill"
           accessibilityLabel="Start"
           onPress={() => void sync?.send({ kind: 'start', taskId: task.id })}

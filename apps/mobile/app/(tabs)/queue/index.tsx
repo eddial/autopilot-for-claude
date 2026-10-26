@@ -137,7 +137,7 @@ export default function QueueScreen() {
   const tabs = (
     <View style={styles.tabs} accessibilityRole="tablist">
       {/* As on the Mac: each status, then All; every tab its symbol and count. */}
-      {[...VIEWS, { id: 'all' as const, title: 'All open', symbol: 'square.stack' as SFSymbol }].map((v) => {
+      {[...VIEWS, { id: 'all' as const, title: 'All open', symbol: 'square.3.layers.3d' as SFSymbol }].map((v) => {
         const on = v.id === 'all' ? all : !all && v.id === view
         const count = v.id === 'all' ? openItems.length : counts[v.id]
         return (
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
   },
   tabCount: { fontSize: 14, color: colours.text3, fontVariant: ['tabular-nums'] },
   section: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 8 },
-  sectionName: { fontSize: 14, color: colours.text2, fontFamily: 'Menlo' },
+  sectionName: { fontSize: 14, fontWeight: '500', color: colours.text2 },
   sectionCount: { marginLeft: 'auto', fontSize: 13, color: colours.text3 },
   search: {
     flexDirection: 'row',
