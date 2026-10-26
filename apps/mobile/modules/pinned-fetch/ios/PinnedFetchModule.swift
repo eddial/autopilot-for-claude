@@ -5,6 +5,8 @@ import Foundation
 /// HTTPS to the paired Mac. Its certificate is self-signed, so trust comes from its SHA-256
 /// fingerprint, which the pairing invite carried, not from a certificate authority: any other
 /// certificate is refused, whatever signed it. The same check as `nodePinnedFetch` on the Mac.
+/// App Transport Security would refuse that certificate on a Tailscale address before this check
+/// runs (only local-network addresses are exempt), so app.json turns it off: this is the check.
 public class PinnedFetchModule: Module {
   private var tasks: [String: URLSessionDataTask] = [:]
   private let lock = NSLock()

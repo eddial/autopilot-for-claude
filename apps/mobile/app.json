@@ -14,7 +14,7 @@
       "infoPlist": {
         "NSLocalNetworkUsageDescription": "Autopilot talks to your Mac on your home network.",
         "NSCameraUsageDescription": "Autopilot scans the pairing code your Mac shows.",
-        "NSAppTransportSecurity": { "NSAllowsLocalNetworking": true },
+        "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": true },
         "UIBackgroundModes": ["fetch", "processing"],
         "ITSAppUsesNonExemptEncryption": false
       }
