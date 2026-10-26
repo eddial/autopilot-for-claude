@@ -3,7 +3,8 @@ import type { QueueItem, Signal, Workstream } from '@autopilot/contracts'
 import { attentionKey } from '@autopilot/client'
 import { api, shell } from './api.ts'
 import { NewTask } from './components/NewTask.tsx'
-import { QueueList } from './components/QueueList.tsx'
+import { CatchUp } from './components/CatchUp.tsx'
+import { listOrder, QueueList } from './components/QueueList.tsx'
 import { Setup } from './components/Setup.tsx'
 import { TaskPane } from './components/TaskPane.tsx'
 import { Button, Dot, NavIcon, Pilot } from './ui.tsx'
@@ -58,6 +59,10 @@ export const App = () => {
   const [all, setAll] = useState(false)
   const [view, setView] = useState<View>({ kind: 'task' })
   const [selected, setSelected] = useState<string | null>(null)
+  // Catching up: the tasks that need you when it started, and which one is showing.
+  const [catchUp, setCatchUp] = useState<{ ids: string[]; at: number } | null>(null)
+  // Where the open task sat in its tab when it was picked, to keep it there once it leaves.
+  const [stay, setStay] = useState<{ id: string; tab: QueueView; all: boolean; at: number } | null>(null)
   const [showingTask, setShowingTask] = useState(false)
   const [listWidth, setListWidth] = useState(() => stored('listWidth', 420))
   const [workstreams, setWorkstreams] = useState<Workstream[]>([])
@@ -104,6 +109,13 @@ export const App = () => {
     document.body.dataset.connection = connection
   }, [connection])
 
+  // What the tab lists without the task kept in place, and, for picking one, where each sits.
+  const inTab = useMemo(() => tabItems(tab, items, done, all), [tab, items, done, all])
+  const where = useRef({ tab, all, ids: [] as string[] })
+  useEffect(() => {
+    where.current = { tab, all, ids: inTab.map((i) => i.task.id) }
+  }, [tab, all, inTab])
+
   // Stable, so list rows that did not change skip rendering.
   const openTask = useCallback((id: string) => {
     setView({ kind: 'task' })
@@ -112,12 +124,44 @@ export const App = () => {
   }, [])
   // Picking a task from the list while a place (Settings, New task) is open goes back to tasks.
   const selectTask = useCallback((id: string) => {
+    const { tab: on, all: every, ids } = where.current
+    setStay({ id, tab: on, all: every, at: Math.max(0, ids.indexOf(id)) })
     setSelected(id)
     setView((v) => (v.kind === 'task' ? v : { kind: 'task' }))
   }, [])
   useAttention(items, openTask)
 
-  const listed = useMemo(() => tabItems(tab, items, done, all), [tab, items, done, all])
+  // The open task stays where it was in its tab after it leaves it (you answered, so it runs), so
+  // you see your reply land; it goes when you move on or change tab.
+  const lingering =
+    stay && stay.id === selected && stay.tab === tab && stay.all === all && !inTab.some((i) => i.task.id === stay.id) ? stay : null
+  const listed = useMemo(() => {
+    const item = lingering ? [...items, ...done].find((i) => i.task.id === lingering.id) : undefined
+    if (!lingering || !item) return inTab
+    return [...inTab.slice(0, lingering.at), item, ...inTab.slice(lingering.at)]
+  }, [inTab, lingering, items, done])
+
+  // Next and previous in the list as it reads, from anywhere: ⌘] and ⌘[, or the Next button.
+  const ordered = useMemo(() => listOrder(listed), [listed])
+  const at = ordered.findIndex((i) => i.task.id === selected)
+  const nextItem = at >= 0 ? (ordered[at + 1] ?? null) : null
+  const step = useCallback(
+    (delta: number) => {
+      const target = ordered[Math.min(ordered.length - 1, Math.max(0, at + delta))]
+      if (target && target.task.id !== selected) selectTask(target.task.id)
+    },
+    [ordered, at, selected, selectTask],
+  )
+  useEffect(() => {
+    const keys = (e: KeyboardEvent) => {
+      if (catchUp || !(e.metaKey || e.ctrlKey) || (e.key !== ']' && e.key !== '[')) return
+      e.preventDefault()
+      step(e.key === ']' ? 1 : -1)
+    }
+    window.addEventListener('keydown', keys)
+    return () => window.removeEventListener('keydown', keys)
+  }, [step, catchUp])
+  const startCatchUp = () => setCatchUp({ ids: listOrder(tabItems('needs_me', items, done)).map((i) => i.task.id), at: 0 })
   const counts = useMemo(() => {
     const counted: Partial<Record<QueueView | 'all', number>> = { all: tabItems(tab, items, done, true).length }
     for (const q of QUEUE_VIEWS) if (q.id !== 'done') counted[q.id] = tabItems(q.id, items, done).length
@@ -168,46 +212,72 @@ export const App = () => {
 
   return (
     <div className={`app${showingTask ? ' showing-task' : ''}`}>
-      <QueueList
-        tab={tab}
-        all={all}
-        onTab={switchTab}
-        counts={counts}
-        items={listed}
-        view={view}
-        go={go}
-        selected={selected}
-        onSelect={selectTask}
-        onOpen={openTask}
-        width={listWidth}
-        banner={banner}
-        showingTasks={view.kind === 'task'}
-      />
-      <div className="grip" role="separator" aria-label="Resize list" aria-orientation="vertical" onPointerDown={startResize}>
-        <span />
-      </div>
-      {view.kind === 'new' ? (
-        <NewTask workstreams={workstreams} onCreated={openTask} />
-      ) : view.kind === 'setup' ? (
-        <Setup
-          items={items}
+      {catchUp ? (
+        <CatchUp
+          ids={catchUp.ids}
+          at={catchUp.at}
+          items={[...items, ...done]}
           workstreams={workstreams}
-          onWorkstreams={setWorkstreams}
-          onOpen={openTask}
-          onDone={() => setView({ kind: 'task' })}
+          onMove={(to) => setCatchUp((c) => (c ? { ...c, at: to } : c))}
+          onExit={() => setCatchUp(null)}
+          onOpen={(id) => {
+            setCatchUp(null)
+            openTask(id)
+          }}
         />
-      ) : current ? (
-        <TaskPane key={current.task.id} item={current} workstreams={workstreams} onClose={() => setShowingTask(false)} />
       ) : (
-        <section className="pane task">
-          <div className="task-head drag" />
-          <div className="empty centred">
-            <div className="empty-pilot">
-              <Pilot pixel={3} />
-            </div>
-            Pick a task, or press Space on one to answer it in place.
+        <>
+          <QueueList
+            tab={tab}
+            all={all}
+            onTab={switchTab}
+            counts={counts}
+            items={listed}
+            view={view}
+            go={go}
+            selected={selected}
+            onSelect={selectTask}
+            onOpen={openTask}
+            width={listWidth}
+            banner={banner}
+            showingTasks={view.kind === 'task'}
+            lingering={lingering?.id ?? null}
+            onCatchUp={startCatchUp}
+          />
+          <div className="grip" role="separator" aria-label="Resize list" aria-orientation="vertical" onPointerDown={startResize}>
+            <span />
           </div>
-        </section>
+          {view.kind === 'new' ? (
+            <NewTask workstreams={workstreams} onCreated={openTask} />
+          ) : view.kind === 'setup' ? (
+            <Setup
+              items={items}
+              workstreams={workstreams}
+              onWorkstreams={setWorkstreams}
+              onOpen={openTask}
+              onDone={() => setView({ kind: 'task' })}
+            />
+          ) : current ? (
+            <TaskPane
+              key={current.task.id}
+              item={current}
+              workstreams={workstreams}
+              next={nextItem}
+              onNext={() => step(1)}
+              onClose={() => setShowingTask(false)}
+            />
+          ) : (
+            <section className="pane task">
+              <div className="task-head drag" />
+              <div className="empty centred">
+                <div className="empty-pilot">
+                  <Pilot pixel={3} />
+                </div>
+                Pick a task, or press Space on one to answer it in place.
+              </div>
+            </section>
+          )}
+        </>
       )}
       {/* Settings, at the window's top right, with a dot when a source is failing. It comes after the
           panes: Electron lets the last drag or no-drag region in page order win, so before them the

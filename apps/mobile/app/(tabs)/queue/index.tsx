@@ -20,7 +20,7 @@ import { TaskView } from '../../../src/components/TaskView.tsx'
 import { age, rowMeta } from '../../../src/format.ts'
 import { useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
-import { Sides, WorkstreamBadge } from '../../../src/ui.tsx'
+import { Bars, Sides, WorkstreamBadge } from '../../../src/ui.tsx'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
@@ -288,7 +288,11 @@ const Row = ({ item, selected, onPress }: { item: QueueItem; selected: boolean; 
         {rowMeta(item, false)}
       </Text>
     </View>
-    <Text style={styles.meta}>{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</Text>
+    {/* When, and under it how much it matters, as on the Mac. */}
+    <View style={styles.rowEnd}>
+      <Text style={styles.meta}>{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</Text>
+      <Bars priority={item.task.priority} />
+    </View>
   </Pressable>
 )
 
@@ -340,6 +344,7 @@ const styles = StyleSheet.create({
     backgroundColor: colours.surface,
   },
   dot: { width: 9, height: 9, borderRadius: 5, marginTop: 7 },
+  rowEnd: { alignItems: 'flex-end', gap: 8 },
   title: { fontSize: 16, lineHeight: 22, color: colours.textBody },
   meta: { marginTop: 3, fontSize: 13, color: colours.text3 },
   empty: { padding: 28, fontSize: 15, lineHeight: 22, color: colours.text3, textAlign: 'center' },

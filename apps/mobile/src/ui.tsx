@@ -30,6 +30,18 @@ export const Pill = ({ tone, label }: { tone: Tone; label: string }) => (
   </View>
 )
 
+/** Three bars, as many lit as the priority is high: urgent all three (in clay), low none. The Mac's, drawn the same. */
+export const Bars = ({ priority }: { priority: number }) => (
+  <View style={styles.bars} accessibilityLabel={['Urgent', 'High priority', 'Normal priority', 'Low priority'][priority - 1]}>
+    {[5, 8, 11].map((height, i) => (
+      <View
+        key={height}
+        style={[styles.bar, { height }, i + 1 <= 4 - priority && { backgroundColor: priority === 1 ? colours.clay : colours.text2 }]}
+      />
+    ))}
+  </View>
+)
+
 /** A quiet property: a workstream, a priority. */
 export const Tag = ({ label }: { label: string }) => (
   <View style={[styles.pill, styles.tag]}>
@@ -254,6 +266,8 @@ const Mascot = ({
 export const Pilot = ({ pixel = 3 }: { pixel?: number }) => <Mascot art={pilot} pixel={pixel} label="Autopilot" />
 
 const styles = StyleSheet.create({
+  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, height: 12 },
+  bar: { width: 3, borderRadius: 1, backgroundColor: colours.borderStrong },
   sides: { flex: 1 },
   badge: { width: 22, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: 10, fontWeight: '600' },

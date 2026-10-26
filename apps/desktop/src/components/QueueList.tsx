@@ -6,7 +6,7 @@ import { useDraft } from '../drafts.ts'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
 import { QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
-import { Banner, Button, NavIcon, SearchIcon, type NavIconName } from '../ui.tsx'
+import { Banner, Bars, Button, NavIcon, SearchIcon, type NavIconName } from '../ui.tsx'
 
 type Props = {
   tab: QueueView
@@ -25,6 +25,10 @@ type Props = {
   banner: string | null
   /** The pane beside the list shows a task (not Set up, New task…): one is always open there. */
   showingTasks: boolean
+  /** The open task, kept in its place after it left the tab (answered), until you move on. */
+  lingering: string | null
+  /** Starts going through what needs you, one task at a time. */
+  onCatchUp: () => void
 }
 
 const TAB_ICON: Record<QueueView, NavIconName> = {
@@ -54,8 +58,16 @@ type Entry = { kind: 'group'; workstream: string; count: number; folded: boolean
  * workstream. It is the nav and the list in one, as on the phone; Settings sits at the window's
  * top right.
  */
+/** The workstreams of a list in the order of their most pressing task (the queue comes sorted), the inbox last. */
+const sectionOrder = (items: QueueItem[]) =>
+  [...new Set(items.map((i) => i.task.workstream))].toSorted((a, b) => Number(a === 'inbox') - Number(b === 'inbox'))
+
+/** The tasks of a list top to bottom, as its sections show them: what Next and ⌘] go through. */
+export const listOrder = (items: QueueItem[]): QueueItem[] =>
+  sectionOrder(items).flatMap((workstream) => items.filter((i) => i.task.workstream === workstream))
+
 export const QueueList = (props: Props) => {
-  const { tab, all, onTab, counts, items, view, go, selected, onSelect, onOpen, width, banner, showingTasks } = props
+  const { tab, all, onTab, counts, items, view, go, selected, onSelect, onOpen, width, banner, showingTasks, lingering, onCatchUp } = props
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [folded, setFolded] = useState<Set<string>>(new Set())
@@ -63,8 +75,7 @@ export const QueueList = (props: Props) => {
   const visible = useMemo(() => items.filter((i) => matches(i, filter)), [items, filter])
   // Sections in the order of their most pressing task (the queue comes sorted), the inbox last.
   const entries = useMemo((): Entry[] => {
-    const order = [...new Set(visible.map((i) => i.task.workstream))].toSorted((a, b) => Number(a === 'inbox') - Number(b === 'inbox'))
-    return order.flatMap((workstream) => {
+    return sectionOrder(visible).flatMap((workstream) => {
       const inSection = visible.filter((i) => i.task.workstream === workstream)
       const shut = folded.has(workstream)
       return [
@@ -171,6 +182,13 @@ export const QueueList = (props: Props) => {
           New
         </Button>
       </div>
+      {/* Needs me, more than one: go through them one at a time, the rest of the window out of the way. */}
+      {tab === 'needs_me' && !all && (counts.needs_me ?? 0) > 1 && (
+        <Button kind="quiet" className="catch-up-start" onClick={onCatchUp} title="One task at a time; → for the next">
+          Catch up on {counts.needs_me}
+          <span aria-hidden="true">→</span>
+        </Button>
+      )}
       {banner && <Banner>{banner}</Banner>}
       <div className="rows" ref={rows} role="listbox" aria-label="Tasks" tabIndex={0} onKeyDown={onKeyDown}>
         {visible.length === 0 && (
@@ -202,7 +220,13 @@ export const QueueList = (props: Props) => {
                 ) : expanded === entry.item.task.id ? (
                   <Expanded item={entry.item} selected={selected === entry.item.task.id} onOpen={onOpen} onDone={() => setExpanded(null)} />
                 ) : (
-                  <TaskRow item={entry.item} selected={selected === entry.item.task.id} onSelect={onSelect} onOpen={onOpen} />
+                  <TaskRow
+                    item={entry.item}
+                    selected={selected === entry.item.task.id}
+                    left={lingering === entry.item.task.id}
+                    onSelect={onSelect}
+                    onOpen={onOpen}
+                  />
                 )}
               </div>
             )
@@ -213,14 +237,24 @@ export const QueueList = (props: Props) => {
   )
 }
 
-type RowProps = { item: QueueItem; selected: boolean; onSelect?: (id: string) => void; onOpen: (id: string) => void }
+type RowProps = {
+  item: QueueItem
+  selected: boolean
+  /** It has left this tab (you answered it) and stays, faded, until you move on. */
+  left?: boolean
+  onSelect?: (id: string) => void
+  onOpen: (id: string) => void
+}
+
+/** The priorities by number, for a row's bars. */
+const PRIORITY_NAME: Record<number, string> = { 1: 'Urgent', 2: 'High priority', 3: 'Normal priority', 4: 'Low priority' }
 
 /** Rerenders only when what it shows changed: the store keeps unchanged tasks and asks as the same objects. */
 const TaskRow = memo(
-  ({ item, selected, onSelect, onOpen }: RowProps) => (
+  ({ item, selected, left = false, onSelect, onOpen }: RowProps) => (
     <Button
       kind="row"
-      className={item.unread ? undefined : 'read'}
+      className={[item.unread ? null : 'read', left ? 'left' : null].filter(Boolean).join(' ') || undefined}
       role="option"
       data-task={item.task.id}
       aria-selected={selected}
@@ -233,11 +267,18 @@ const TaskRow = memo(
         <div className="title">{item.task.title}</div>
         <div className="meta">{rowMeta(item, false)}</div>
       </div>
-      <span className="age">{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</span>
+      {/* When, and under it how much it matters, as on the task's properties. */}
+      <span className="row-end">
+        <span className="age">{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</span>
+        <span title={PRIORITY_NAME[item.task.priority]}>
+          <Bars priority={item.task.priority} />
+        </span>
+      </span>
     </Button>
   ),
   (a, b) =>
     a.selected === b.selected &&
+    a.left === b.left &&
     a.item.task === b.item.task &&
     a.item.openAsk === b.item.openAsk &&
     a.item.session === b.item.session &&

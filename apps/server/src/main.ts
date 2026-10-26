@@ -18,6 +18,7 @@ import { loadPty } from './pty.ts'
 import { ensureDataDir, ensureOwnerToken } from './owner.ts'
 import type { Paths } from './paths.ts'
 import { Service } from './service.ts'
+import { KEEP_AFTER_CLOSE_MS, sweepFiles } from './files.ts'
 import { claudeHeadless, Signals, type RunClaude } from './signals.ts'
 import { Routing } from './routing.ts'
 import { Scout } from './scout.ts'
@@ -187,6 +188,22 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     void routing.tick()
     void scout.tick()
   }, 30_000)
+  // Files sent with tasks go 30 days after the task closes; checked at start and every hour.
+  const files = join(paths.data, 'files')
+  const sweep = () => {
+    const gone = sweepFiles(files, (taskId) => {
+      try {
+        const task = service.task(taskId)
+        const closed = task.state === 'done' || task.state === 'canceled'
+        return !closed || service.now().getTime() - Date.parse(task.updatedAt) < KEEP_AFTER_CLOSE_MS
+      } catch {
+        return false
+      }
+    })
+    if (gone.length > 0) log(`removed the files of ${gone.join(', ')}`)
+  }
+  sweep()
+  const sweeping = setInterval(sweep, 3_600_000)
   drain()
   log(`listening on ${paths.socket}`)
 
@@ -198,6 +215,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     close: async () => {
       clearInterval(outbox)
       clearInterval(tick)
+      clearInterval(sweeping)
       unsubscribe()
       launcher.stopAll()
       // Live subscriptions keep connections open; close them so shutdown does not wait on clients.

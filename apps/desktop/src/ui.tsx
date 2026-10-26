@@ -238,6 +238,15 @@ export const Dot = ({ tone, label }: { tone: Tone; label?: string }) => (
 /** Where something stands, in a tone: "Your turn", "Running". */
 export const Pill = ({ tone, children }: { tone: Tone; children: ReactNode }) => <span className={`pill tone-${tone}`}>{children}</span>
 
+/** Three bars, as many lit as the priority is high: urgent all three (in clay), low none. */
+export const Bars = ({ priority }: { priority: number }) => (
+  <span className={`bars p${priority}`} aria-hidden="true">
+    {[1, 2, 3].map((b) => (
+      <span key={b} className={b <= 4 - priority ? 'lit' : ''} />
+    ))}
+  </span>
+)
+
 /** A quiet property: a workstream, a priority. */
 export const Tag = ({ children }: { children: ReactNode }) => <span className="tag">{children}</span>
 

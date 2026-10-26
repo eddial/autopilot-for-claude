@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { Link, UploadFile } from '@autopilot/contracts'
@@ -27,4 +27,18 @@ export const storeFile = (root: string, input: z.infer<typeof UploadFile>): Link
   const path = join(dir, `${key}-${name}`)
   writeFileSync(path, bytes)
   return { url: pathToFileURL(path).href, title: input.name.slice(0, 200), subtitle: sizeText(bytes.length) }
+}
+
+/** How long a closed task keeps the files sent with it, for reopening it or reading them back. */
+export const KEEP_AFTER_CLOSE_MS = 30 * 86_400_000
+
+/**
+ * Removes the files of tasks that no longer need them: `keep` says, by task id, whether a task's
+ * folder stays (open, or closed less than 30 days ago). Returns the tasks whose files went.
+ */
+export const sweepFiles = (root: string, keep: (taskId: string) => boolean): string[] => {
+  if (!existsSync(root)) return []
+  const gone = readdirSync(root).filter((taskId) => !keep(taskId))
+  for (const taskId of gone) rmSync(join(root, taskId), { recursive: true, force: true })
+  return gone
 }

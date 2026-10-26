@@ -19,11 +19,18 @@ import { useDraft } from '../drafts.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
 import { FileChips, useFiles } from './Files.tsx'
 import type { Tone } from '@autopilot/design'
-import { ArrowUp, Avatar, Banner, Button, Claude, Dot, Icon, Markdown, Meta, NavIcon, Pill, Spacer, Tag } from '../ui.tsx'
+import { ArrowUp, Avatar, Bars, Banner, Button, Claude, Dot, Icon, Markdown, Meta, NavIcon, Pill, Spacer, Tag } from '../ui.tsx'
 import { LinkIcon, Linked, SideLink } from './Links.tsx'
 import { BAND_TITLE } from '../view.ts'
 
-type Props = { item: QueueItem; workstreams: Workstream[]; onClose: () => void }
+type Props = {
+  item: QueueItem
+  workstreams: Workstream[]
+  /** The task after this one in the list, for moving on when you are ready. */
+  next?: QueueItem | null
+  onNext?: () => void
+  onClose: () => void
+}
 
 const open = (url: string) => {
   if (shell) shell.openExternal(url)
@@ -82,7 +89,7 @@ const snoozeTimes = (): { label: string; day: string; time: string; until: Date 
     .map((t) => ({ ...t, day: day(t.until), time: time(t.until) }))
 }
 
-export const TaskPane = ({ item, workstreams, onClose }: Props) => {
+export const TaskPane = ({ item, workstreams, next = null, onNext, onClose }: Props) => {
   const { task } = item
   // The task comes from the window's store, kept current by the feed: no request on open once it
   // has been seen. Until then, the ask from the queue shows straight away.
@@ -171,6 +178,16 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
               {refused && <Banner>{refused}</Banner>}
               {ask && <AskCard update={ask} />}
               {!ask && item.band === 'new' && <BeforeStart taskId={task.id} updates={updates} />}
+              {/* Nothing moves you on by itself: you see your reply land, then go when you are ready. */}
+              {next && onNext && (
+                <div className="next-task">
+                  <Button kind="quiet" className="with-icon" onClick={onNext} title="Next task (⌘])">
+                    <span className="next-label">Next</span>
+                    <span className="next-title">{next.task.title}</span>
+                    <kbd>⌘]</kbd>
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -345,18 +362,30 @@ const AskCard = ({ update }: { update: Update }) => {
       )}
       <FileChips files={files.files} onRemove={files.remove} />
       <div className="inline-reply-box">
-        <input
+        {/* Three lines to start with, room to write a real answer; Enter sends, Shift-Enter breaks the line. */}
+        <textarea
           className="inline-reply"
+          rows={3}
           aria-label="Reply to Autopilot"
           placeholder={update.kind === 'done' ? 'Or ask for more…' : update.options.length > 0 ? 'Or answer in words…' : 'Answer…'}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onPaste={files.onPaste}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') submit()
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              submit()
+            }
           }}
         />
-        <Button kind="icon" className="enter-key" aria-label="Send" title="Send (Enter)" disabled={!ready} onClick={submit}>
+        <Button
+          kind="icon"
+          className="enter-key"
+          aria-label="Send"
+          title="Send (Enter; Shift-Enter for a new line)"
+          disabled={!ready}
+          onClick={submit}
+        >
           <Icon name="enter" size={14} />
         </Button>
       </div>
@@ -674,15 +703,6 @@ const Prop = ({ label, children }: { label: string; children: ReactNode }) => (
     <span className="prop-label">{label}</span>
     <div className="prop-value">{children}</div>
   </div>
-)
-
-/** Four bars, as many lit as the priority is high. */
-const Bars = ({ priority }: { priority: number }) => (
-  <span className={`bars p${priority}`} aria-hidden="true">
-    {[1, 2, 3].map((b) => (
-      <span key={b} className={b <= 4 - priority ? 'lit' : ''} />
-    ))}
-  </span>
 )
 
 /**

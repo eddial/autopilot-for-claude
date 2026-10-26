@@ -36,6 +36,24 @@ const shot = async (name: string) => {
 /** A status tab, not a button of the same name in the open task. */
 const tab = (name: string) => page.getByRole('navigation', { name: 'Queue' }).getByRole('button', { name })
 
+/** Needs me as itself, not every open task (what a second click on the tab you are on shows). */
+const needsMe = async () => {
+  // The first tab; it is named "All open" while it shows every open task.
+  const first = page.getByRole('navigation', { name: 'Queue' }).getByRole('button').first()
+  await first.click()
+  if ((await page.getByRole('heading', { name: 'All open' }).count()) > 0) await first.click()
+}
+
+/** A task with a question waiting on you. */
+const asking = (title: string, n: number) => {
+  const task = server.service.createTask(CreateTask.parse({ idempotencyKey: `ui-stay-${n}`, title, start: false }), 'owner')
+  server.service.postUpdate(
+    PostUpdate.parse({ idempotencyKey: `ui-stay-ask-${n}`, taskId: task.id, kind: 'question', body: 'Which?' }),
+    'session',
+  )
+  return task
+}
+
 describe('the Mac app window', () => {
   it('creates a task, shows the session asking, and answers it with one click', async () => {
     await expect.poll(() => page.getByRole('heading', { name: 'Needs me' }).isVisible()).toBe(true)
@@ -165,5 +183,31 @@ describe('the Mac app window', () => {
     const sent = () => server.service.getTask(task).updates.findLast((u) => u.kind === 'instruction')
     await expect.poll(() => sent()?.attachments.map((a) => a.title)).toEqual(['lease.txt'])
     expect(readFileSync(fileURLToPath(sent()?.attachments[0]?.url ?? ''), 'utf8')).toBe('lease terms')
+  }, 30_000)
+
+  it('stays on a task after answering it, and moves on when asked', async () => {
+    asking('Pick a venue', 1)
+    asking('Pick a caterer', 2)
+    await needsMe()
+    await page.getByRole('option', { name: /Pick a venue/ }).click()
+    await page.getByRole('textbox', { name: 'Reply to Autopilot' }).fill('The barn')
+    await page.keyboard.press('Enter')
+    // Answered, it runs: still open, still in its place in the list, until you move on.
+    await expect.poll(() => page.locator('.row.left').textContent()).toContain('Pick a venue')
+    await expect.poll(() => page.getByRole('heading', { level: 2, name: 'Pick a venue' }).count()).toBe(1)
+    await page.keyboard.press('Meta+]')
+    await expect.poll(() => page.getByRole('heading', { level: 2, name: 'Pick a caterer' }).count()).toBe(1)
+    await expect.poll(() => page.locator('.row.left').count()).toBe(0)
+  }, 30_000)
+
+  it('catches up one task at a time and ends on what became of each', async () => {
+    await needsMe()
+    const count = await page.getByRole('option').count()
+    await page.locator('.catch-up-start').click()
+    await expect.poll(() => page.locator('.catch-up-bar').textContent()).toContain(`1 of ${count}`)
+    for (let i = 0; i < count; i++) await page.getByRole('button', { name: 'Next →' }).click()
+    await expect.poll(() => page.getByRole('heading', { name: 'All caught up' }).count()).toBe(1)
+    await page.getByRole('button', { name: 'Back to the list' }).click()
+    await expect.poll(() => page.locator('.catch-up').count()).toBe(0)
   }, 30_000)
 })
