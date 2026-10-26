@@ -10,6 +10,9 @@ import { Button, Dot, NavIcon, Pilot } from './ui.tsx'
 import { useQueueItems, useStore } from './store.ts'
 import { QUEUE_VIEWS, type QueueView, type View } from './view.ts'
 
+/** The keys that move through the list, and which way. */
+const STEP_KEYS: Record<string, number> = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }
+
 const stored = (name: string, fallback: number): number => {
   try {
     return Number(localStorage.getItem(name)) || fallback
@@ -149,8 +152,8 @@ export const App = () => {
     return [...inTab.slice(0, lingering.at), item, ...inTab.slice(lingering.at)]
   }, [inTab, lingering, items, done])
 
-  // Next and previous in the list as it reads: → and ← (with ⌘ too), or the arrows under the
-  // list. In a box you are writing in, the arrows move the cursor as usual.
+  // Next and previous in the list as it reads: ↓ and ↑ (← and → too, with ⌘ from an empty box),
+  // or the arrows under the list. In a box you are writing in, the arrows move the cursor as usual.
   const ordered = useMemo(() => listOrder(listed), [listed])
   const at = ordered.findIndex((i) => i.task.id === selected)
   const nextItem = at >= 0 ? (ordered[at + 1] ?? null) : null
@@ -163,14 +166,16 @@ export const App = () => {
   )
   useEffect(() => {
     const keys = (e: KeyboardEvent) => {
-      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
-      if (e.altKey || e.shiftKey || e.defaultPrevented) return
+      const delta = STEP_KEYS[e.key]
+      if (delta === undefined || e.altKey || e.shiftKey || e.defaultPrevented) return
+      // Settings float above the list; the arrows are theirs while open.
+      if (document.querySelector('[role=dialog]')) return
       // Typing: the arrows move the cursor; ⌘ with them moves on only from an empty box.
       const field = e.target instanceof HTMLElement ? e.target.closest('input, textarea, [contenteditable], [role=menu]') : null
       const command = e.metaKey || e.ctrlKey
       if (field && !(command && (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) && field.value === '')) return
       e.preventDefault()
-      step(e.key === 'ArrowRight' ? 1 : -1)
+      step(delta)
     }
     window.addEventListener('keydown', keys)
     return () => window.removeEventListener('keydown', keys)

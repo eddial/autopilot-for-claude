@@ -24,12 +24,18 @@ import { Bars, EmptyList, Sides, WorkstreamBadge } from '../../../src/ui.tsx'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
-const VIEWS: { id: QueueView; title: string; bands: Band[]; symbol: SFSymbol }[] = [
-  { id: 'needs_me', title: 'Needs me', bands: ['your_turn', 'new'], symbol: 'bubble.left.and.bubble.right' },
-  { id: 'running', title: 'Running', bands: ['running'], symbol: 'hammer' },
-  { id: 'waiting', title: 'Waiting on others', bands: ['waiting'], symbol: 'clock' },
-  { id: 'snoozed', title: 'Snoozed', bands: ['snoozed'], symbol: 'moon' },
-  { id: 'done', title: 'Done', bands: ['done'], symbol: 'flag.checkered' },
+const VIEWS: { id: QueueView; title: string; about: string; bands: Band[]; symbol: SFSymbol }[] = [
+  {
+    id: 'needs_me',
+    title: 'Needs me',
+    about: 'Waiting on your answer or a go-ahead',
+    bands: ['your_turn', 'new'],
+    symbol: 'bubble.left.and.bubble.right',
+  },
+  { id: 'running', title: 'Running', about: 'A session is working on it', bands: ['running'], symbol: 'hammer' },
+  { id: 'waiting', title: 'Waiting on others', about: "Someone else's move", bands: ['waiting'], symbol: 'clock' },
+  { id: 'snoozed', title: 'Snoozed', about: 'Put away until later', bands: ['snoozed'], symbol: 'moon' },
+  { id: 'done', title: 'Done', about: 'Closed, newest first', bands: ['done'], symbol: 'flag.checkered' },
 ]
 
 /** `ws:support from:gmail pricing`, as on the Mac. */
@@ -130,8 +136,8 @@ export default function QueueScreen() {
 
   const tabs = (
     <View style={styles.tabs} accessibilityRole="tablist">
-      {/* As on the Mac: All first, then each status; every tab its symbol and count. */}
-      {[{ id: 'all' as const, title: 'All open', symbol: 'square.stack' as SFSymbol }, ...VIEWS].map((v) => {
+      {/* As on the Mac: each status, then All; every tab its symbol and count. */}
+      {[...VIEWS, { id: 'all' as const, title: 'All open', symbol: 'square.stack' as SFSymbol }].map((v) => {
         const on = v.id === 'all' ? all : !all && v.id === view
         const count = v.id === 'all' ? openItems.length : counts[v.id]
         return (
@@ -183,6 +189,11 @@ export default function QueueScreen() {
           <StatusLine />
           {search}
           {tabs}
+          <Text style={styles.caption} numberOfLines={1}>
+            <Text style={styles.captionName}>{all ? 'All open' : current?.title}</Text>
+            {' · '}
+            {all ? 'Every open task, across workstreams' : current?.about}
+          </Text>
         </View>
         <SectionList
           style={{ flex: 1 }}
@@ -318,6 +329,8 @@ const dotStyle = (item: QueueItem) => {
 }
 
 const styles = StyleSheet.create({
+  caption: { marginHorizontal: 20, fontSize: 13, color: colours.text3 },
+  captionName: { fontWeight: '500', color: colours.text2 },
   tabs: { flexDirection: 'row', gap: 2, marginHorizontal: 12, marginTop: 4, padding: 3, borderRadius: 12, backgroundColor: colours.well },
   tab: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 34, borderRadius: 9 },
   // Lifted off the well, as the Mac's.

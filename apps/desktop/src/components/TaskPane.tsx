@@ -530,8 +530,10 @@ const useOpenSession = (session: QueueItem['session']) => {
     return () => window.removeEventListener(OPEN_WITH_EVENT, changed)
   }, [])
   const live = session && session.state !== 'ended' ? session : null
+  // An ended session still opens on this Mac, where Claude keeps its conversation; Remote Control
+  // only while it runs.
   const ways: { id: OpenWith; label: string; url: string }[] = [
-    ...(live?.resumeUrl ? [{ id: 'mac' as const, label: 'In Claude on this Mac', url: live.resumeUrl }] : []),
+    ...(session?.resumeUrl ? [{ id: 'mac' as const, label: 'In Claude on this Mac', url: session.resumeUrl }] : []),
     ...(live?.remoteControlUrl ? [{ id: 'remote' as const, label: 'Through Remote Control', url: live.remoteControlUrl }] : []),
   ]
   const preferred = ways.find((w) => w.id === openWith) ?? ways[0] ?? null
@@ -551,8 +553,6 @@ const useOpenSession = (session: QueueItem['session']) => {
   return { preferred, choices }
 }
 
-/** What can be done with the task as a whole. */
-/** What you can do to a task. In the properties column Open session is left out: its Session row opens it. */
 /**
  * What you can do with the task: Start (unless Before I start in the timeline starts it), the
  * session, Snooze and Mark done; Not for me behind the ⋯, being rarer.
@@ -707,7 +707,7 @@ const Properties = ({
     <aside className="task-side" aria-label="Properties">
       {!closed && (
         <div className="side-actions">
-          <Actions item={item} session={false} start={!(item.band === 'new' && firstLookQuestions(updates).length > 0)} />
+          <Actions item={item} start={!(item.band === 'new' && firstLookQuestions(updates).length > 0)} />
         </div>
       )}
       <div className="side-group">

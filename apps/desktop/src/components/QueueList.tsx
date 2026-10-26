@@ -5,7 +5,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useDraft } from '../drafts.ts'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
-import { QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
+import { ALL_OPEN, QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
 import { Banner, Bars, Button, WorkstreamMark, NavIcon, Pilot, SearchIcon, type NavIconName } from '../ui.tsx'
 
 type Props = {
@@ -33,7 +33,7 @@ type Props = {
 }
 
 /** A thin arrow, for the way through the list. */
-const Arrow = ({ dir }: { dir: 'left' | 'right' }) => (
+const Arrow = ({ dir }: { dir: 'up' | 'down' }) => (
   <svg
     width="14"
     height="14"
@@ -44,7 +44,7 @@ const Arrow = ({ dir }: { dir: 'left' | 'right' }) => (
     strokeLinecap="round"
     aria-hidden="true"
   >
-    <path d={dir === 'left' ? 'M11.5 7h-9M6 3.5 2.5 7 6 10.5' : 'M2.5 7h9M8 3.5 11.5 7 8 10.5'} />
+    <path d={dir === 'up' ? 'M7 11.5v-9M3.5 6 7 2.5 10.5 6' : 'M7 2.5v9M3.5 8 7 11.5 10.5 8'} />
   </svg>
 )
 
@@ -204,29 +204,33 @@ export const QueueList = (props: Props) => {
           New
         </Button>
       </div>
-      {/* Every tab the same: its icon and how many, its name on hover; All first, across workstreams. */}
+      {/* Every tab the same: its icon and how many; the one you are on named under them. All last. */}
       <nav className="tabs" aria-label="Queue">
-        {[
-          { id: 'all' as const, title: 'All open', icon: 'all' as NavIconName },
-          ...QUEUE_VIEWS.map((q) => ({ ...q, icon: TAB_ICON[q.id] })),
-        ].map((q) => {
-          const on = q.id === 'all' ? all : !all && tab === q.id
-          const count = counts[q.id]
-          return (
-            <Button
-              key={q.id}
-              kind="tab"
-              aria-label={count === undefined ? q.title : `${q.title}, ${count}`}
-              title={q.title}
-              aria-current={on ? 'page' : undefined}
-              onClick={() => onTab(q.id)}
-            >
-              <NavIcon name={q.icon} size={15} />
-              {count !== undefined && <span className={q.id === 'needs_me' && count > 0 ? 'you' : undefined}>{count}</span>}
-            </Button>
-          )
-        })}
+        {[...QUEUE_VIEWS.map((q) => ({ ...q, icon: TAB_ICON[q.id] })), { id: 'all' as const, ...ALL_OPEN, icon: 'all' as NavIconName }].map(
+          (q) => {
+            const on = q.id === 'all' ? all : !all && tab === q.id
+            const count = counts[q.id]
+            return (
+              <Button
+                key={q.id}
+                kind="tab"
+                aria-label={count === undefined ? q.title : `${q.title}, ${count}`}
+                title={`${q.title}: ${q.about}`}
+                aria-current={on ? 'page' : undefined}
+                onClick={() => onTab(q.id)}
+              >
+                <NavIcon name={q.icon} size={15} />
+                {count !== undefined && <span className={q.id === 'needs_me' && count > 0 ? 'you' : undefined}>{count}</span>}
+              </Button>
+            )
+          },
+        )}
       </nav>
+      <p className="tab-caption">
+        <span className="tab-caption-name">{all ? ALL_OPEN.title : QUEUE_VIEWS.find((q) => q.id === tab)?.title}</span>
+        {' · '}
+        {all ? ALL_OPEN.about : QUEUE_VIEWS.find((q) => q.id === tab)?.about}
+      </p>
       {banner && <Banner>{banner}</Banner>}
       <div className="rows" ref={rows} role="listbox" aria-label="Tasks" tabIndex={0} onKeyDown={onKeyDown}>
         {visible.length === 0 &&
@@ -277,12 +281,12 @@ export const QueueList = (props: Props) => {
             disabled={!place.hasPrevious}
             onClick={() => place.move(-1)}
             aria-label="Previous task"
-            title="Previous task (←)"
+            title="Previous task (↑)"
           >
-            <Arrow dir="left" />
+            <Arrow dir="up" />
           </Button>
-          <Button kind="icon" disabled={!place.hasNext} onClick={() => place.move(1)} aria-label="Next task" title="Next task (→)">
-            <Arrow dir="right" />
+          <Button kind="icon" disabled={!place.hasNext} onClick={() => place.move(1)} aria-label="Next task" title="Next task (↓)">
+            <Arrow dir="down" />
           </Button>
         </footer>
       )}

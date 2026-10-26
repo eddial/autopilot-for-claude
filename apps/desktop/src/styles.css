@@ -35,6 +35,12 @@ button {
   outline-offset: 1px;
 }
 
+/* The list and its rows: the selected row's fill already says where you are. */
+.rows:focus-visible,
+.row:focus-visible {
+  outline: none;
+}
+
 .serif {
   font-family: var(--serif);
   font-weight: 400;
@@ -763,7 +769,7 @@ button {
   border-radius: var(--radius-sm);
 }
 
-.split .split-main {
+.split .split-main:not(:only-child) {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
@@ -1046,9 +1052,24 @@ button {
   flex-basis: 100%;
 }
 
+/* Into the session: the biggest thing in the column, on its own row at the top. */
+.side-actions .split .tool {
+  height: 36px;
+  font-size: 14px;
+}
+
+.side-actions .split .split-main {
+  flex: 1;
+  justify-content: center;
+}
+
+.side-actions .split .menu {
+  display: flex;
+}
+
 .side-actions .task-actions > .btn,
 .side-actions .task-actions > .tool,
-.side-actions .task-actions .menu > .tool:not(.icon-only) {
+.side-actions .task-actions > .menu > .tool:not(.icon-only) {
   width: 100%;
   justify-content: center;
 }
@@ -2564,6 +2585,20 @@ textarea.inline-reply {
   gap: 2px;
   padding: 8px 10px 10px 20px;
   border-top: 0.5px solid var(--border);
+}
+
+.tab-caption {
+  margin: 8px 20px 0;
+  font-size: 12.5px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-caption-name {
+  color: var(--text-2);
+  font-weight: 500;
 }
 
 .list-foot-where {
