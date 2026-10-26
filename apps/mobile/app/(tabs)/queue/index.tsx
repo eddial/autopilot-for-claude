@@ -12,7 +12,6 @@ import {
   View,
 } from 'react-native'
 import type { Band, QueueItem } from '@autopilot/contracts'
-import { workstreamMark } from '@autopilot/client'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
 import { router, Stack } from 'expo-router'
 import { StatusLine } from '../../../src/components/StatusLine.tsx'
@@ -21,7 +20,7 @@ import { TaskView } from '../../../src/components/TaskView.tsx'
 import { age, rowMeta } from '../../../src/format.ts'
 import { useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
-import { Sides } from '../../../src/ui.tsx'
+import { Sides, WorkstreamBadge } from '../../../src/ui.tsx'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
@@ -32,13 +31,6 @@ const VIEWS: { id: QueueView; title: string; bands: Band[]; symbol: SFSymbol }[]
   { id: 'snoozed', title: 'Snoozed', bands: ['snoozed'], symbol: 'moon' },
   { id: 'done', title: 'Done', bands: ['done'], symbol: 'flag.checkered' },
 ]
-
-const TONE = {
-  pilot: { bg: colours.pilotTint, fg: colours.pilotSoft },
-  clay: { bg: colours.clayTint, fg: colours.claySoft },
-  amber: { bg: colours.amberTint, fg: colours.amberSoft },
-  quiet: { bg: colours.raised, fg: colours.text2 },
-}
 
 /** `ws:support from:gmail pricing`, as on the Mac. */
 const matches = (item: QueueItem, filter: string): boolean =>
@@ -216,7 +208,6 @@ export default function QueueScreen() {
             </Text>
           }
           renderSectionHeader={({ section }) => {
-            const mark = workstreamMark(section.name)
             const shut = folded.has(section.name)
             return (
               <Pressable
@@ -225,9 +216,7 @@ export default function QueueScreen() {
                 accessibilityRole="button"
                 accessibilityState={{ expanded: !shut }}
               >
-                <View style={[styles.mark, { backgroundColor: TONE[mark.tone].bg }]}>
-                  <Text style={[styles.markText, { color: TONE[mark.tone].fg }]}>{mark.letters}</Text>
-                </View>
+                <WorkstreamBadge name={section.name} />
                 <Text style={[styles.sectionName, shut && { color: colours.text3 }]}>{section.name}</Text>
                 {shut && <Text style={styles.sectionCount}>{section.count}</Text>}
               </Pressable>
@@ -309,8 +298,6 @@ const styles = StyleSheet.create({
   tabName: { flexShrink: 1, fontSize: 14, color: colours.text },
   tabCount: { fontSize: 14, color: colours.text3, fontVariant: ['tabular-nums'] },
   section: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 8 },
-  mark: { width: 22, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  markText: { fontSize: 10, fontWeight: '600' },
   sectionName: { fontSize: 14, color: colours.text2, fontFamily: 'Menlo' },
   sectionCount: { marginLeft: 'auto', fontSize: 13, color: colours.text3 },
   search: {

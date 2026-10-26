@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } fro
 import { claude, colours, fonts, pilot, radius, space, tones, type Tone } from '@autopilot/design'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { linkKind, parseMarkdown, type Inline, type LinkKind } from '@autopilot/client'
+import { linkKind, parseMarkdown, workstreamMark, type Inline, type LinkKind } from '@autopilot/client'
 
 /**
  * The phone's building blocks, the same kinds as the Mac window's `src/ui.tsx` and from the same
@@ -154,6 +154,23 @@ export const LinkIcon = ({ link, size = 14 }: { link: { url: string; title: stri
   <SymbolView name={KIND_SYMBOL[linkKind(link).icon]} size={size} tintColor={colours.text3} />
 )
 
+const MARK_TONE = {
+  pilot: { bg: colours.pilotTint, fg: colours.pilotSoft },
+  clay: { bg: colours.clayTint, fg: colours.claySoft },
+  amber: { bg: colours.amberTint, fg: colours.amberSoft },
+  quiet: { bg: colours.raised, fg: colours.text2 },
+}
+
+/** A workstream's badge: its two letters on its tint, as on the Mac. */
+export const WorkstreamBadge = ({ name }: { name: string }) => {
+  const mark = workstreamMark(name)
+  return (
+    <View style={[styles.badge, { backgroundColor: MARK_TONE[mark.tone].bg }]}>
+      <Text style={[styles.badgeText, { color: MARK_TONE[mark.tone].fg }]}>{mark.letters}</Text>
+    </View>
+  )
+}
+
 export const Card = ({ children }: { children: ReactNode }) => <View style={styles.card}>{children}</View>
 
 /** A card's first line: a dot, a name, and whatever goes at the end. */
@@ -238,6 +255,8 @@ export const Pilot = ({ pixel = 3 }: { pixel?: number }) => <Mascot art={pilot} 
 
 const styles = StyleSheet.create({
   sides: { flex: 1 },
+  badge: { width: 22, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  badgeText: { fontSize: 10, fontWeight: '600' },
   chipWithIcon: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' },
   md: { gap: space[2] },
   mdHeading: { fontWeight: '600', color: colours.text },

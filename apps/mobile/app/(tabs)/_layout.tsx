@@ -15,9 +15,10 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Label>Queue</NativeTabs.Trigger.Label>
         {yours > 0 && <NativeTabs.Trigger.Badge>{String(yours)}</NativeTabs.Trigger.Badge>}
       </NativeTabs.Trigger>
+      {/* Sources and workstreams, as Set up on the Mac; the route keeps its old name for links. */}
       <NativeTabs.Trigger name="signals">
-        <NativeTabs.Trigger.Icon sf="antenna.radiowaves.left.and.right" />
-        <NativeTabs.Trigger.Label>Signals</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="slider.horizontal.3" />
+        <NativeTabs.Trigger.Label>Set up</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="servers">
         <NativeTabs.Trigger.Icon sf="desktopcomputer" />

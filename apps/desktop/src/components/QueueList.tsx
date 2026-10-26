@@ -49,7 +49,7 @@ type Entry = { kind: 'group'; workstream: string; count: number; folded: boolean
 
 /**
  * The left of the window: the status tabs, search, and the tasks of the tab in a section per
- * workstream, with the places (Signals, Servers, Set up) at the foot. It is the nav and the list
+ * workstream, with the places (Set up, Servers) at the foot. It is the nav and the list
  * in one, as on the phone.
  */
 export const QueueList = (props: Props) => {
@@ -116,7 +116,7 @@ export const QueueList = (props: Props) => {
   }
 
   const failing = signals.some((s) => s.health.state === 'failing')
-  const place = (kind: 'signals' | 'servers' | 'setup', label: string, icon: NavIconName, alert?: string) => (
+  const place = (kind: 'servers' | 'setup', label: string, icon: NavIconName, alert?: string) => (
     <Button
       kind="icon"
       aria-label={label}
@@ -214,9 +214,8 @@ export const QueueList = (props: Props) => {
         </div>
       </div>
       <div className="places">
-        {place('signals', 'Signals', 'signals', failing ? 'A signal is failing' : undefined)}
+        {place('setup', 'Set up', 'setup', failing ? 'A source is failing' : undefined)}
         {place('servers', 'Servers', 'servers')}
-        {place('setup', 'Set up', 'setup')}
       </div>
     </section>
   )

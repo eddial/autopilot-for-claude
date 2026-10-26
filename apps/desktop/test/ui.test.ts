@@ -99,10 +99,7 @@ describe('the Mac app window', () => {
     await expect.poll(() => page.getByRole('heading', { name: 'Running' }).isVisible()).toBe(true)
   }, 30_000)
 
-  it('shows signals and walks into set-up', async () => {
-    await page.getByRole('button', { name: 'Signals' }).click()
-    await expect.poll(() => page.getByRole('heading', { name: 'Signals and workstreams' }).isVisible()).toBe(true)
-    await shot('signals')
+  it('walks into set-up the first time', async () => {
     await page.getByRole('button', { name: 'Set up' }).click()
     await expect.poll(() => page.getByRole('heading', { name: "Hi, I'm your pilot." }).isVisible()).toBe(true)
     // No Claude Code here: the first check says so, and Continue waits for it.

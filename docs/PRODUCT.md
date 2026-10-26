@@ -97,14 +97,14 @@ Autonomy levels, watchers, schedules, models and agent tokens are not part of on
    Waiting on others, Snoozed, Done), each an icon and a count; search with tokens
    (`ws:customers from:slack`) and New task beside it; the tab's tasks as cards in a section per
    workstream, ordered by their most pressing task with the inbox last, each section folding away;
-   Signals, Servers and Set up at the foot, with a health dot. Space opens a row in place to answer
+   Set up and Servers at the foot, Set up with a health dot when a source fails. Space opens a row in place to answer
    it without opening the task.
 2. **Task** (closable): the conversation and the reply box with Open session, Snooze and Done.
 
 ### Mac, beside Claude Code
 
 The same window narrowed: list plus task. In the narrowest width the task, or a place such as
-Signals, replaces the list (back button), which is also the phone layout. The
+Set up, replaces the list (back button), which is also the phone layout. The
 session in Claude Code shows the task's state only through the existing `/ticket` hook.
 
 ### New task
@@ -115,11 +115,15 @@ machine and model. Send creates the task and starts its session at once; "Save w
 puts it in New. Also from: a global shortcut over any app (selected text becomes the brief), the
 share sheet on the Mac and iPhone, `tasks.create` over MCP, and `autopilot new` in a terminal.
 
-### Signals and workstreams
+### Set up
 
-Signals with cadence, last day's filed and added counts, and health. Workstreams with where they
-run, autonomy level (files, prepares, starts itself, finishes) and open count. A "Needs you" column
-for health problems and routing proposals (accept or review), and the active watchers.
+One page, two ways. The first time it is the five onboarding steps, each step reachable again from
+the stepper once visited. Once set up it is the settings: This Mac (Claude Code, the connectors,
+the background service), Sources (cadence, last day's counts, health, preview and pause), and
+Workstreams (edited in place, with where they run, autonomy level and open count), with "Needs you"
+on top for health problems and routing proposals. Adding a source, looking for workstreams and
+previewing a day open the matching step; "Walk through the steps again" opens them all. On a
+narrow window the stepper keeps only the current step's name.
 
 ### Servers
 
@@ -152,7 +156,7 @@ Claude right). Inner portrait keeps ordinary horizontal bars. Order, top to bott
 1. Back (only on a task).
 2. The prominent action: New task on the queue, Open session on a task (Clay).
 3. The other actions: view and filter on the queue; Snooze and Done on a task.
-4. A gap, then the tabs: Queue, Signals, Servers.
+4. A gap, then the tabs: Queue, Set up (read only), Servers.
 
 In the full-screen split layout only the task column joins the vertical bar; the list column keeps
 its buttons in its own header. Only bars owned by the system containers move: the Expo app has to

@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react'
-import type { Decision, Detected, SetupStatus, SignalExample, Workstream } from '@autopilot/contracts'
+import type { Decision, Detected, QueueItem, SetupStatus, SignalExample, Workstream } from '@autopilot/contracts'
 import { signalName } from '@autopilot/client'
 import { api, key } from '../api.ts'
 import { titleCase } from '../format.ts'
 import { Banner, Button, Dot, Meta, Pilot, Row } from '../ui.tsx'
+import { Sources } from './Sources.tsx'
 import { WorkstreamsEditor } from './Workstreams.tsx'
 
-type Props = { onDone: () => void }
+type Props = {
+  items: QueueItem[]
+  workstreams: Workstream[]
+  onWorkstreams: (all: Workstream[]) => void
+  onOpen: (id: string) => void
+  onDone: () => void
+}
 
 const STEPS = ['Get ready', 'Sources', 'Workstreams', 'Preview', 'Switch on']
 
@@ -68,8 +75,14 @@ const useSeconds = (on: boolean) => {
   return (from: number, to?: number) => Math.max(0, Math.round(((to ?? now) - from) / 1000))
 }
 
-/** Onboarding: five steps to a working queue (docs/PRODUCT.md, Onboarding). */
-export const Setup = ({ onDone }: Props) => {
+/**
+ * Set up, both ways: the first time, five steps to a working queue (docs/PRODUCT.md, Onboarding);
+ * once set up, the settings: this Mac, the sources and the workstreams on one page, with the steps
+ * a click away for adding a source, looking for workstreams or previewing a day.
+ */
+export const Setup = ({ items, workstreams, onWorkstreams, onOpen, onDone }: Props) => {
+  // Settings once set up; the steps the first time, or when asked for.
+  const [walking, setWalking] = useState<boolean | null>(null)
   const [step, setStep] = useState(0)
   // How far set-up has been: those steps can be opened again from the stepper.
   const [reached, setReached] = useState(0)
@@ -118,11 +131,18 @@ export const Setup = ({ onDone }: Props) => {
   // workstreams step shows the ones there are.
   const open = status && status.signals > 0 ? Math.max(reached, 4) : reached
   const yours = existing.filter((w) => w.name !== 'autopilot')
+  const setUp = status !== null && status.signals > 0
+  const wizard = walking ?? !setUp
+  /** Into the steps at one of them, from the settings. */
+  const walk = (n: number) => {
+    setWalking(true)
+    go(n)
+  }
 
   const previewing = Object.values(runs).some((r) => r.finished === undefined)
   const seconds = useSeconds(sweep !== null || previewing)
 
-  /** A source is something a connector or the GitHub CLI reads; a digest is set up later, in Signals. */
+  /** A source is something a connector or the GitHub CLI reads; a digest is added later, from the settings. */
   const connector = (example: SignalExample) => detected?.connectors.find((c) => c.signal === example.name)
   const isSource = (example: SignalExample) => example.name === 'github' || connector(example) !== undefined
   const available = (example: SignalExample): boolean =>
@@ -222,10 +242,108 @@ export const Setup = ({ onDone }: Props) => {
   const edit = (id: string, patch: Partial<Draft>) => setDrafts((all) => (all ?? []).map((d) => (d.id === id ? { ...d, ...patch } : d)))
   const named = (drafts ?? []).every((d) => d.name.replace(/-+$/, '') !== '' && d.routing.trim() !== '')
 
+  const checks = (
+    <>
+      <Check
+        ok={status?.claude.installed ?? null}
+        title="Claude Code is installed"
+        detail={
+          status
+            ? (status.claude.version ?? 'Not found. Install Claude Code, sign in, then open this again.')
+            : 'I start every session with it.'
+        }
+      />
+      <Check
+        ok={detected ? listening.length > 0 : undetected ? false : null}
+        title="Your Claude connectors are there"
+        detail={
+          detected
+            ? `${plural(detected.connectors.length, 'connector', 'connectors')}; I can listen to ${listening.length > 0 ? list(listening) : 'none of them yet'}`
+            : (undetected ?? 'Asking Claude Code…')
+        }
+      />
+      <Check
+        ok={status?.service ?? null}
+        title="Keep working in the background"
+        detail="Starts when you log in and keeps going when this window is closed."
+      >
+        {status && !status.service && (
+          <Button
+            kind="tool"
+            onClick={() => void api.setup.installService({ idempotencyKey: key() }).then(setStatus, (e: unknown) => setError(message(e)))}
+          >
+            Turn on
+          </Button>
+        )}
+      </Check>
+    </>
+  )
+
+  if (!wizard)
+    return (
+      <section className="pane task" aria-label="Set up">
+        <div className="task-head drag" />
+        <div className="page narrow settings">
+          <div className="settings-head">
+            <h1 className="serif">Set up</h1>
+            <Button kind="tool" onClick={() => walk(0)}>
+              Walk through the steps again
+            </Button>
+          </div>
+          <nav className="settings-jump" aria-label="Sections">
+            <a href="#this-mac">This Mac</a>
+            <a href="#sources">Sources</a>
+            <a href="#workstreams">Workstreams</a>
+          </nav>
+          {error && <Banner>{error}</Banner>}
+
+          <h2 id="this-mac">This Mac</h2>
+          {checks}
+
+          <Sources items={items} onOpen={onOpen} />
+          <div className="settings-actions">
+            <Button kind="tool" onClick={() => walk(1)}>
+              Add a source
+            </Button>
+            <Button
+              kind="tool"
+              onClick={() => {
+                walk(3)
+                startPreview()
+              }}
+            >
+              What I would have picked up yesterday
+            </Button>
+          </div>
+
+          <h2 id="workstreams">Workstreams</h2>
+          <WorkstreamsEditor workstreams={workstreams} items={items} onChange={onWorkstreams} />
+          <div className="settings-actions">
+            <Button
+              kind="tool"
+              onClick={() => {
+                walk(2)
+                void startSweep()
+              }}
+            >
+              Look through two weeks for more
+            </Button>
+          </div>
+        </div>
+      </section>
+    )
+
   return (
     <section className="pane task" aria-label="Set up">
       <div className="task-head drag" />
       <div className="page narrow">
+        {setUp && (
+          <div className="settings-head">
+            <Button kind="quiet" onClick={() => setWalking(false)}>
+              ← Back to settings
+            </Button>
+          </div>
+        )}
         <ol className="stepper" aria-label="Steps">
           {STEPS.map((s, i) => (
             <li key={s} className={i < step || (i <= open && i !== step) ? 'done' : i === step ? 'current' : ''}>
@@ -251,40 +369,7 @@ export const Setup = ({ onDone }: Props) => {
               I watch where work arrives, collect what needs you, and prepare it in Claude Code. First, a quick check that everything I need
               is here.
             </p>
-            <Check
-              ok={status?.claude.installed ?? null}
-              title="Claude Code is installed"
-              detail={
-                status
-                  ? (status.claude.version ?? 'Not found. Install Claude Code, sign in, then open this again.')
-                  : 'I start every session with it.'
-              }
-            />
-            <Check
-              ok={detected ? listening.length > 0 : undetected ? false : null}
-              title="Your Claude connectors are there"
-              detail={
-                detected
-                  ? `${plural(detected.connectors.length, 'connector', 'connectors')}; I can listen to ${listening.length > 0 ? list(listening) : 'none of them yet'}`
-                  : (undetected ?? 'Asking Claude Code…')
-              }
-            />
-            <Check
-              ok={status?.service ?? null}
-              title="Keep working in the background"
-              detail="Starts when you log in and keeps going when this window is closed."
-            >
-              {status && !status.service && (
-                <Button
-                  kind="tool"
-                  onClick={() =>
-                    void api.setup.installService({ idempotencyKey: key() }).then(setStatus, (e: unknown) => setError(message(e)))
-                  }
-                >
-                  Turn on
-                </Button>
-              )}
-            </Check>
+            {checks}
             <div className="step-bar">
               <Meta as="span">A few minutes. Nothing is filed until step 5.</Meta>
               <Button kind="primary" disabled={!status?.claude.installed} onClick={() => go(1)}>
@@ -527,10 +612,10 @@ export const Setup = ({ onDone }: Props) => {
                 </div>
               </div>
             ))}
-            {byWorkstream.map(([ws, items]) => (
+            {byWorkstream.map(([ws, inWorkstream]) => (
               <div key={ws}>
                 <h2>{titleCase(ws)}</h2>
-                {items?.map((d) => (
+                {inWorkstream?.map((d) => (
                   <div key={d.id} className="card">
                     <div className="card-head">
                       <span className="name">{d.title ?? d.reason}</span>

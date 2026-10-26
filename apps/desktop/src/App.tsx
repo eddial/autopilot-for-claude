@@ -5,7 +5,6 @@ import { NewTask } from './components/NewTask.tsx'
 import { QueueList } from './components/QueueList.tsx'
 import { Servers } from './components/Servers.tsx'
 import { Setup } from './components/Setup.tsx'
-import { Signals } from './components/Signals.tsx'
 import { TaskPane } from './components/TaskPane.tsx'
 import { Button, Pilot } from './ui.tsx'
 import { useQueueItems, useStore } from './store.ts'
@@ -142,7 +141,7 @@ export const App = () => {
     window.addEventListener('pointerup', up)
   }
 
-  // A place (New task, Signals, Servers, Set up) opens beside the list.
+  // A place (New task, Set up, Servers) opens beside the list.
   const go = (v: View) => {
     setView(v)
     setShowingTask(true)
@@ -188,12 +187,16 @@ export const App = () => {
       )}
       {view.kind === 'new' ? (
         <NewTask workstreams={workstreams} onCreated={openTask} />
-      ) : view.kind === 'signals' ? (
-        <Signals items={items} workstreams={workstreams} onWorkstreams={setWorkstreams} onOpen={openTask} />
       ) : view.kind === 'servers' ? (
         <Servers />
       ) : view.kind === 'setup' ? (
-        <Setup onDone={() => setView({ kind: 'task' })} />
+        <Setup
+          items={items}
+          workstreams={workstreams}
+          onWorkstreams={setWorkstreams}
+          onOpen={openTask}
+          onDone={() => setView({ kind: 'task' })}
+        />
       ) : current ? (
         <TaskPane key={current.task.id} item={current} onClose={() => setShowingTask(false)} />
       ) : (
