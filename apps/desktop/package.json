@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "web": "node scripts/web.ts",
     "perf": "node scripts/build.ts && node perf/run.ts",
-    "screens": "node scripts/screens.ts ../../screens"
+    "screens": "node scripts/screens.ts ../../screens",
+    "icon": "node scripts/icon.ts"
   },
   "dependencies": {
     "@autopilot/client": "workspace:*",

@@ -12,7 +12,7 @@ import {
   type Pending,
 } from '@autopilot/client'
 import type { QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contracts'
-import { filedBy, isPaste, pasteSize, signalName } from '@autopilot/client'
+import { filedBy, isArtifact, isPaste, pasteSize, signalName } from '@autopilot/client'
 import { shell } from '../api.ts'
 import { age, ago, rowMeta, updateLabel } from '../format.ts'
 import { useDraft } from '../drafts.ts'
@@ -194,7 +194,8 @@ export const TaskPane = ({ item, workstreams, upNext = null, onClose }: Props) =
                 </section>
               )}
               <div className="linked-inline">
-                <Linked taskId={task.id} links={task.links} />
+                <Linked taskId={task.id} links={task.links.filter(isArtifact)} noun="artifact" />
+                <Linked taskId={task.id} links={task.links.filter((l) => !isArtifact(l))} noun="linked" />
               </div>
               <section className="section">
                 <div className="section-label">Activity</div>
@@ -854,15 +855,21 @@ const Properties = ({
         </div>
       )}
 
-      {task.links.length > 0 && (
-        <div className="side-group">
-          <span className="side-heading">Linked</span>
-          <ul className="side-links">
-            {task.links.toReversed().map((l) => (
-              <SideLink key={l.url} taskId={task.id} link={l} at={l.at ?? linkedAt(l.url)} />
-            ))}
-          </ul>
-        </div>
+      {[
+        { heading: 'Artifacts', links: task.links.filter(isArtifact) },
+        { heading: 'Linked', links: task.links.filter((l) => !isArtifact(l)) },
+      ].map(
+        (group) =>
+          group.links.length > 0 && (
+            <div key={group.heading} className="side-group">
+              <span className="side-heading">{group.heading}</span>
+              <ul className="side-links">
+                {group.links.toReversed().map((l) => (
+                  <SideLink key={l.url} taskId={task.id} link={l} at={l.at ?? linkedAt(l.url)} />
+                ))}
+              </ul>
+            </div>
+          ),
       )}
     </aside>
   )

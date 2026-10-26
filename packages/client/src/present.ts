@@ -75,6 +75,7 @@ const SOURCES: [RegExp, string][] = [
   [/(^|\.)linear\.app$/, 'Linear'],
   [/(^|\.)notion\.(so|site)$/, 'Notion'],
   [/(^|\.)fathom\.video$/, 'Fathom'],
+  [/(^|\.)claude\.ai$/, 'Claude'],
 ]
 
 /** Where a link goes, for a list of linked things: `Gmail`, `GitHub`, `File`, or the host. */
@@ -126,8 +127,16 @@ export const linkKind = (link: { url: string; title: string }): LinkKind => {
   if (source === 'Gmail') return { label: /draft/i.test(link.title) ? 'Email draft' : 'Email', icon: 'mail' }
   if (source === 'Slack') return { label: /draft/i.test(link.title) ? 'Slack draft' : 'Slack message', icon: 'mail' }
   if (source === 'Google Docs') return { label: 'Google Doc', icon: 'document' }
+  if (source === 'Claude' && /\/artifact\//.test(url)) return { label: 'Artifact', icon: 'document' }
   return { label: source, icon: 'link' }
 }
+
+/**
+ * What a session made to share, which both apps list as Artifacts apart from the rest: a file it
+ * wrote, a Google Doc, a Claude artifact. Pull requests, branches, drafts and sources stay Linked.
+ */
+export const isArtifact = (link: { url: string; title: string }): boolean =>
+  link.url.startsWith('file:') || ['Google Doc', 'Artifact'].includes(linkKind(link).label)
 
 export const updateTone = (update: Update): EntryTone => {
   if (update.kind in ASKING) return update.open ? 'pilot' : 'quiet'

@@ -1,7 +1,7 @@
 import type { Update } from '@autopilot/contracts'
 import { describe, expect, it } from 'vitest'
 import { parseMarkdown } from '../src/markdown.ts'
-import { linkSource, updateLabel, updateTone } from '../src/present.ts'
+import { isArtifact, linkSource, updateLabel, updateTone } from '../src/present.ts'
 
 const decision = (open: boolean): Update => ({
   id: 'u1',
@@ -31,6 +31,18 @@ describe('how updates read', () => {
         'https://www.example.com/a',
       ].map(linkSource),
     ).toEqual(['Gmail', 'Slack', 'File', 'example.com'])
+  })
+
+  it('lists what a session made to share as artifacts, apart from the rest', () => {
+    expect(
+      [
+        'file:///Users/b/plan.md',
+        'https://claude.ai/artifact/abc',
+        'https://docs.google.com/document/d/1',
+        'https://github.com/a/b/pull/1',
+        'https://linear.app/a/issue/A-1',
+      ].map((url) => isArtifact({ url, title: 'x' })),
+    ).toEqual([true, true, true, false, false])
   })
 })
 

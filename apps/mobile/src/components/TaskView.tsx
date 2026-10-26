@@ -2,6 +2,7 @@ import { useRef, useState, type ComponentRef, type ReactNode } from 'react'
 import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import {
   filedBy,
+  isArtifact,
   isPaste,
   pasteSize,
   signalName,
@@ -197,7 +198,8 @@ export const TaskView = ({ item, onTitleOff }: { item: QueueItem; onTitleOff?: (
               ))}
             </View>
           )}
-          {task.links.length > 0 && <Linked taskId={task.id} links={task.links} />}
+          <Linked taskId={task.id} links={task.links.filter(isArtifact)} noun="artifact" />
+          <Linked taskId={task.id} links={task.links.filter((l) => !isArtifact(l))} noun="linked" />
           <View style={styles.section}>
             <Text style={type.label}>Activity</Text>
             <View style={styles.feed}>
@@ -263,15 +265,16 @@ const open = (url: string) => {
   if (!url.startsWith('file:')) void Linking.openURL(url)
 }
 
-/** What the task points to: one quiet line naming the kinds; each link in its kind once opened. */
-const Linked = ({ taskId, links }: { taskId: string; links: QueueItem['task']['links'] }) => {
+/** What the task points to, or its artifacts: one quiet line naming the kinds; each link in its kind once opened. */
+const Linked = ({ taskId, links, noun }: { taskId: string; links: QueueItem['task']['links']; noun: 'linked' | 'artifact' }) => {
   const [shown, setShown] = useState(false)
+  if (links.length === 0) return null
   const kinds = [...new Set(links.map((l) => linkKind(l).label))]
   return (
     <View style={styles.section}>
       <Pressable onPress={() => setShown((s) => !s)} accessibilityRole="button" accessibilityState={{ expanded: shown }}>
         <Text style={type.meta}>
-          {shown ? '▾' : '▸'} {links.length} linked · {kinds.join(', ')}
+          {shown ? '▾' : '▸'} {links.length} {noun === 'artifact' && links.length !== 1 ? 'artifacts' : noun} · {kinds.join(', ')}
         </Text>
       </Pressable>
       {shown && [...links].reverse().map((l) => <LinkRow key={l.url} taskId={taskId} link={l} />)}
