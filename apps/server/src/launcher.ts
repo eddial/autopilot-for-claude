@@ -333,6 +333,8 @@ export class Launcher {
     const { service } = this.opts
     const { pty, sessionId } = live
     const link = () => {
+      // Drawn after shutdown, when the store is closed: nothing to record.
+      if (this.stopping) return
       const session = service.session(sessionId)
       // None yet, or one read wrongly before (anything but a session's whole link).
       const known = session?.remoteControlUrl
