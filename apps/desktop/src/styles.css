@@ -230,24 +230,6 @@ button {
   color: var(--text-3);
 }
 
-/* Set up and Servers, at the foot of the list. */
-.places {
-  display: flex;
-  gap: 4px;
-  padding: 8px 12px 12px;
-  border-top: 0.5px solid var(--border);
-}
-
-.places .icon-button {
-  position: relative;
-}
-
-.place-alert {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-}
-
 .task {
   flex: 1;
 }
@@ -559,7 +541,8 @@ button {
   align-items: center;
   gap: 10px;
   height: 48px;
-  padding: 0 24px;
+  /* Its right edge keeps clear of Settings at the window's top right. */
+  padding: 0 56px 0 24px;
 }
 
 .task-title h2 {
@@ -1544,25 +1527,34 @@ button {
   margin-bottom: 6px;
 }
 
-.settings-jump {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 10px 0 0;
+.settings-tabs {
+  display: inline-flex;
+  gap: 2px;
+  margin: 14px 0 6px;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--well);
 }
 
-.settings-jump a {
-  padding: 4px 10px;
-  border-radius: var(--radius-round);
-  background: var(--surface);
-  color: var(--text-2);
-  font-size: 13px;
-  text-decoration: none;
+.settings-tabs .tab,
+.settings-tabs .tab[aria-current='page'] {
+  flex: none;
+  padding: 0 14px;
 }
 
-.settings-jump a:hover {
-  color: var(--text);
-  background: var(--open);
+/* Settings at the window's top right, above whatever pane is open. */
+.settings-button {
+  position: fixed;
+  top: 9px;
+  right: 12px;
+  z-index: 16;
+  -webkit-app-region: no-drag;
+}
+
+.place-alert {
+  position: absolute;
+  top: 3px;
+  right: 3px;
 }
 
 .settings h2 {

@@ -3,10 +3,9 @@ import type { QueueItem, Signal, Workstream } from '@autopilot/contracts'
 import { api, shell } from './api.ts'
 import { NewTask } from './components/NewTask.tsx'
 import { QueueList } from './components/QueueList.tsx'
-import { Servers } from './components/Servers.tsx'
 import { Setup } from './components/Setup.tsx'
 import { TaskPane } from './components/TaskPane.tsx'
-import { Button, Pilot } from './ui.tsx'
+import { Button, Dot, NavIcon, Pilot } from './ui.tsx'
 import { useQueueItems, useStore } from './store.ts'
 import { QUEUE_VIEWS, type QueueView, type View } from './view.ts'
 
@@ -107,7 +106,11 @@ export const App = () => {
     setSelected(id)
     setShowingTask(true)
   }, [])
-  const selectTask = useCallback((id: string) => setSelected(id), [])
+  // Picking a task from the list while a place (Settings, New task) is open goes back to tasks.
+  const selectTask = useCallback((id: string) => {
+    setSelected(id)
+    setView((v) => (v.kind === 'task' ? v : { kind: 'task' }))
+  }, [])
   useAttention(items, openTask)
 
   const listed = useMemo(() => tabItems(tab, items, done, all), [tab, items, done, all])
@@ -141,7 +144,7 @@ export const App = () => {
     window.addEventListener('pointerup', up)
   }
 
-  // A place (New task, Set up, Servers) opens beside the list.
+  // A place (New task, Settings) opens beside the list.
   const go = (v: View) => {
     setView(v)
     setShowingTask(true)
@@ -167,7 +170,6 @@ export const App = () => {
         onTab={switchTab}
         counts={counts}
         items={listed}
-        signals={signals}
         view={view}
         go={go}
         selected={selected}
@@ -180,6 +182,22 @@ export const App = () => {
       <div className="grip" role="separator" aria-label="Resize list" aria-orientation="vertical" onPointerDown={startResize}>
         <span />
       </div>
+      {/* Settings, at the window's top right, with a dot when a source is failing. */}
+      <Button
+        kind="icon"
+        className="settings-button"
+        aria-label="Settings"
+        title="Settings"
+        aria-current={view.kind === 'setup' ? 'page' : undefined}
+        onClick={() => go({ kind: 'setup' })}
+      >
+        <NavIcon name="setup" />
+        {signals.some((s) => s.health.state === 'failing') && (
+          <span className="place-alert">
+            <Dot tone="alert" label="A source is failing" />
+          </span>
+        )}
+      </Button>
       {/* Too narrow for the list beside a place: the way back to it. */}
       {view.kind !== 'task' && showingTask && (
         <Button kind="quiet" className="narrow-back" onClick={() => setShowingTask(false)}>
@@ -188,8 +206,6 @@ export const App = () => {
       )}
       {view.kind === 'new' ? (
         <NewTask workstreams={workstreams} onCreated={openTask} />
-      ) : view.kind === 'servers' ? (
-        <Servers />
       ) : view.kind === 'setup' ? (
         <Setup
           items={items}

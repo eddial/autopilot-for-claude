@@ -122,20 +122,27 @@ describe('the Mac app window', () => {
   }, 30_000)
 
   it('walks into set-up the first time', async () => {
-    await page.getByRole('button', { name: 'Set up' }).click()
+    await page.getByRole('button', { name: 'Settings' }).click()
     await expect.poll(() => page.getByRole('heading', { name: "Hi, I'm your pilot." }).isVisible()).toBe(true)
     // No Claude Code here: the first check says so, and Continue waits for it.
     await expect.poll(() => page.getByRole('button', { name: 'Continue' }).isDisabled()).toBe(true)
     await shot('setup')
   }, 30_000)
 
-  it('pairs an iPhone from the Servers screen', async () => {
-    await page.getByRole('button', { name: 'Servers' }).click()
+  it('pairs an iPhone from the Devices settings', async () => {
+    await page.getByRole('button', { name: 'Skip to settings' }).click()
+    await page.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Devices' }).click()
     await page.getByRole('button', { name: 'Pair a device' }).click()
     await expect.poll(() => page.getByText('Waiting for your phone').isVisible()).toBe(true)
     await shot('pairing')
     const code = (await page.getByText(/^Or type the code:/).textContent())?.replace('Or type the code:', '').trim() ?? ''
     server.service.pairDevice({ idempotencyKey: 'ui-pair-1', code, name: 'Badr’s iPhone', kind: 'iphone' })
     await expect.poll(() => page.getByText('Paired with Badr’s iPhone.').isVisible(), { timeout: 10_000 }).toBe(true)
+  }, 30_000)
+
+  it('opens a task picked while Settings is open', async () => {
+    await tab('Needs me').click()
+    await page.getByRole('option', { name: /Renew the office lease/ }).click()
+    await expect.poll(() => page.getByRole('heading', { level: 2, name: 'Renew the office lease' }).count()).toBe(1)
   }, 30_000)
 })

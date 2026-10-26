@@ -4,6 +4,7 @@ import { signalName } from '@autopilot/client'
 import { api, key } from '../api.ts'
 import { titleCase } from '../format.ts'
 import { Banner, Button, Dot, Meta, Pilot, Row } from '../ui.tsx'
+import { Devices } from './Devices.tsx'
 import { Sources } from './Sources.tsx'
 import { WorkstreamsEditor } from './Workstreams.tsx'
 
@@ -16,6 +17,14 @@ type Props = {
 }
 
 const STEPS = ['Get ready', 'Sources', 'Workstreams', 'Preview', 'Switch on']
+
+type SettingsTab = 'general' | 'sources' | 'workstreams' | 'devices'
+const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
+  { id: 'general', label: 'General' },
+  { id: 'sources', label: 'Sources' },
+  { id: 'workstreams', label: 'Workstreams' },
+  { id: 'devices', label: 'Devices' },
+]
 
 /** How far back the sweep reads. */
 const SWEEP_DAYS = 14
@@ -83,6 +92,7 @@ const useSeconds = (on: boolean) => {
 export const Setup = ({ items, workstreams, onWorkstreams, onOpen, onDone }: Props) => {
   // Settings once set up; the steps the first time, or when asked for.
   const [walking, setWalking] = useState<boolean | null>(null)
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('general')
   const [step, setStep] = useState(0)
   // How far set-up has been: those steps can be opened again from the stepper.
   const [reached, setReached] = useState(0)
@@ -282,54 +292,69 @@ export const Setup = ({ items, workstreams, onWorkstreams, onOpen, onDone }: Pro
 
   if (!wizard)
     return (
-      <section className="pane task" aria-label="Set up">
+      <section className="pane task" aria-label="Settings">
         <div className="task-head drag" />
         <div className="page narrow settings">
           <div className="settings-head">
-            <h1 className="serif">Set up</h1>
-            <Button kind="tool" onClick={() => walk(0)}>
-              Walk through the steps again
+            <h1 className="serif">Settings</h1>
+            <Button kind="quiet" onClick={() => walk(0)}>
+              Run set-up again
             </Button>
           </div>
-          <nav className="settings-jump" aria-label="Sections">
-            <a href="#this-mac">This Mac</a>
-            <a href="#sources">Sources</a>
-            <a href="#workstreams">Workstreams</a>
+          <nav className="settings-tabs" aria-label="Settings">
+            {SETTINGS_TABS.map((t) => (
+              <Button key={t.id} kind="tab" aria-current={settingsTab === t.id ? 'page' : undefined} onClick={() => setSettingsTab(t.id)}>
+                {t.label}
+              </Button>
+            ))}
           </nav>
           {error && <Banner>{error}</Banner>}
 
-          <h2 id="this-mac">This Mac</h2>
-          {checks}
+          {settingsTab === 'general' && (
+            <>
+              <h2>This Mac</h2>
+              {checks}
+            </>
+          )}
 
-          <Sources items={items} onOpen={onOpen} />
-          <div className="settings-actions">
-            <Button kind="tool" onClick={() => walk(1)}>
-              Add a source
-            </Button>
-            <Button
-              kind="tool"
-              onClick={() => {
-                walk(3)
-                startPreview()
-              }}
-            >
-              What I would have picked up yesterday
-            </Button>
-          </div>
+          {settingsTab === 'sources' && (
+            <>
+              <Sources items={items} onOpen={onOpen} />
+              <div className="settings-actions">
+                <Button kind="tool" onClick={() => walk(1)}>
+                  Add a source
+                </Button>
+                <Button
+                  kind="tool"
+                  onClick={() => {
+                    walk(3)
+                    startPreview()
+                  }}
+                >
+                  What I would have picked up yesterday
+                </Button>
+              </div>
+            </>
+          )}
 
-          <h2 id="workstreams">Workstreams</h2>
-          <WorkstreamsEditor workstreams={workstreams} items={items} onChange={onWorkstreams} />
-          <div className="settings-actions">
-            <Button
-              kind="tool"
-              onClick={() => {
-                walk(2)
-                void startSweep()
-              }}
-            >
-              Look through two weeks for more
-            </Button>
-          </div>
+          {settingsTab === 'workstreams' && (
+            <>
+              <WorkstreamsEditor workstreams={workstreams} items={items} onChange={onWorkstreams} />
+              <div className="settings-actions">
+                <Button
+                  kind="tool"
+                  onClick={() => {
+                    walk(2)
+                    void startSweep()
+                  }}
+                >
+                  Look through two weeks for more
+                </Button>
+              </div>
+            </>
+          )}
+
+          {settingsTab === 'devices' && <Devices />}
         </div>
       </section>
     )
@@ -338,13 +363,11 @@ export const Setup = ({ items, workstreams, onWorkstreams, onOpen, onDone }: Pro
     <section className="pane task" aria-label="Set up">
       <div className="task-head drag" />
       <div className="page narrow">
-        {setUp && (
-          <div className="settings-head">
-            <Button kind="quiet" onClick={() => setWalking(false)}>
-              ← Back to settings
-            </Button>
-          </div>
-        )}
+        <div className="settings-head">
+          <Button kind="quiet" onClick={() => setWalking(false)}>
+            {setUp ? '← Back to settings' : 'Skip to settings'}
+          </Button>
+        </div>
         <ol className="stepper" aria-label="Steps">
           {STEPS.map((s, i) => (
             <li key={s} className={i < step || (i <= open && i !== step) ? 'done' : i === step ? 'current' : ''}>

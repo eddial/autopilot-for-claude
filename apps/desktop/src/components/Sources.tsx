@@ -97,7 +97,6 @@ export const Sources = ({ items, onOpen }: Props) => {
         </div>
       ))}
 
-      <h2 id="sources">Sources</h2>
       {signals.length === 0 && <Meta>No sources yet. Add them from your Claude connectors.</Meta>}
       {signals.map((s) => {
         const shown = previews[s.name]

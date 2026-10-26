@@ -1,12 +1,12 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
-import type { QueueItem, Signal } from '@autopilot/contracts'
+import type { QueueItem } from '@autopilot/contracts'
 import { workstreamMark } from '@autopilot/client'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useDraft } from '../drafts.ts'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
 import { QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
-import { Banner, Button, Dot, NavIcon, SearchIcon, type NavIconName } from '../ui.tsx'
+import { Banner, Button, NavIcon, SearchIcon, type NavIconName } from '../ui.tsx'
 
 type Props = {
   tab: QueueView
@@ -16,7 +16,6 @@ type Props = {
   /** How many tasks each tab holds; Done only once it has been read. */
   counts: Partial<Record<QueueView | 'all', number>>
   items: QueueItem[]
-  signals: Signal[]
   view: View
   go: (view: View) => void
   selected: string | null
@@ -52,11 +51,11 @@ type Entry = { kind: 'group'; workstream: string; count: number; folded: boolean
 
 /**
  * The left of the window: the status tabs, search, and the tasks of the tab in a section per
- * workstream, with the places (Set up, Servers) at the foot. It is the nav and the list
- * in one, as on the phone.
+ * workstream. It is the nav and the list in one, as on the phone; Settings sits at the window's
+ * top right.
  */
 export const QueueList = (props: Props) => {
-  const { tab, all, onTab, counts, items, signals, view, go, selected, onSelect, onOpen, width, banner, showingTasks } = props
+  const { tab, all, onTab, counts, items, view, go, selected, onSelect, onOpen, width, banner, showingTasks } = props
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [folded, setFolded] = useState<Set<string>>(new Set())
@@ -127,24 +126,6 @@ export const QueueList = (props: Props) => {
     else return
     event.preventDefault()
   }
-
-  const failing = signals.some((s) => s.health.state === 'failing')
-  const place = (kind: 'servers' | 'setup', label: string, icon: NavIconName, alert?: string) => (
-    <Button
-      kind="icon"
-      aria-label={label}
-      title={label}
-      aria-current={view.kind === kind ? 'page' : undefined}
-      onClick={() => go({ kind })}
-    >
-      <NavIcon name={icon} />
-      {alert && (
-        <span className="place-alert">
-          <Dot tone="alert" label={alert} />
-        </span>
-      )}
-    </Button>
-  )
 
   return (
     // oxlint-disable-next-line react/forbid-dom-props -- the width the person dragged it to
@@ -225,10 +206,6 @@ export const QueueList = (props: Props) => {
             )
           })}
         </div>
-      </div>
-      <div className="places">
-        {place('setup', 'Set up', 'setup', failing ? 'A source is failing' : undefined)}
-        {place('servers', 'Servers', 'servers')}
       </div>
     </section>
   )

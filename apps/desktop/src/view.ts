@@ -3,7 +3,7 @@ import type { Band } from '@autopilot/contracts'
 export type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
 
 /** What the pane beside the list shows: the selected task, or one of the places. */
-export type View = { kind: 'task' } | { kind: 'new' } | { kind: 'setup' } | { kind: 'servers' }
+export type View = { kind: 'task' } | { kind: 'new' } | { kind: 'setup' }
 
 export const QUEUE_VIEWS: { id: QueueView; title: string; bands: Band[] }[] = [
   { id: 'needs_me', title: 'Needs me', bands: ['your_turn', 'new'] },
