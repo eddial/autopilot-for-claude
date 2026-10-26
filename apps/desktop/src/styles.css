@@ -578,12 +578,15 @@ button {
   min-height: 0;
   display: flex;
   align-items: flex-start;
+  /* The content and its properties as one pair, centred together, never apart. */
+  justify-content: center;
   /* One scroll for the page, its bar at the window's edge; the properties stay put beside it. */
   overflow-y: auto;
 }
 
 .task-col {
-  flex: 1;
+  /* Reading width (720) plus its padding; narrower when the pane is. */
+  flex: 0 1 784px;
   min-width: 0;
   min-height: 100%;
   display: flex;
