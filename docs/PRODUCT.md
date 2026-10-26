@@ -155,7 +155,7 @@ Claude right). Inner portrait keeps ordinary horizontal bars. Order, top to bott
 
 1. Back (only on a task).
 2. The prominent action: New task on the queue, Open session (or Start) on a task, in ink.
-3. The rest: your Mac (sync, unpair) on the queue; ⋯ on a task (Mark done, Snooze, Not for me),
+3. The rest: your Mac (how it is reached, unpair; syncing runs by itself) on the queue; ⋯ on a task (Mark done, Snooze, Not for me),
    then up and down through the list. No tabs: the phone has no settings of its own.
 
 In the full-screen split layout only the task column joins the vertical bar; the list column keeps

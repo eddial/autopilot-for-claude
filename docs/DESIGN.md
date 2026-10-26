@@ -76,7 +76,7 @@ From the top:
 4. **Cards**: title, then the update label and the source (the workstream is the section), age on
    the right, the status dot on the left.
 5. **Places**: Settings, on the Mac only (a floating dialog from the gear). The phone has one
-   screen, the queue; its Mac (sync, unpair) is a menu beside New task.
+   screen, the queue; its Mac (how it is reached, unpair) is a menu beside New task.
 
 What is the platform's, not ours: the Mac's window buttons above the tabs and the resizable width;
 the phone's safe areas.

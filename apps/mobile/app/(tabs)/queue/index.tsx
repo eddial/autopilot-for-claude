@@ -268,11 +268,8 @@ export default function QueueScreen() {
         // New task in the side bar, where iOS puts a screen's actions on the Duo; under it, your Mac.
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button icon="plus" accessibilityLabel="New task" onPress={() => router.push('/new')} />
-          {/* No settings of its own (sources and workstreams are the Mac's): just your Mac, to sync or unpair. */}
+          {/* No settings of its own (sources and workstreams are the Mac's): just your Mac: how it is reached, and a way to unpair. Syncing runs by itself. */}
           <Stack.Toolbar.Menu icon="desktopcomputer" accessibilityLabel="Your Mac" title={macTitle(syncState)}>
-            <Stack.Toolbar.MenuAction icon="arrow.clockwise" onPress={() => void sync?.syncOnce(0)}>
-              Sync now
-            </Stack.Toolbar.MenuAction>
             <Stack.Toolbar.MenuAction
               icon="network"
               onPress={() =>
