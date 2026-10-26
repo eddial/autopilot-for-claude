@@ -14,6 +14,7 @@ import {
   useWakeUps,
 } from '../src/store.ts'
 import { colours } from '@autopilot/design'
+import { colourScheme } from '../src/theme.ts'
 
 export default function Root() {
   // Ready at once when the pairing and cache were read before the first frame (the usual case).
@@ -59,7 +60,7 @@ export default function Root() {
   if (!ready) return null
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style={colourScheme === 'light' ? 'dark' : 'light'} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colours.window } }}>
         <Stack.Screen name="index" />
         <Stack.Protected guard={sync !== null}>

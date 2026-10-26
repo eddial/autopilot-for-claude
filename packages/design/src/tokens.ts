@@ -52,13 +52,13 @@ export type Colour = keyof typeof colours
  * the two with the Claude app's setting (light, dark or the system's).
  */
 export const lightColours: Record<Colour, string> = {
-  well: '#E8E6DC',
-  window: '#F0EEE6',
-  surface: '#FAF9F5',
-  open: '#F4F3EE',
+  well: '#EFEEEA',
+  window: '#F8F8F6',
+  surface: '#FFFFFF',
+  open: '#F7F7F5',
   raised: '#FFFFFF',
-  button: '#E8E6DC',
-  buttonHover: '#DEDCD1',
+  button: '#EDECE8',
+  buttonHover: '#E3E2DD',
   grip: '#C2C0B6',
 
   text: '#141413',

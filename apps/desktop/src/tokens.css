@@ -54,13 +54,13 @@
 
 @media (prefers-color-scheme: light) {
   :root {
-    --well: #E8E6DC;
-    --window: #F0EEE6;
-    --surface: #FAF9F5;
-    --open: #F4F3EE;
+    --well: #EFEEEA;
+    --window: #F8F8F6;
+    --surface: #FFFFFF;
+    --open: #F7F7F5;
     --raised: #FFFFFF;
-    --button: #E8E6DC;
-    --button-hover: #DEDCD1;
+    --button: #EDECE8;
+    --button-hover: #E3E2DD;
     --grip: #C2C0B6;
     --text: #141413;
     --text-body: #1F1E1D;
