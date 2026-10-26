@@ -25,8 +25,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
 const VIEWS: { id: QueueView; title: string; bands: Band[]; symbol: SFSymbol }[] = [
-  { id: 'needs_me', title: 'Needs me', bands: ['your_turn', 'new'], symbol: 'tray' },
-  { id: 'running', title: 'Running', bands: ['running'], symbol: 'rays' },
+  { id: 'needs_me', title: 'Needs me', bands: ['your_turn', 'new'], symbol: 'bubble.left.and.bubble.right' },
+  { id: 'running', title: 'Running', bands: ['running'], symbol: 'hammer' },
   { id: 'waiting', title: 'Waiting on others', bands: ['waiting'], symbol: 'clock' },
   { id: 'snoozed', title: 'Snoozed', bands: ['snoozed'], symbol: 'moon' },
   { id: 'done', title: 'Done', bands: ['done'], symbol: 'flag.checkered' },
@@ -81,9 +81,10 @@ export default function QueueScreen() {
       Object.fromEntries(VIEWS.map((v) => [v.id, v.id === 'done' ? done?.length : items.filter((i) => v.bands.includes(i.band)).length])),
     [items, done],
   )
-  const pick = (id: QueueView) => {
-    setAll(id === view && id !== 'done' && !all)
-    setView(id)
+  // All is every open task across workstreams; it keeps the status tab you came from.
+  const pick = (id: QueueView | 'all') => {
+    setAll(id === 'all')
+    if (id !== 'all') setView(id)
   }
 
   // A section per workstream, in the order of its most pressing task; the inbox last.
@@ -129,10 +130,10 @@ export default function QueueScreen() {
 
   const tabs = (
     <View style={styles.tabs} accessibilityRole="tablist">
-      {VIEWS.map((v) => {
-        const on = v.id === view
-        const name = on && all ? 'All open' : v.title
-        const count = on && all ? openItems.length : counts[v.id]
+      {/* As on the Mac: All first, then each status; every tab its symbol and count. */}
+      {[{ id: 'all' as const, title: 'All open', symbol: 'square.stack' as SFSymbol }, ...VIEWS].map((v) => {
+        const on = v.id === 'all' ? all : !all && v.id === view
+        const count = v.id === 'all' ? openItems.length : counts[v.id]
         return (
           <Pressable
             key={v.id}
@@ -140,21 +141,12 @@ export default function QueueScreen() {
             onPress={() => pick(v.id)}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
-            accessibilityLabel={count === undefined ? name : `${name}, ${count}`}
+            accessibilityLabel={count === undefined ? v.title : `${v.title}, ${count}`}
           >
             <SymbolView name={v.symbol} size={15} tintColor={on ? colours.text : colours.text3} />
-            {on && (
-              <Text style={styles.tabName} numberOfLines={1}>
-                {name}
-              </Text>
-            )}
             {count !== undefined && (
               <Text
-                style={[
-                  styles.tabCount,
-                  on && { color: colours.text },
-                  v.id === 'needs_me' && !all && count > 0 && { color: colours.pilotSoft },
-                ]}
+                style={[styles.tabCount, on && { color: colours.text }, v.id === 'needs_me' && count > 0 && { color: colours.pilotSoft }]}
               >
                 {count}
               </Text>
@@ -330,7 +322,6 @@ const styles = StyleSheet.create({
   tab: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 34, borderRadius: 9 },
   // Lifted off the well, as the Mac's.
   tabOn: {
-    flex: 2.6,
     backgroundColor: colours.raised,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colours.borderStrong,
@@ -339,7 +330,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     shadowOffset: { width: 0, height: 1 },
   },
-  tabName: { flexShrink: 1, fontSize: 14, color: colours.text },
   tabCount: { fontSize: 14, color: colours.text3, fontVariant: ['tabular-nums'] },
   section: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 8 },
   sectionName: { fontSize: 14, color: colours.text2, fontFamily: 'Menlo' },
