@@ -659,6 +659,9 @@ button {
 .task-side {
   position: sticky;
   top: 0;
+  /* Pinned beside the page, and scrolling on its own when it is the longer of the two. */
+  max-height: 100%;
+  overflow-y: auto;
   width: 300px;
   flex: none;
   padding: 4px 14px 24px;
@@ -677,6 +680,11 @@ button {
   border: 0.5px solid var(--border-strong);
   border-radius: 12px;
   background: var(--surface);
+}
+
+.side-more {
+  align-self: flex-start;
+  margin: 4px 8px 2px;
 }
 
 .side-heading {

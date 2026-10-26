@@ -796,32 +796,61 @@ const Properties = ({
         )}
       </div>
 
-      {signals.length > 0 && (
-        <div className="side-group">
-          <span className="side-heading">Signal</span>
-          {signals.map((m) => (
-            <SignalRow key={`${m.url}-${m.at}`} mention={m} />
-          ))}
-        </div>
-      )}
-
+      {/* What the session made first, then what it points to, then where it came from; newest first in each. */}
       {[
-        { heading: 'Artifacts', links: task.links.filter(isArtifact) },
-        { heading: 'Linked', links: task.links.filter((l) => !isArtifact(l)) },
-      ].map(
-        (group) =>
-          group.links.length > 0 && (
-            <div key={group.heading} className="side-group">
-              <span className="side-heading">{group.heading}</span>
-              <ul className="side-links">
-                {group.links.toReversed().map((l) => (
-                  <SideLink key={l.url} taskId={task.id} link={l} at={l.at ?? linkedAt(l.url)} />
-                ))}
-              </ul>
-            </div>
+        { heading: 'Artifacts', shown: 5, links: newestFirst(task.links.filter(isArtifact), (l) => l.at ?? linkedAt(l.url)) },
+        {
+          heading: 'Linked',
+          shown: 3,
+          links: newestFirst(
+            task.links.filter((l) => !isArtifact(l)),
+            (l) => l.at ?? linkedAt(l.url),
           ),
-      )}
+        },
+      ].map((group) => (
+        <SideGroup
+          key={group.heading}
+          heading={group.heading}
+          shown={group.shown}
+          list
+          rows={group.links.map((l) => (
+            <SideLink key={l.url} taskId={task.id} link={l} at={l.at ?? linkedAt(l.url)} />
+          ))}
+        />
+      ))}
+      <SideGroup
+        heading="Signal"
+        shown={3}
+        rows={newestFirst(signals, (m) => m.at).map((m) => (
+          <SignalRow key={`${m.url}-${m.at}`} mention={m} />
+        ))}
+      />
     </aside>
+  )
+}
+
+/** Newest first; anything without a readable time keeps its place at the end. */
+const newestFirst = <T,>(list: T[], at: (item: T) => string | null): T[] =>
+  list
+    .map((item, i) => ({ item, i, t: Date.parse(at(item) ?? '') }))
+    .toSorted((a, b) => (Number.isNaN(b.t) ? -1 : Number.isNaN(a.t) ? 1 : b.t - a.t) || b.i - a.i)
+    .map((x) => x.item)
+
+/** A card in the properties column: its first rows, and the rest a click away. */
+const SideGroup = ({ heading, rows, shown, list = false }: { heading: string; rows: ReactNode[]; shown: number; list?: boolean }) => {
+  const [all, setAll] = useState(false)
+  if (rows.length === 0) return null
+  const visible = all ? rows : rows.slice(0, shown)
+  return (
+    <div className="side-group">
+      <span className="side-heading">{heading}</span>
+      {list ? <ul className="side-links">{visible}</ul> : visible}
+      {rows.length > shown && (
+        <Button kind="link" className="side-more" onClick={() => setAll((a) => !a)}>
+          {all ? 'Show fewer' : `Show all ${rows.length}`}
+        </Button>
+      )}
+    </div>
   )
 }
 
