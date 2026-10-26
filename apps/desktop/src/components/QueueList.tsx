@@ -27,7 +27,25 @@ type Props = {
   showingTasks: boolean
   /** The open task, kept in its place after it left the tab (answered), until you move on. */
   lingering: string | null
+  /** Where the open task is in the list, and the way to the one before and after it. */
+  place: { at: number; total: number; list: string; hasPrevious: boolean; hasNext: boolean; move: (delta: number) => void } | null
 }
+
+/** A thin arrow, for the way through the list. */
+const Arrow = ({ dir }: { dir: 'left' | 'right' }) => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 14 14"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    aria-hidden="true"
+  >
+    <path d={dir === 'left' ? 'M11.5 7h-9M6 3.5 2.5 7 6 10.5' : 'M2.5 7h9M8 3.5 11.5 7 8 10.5'} />
+  </svg>
+)
 
 /** Where else there is something: "2 waiting on others · 1 snoozed". */
 const elsewhere = (counts: Props['counts'], tab: QueueView | null) =>
@@ -92,7 +110,7 @@ export const listOrder = (items: QueueItem[]): QueueItem[] =>
   sectionOrder(items).flatMap((workstream) => items.filter((i) => i.task.workstream === workstream))
 
 export const QueueList = (props: Props) => {
-  const { tab, all, onTab, counts, items, view, go, selected, onSelect, onOpen, width, banner, showingTasks, lingering } = props
+  const { tab, all, onTab, counts, items, view, go, selected, onSelect, onOpen, width, banner, showingTasks, lingering, place } = props
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [folded, setFolded] = useState<Set<string>>(new Set())
@@ -246,6 +264,26 @@ export const QueueList = (props: Props) => {
           })}
         </div>
       </div>
+      {/* Under the list, as Claude keeps its account there: where you are, and the way on. */}
+      {place && view.kind === 'task' && (
+        <footer className="list-foot" aria-label="Where you are">
+          <span className="list-foot-where">
+            {place.at} of {place.total} in {place.list}
+          </span>
+          <Button
+            kind="icon"
+            disabled={!place.hasPrevious}
+            onClick={() => place.move(-1)}
+            aria-label="Previous task"
+            title="Previous task (←)"
+          >
+            <Arrow dir="left" />
+          </Button>
+          <Button kind="icon" disabled={!place.hasNext} onClick={() => place.move(1)} aria-label="Next task" title="Next task (→)">
+            <Arrow dir="right" />
+          </Button>
+        </footer>
+      )}
     </section>
   )
 }

@@ -14,7 +14,7 @@ import {
 import type { QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contracts'
 import { filedBy, isArtifact, isPaste, pasteSize, signalName } from '@autopilot/client'
 import { shell } from '../api.ts'
-import { age, ago, rowMeta, updateLabel } from '../format.ts'
+import { age, ago, updateLabel } from '../format.ts'
 import { useDraft } from '../drafts.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
 import { AttachButton, FileChips, useFiles } from './Files.tsx'
@@ -28,7 +28,6 @@ type Props = {
   item: QueueItem
   workstreams: Workstream[]
   /** Where this task sits in the list it was opened from, and the way through it. */
-  upNext?: UpNextProps | null
   onClose: () => void
 }
 
@@ -89,7 +88,7 @@ const snoozeTimes = (): { label: string; day: string; time: string; until: Date 
     .map((t) => ({ ...t, day: day(t.until), time: time(t.until) }))
 }
 
-export const TaskPane = ({ item, workstreams, upNext = null, onClose }: Props) => {
+export const TaskPane = ({ item, workstreams, onClose }: Props) => {
   const { task } = item
   // The task comes from the window's store, kept current by the feed: no request on open once it
   // has been seen. Until then, the ask from the queue shows straight away.
@@ -198,8 +197,6 @@ export const TaskPane = ({ item, workstreams, upNext = null, onClose }: Props) =
               </section>
               {/* What waits on the owner comes last, where the reading ends and the page opens. */}
               {refused && <Banner>{refused}</Banner>}
-              {/* Nothing moves you on by itself: you see your reply land, then go when you are ready. */}
-              {upNext && <UpNext {...upNext} />}
             </div>
           </div>
         </div>
@@ -244,52 +241,6 @@ const usePinnedToEnd = () => {
   }, [])
   return ref
 }
-
-type UpNextProps = {
-  /** The task after this one, or none at the end of the list. */
-  next: QueueItem | null
-  hasPrevious: boolean
-  /** This task's place: 2 of 5. */
-  at: number
-  total: number
-  /** The list it is in: Needs me, Running, All open. */
-  list: string
-  move: (delta: number) => void
-}
-
-/**
- * The end of a task, on one line: what comes next, where you are in the list, and the way there.
- * Nothing moves you on by itself; you see your reply land, then go when you are ready (→ and ←
- * work anywhere but in a box you are writing in).
- */
-const UpNext = ({ next, hasPrevious, at, total, list, move }: UpNextProps) => (
-  <section className="up-next" aria-label="Up next">
-    <span className="section-label">{next ? 'Up next' : 'Last one'}</span>
-    {next ? (
-      <Button kind="item" className="up-next-task" title={next.task.title} onClick={() => move(1)}>
-        <WorkstreamMark name={next.task.workstream} />
-        <span className="up-next-title">{next.task.title}</span>
-        <span className="up-next-meta">{rowMeta(next, false)}</span>
-        <Bars priority={next.task.priority} listed />
-      </Button>
-    ) : (
-      <span className="up-next-task up-next-done">Nothing after this in {list}</span>
-    )}
-    {next && (
-      <Meta as="span" className="up-next-where">
-        {at} of {total} in {list}
-      </Meta>
-    )}
-    <Button kind="tool" disabled={!hasPrevious} onClick={() => move(-1)} aria-label="Previous task" title="Previous task (←)">
-      ←
-    </Button>
-    {next && (
-      <Button kind="primary" onClick={() => move(1)} title="Next task (→)">
-        Next →
-      </Button>
-    )}
-  </section>
-)
 
 /** Long text shows its first lines; a click shows the rest. */
 const Body = ({ text, full = false }: { text: string; full?: boolean }) => {

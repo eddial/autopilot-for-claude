@@ -149,8 +149,8 @@ export const App = () => {
     return [...inTab.slice(0, lingering.at), item, ...inTab.slice(lingering.at)]
   }, [inTab, lingering, items, done])
 
-  // Next and previous in the list as it reads: → and ← (with ⌘ too), or Up next at the end of the
-  // task. In a box you are writing in, the arrows move the cursor as usual.
+  // Next and previous in the list as it reads: → and ← (with ⌘ too), or the arrows under the
+  // list. In a box you are writing in, the arrows move the cursor as usual.
   const ordered = useMemo(() => listOrder(listed), [listed])
   const at = ordered.findIndex((i) => i.task.id === selected)
   const nextItem = at >= 0 ? (ordered[at + 1] ?? null) : null
@@ -240,29 +240,24 @@ export const App = () => {
         banner={banner}
         showingTasks={view.kind === 'task'}
         lingering={lingering?.id ?? null}
+        place={
+          at >= 0
+            ? {
+                at: at + 1,
+                total: ordered.length,
+                list: all ? 'All open' : (QUEUE_VIEWS.find((q) => q.id === tab)?.title ?? ''),
+                hasPrevious: at > 0,
+                hasNext: nextItem !== null,
+                move: step,
+              }
+            : null
+        }
       />
       <div className="grip" role="separator" aria-label="Resize list" aria-orientation="vertical" onPointerDown={startResize} />
       {view.kind === 'new' ? (
         <NewTask workstreams={workstreams} onCreated={openTask} />
       ) : current ? (
-        <TaskPane
-          key={current.task.id}
-          item={current}
-          workstreams={workstreams}
-          upNext={
-            at >= 0
-              ? {
-                  next: nextItem,
-                  hasPrevious: at > 0,
-                  at: at + 1,
-                  total: ordered.length,
-                  list: all ? 'All open' : (QUEUE_VIEWS.find((q) => q.id === tab)?.title ?? ''),
-                  move: step,
-                }
-              : null
-          }
-          onClose={() => setShowingTask(false)}
-        />
+        <TaskPane key={current.task.id} item={current} workstreams={workstreams} onClose={() => setShowingTask(false)} />
       ) : listed.length === 0 ? (
         // Nothing in this list: the pane offers what you can do instead, a new task.
         <NewTask workstreams={workstreams} onCreated={openTask} />

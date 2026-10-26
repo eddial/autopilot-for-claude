@@ -2580,69 +2580,29 @@ textarea.inline-reply {
   line-height: 1;
 }
 
-/* At the end of a task, on one line: what comes next, where you are, and the way there. */
-.up-next {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 24px;
-  padding: 6px 6px 6px 14px;
-  border: 0.5px solid var(--border-strong);
-  border-radius: 12px;
-  background: var(--raised);
-}
-
-.up-next .section-label {
+/* Under the list: where the open task is, and the arrows to the one before and after. */
+.list-foot {
   flex: none;
-  margin: 0;
-}
-
-.item.up-next-task {
-  flex: 1;
-  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 8px;
+  gap: 2px;
+  padding: 8px 10px 10px 20px;
+  border-top: 0.5px solid var(--border);
 }
 
-.item.up-next-task:hover {
-  background: var(--hover);
-}
-
-.up-next-title {
+.list-foot-where {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
-  color: var(--text);
-}
-
-.up-next-meta {
-  flex: none;
   font-size: 12.5px;
   color: var(--text-3);
 }
 
-.up-next-done {
-  flex: 1;
-  font-size: 13px;
-  color: var(--text-3);
-}
-
-.up-next-where {
-  flex: none;
-  white-space: nowrap;
-}
-
-/* Narrow: what comes next keeps the room; the place in the list goes. */
-@container (max-width: 620px) {
-  .up-next-where,
-  .up-next-meta {
-    display: none;
-  }
+.list-foot .icon-button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 /* The task's title in the head once the page has scrolled past it; a click goes back to the top. */
