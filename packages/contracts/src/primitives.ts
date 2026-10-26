@@ -24,7 +24,10 @@ export const Priority = z.int().min(1).max(4)
 
 export const Link = z.object({
   url: z.url(),
+  /** Short: it shows on one line, cut off when longer ("Draft reply to Sofie", not a sentence). */
   title: z.string().min(1).max(200),
   subtitle: z.string().max(200).optional(),
+  /** When it was linked; the server sets it. Missing on links from before. */
+  at: z.iso.datetime({ offset: true }).optional(),
 })
 export type Link = z.infer<typeof Link>

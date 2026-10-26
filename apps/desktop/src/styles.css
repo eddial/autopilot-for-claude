@@ -633,7 +633,7 @@ button {
 .task-side {
   position: sticky;
   top: 0;
-  width: 272px;
+  width: 300px;
   flex: none;
   padding: 4px 14px 24px;
   display: flex;
@@ -750,6 +750,35 @@ button {
   clip-path: inset(50%);
 }
 
+/* A menu of choices, the one in use ticked at the start of its line. */
+/* A property that does one thing on click, with its other choices behind a small arrow. */
+.prop-split {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.prop-split .menu-prop .prop-button {
+  padding: 3px 5px;
+  opacity: 0;
+}
+
+.prop-split:hover .menu-prop .prop-button,
+.prop-split .menu-prop .prop-button[aria-expanded='true'],
+.prop-split .menu-prop .prop-button:focus-visible {
+  opacity: 1;
+}
+
+.menu-items.with-checks {
+  grid-template-columns: 16px 1fr auto auto;
+}
+
+.menu-check {
+  display: inline-flex;
+  align-items: center;
+  color: var(--pilot);
+}
+
 .menu-items.align-right {
   left: auto;
   right: 0;
@@ -822,66 +851,111 @@ button {
   color: var(--text-3);
 }
 
-/* In the narrow column a link takes the full width: its title wraps, its actions show below on hover. */
-.side-links .link-head {
-  flex-wrap: wrap;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
-}
-
-.side-links .link-row:hover .link-head {
-  background: var(--hover);
-}
-
-.side-links .link-title {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-}
-
-.side-links .link-title .meta {
-  margin-left: 0;
-  text-align: left;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.side-links .link-title .title {
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.side-links .link-actions {
-  display: none;
-  flex-basis: 100%;
-  padding-left: 26px;
-}
-
-.side-links .link-row:hover .link-actions,
-.side-links .link-row:focus-within .link-actions,
-.side-links .link-actions:has([aria-expanded='true']) {
-  display: flex;
-}
-
-.side-links .link-row + .link-row {
-  border-top: 0;
-}
-
-.side-links .link-preview {
-  margin: 4px 0 8px;
-}
-
 .side-links {
   width: 100%;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* A link in the properties: one line of title, then its kind and when; nothing moves on hover. */
+.side-link {
+  position: relative;
+}
+
+.side-link-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+}
+
+.side-link-main:hover,
+.side-link.reading .side-link-main {
+  background: var(--hover);
+}
+
+.side-link-icon {
+  flex: none;
+  padding-top: 1px;
+  color: var(--text-3);
+}
+
+.side-link-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.side-link-title,
+.side-link-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-link-title {
+  font-size: 13px;
+  color: var(--text-body);
+}
+
+.side-link-meta {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* Its actions float to its left, over the page, while the pointer is on it. */
+.side-link-actions {
+  position: absolute;
+  top: 50%;
+  right: calc(100% - 2px);
+  z-index: 5;
+  display: none;
+  gap: 2px;
+  padding: 3px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  box-shadow: 0 6px 18px var(--shadow);
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
+.side-link:hover .side-link-actions,
+.side-link:focus-within .side-link-actions,
+.side-link.reading .side-link-actions {
+  display: flex;
+}
+
+.side-link-actions .btn,
+.side-link-actions button {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.side-link-preview {
+  position: absolute;
+  top: calc(50% + 22px);
+  right: calc(100% - 2px);
+  z-index: 6;
+  width: 460px;
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--raised);
+  box-shadow: 0 10px 30px var(--shadow);
+}
+
+.side-link-preview .link-preview {
+  margin: 0;
+  background: transparent;
 }
 
 /* Wide: the properties, the task's id and its session in their column, not in the head. */

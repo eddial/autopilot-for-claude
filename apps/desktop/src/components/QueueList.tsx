@@ -24,6 +24,8 @@ type Props = {
   onOpen: (id: string) => void
   width: number
   banner: string | null
+  /** The pane beside the list shows a task (not Set up, New task…): one is always open there. */
+  showingTasks: boolean
 }
 
 const TAB_ICON: Record<QueueView, NavIconName> = {
@@ -54,7 +56,7 @@ type Entry = { kind: 'group'; workstream: string; count: number; folded: boolean
  * in one, as on the phone.
  */
 export const QueueList = (props: Props) => {
-  const { tab, all, onTab, counts, items, signals, view, go, selected, onSelect, onOpen, width, banner } = props
+  const { tab, all, onTab, counts, items, signals, view, go, selected, onSelect, onOpen, width, banner, showingTasks } = props
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [folded, setFolded] = useState<Set<string>>(new Set())
@@ -96,6 +98,16 @@ export const QueueList = (props: Props) => {
     const next = order[Math.min(order.length - 1, Math.max(0, index + delta))]
     if (next) onSelect(next)
   }
+
+  // Side by side, the pane is never empty while the tab has tasks: the first one opens, and when
+  // the open one leaves the tab (done, moved), the first one again. Narrow, the list stays the list.
+  const first = order[0]
+  useEffect(() => {
+    if (!showingTasks || !first || (selected && order.includes(selected))) return
+    if (window.matchMedia('(min-width: 761px)').matches) onSelect(first)
+    // When the tab's tasks or the open one change, not on every render.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [first, selected, showingTasks, order.length])
 
   useEffect(() => {
     if (!selected) return

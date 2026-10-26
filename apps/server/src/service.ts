@@ -462,7 +462,7 @@ export class Service {
         priority: input.priority ?? 3,
         state: input.start ? 'running' : 'new',
         source: { signal: null, url: null, mirrors: null },
-        links: input.links,
+        links: input.links.map((l) => ({ ...l, at: l.at ?? this.iso() })),
         createdBy: by,
       })
       if (input.start) this.enqueue('start_session', { taskId: task.id })
@@ -690,7 +690,7 @@ export class Service {
       const task = this.task(input.taskId)
       if (task.links.some((l) => l.url === input.link.url)) return task
       this.insertUpdate(task, { kind: 'event', body: `Linked ${input.link.title}`, author: by, attachments: [input.link] })
-      return this.touch(task, { links: [...task.links, input.link] })
+      return this.touch(task, { links: [...task.links, { ...input.link, at: this.iso() }] })
     })
   }
 
@@ -967,7 +967,7 @@ export class Service {
           priority: input.priority ?? 3,
           state: 'new',
           source: { signal: item.signal, url: item.url, mirrors: item.ticket?.id ?? null },
-          links: [{ url: item.url, title: `${item.signal}: ${item.title}`.slice(0, 200) }],
+          links: [{ url: item.url, title: `${item.signal}: ${item.title}`.slice(0, 200), at: this.iso() }],
           createdBy: 'signal',
         })
         taskId = task.id
@@ -983,7 +983,7 @@ export class Service {
         })
         const links = task.links.some((l) => l.url === item.url)
           ? task.links
-          : [...task.links, { url: item.url, title: `${item.signal}: ${item.title}`.slice(0, 200) }]
+          : [...task.links, { url: item.url, title: `${item.signal}: ${item.title}`.slice(0, 200), at: this.iso() }]
         const touched = this.touch(task, { links })
         if (item.ticket?.closed && task.source.mirrors === item.ticket.id) {
           this.insertUpdate(touched, { kind: 'done', body: `${item.ticket.id} was closed.`, author: 'system' })

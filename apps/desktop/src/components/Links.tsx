@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { linkKind, linkSource } from '@autopilot/client'
 import type { LinkPreview, Link } from '@autopilot/contracts'
 import { api, shell } from '../api.ts'
+import { ago } from '../format.ts'
 import { Button, Chevron, Markdown, Meta, NavIcon } from '../ui.tsx'
 
 /**
@@ -20,13 +21,13 @@ const READABLE = /^file:.*\.(md|markdown|txt|csv|json|ya?ml|html?|eml|ts|tsx|js|
 /** Lines shown before Show all. */
 const FOLDED = 12
 
-/** Older sessions began titles with where it lives (`file: …`); the row already says. */
 /** The file's name, from a file: link. */
 const fileName = (url: string) =>
   decodeURI(url.replace(/^file:\/\//, ''))
     .split('/')
     .pop() ?? url
 
+/** Older sessions began titles with where it lives (`file: …`); the row already says. */
 const titleOf = (link: Link) => link.title.replace(/^(file|gmail|slack|github|linear|drive):\s*/i, '')
 
 const Preview = ({ taskId, url }: { taskId: string; url: string }) => {
@@ -126,3 +127,58 @@ export const Linked = ({ taskId, links }: { taskId: string; links: Link[] }) => 
 
 /** The kind's icon on an update's attachment chip. */
 export const LinkIcon = ({ link }: { link: Link }) => <NavIcon name={linkKind(link).icon} size={13} />
+
+/**
+ * A link in the task's properties: its kind's icon, the title on one line, and what it is and
+ * when it was linked. Its actions float beside it on hover, over the page, so nothing moves; a
+ * readable file opens its first lines there too.
+ */
+export const SideLink = ({ taskId, link, at }: { taskId: string; link: Link; at: string | null }) => {
+  const kind = linkKind(link)
+  const file = link.url.startsWith('file:')
+  const [reading, setReading] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const title = titleOf(link)
+  const hint = [title, file ? fileName(link.url) : null, link.subtitle].filter(Boolean).join('\n')
+  return (
+    <li className={`side-link${reading ? ' reading' : ''}`} onMouseLeave={() => setCopied(false)}>
+      <Button kind="item" className="side-link-main" title={hint} onClick={() => open(link.url)}>
+        <span className="side-link-icon">
+          <NavIcon name={kind.icon} size={15} />
+        </span>
+        <span className="side-link-text">
+          <span className="side-link-title">{title}</span>
+          <span className="side-link-meta">
+            {kind.label}
+            {at ? ` · ${ago(at)}` : ''}
+          </span>
+        </span>
+      </Button>
+      <div className="side-link-actions">
+        {READABLE.test(link.url) && (
+          <Button kind="quiet" aria-expanded={reading} onClick={() => setReading((r) => !r)}>
+            {reading ? 'Close' : 'Read'}
+          </Button>
+        )}
+        {file && shell && (
+          <Button kind="quiet" onClick={() => shell?.reveal(link.url)}>
+            Finder
+          </Button>
+        )}
+        <Button
+          kind="quiet"
+          onClick={() => {
+            void navigator.clipboard.writeText(file ? decodeURI(link.url.replace(/^file:\/\//, '')) : link.url).then(() => setCopied(true))
+          }}
+        >
+          {copied ? 'Copied' : file ? 'Copy path' : 'Copy link'}
+        </Button>
+      </div>
+      {reading && (
+        <div className="side-link-preview">
+          <Preview taskId={taskId} url={link.url} />
+        </div>
+      )}
+    </li>
+  )
+}

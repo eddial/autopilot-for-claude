@@ -175,6 +175,7 @@ export const App = () => {
         onOpen={openTask}
         width={listWidth}
         banner={banner}
+        showingTasks={view.kind === 'task'}
       />
       <div className="grip" role="separator" aria-label="Resize list" aria-orientation="vertical" onPointerDown={startResize}>
         <span />

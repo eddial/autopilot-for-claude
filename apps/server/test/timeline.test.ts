@@ -24,7 +24,7 @@ describe('timeline events', () => {
       ['event', 'watcher', 'Stopped watching Sarah’s reply: nothing new by the deadline'],
     ])
     expect(detail.updates[0]?.attachments).toEqual([link])
-    expect(detail.task.links).toEqual([link])
+    expect(detail.task.links).toEqual([{ ...link, at: '2026-10-25T10:00:00.000Z' }])
     expect(detail.band).toBe('new')
   })
 })

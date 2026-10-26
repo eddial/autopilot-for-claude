@@ -31,6 +31,9 @@ const shot = async (name: string) => {
   if (SHOTS) await page.screenshot({ path: join(SHOTS, `${name}.png`) })
 }
 
+/** A status tab, not a button of the same name in the open task. */
+const tab = (name: string) => page.getByRole('navigation', { name: 'Queue' }).getByRole('button', { name })
+
 describe('the Mac app window', () => {
   it('creates a task, shows the session asking, and answers it with one click', async () => {
     await expect.poll(() => page.getByRole('heading', { name: 'Needs me' }).isVisible()).toBe(true)
@@ -82,16 +85,16 @@ describe('the Mac app window', () => {
 
   it('closes the open task when moving to a list without it', async () => {
     server.service.createTask(CreateTask.parse({ idempotencyKey: 'ui-create-2', title: 'Renew the office lease', start: false }), 'owner')
-    await page.getByRole('button', { name: 'Needs me' }).click()
+    await tab('Needs me').click()
     await page.getByRole('option', { name: /Renew the office lease/ }).click()
     const heading = page.getByRole('heading', { level: 2, name: 'Renew the office lease' })
     await expect.poll(() => heading.count()).toBe(1)
-    await page.getByRole('button', { name: 'Snoozed' }).click()
+    await tab('Snoozed').click()
     await expect.poll(() => heading.count()).toBe(0)
   }, 30_000)
 
   it('keeps what you were typing when the window restarts', async () => {
-    await page.getByRole('button', { name: 'Needs me' }).click()
+    await tab('Needs me').click()
     await page.getByRole('option', { name: /Renew the office lease/ }).click()
     await page.getByLabel('Reply to Autopilot').fill('Half an answer about the lease')
     await page.reload()
@@ -100,7 +103,7 @@ describe('the Mac app window', () => {
   }, 30_000)
 
   it("changes a task's priority from its properties", async () => {
-    await page.getByRole('button', { name: 'Needs me' }).click()
+    await tab('Needs me').click()
     await page.getByRole('option', { name: /Renew the office lease/ }).click()
     const side = page.getByRole('complementary', { name: 'Properties' })
     await side.getByRole('button', { name: 'Normal' }).click()
@@ -110,11 +113,11 @@ describe('the Mac app window', () => {
   }, 30_000)
 
   it('shows every open task when the current tab is clicked again', async () => {
-    await page.getByRole('button', { name: 'Running' }).click()
+    await tab('Running').click()
     await expect.poll(() => page.getByRole('heading', { name: 'Running' }).isVisible()).toBe(true)
-    await page.getByRole('button', { name: 'Running' }).click()
+    await tab('Running').click()
     await expect.poll(() => page.getByRole('option', { name: /Renew the office lease/ }).count()).toBe(1)
-    await page.getByRole('button', { name: 'All open' }).click()
+    await tab('All open').click()
     await expect.poll(() => page.getByRole('heading', { name: 'Running' }).isVisible()).toBe(true)
   }, 30_000)
 

@@ -19,7 +19,7 @@ import { useDraft } from '../drafts.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
 import type { Tone } from '@autopilot/design'
 import { ArrowUp, Avatar, Banner, Button, Claude, Dot, Icon, Markdown, Meta, NavIcon, Pill, Spacer, Tag } from '../ui.tsx'
-import { LinkIcon, LinkRow, Linked } from './Links.tsx'
+import { LinkIcon, Linked, SideLink } from './Links.tsx'
 import { BAND_TITLE } from '../view.ts'
 
 type Props = { item: QueueItem; workstreams: Workstream[]; onClose: () => void }
@@ -180,7 +180,7 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
           </div>
           {!ask && <Composer item={item} />}
         </div>
-        <Properties item={item} workstreams={workstreams} signals={detail?.signals ?? []} />
+        <Properties item={item} workstreams={workstreams} signals={detail?.signals ?? []} updates={updates} />
       </div>
     </section>
   )
@@ -409,7 +409,7 @@ const PendingEntry = ({ pending, options }: { pending: Pending; options: { id: s
 }
 
 /** A choice in a menu; `detail` is lined up in columns beside the labels. */
-type MenuItem = { label: string; detail?: string[]; run: () => void }
+type MenuItem = { label: string; detail?: string[]; run: () => void; /** A choice that is on: ticked at the start. */ checked?: boolean }
 
 const Menu = ({
   label,
@@ -447,17 +447,22 @@ const Menu = ({
         {chevron && <Icon name="more" />}
       </Button>
       {shown && (
-        <div className={`menu-items${align === 'right' ? ' align-right' : ''}`} role="menu">
+        <div
+          className={`menu-items${align === 'right' ? ' align-right' : ''}${items.some((i) => i.checked !== undefined) ? ' with-checks' : ''}`}
+          role="menu"
+        >
           {items.map((i) => (
             <Button
               key={i.label}
               kind="menu"
-              role="menuitem"
+              role={i.checked === undefined ? 'menuitem' : 'menuitemradio'}
+              aria-checked={i.checked}
               onClick={() => {
                 setShown(false)
                 i.run()
               }}
             >
+              {i.checked !== undefined && <span className="menu-check">{i.checked && <Icon name="done" />}</span>}
               {i.label}
               {i.detail?.map((d) => (
                 <span key={d} className="menu-detail">
@@ -475,36 +480,54 @@ const Menu = ({
 type OpenWith = 'mac' | 'remote'
 const OPEN_WITH_KEY = 'autopilot.openWith'
 
-/** How Open session opens a session by default: the last way picked from its arrow. */
-const useOpenWith = (): [OpenWith, (w: OpenWith) => void] => {
-  const [value, setValue] = useState<OpenWith>(() => {
-    try {
-      return localStorage.getItem(OPEN_WITH_KEY) === 'remote' ? 'remote' : 'mac'
-    } catch {
-      return 'mac'
-    }
-  })
-  const set = (w: OpenWith) => {
-    setValue(w)
-    try {
-      localStorage.setItem(OPEN_WITH_KEY, w)
-    } catch {
-      // Not remembered: the default stays this Mac.
-    }
+const OPEN_WITH_EVENT = 'autopilot-open-with'
+
+const readOpenWith = (): OpenWith => {
+  try {
+    return localStorage.getItem(OPEN_WITH_KEY) === 'remote' ? 'remote' : 'mac'
+  } catch {
+    return 'mac'
   }
-  return [value, set]
+}
+
+/**
+ * How a session opens: one click opens it the way last chosen (this Mac at first); the choices
+ * tick that way, and picking another opens it there and makes it the default, everywhere.
+ */
+const useOpenSession = (session: QueueItem['session']) => {
+  const [openWith, setOpenWith] = useState<OpenWith>(readOpenWith)
+  useEffect(() => {
+    const changed = () => setOpenWith(readOpenWith())
+    window.addEventListener(OPEN_WITH_EVENT, changed)
+    return () => window.removeEventListener(OPEN_WITH_EVENT, changed)
+  }, [])
+  const live = session && session.state !== 'ended' ? session : null
+  const ways: { id: OpenWith; label: string; url: string }[] = [
+    ...(live?.resumeUrl ? [{ id: 'mac' as const, label: 'In Claude on this Mac', url: live.resumeUrl }] : []),
+    ...(live?.remoteControlUrl ? [{ id: 'remote' as const, label: 'Through Remote Control', url: live.remoteControlUrl }] : []),
+  ]
+  const preferred = ways.find((w) => w.id === openWith) ?? ways[0] ?? null
+  const choices: MenuItem[] = ways.map((w) => ({
+    label: w.label,
+    checked: w.id === preferred?.id,
+    run: () => {
+      try {
+        localStorage.setItem(OPEN_WITH_KEY, w.id)
+      } catch {
+        // Not remembered: the default stays this Mac.
+      }
+      window.dispatchEvent(new Event(OPEN_WITH_EVENT))
+      open(w.url)
+    },
+  }))
+  return { preferred, choices }
 }
 
 /** What can be done with the task as a whole. */
 const Actions = ({ item }: { item: QueueItem }) => {
   const { task, session } = item
   const live = session && session.state !== 'ended' ? session : null
-  const [openWith, setOpenWith] = useOpenWith()
-  const ways: { id: OpenWith; label: string; url: string }[] = [
-    ...(live?.resumeUrl ? [{ id: 'mac' as const, label: 'In Claude on this Mac', url: live.resumeUrl }] : []),
-    ...(live?.remoteControlUrl ? [{ id: 'remote' as const, label: 'Through Remote Control', url: live.remoteControlUrl }] : []),
-  ]
-  const preferred = ways.find((w) => w.id === openWith) ?? ways[0]
+  const { preferred, choices } = useOpenSession(session)
   return (
     <div className="task-actions">
       {item.band === 'new' && !live && (
@@ -520,18 +543,8 @@ const Actions = ({ item }: { item: QueueItem }) => {
             <Claude pixel={0.875} />
             Open session
           </Button>
-          {ways.length > 1 && (
-            <Menu
-              className="tinted split-arrow"
-              label={<span className="sr-only">Other ways to open the session</span>}
-              items={ways.map((w) => ({
-                label: w.id === preferred.id ? `${w.label} (default)` : w.label,
-                run: () => {
-                  setOpenWith(w.id)
-                  open(w.url)
-                },
-              }))}
-            />
+          {choices.length > 1 && (
+            <Menu className="tinted split-arrow" label={<span className="sr-only">Other ways to open the session</span>} items={choices} />
           )}
         </div>
       )}
@@ -620,7 +633,19 @@ const Bars = ({ priority }: { priority: number }) => (
  * change in place, where it came from, its session, and what it links to. It stays put while the
  * page scrolls; shown when the pane is wide enough.
  */
-const Properties = ({ item, workstreams, signals }: { item: QueueItem; workstreams: Workstream[]; signals: TaskSignal[] }) => {
+const Properties = ({
+  item,
+  workstreams,
+  signals,
+  updates,
+}: {
+  item: QueueItem
+  workstreams: Workstream[]
+  signals: TaskSignal[]
+  updates: Update[]
+}) => {
+  // Links from before they carried a time: when the activity says it was linked.
+  const linkedAt = (url: string) => updates.find((u) => u.attachments.some((a) => a.url === url))?.createdAt ?? null
   const { task, session } = item
   const live = session && session.state !== 'ended' ? session : null
   const closed = item.band === 'done'
@@ -642,10 +667,7 @@ const Properties = ({ item, workstreams, signals }: { item: QueueItem; workstrea
   const priorities: MenuItem[] = [1, 2, 3, 4]
     .filter((p) => p !== task.priority)
     .map((p) => ({ label: PRIORITY[p] ?? '', run: () => send({ kind: 'edit', taskId: task.id, priority: p }) }))
-  const sessionLinks: MenuItem[] = [
-    ...(live?.resumeUrl ? [{ label: 'Open in Claude on this Mac', run: () => open(live.resumeUrl ?? '') }] : []),
-    ...(live?.remoteControlUrl ? [{ label: 'Open through Remote Control', run: () => open(live.remoteControlUrl ?? '') }] : []),
-  ]
+  const { preferred, choices } = useOpenSession(session)
   const mark = workstreamMark(task.workstream)
   return (
     <aside className="task-side" aria-label="Properties">
@@ -734,19 +756,21 @@ const Properties = ({ item, workstreams, signals }: { item: QueueItem; workstrea
         )}
         {session && (
           <Prop label="Session">
-            {sessionLinks.length > 0 ? (
-              <Menu
-                trigger="prop"
-                chevron={false}
-                align="right"
-                label={
-                  <>
-                    <Claude pixel={0.75} />
-                    {session.activity ?? SESSION_STATE[session.state]}
-                  </>
-                }
-                items={sessionLinks}
-              />
+            {preferred ? (
+              <div className="prop-split">
+                <Button kind="prop" title={preferred.label} onClick={() => open(preferred.url)}>
+                  <Claude pixel={0.75} />
+                  {session.activity ?? SESSION_STATE[session.state]}
+                </Button>
+                {choices.length > 1 && (
+                  <Menu
+                    trigger="prop"
+                    align="right"
+                    label={<span className="sr-only">Other ways to open the session</span>}
+                    items={choices}
+                  />
+                )}
+              </div>
             ) : (
               <span className="prop-text">{session.state === 'ended' ? 'Ended' : (session.activity ?? SESSION_STATE[session.state])}</span>
             )}
@@ -768,7 +792,7 @@ const Properties = ({ item, workstreams, signals }: { item: QueueItem; workstrea
           <span className="side-heading">Linked</span>
           <ul className="side-links">
             {task.links.toReversed().map((l) => (
-              <LinkRow key={l.url} taskId={task.id} link={l} />
+              <SideLink key={l.url} taskId={task.id} link={l} at={l.at ?? linkedAt(l.url)} />
             ))}
           </ul>
         </div>
