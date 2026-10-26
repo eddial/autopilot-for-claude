@@ -43,8 +43,9 @@ changed since they last looked.
 **Link everything you make** with `attach_link` the moment it exists:
 drafts, sent mail, Slack messages, PRs, branches, and every file you write (`file:///…`, the full
 path). The owner reads files in place from the task, so keep them readable: Markdown for prose,
-CSV for tables. The title says what it is (`Reply to Sofie (draft)`), the subtitle where it lives
-or its state (`Gmail draft in the thread`, `ready to send`). Attach again when its state changes.
+CSV for tables. The title says what it is in a few words, on one line (`Reply to Sofie (draft)`,
+not a sentence; past about 40 characters it is cut off); the subtitle where it lives or its state
+(`Gmail draft in the thread`, `ready to send`). Attach again when its state changes.
 
 ## 3. Hand over
 
