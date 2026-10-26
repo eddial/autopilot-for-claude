@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { createServer, type Server } from 'node:https'
 import { BlockList, isIPv4, Socket } from 'node:net'
 import { networkInterfaces } from 'node:os'
@@ -36,11 +37,34 @@ export const isAllowedAddress = (address: string | undefined): boolean => {
   return allowed.check(ip, isIPv4(ip) ? 'ipv4' : 'ipv6')
 }
 
-/** This Mac's Tailscale address, or null when Tailscale is not running or not signed in. */
-export const tailnetAddress = (): string | null => {
+/** Where Tailscale's command lives on a Mac: inside the app, or on the PATH. */
+const TAILSCALE_CLI = ['/Applications/Tailscale.app/Contents/MacOS/Tailscale', 'tailscale']
+
+/**
+ * This Mac's Tailscale address, or null when Tailscale is not running or not signed in. Asked of
+ * Tailscale itself: other VPNs use the same address range. Without its command, the first
+ * address in that range.
+ */
+const readTailnetAddress = (): string | null => {
+  for (const cli of TAILSCALE_CLI) {
+    try {
+      const out = execFileSync(cli, ['ip', '-4'], { encoding: 'utf8', timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+      const first = out.split('\n')[0]?.trim() ?? ''
+      return TAILSCALE.check(first, 'ipv4') ? first : null
+    } catch {
+      // Not here, or not running: try the next, then the interfaces.
+    }
+  }
   for (const addresses of Object.values(networkInterfaces()))
     for (const a of addresses ?? []) if (!a.internal && a.family === 'IPv4' && TAILSCALE.check(a.address, 'ipv4')) return a.address
   return null
+}
+
+/** Read at most every ten seconds: the Devices screen asks often, and it rarely changes. */
+let lastRead: { at: number; address: string | null } | null = null
+export const tailnetAddress = (): string | null => {
+  if (!lastRead || Date.now() - lastRead.at > 10_000) lastRead = { at: Date.now(), address: readTailnetAddress() }
+  return lastRead.address
 }
 
 /** How a device reaches this Mac: its Tailscale address, from anywhere; none without Tailscale. */
