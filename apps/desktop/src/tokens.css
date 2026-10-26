@@ -52,32 +52,67 @@
   color-scheme: dark;
 }
 
+@media (prefers-color-scheme: light) {
+  :root {
+    --well: #E8E6DC;
+    --window: #F0EEE6;
+    --surface: #FAF9F5;
+    --open: #F4F3EE;
+    --raised: #FFFFFF;
+    --button: #E8E6DC;
+    --button-hover: #DEDCD1;
+    --grip: #C2C0B6;
+    --text: #141413;
+    --text-body: #1F1E1D;
+    --text-soft: #30302E;
+    --text-2: #5E5D59;
+    --text-3: #73726C;
+    --muted: #9C9A92;
+    --clay: #C6613F;
+    --clay-soft: #A9472A;
+    --clay-tint: rgba(198, 97, 63, 0.12);
+    --pilot: #3E9A76;
+    --pilot-soft: #2B7A5B;
+    --pilot-tint: rgba(62, 154, 118, 0.14);
+    --amber: #B7862C;
+    --amber-soft: #8A6418;
+    --amber-tint: rgba(183, 134, 44, 0.16);
+    --border: rgba(31, 30, 29, 0.12);
+    --border-strong: rgba(31, 30, 29, 0.2);
+    --hover: rgba(0, 0, 0, 0.04);
+    --press: rgba(0, 0, 0, 0.07);
+    --scrim: rgba(0, 0, 0, 0.25);
+    --shadow: rgba(0, 0, 0, 0.16);
+    color-scheme: light;
+  }
+}
+
 .tone-pilot {
-  --tone-fg: #8FCDB2;
-  --tone-bg: rgba(93, 176, 143, 0.14);
-  --tone-dot: #5DB08F;
+  --tone-fg: var(--pilot-soft);
+  --tone-bg: var(--pilot-tint);
+  --tone-dot: var(--pilot);
 }
 
 .tone-claude {
-  --tone-fg: #E8A086;
-  --tone-bg: rgba(217, 119, 87, 0.12);
-  --tone-dot: #D97757;
+  --tone-fg: var(--clay-soft);
+  --tone-bg: var(--clay-tint);
+  --tone-dot: var(--clay);
 }
 
 .tone-paused {
-  --tone-fg: #E8C47F;
-  --tone-bg: rgba(217, 169, 78, 0.14);
-  --tone-dot: #D9A94E;
+  --tone-fg: var(--amber-soft);
+  --tone-bg: var(--amber-tint);
+  --tone-dot: var(--amber);
 }
 
 .tone-alert {
-  --tone-fg: #E8A086;
-  --tone-bg: rgba(217, 119, 87, 0.12);
-  --tone-dot: #D97757;
+  --tone-fg: var(--clay-soft);
+  --tone-bg: var(--clay-tint);
+  --tone-dot: var(--clay);
 }
 
 .tone-quiet {
-  --tone-fg: #9C9A92;
-  --tone-bg: rgba(255, 255, 255, 0.04);
-  --tone-dot: #6B6A65;
+  --tone-fg: var(--text-3);
+  --tone-bg: var(--hover);
+  --tone-dot: var(--muted);
 }

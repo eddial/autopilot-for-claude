@@ -563,7 +563,7 @@ const Actions = ({ item }: { item: QueueItem }) => {
           run: () => send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() }),
         }))}
       />
-      <Button kind="tool" className="tinted tone-pilot" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'done' })}>
+      <Button kind="tool" className="with-icon" onClick={() => send({ kind: 'close', taskId: task.id, outcome: 'done' })}>
         <Icon name="done" />
         Mark done
       </Button>

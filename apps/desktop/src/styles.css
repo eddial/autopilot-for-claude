@@ -461,11 +461,17 @@ button {
   cursor: default;
 }
 
+/* The one action that moves things on: ink on paper, inverted, as the Claude app draws it. Green
+   stays for small signals (a dot, a count, Your turn), not for surfaces. */
 .btn.primary {
-  background: var(--pilot);
-  border-color: var(--pilot);
-  color: var(--well);
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--surface);
   font-weight: 500;
+}
+
+.btn.primary:hover {
+  opacity: 0.88;
 }
 
 .tool {
@@ -1121,14 +1127,27 @@ button {
 .ask-card {
   padding: 16px 18px;
   border-radius: 14px;
-  border: 0.5px solid var(--pilot);
-  background: linear-gradient(var(--pilot-tint), var(--pilot-tint)), var(--open);
+  border: 0.5px solid var(--border-strong);
+  background: var(--open);
 }
 
 .ask-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   margin-bottom: 6px;
   font-size: 13px;
-  color: var(--pilot-soft);
+  color: var(--text-2);
+}
+
+/* A small green dot is all the colour the card needs to say it is yours. */
+.ask-head::before {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--pilot);
+  content: '';
 }
 
 .ask-card .inline-reply {

@@ -17,7 +17,7 @@ beforeAll(async () => {
   server = await startTestServer({ workstreams: { engineering: '## Routing\nCode.\nUrgent: prod down\n' } })
   web = await serveWeb(server.owner)
   browser = await chromium.launch()
-  page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+  page = await browser.newPage({ viewport: { width: 1440, height: 900 }, colorScheme: 'dark' })
   await page.goto(web.url)
 }, 60_000)
 

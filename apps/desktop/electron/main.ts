@@ -1,19 +1,19 @@
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { hostname } from 'node:os'
+import { existsSync, mkdirSync, openSync, readFileSync, rmSync, unwatchFile, watchFile, writeFileSync } from 'node:fs'
+import { homedir, hostname } from 'node:os'
 import { join } from 'node:path'
 import { Link, pair, type Connection } from '@autopilot/client'
 import { nodePinnedFetch } from '@autopilot/client/node'
 import { Invite } from '@autopilot/contracts'
-import { colours } from '@autopilot/design'
+import { colours, lightColours } from '@autopilot/design'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { connect, type Client } from '@autopilot/server/client'
 import { readOwnerToken } from '@autopilot/server/owner'
 import { resolvePaths } from '@autopilot/server/paths'
 import { RPCHandler } from '@orpc/server/message-port'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, safeStorage, shell, Tray } from 'electron'
+import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, nativeTheme, safeStorage, shell, Tray } from 'electron'
 import { proxyRouter } from './proxy.ts'
 import { pilotBitmap } from './pilot.ts'
 import type { Mode } from './preload.ts'
@@ -100,13 +100,41 @@ const ensureServer = async (): Promise<Client> => {
   throw new Error(`The Autopilot server did not start; see ${join(paths.logs, 'server.log')}`)
 }
 
+/**
+ * Light or dark as the Claude app is set (Settings, Appearance: light, dark or the system's), read
+ * from its own settings file and followed when it changes. Without the Claude app, the system's.
+ */
+const CLAUDE_CONFIG = join(homedir(), 'Library', 'Application Support', 'Claude', 'config.json')
+
+const claudeTheme = (): 'light' | 'dark' | 'system' => {
+  try {
+    const set = (JSON.parse(readFileSync(CLAUDE_CONFIG, 'utf8')) as { userThemeMode?: unknown }).userThemeMode
+    return set === 'light' || set === 'dark' ? set : 'system'
+  } catch {
+    return 'system'
+  }
+}
+
+const background = () => (nativeTheme.shouldUseDarkColors ? colours.window : lightColours.window)
+
+const followClaudeTheme = () => {
+  nativeTheme.themeSource = claudeTheme()
+  // The window paints in its theme; this is the colour behind it while it loads or resizes.
+  nativeTheme.on('updated', () => window?.setBackgroundColor(background()))
+  watchFile(CLAUDE_CONFIG, { interval: 2000 }, () => {
+    const next = claudeTheme()
+    if (nativeTheme.themeSource !== next) nativeTheme.themeSource = next
+  })
+  app.on('will-quit', () => unwatchFile(CLAUDE_CONFIG))
+}
+
 const createWindow = (): BrowserWindow => {
   const win = new BrowserWindow({
     width: 1320,
     height: 860,
     minWidth: 380,
     minHeight: 480,
-    backgroundColor: colours.window,
+    backgroundColor: background(),
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 18, y: 18 },
     webPreferences: { preload: join(import.meta.dirname, 'preload.cjs'), contextIsolation: true, sandbox: true },
@@ -237,7 +265,10 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => globalShortcut.unregisterAll())
 app
   .whenReady()
-  .then(start)
+  .then(() => {
+    followClaudeTheme()
+    return start()
+  })
   .catch((error: unknown) => {
     console.error(error)
     app.quit()

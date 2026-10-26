@@ -46,6 +46,55 @@ export const colours = {
 
 export type Colour = keyof typeof colours
 
+/**
+ * The same roles in light, after the Claude app's light theme: warm paper, near-black ink, and the
+ * accents a step darker so their text reads on the paler tints. The Mac window switches between
+ * the two with the Claude app's setting (light, dark or the system's).
+ */
+export const lightColours: Record<Colour, string> = {
+  well: '#E8E6DC',
+  window: '#F0EEE6',
+  surface: '#FAF9F5',
+  open: '#F4F3EE',
+  raised: '#FFFFFF',
+  button: '#E8E6DC',
+  buttonHover: '#DEDCD1',
+  grip: '#C2C0B6',
+
+  text: '#141413',
+  textBody: '#1F1E1D',
+  textSoft: '#30302E',
+  text2: '#5E5D59',
+  text3: '#73726C',
+  muted: '#9C9A92',
+
+  clay: '#C6613F',
+  claySoft: '#A9472A',
+  clayTint: 'rgba(198, 97, 63, 0.12)',
+  pilot: '#3E9A76',
+  pilotSoft: '#2B7A5B',
+  pilotTint: 'rgba(62, 154, 118, 0.14)',
+  amber: '#B7862C',
+  amberSoft: '#8A6418',
+  amberTint: 'rgba(183, 134, 44, 0.16)',
+
+  border: 'rgba(31, 30, 29, 0.12)',
+  borderStrong: 'rgba(31, 30, 29, 0.2)',
+  hover: 'rgba(0, 0, 0, 0.04)',
+  press: 'rgba(0, 0, 0, 0.07)',
+  scrim: 'rgba(0, 0, 0, 0.25)',
+  shadow: 'rgba(0, 0, 0, 0.16)',
+}
+
+/** Which colour each part of a tone is, by name, so the window's tones follow its theme. */
+export const toneColours = {
+  pilot: { fg: 'pilotSoft', bg: 'pilotTint', dot: 'pilot' },
+  claude: { fg: 'claySoft', bg: 'clayTint', dot: 'clay' },
+  paused: { fg: 'amberSoft', bg: 'amberTint', dot: 'amber' },
+  alert: { fg: 'claySoft', bg: 'clayTint', dot: 'clay' },
+  quiet: { fg: 'text3', bg: 'hover', dot: 'muted' },
+} as const satisfies Record<string, Record<'fg' | 'bg' | 'dot', Colour>>
+
 /** What a dot, a banner, a pill or a button says about something. */
 export const tones = {
   /** Autopilot: needs you, the next step, healthy, new. */
