@@ -5,7 +5,7 @@ import { useDraft } from '../drafts.ts'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
 import { QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
-import { Banner, Bars, Button, WorkstreamMark, NavIcon, SearchIcon, type NavIconName } from '../ui.tsx'
+import { Banner, Bars, Button, WorkstreamMark, NavIcon, Pilot, SearchIcon, type NavIconName } from '../ui.tsx'
 
 type Props = {
   tab: QueueView
@@ -26,6 +26,43 @@ type Props = {
   showingTasks: boolean
   /** The open task, kept in its place after it left the tab (answered), until you move on. */
   lingering: string | null
+}
+
+/** What an empty list says, by tab: a line to smile at, and what to do next. */
+const EMPTY: Record<QueueView | 'all', { title: string; line: string }> = {
+  needs_me: { title: 'All clear', line: 'Nothing needs you. The pilot has the controls.' },
+  running: { title: 'Engines idle', line: 'No session is working. Start one with New.' },
+  waiting: { title: 'Nobody owes you anything', line: 'Nothing is waiting on someone else.' },
+  snoozed: { title: 'Wide awake', line: 'Nothing is snoozed.' },
+  done: { title: 'A clean slate', line: 'Nothing done yet. Give it a day.' },
+  all: { title: 'Clear skies', line: 'No open tasks anywhere. Autopilot fills this as signals file and sessions hand over.' },
+}
+
+/** Where else there is something: "2 waiting on others · 1 snoozed". */
+const elsewhere = (counts: Props['counts'], tab: QueueView | null) =>
+  QUEUE_VIEWS.filter((q) => q.id !== tab && q.id !== 'done' && (counts[q.id] ?? 0) > 0)
+    .map((q) => `${counts[q.id]} ${q.title.toLowerCase()}`)
+    .join(' · ')
+
+/** An empty list: the pilot flying past a few clouds, and a word about it. */
+const EmptyList = ({ tab, counts }: { tab: QueueView | null; counts: Props['counts'] }) => {
+  const words = EMPTY[tab ?? 'all']
+  const rest = elsewhere(counts, tab)
+  return (
+    <div className="empty-list">
+      <div className="sky" aria-hidden="true">
+        <span className="cloud one" />
+        <span className="cloud two" />
+        <span className="cloud three" />
+        <span className="flying">
+          <Pilot pixel={4} />
+        </span>
+      </div>
+      <div className="empty-title">{words.title}</div>
+      <div className="empty-line">{words.line}</div>
+      {rest && <div className="empty-rest">Elsewhere: {rest}</div>}
+    </div>
+  )
 }
 
 const TAB_ICON: Record<QueueView, NavIconName> = {
@@ -181,11 +218,8 @@ export const QueueList = (props: Props) => {
       </div>
       {banner && <Banner>{banner}</Banner>}
       <div className="rows" ref={rows} role="listbox" aria-label="Tasks" tabIndex={0} onKeyDown={onKeyDown}>
-        {visible.length === 0 && (
-          <div className="empty">
-            {filter ? 'Nothing matches the search.' : 'Nothing here. Autopilot fills this as signals file and sessions hand over.'}
-          </div>
-        )}
+        {visible.length === 0 &&
+          (filter ? <div className="empty">Nothing matches the search.</div> : <EmptyList tab={all ? null : tab} counts={counts} />)}
         {/* oxlint-disable-next-line react/forbid-dom-props -- measured by the virtualiser */}
         <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
           {virtual.getVirtualItems().map((v) => {

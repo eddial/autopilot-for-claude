@@ -2489,3 +2489,104 @@ textarea.inline-reply {
 .md-right {
   text-align: right;
 }
+
+/* An empty list: the pilot drifting along with a few clouds going by, and a word about it. */
+.empty-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 56px 28px 24px;
+  text-align: center;
+}
+
+.sky {
+  position: relative;
+  width: 200px;
+  height: 96px;
+  margin-bottom: 18px;
+  overflow: hidden;
+  /* Fade the clouds in and out at the edges of the sky. */
+  mask-image: linear-gradient(90deg, transparent, var(--text) 20%, var(--text) 80%, transparent);
+}
+
+.cloud {
+  position: absolute;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-strong);
+  animation: drift 9s linear infinite;
+}
+
+.cloud.one {
+  top: 18px;
+  width: 44px;
+}
+
+.cloud.two {
+  top: 52px;
+  width: 28px;
+  animation-duration: 6s;
+  animation-delay: -3s;
+}
+
+.cloud.three {
+  top: 80px;
+  width: 60px;
+  animation-duration: 12s;
+  animation-delay: -8s;
+}
+
+.flying {
+  position: absolute;
+  top: 26px;
+  left: calc(50% - 32px);
+  animation: bob 3.2s ease-in-out infinite;
+}
+
+@keyframes drift {
+  from {
+    transform: translateX(220px);
+  }
+
+  to {
+    transform: translateX(-80px);
+  }
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+
+  50% {
+    transform: translateY(-6px) rotate(2deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cloud,
+  .flying {
+    animation: none;
+  }
+}
+
+.empty-title {
+  font-family: var(--serif);
+  font-size: 20px;
+  color: var(--text);
+}
+
+.empty-line {
+  max-width: 300px;
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+.empty-rest {
+  margin-top: 14px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}

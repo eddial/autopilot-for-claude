@@ -138,8 +138,8 @@ export const App = () => {
     return [...inTab.slice(0, lingering.at), item, ...inTab.slice(lingering.at)]
   }, [inTab, lingering, items, done])
 
-  // Next and previous in the list as it reads: ⌘→ and ⌘←, or Up next at the end of the task. In a
-  // box with words in it the arrows move the cursor as usual.
+  // Next and previous in the list as it reads: → and ← (with ⌘ too), or Up next at the end of the
+  // task. In a box you are writing in, the arrows move the cursor as usual.
   const ordered = useMemo(() => listOrder(listed), [listed])
   const at = ordered.findIndex((i) => i.task.id === selected)
   const nextItem = at >= 0 ? (ordered[at + 1] ?? null) : null
@@ -152,9 +152,12 @@ export const App = () => {
   )
   useEffect(() => {
     const keys = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return
-      const field = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement ? e.target : null
-      if (field && field.value !== '') return
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+      if (e.altKey || e.shiftKey || e.defaultPrevented) return
+      // Typing: the arrows move the cursor; ⌘ with them moves on only from an empty box.
+      const field = e.target instanceof HTMLElement ? e.target.closest('input, textarea, [contenteditable], [role=menu]') : null
+      const command = e.metaKey || e.ctrlKey
+      if (field && !(command && (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) && field.value === '')) return
       e.preventDefault()
       step(e.key === 'ArrowRight' ? 1 : -1)
     }
@@ -259,6 +262,9 @@ export const App = () => {
           }
           onClose={() => setShowingTask(false)}
         />
+      ) : listed.length === 0 ? (
+        // Nothing in this list: the pane offers what you can do instead, a new task.
+        <NewTask workstreams={workstreams} onCreated={openTask} />
       ) : (
         <section className="pane task">
           <div className="task-head drag" />

@@ -263,7 +263,7 @@ type UpNextProps = {
 
 /**
  * The end of a task, on one line: what comes next, where you are in the list, and the way there.
- * Nothing moves you on by itself; you see your reply land, then go when you are ready (⌘→ and ⌘←
+ * Nothing moves you on by itself; you see your reply land, then go when you are ready (→ and ←
  * work anywhere but in a box you are writing in).
  */
 const UpNext = ({ next, hasPrevious, at, total, list, move }: UpNextProps) => (
@@ -282,11 +282,11 @@ const UpNext = ({ next, hasPrevious, at, total, list, move }: UpNextProps) => (
     <Meta as="span" className="up-next-where">
       {at} of {total} in {list}
     </Meta>
-    <Button kind="tool" disabled={!hasPrevious} onClick={() => move(-1)} aria-label="Previous task" title="Previous task (⌘←)">
+    <Button kind="tool" disabled={!hasPrevious} onClick={() => move(-1)} aria-label="Previous task" title="Previous task (←)">
       ←
     </Button>
     {next && (
-      <Button kind="primary" onClick={() => move(1)} title="Next task (⌘→)">
+      <Button kind="primary" onClick={() => move(1)} title="Next task (→)">
         Next →
       </Button>
     )}
