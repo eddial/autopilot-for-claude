@@ -276,7 +276,7 @@ const UpNext = ({ next, hasPrevious, at, total, list, move }: UpNextProps) => (
         <WorkstreamMark name={next.task.workstream} />
         <span className="up-next-title">{next.task.title}</span>
         <span className="up-next-meta">{rowMeta(next, false)}</span>
-        <Bars priority={next.task.priority} />
+        <Bars priority={next.task.priority} listed />
       </Button>
     ) : (
       <span className="up-next-task up-next-done">Nothing after this in {list}</span>

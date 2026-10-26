@@ -506,7 +506,9 @@ button {
 /* Something you can do: raised, in ink, so it reads as an action at a glance. */
 .tool {
   white-space: nowrap;
-  padding: 5px 10px;
+  /* One height whatever leads it: a workstream's mark, a priority's bars, plain text. */
+  height: 28px;
+  padding: 0 10px;
   border-radius: 8px;
   border: 0.5px solid var(--border-strong);
   background: var(--raised);
@@ -791,8 +793,9 @@ button {
   opacity: 1;
 }
 
+/* The tick at the end of the row, as Linear has it; the icon leads. */
 .menu-items.with-checks {
-  grid-template-columns: 16px 1fr auto auto;
+  grid-template-columns: 1fr auto auto 16px;
 }
 
 .menu-items.with-icons {
@@ -800,7 +803,7 @@ button {
 }
 
 .menu-items.with-checks.with-icons {
-  grid-template-columns: 16px 22px 1fr auto auto;
+  grid-template-columns: 22px 1fr auto auto 16px;
 }
 
 .menu-items.with-icons button {
@@ -813,6 +816,7 @@ button {
 }
 
 .menu-check {
+  grid-column: -2;
   display: inline-flex;
   align-items: center;
   min-width: 16px;
@@ -865,8 +869,23 @@ button {
   background: var(--text-2);
 }
 
-.bars.p1 span.lit {
-  background: var(--clay);
+.urgent-mark {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 3px;
+  background: var(--text-2);
+  color: var(--surface);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.urgent-mark.listed {
+  background: var(--urgent);
+  color: var(--urgent-ink);
 }
 
 /* A message the task came from, as Linear shows a resource. */

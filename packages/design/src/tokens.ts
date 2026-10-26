@@ -29,6 +29,9 @@ export const colours = {
   clay: '#D97757',
   claySoft: '#E8A086',
   clayTint: 'rgba(217, 119, 87, 0.12)',
+  // Urgent in a list, as Linear marks it: the one bright orange.
+  urgent: '#F2782F',
+  urgentInk: '#FFFFFF',
   pilot: '#5DB08F',
   pilotSoft: '#8FCDB2',
   pilotTint: 'rgba(93, 176, 143, 0.14)',
@@ -71,6 +74,8 @@ export const lightColours: Record<Colour, string> = {
   clay: '#C6613F',
   claySoft: '#A9472A',
   clayTint: 'rgba(198, 97, 63, 0.12)',
+  urgent: '#F06A1F',
+  urgentInk: '#FFFFFF',
   pilot: '#3E9A76',
   pilotSoft: '#2B7A5B',
   pilotTint: 'rgba(62, 154, 118, 0.14)',

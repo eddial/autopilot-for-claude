@@ -18,6 +18,8 @@
   --clay: #D97757;
   --clay-soft: #E8A086;
   --clay-tint: rgba(217, 119, 87, 0.12);
+  --urgent: #F2782F;
+  --urgent-ink: #FFFFFF;
   --pilot: #5DB08F;
   --pilot-soft: #8FCDB2;
   --pilot-tint: rgba(93, 176, 143, 0.14);
@@ -71,6 +73,8 @@
     --clay: #C6613F;
     --clay-soft: #A9472A;
     --clay-tint: rgba(198, 97, 63, 0.12);
+    --urgent: #F06A1F;
+    --urgent-ink: #FFFFFF;
     --pilot: #3E9A76;
     --pilot-soft: #2B7A5B;
     --pilot-tint: rgba(62, 154, 118, 0.14);

@@ -240,14 +240,22 @@ export const Dot = ({ tone, label }: { tone: Tone; label?: string }) => (
 /** Where something stands, in a tone: "Your turn", "Running". */
 export const Pill = ({ tone, children }: { tone: Tone; children: ReactNode }) => <span className={`pill tone-${tone}`}>{children}</span>
 
-/** Three bars, as many lit as the priority is high: urgent all three (in clay), low none. */
-export const Bars = ({ priority }: { priority: number }) => (
-  <span className={`bars p${priority}`} aria-hidden="true">
-    {[1, 2, 3].map((b) => (
-      <span key={b} className={b <= 4 - priority ? 'lit' : ''} />
-    ))}
-  </span>
-)
+/**
+ * Priority as Linear draws it, in grey: three bars with high all lit and low one, urgent a square
+ * with "!". In a list (`listed`) urgent turns bright orange, the one priority that stands out.
+ */
+export const Bars = ({ priority, listed = false }: { priority: number; listed?: boolean }) =>
+  priority === 1 ? (
+    <span className={`urgent-mark${listed ? ' listed' : ''}`} aria-hidden="true">
+      !
+    </span>
+  ) : (
+    <span className="bars" aria-hidden="true">
+      {[1, 2, 3].map((b) => (
+        <span key={b} className={b <= 5 - priority ? 'lit' : ''} />
+      ))}
+    </span>
+  )
 
 /** A workstream's two-letter mark in its tint, the same wherever the workstream shows. */
 export const WorkstreamMark = ({ name }: { name: string }) => {

@@ -301,7 +301,7 @@ const Row = ({ item, selected, onPress }: { item: QueueItem; selected: boolean; 
     {/* When, and under it how much it matters, as on the Mac. */}
     <View style={styles.rowEnd}>
       <Text style={styles.meta}>{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</Text>
-      <Bars priority={item.task.priority} />
+      <Bars priority={item.task.priority} listed />
     </View>
   </Pressable>
 )

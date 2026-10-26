@@ -284,7 +284,7 @@ const TaskRow = memo(
       <span className="row-end">
         <span className="age">{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</span>
         <span title={PRIORITY_NAME[item.task.priority]}>
-          <Bars priority={item.task.priority} />
+          <Bars priority={item.task.priority} listed />
         </span>
       </span>
     </Button>

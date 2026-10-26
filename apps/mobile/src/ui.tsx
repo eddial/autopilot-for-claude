@@ -41,17 +41,26 @@ export const Pill = ({ tone, label }: { tone: Tone; label: string }) => (
   </View>
 )
 
-/** Three bars, as many lit as the priority is high: urgent all three (in clay), low none. The Mac's, drawn the same. */
-export const Bars = ({ priority }: { priority: number }) => (
-  <View style={styles.bars} accessibilityLabel={['Urgent', 'High priority', 'Normal priority', 'Low priority'][priority - 1]}>
-    {[5, 8, 11].map((height, i) => (
-      <View
-        key={height}
-        style={[styles.bar, { height }, i + 1 <= 4 - priority && { backgroundColor: priority === 1 ? colours.clay : colours.text2 }]}
-      />
-    ))}
-  </View>
-)
+/**
+ * Priority as Linear draws it, in grey: three bars with high all lit and low one, urgent a square
+ * with "!". In a list (`listed`) urgent turns bright orange. The Mac's, drawn the same.
+ */
+export const Bars = ({ priority, listed = false }: { priority: number; listed?: boolean }) => {
+  const label = ['Urgent', 'High priority', 'Normal priority', 'Low priority'][priority - 1]
+  if (priority === 1)
+    return (
+      <View style={[styles.urgent, listed && { backgroundColor: colours.urgent }]} accessibilityLabel={label}>
+        <Text style={[styles.urgentText, listed && { color: colours.urgentInk }]}>!</Text>
+      </View>
+    )
+  return (
+    <View style={styles.bars} accessibilityLabel={label}>
+      {[5, 8, 11].map((height, i) => (
+        <View key={height} style={[styles.bar, { height }, i + 1 <= 5 - priority && { backgroundColor: colours.text2 }]} />
+      ))}
+    </View>
+  )
+}
 
 /** A quiet property: a workstream, a priority. */
 export const Tag = ({ label }: { label: string }) => (
@@ -377,6 +386,8 @@ const styles = StyleSheet.create({
   mdCell: { paddingVertical: 6, paddingRight: 12, fontSize: 15 },
   bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, height: 12 },
   bar: { width: 3, borderRadius: 1, backgroundColor: colours.borderStrong },
+  urgent: { width: 13, height: 13, borderRadius: 3, alignItems: 'center', justifyContent: 'center', backgroundColor: colours.text2 },
+  urgentText: { fontSize: 10, lineHeight: 12, fontWeight: '700', color: colours.surface },
   sides: { flex: 1 },
   badge: { width: 22, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: 10, fontWeight: '600' },

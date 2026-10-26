@@ -6,7 +6,7 @@ export type MenuItem = {
   label: string
   detail?: string[]
   run: () => void
-  /** A choice that is on: ticked at the start. */
+  /** A choice that is on: ticked at the end. */
   checked?: boolean
   /** What it looks like where it shows: a workstream's mark, a priority's bars. */
   icon?: ReactNode
@@ -63,7 +63,6 @@ export const Menu = ({
                 i.run()
               }}
             >
-              {i.checked !== undefined && <span className="menu-check">{i.checked && <Icon name="done" />}</span>}
               {i.icon !== undefined && <span className="menu-icon">{i.icon}</span>}
               {i.label}
               {i.detail?.map((d) => (
@@ -71,6 +70,7 @@ export const Menu = ({
                   {d}
                 </span>
               ))}
+              {i.checked !== undefined && <span className="menu-check">{i.checked && <Icon name="done" />}</span>}
             </Button>
           ))}
         </div>
