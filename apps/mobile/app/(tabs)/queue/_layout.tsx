@@ -9,11 +9,11 @@ export default function TabStack() {
         headerLargeTitle: true,
         // No hairline under the bar: on the Duo it stops short at the side bar.
         headerShadowVisible: false,
-        headerStyle: { backgroundColor: colours.window },
+        headerStyle: { backgroundColor: colours.well },
         headerLargeTitleStyle: { fontFamily: fonts.serifNative, color: colours.text },
         headerTitleStyle: { color: colours.text },
         headerTintColor: colours.pilot,
-        contentStyle: { backgroundColor: colours.window },
+        contentStyle: { backgroundColor: colours.well },
       }}
     />
   )

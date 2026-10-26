@@ -1,5 +1,5 @@
-import { useRef, useState, type ComponentRef, type ReactNode } from 'react'
-import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react'
+import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import {
   filedBy,
   firstLookQuestions,
@@ -41,9 +41,8 @@ import {
   Tag,
   bannerText,
   composerInput,
-  COMPOSER_BAR,
-  edgeSpace,
   GUTTER,
+  KeyboardScreen,
   type,
 } from '../ui.tsx'
 
@@ -52,9 +51,12 @@ export const TaskView = ({
   item,
   onTitleOff,
   edges,
+  onTop,
 }: {
   item: QueueItem
   onTitleOff?: (off: boolean) => void
+  /** Hands over a way back to the top of the page, for the bar's button. */
+  onTop?: (toTop: () => void) => void
   /** The screen edges it touches; in the split, only the right. */
   edges?: ('left' | 'right')[]
 }) => {
@@ -67,6 +69,7 @@ export const TaskView = ({
   // The page opens at its end, the newest entry above the reply, and follows new entries while
   // you are there; scrolled up, it stays put.
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null)
+  useEffect(() => onTop?.(() => scroll.current?.scrollTo({ y: 0, animated: true })), [onTop])
   const pinned = useRef(true)
   // Where the title ends on the page, and whether it is out of sight (the bar then says it).
   const titleEnd = useRef(0)
@@ -196,7 +199,7 @@ export const TaskView = ({
   }
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={20}>
+    <KeyboardScreen style={styles.screen}>
       <Sides edges={edges}>
         <ScrollView
           ref={scroll}
@@ -289,7 +292,7 @@ export const TaskView = ({
           ))}
         </ScrollView>
         <FileChips files={files.files} onRemove={files.remove} />
-        <View style={[styles.composerWrap, { marginBottom: edgeSpace(COMPOSER_BAR) }]}>
+        <View style={styles.composerWrap}>
           <Composer ready={ready} onSend={reply} tools={<ComposerTool symbol="plus" label="Attach files" onPress={files.pick} />}>
             <TextInput
               style={composerInput}
@@ -315,7 +318,7 @@ export const TaskView = ({
           </Composer>
         </View>
       </Sides>
-    </KeyboardAvoidingView>
+    </KeyboardScreen>
   )
 }
 
@@ -546,7 +549,7 @@ const Pasted = ({ text }: { text: string }) => {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colours.surface },
+  screen: { flex: 1, backgroundColor: colours.well },
   page: { paddingHorizontal: GUTTER, paddingTop: 20, gap: 24, paddingBottom: 32 },
   head: { gap: 6 },
   section: { gap: 8 },
@@ -583,7 +586,7 @@ const styles = StyleSheet.create({
   linkText: { flex: 1, gap: 2 },
   fullWidth: { width: '100%' },
   linkTitle: { fontSize: 15, color: colours.text },
-  preview: { marginLeft: 26, marginBottom: 6, padding: 12, borderRadius: 10, backgroundColor: colours.window },
+  preview: { marginLeft: 26, marginBottom: 6, padding: 12, borderRadius: 10, backgroundColor: colours.surface },
   mono: { fontFamily: 'Menlo', fontSize: 13, lineHeight: 19 },
   feed: { paddingLeft: 36 },
   slot: { paddingBottom: 20 },

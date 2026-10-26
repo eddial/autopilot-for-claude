@@ -16,8 +16,8 @@ const draw = (kind: 'mac' | 'phone' | 'splash' | 'layer', out: string, ground: s
 
 draw('mac', join(ROOT, 'build', 'icon.png'))
 draw('phone', join(ROOT, '..', 'mobile', 'assets', 'icon.png'))
-// The phone's launch screen, on the dark window colour app.json gives it.
-draw('splash', join(ROOT, '..', 'mobile', 'assets', 'splash.png'), colours.window)
+// The phone's launch screen, on the dark ground app.json gives it (the well, as dark as Claude's app).
+draw('splash', join(ROOT, '..', 'mobile', 'assets', 'splash.png'), colours.well)
 
 // macOS 26 draws an old-style icon under glass, duller than Claude's beside it; an Icon Composer
 // icon (the clay ground, the pilot as its one layer) it draws at full colour. package.ts compiles it.

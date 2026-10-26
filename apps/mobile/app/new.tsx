@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ActionSheetIOS, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActionSheetIOS, StyleSheet, Text, TextInput, View } from 'react-native'
 import type { Workstream } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
 import KV from 'expo-sqlite/kv-store'
@@ -7,7 +7,7 @@ import { SymbolView } from 'expo-symbols'
 import { useDraft } from '../src/drafts.ts'
 import { useSyncInstance } from '../src/store.ts'
 import { colours } from '@autopilot/design'
-import { COMPOSER_BAR, Chip, Composer, Pilot, Sides, composerInput, edgeSpace, GUTTER, type } from '../src/ui.tsx'
+import { Chip, Composer, Pilot, Sides, composerInput, GUTTER, type, KeyboardScreen } from '../src/ui.tsx'
 
 const PRIORITIES = [
   { value: 1, label: 'Urgent' },
@@ -86,11 +86,8 @@ export default function NewTaskScreen() {
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button icon="xmark" accessibilityLabel="Cancel" onPress={() => router.back()} />
       </Stack.Toolbar>
-      <Sides colour={colours.window}>
-        <KeyboardAvoidingView
-          style={[styles.screen, { paddingBottom: edgeSpace(COMPOSER_BAR) }]}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+      <Sides colour={colours.well}>
+        <KeyboardScreen style={styles.screen}>
           <View style={styles.hello}>
             <Pilot pixel={4} />
             <Text style={type.heading}>What needs doing?</Text>
@@ -98,11 +95,17 @@ export default function NewTaskScreen() {
           {/* The choices as pills over the box, left-aligned as Claude's are. */}
           <View style={styles.pills}>
             <Chip
+              pill
               label={workstream ?? 'Automatic'}
               icon={<SymbolView name="square.stack" size={14} tintColor={colours.text2} />}
               onPress={pickWorkstream}
             />
-            <Chip label={priorityLabel} icon={<SymbolView name="chart.bar" size={14} tintColor={colours.text2} />} onPress={pickPriority} />
+            <Chip
+              pill
+              label={priorityLabel}
+              icon={<SymbolView name="chart.bar" size={14} tintColor={colours.text2} />}
+              onPress={pickPriority}
+            />
           </View>
           <Composer
             ready={Boolean(title)}
@@ -110,6 +113,7 @@ export default function NewTaskScreen() {
             sendLabel={start ? 'Create and start' : 'Save'}
             tools={
               <Chip
+                pill
                 label={start ? 'Start now' : 'Start later'}
                 icon={<SymbolView name={start ? 'play.fill' : 'pause'} size={12} tintColor={colours.text2} />}
                 onPress={() => setStart(!start)}
@@ -127,7 +131,7 @@ export default function NewTaskScreen() {
               accessibilityLabel="Task"
             />
           </Composer>
-        </KeyboardAvoidingView>
+        </KeyboardScreen>
       </Sides>
     </>
   )

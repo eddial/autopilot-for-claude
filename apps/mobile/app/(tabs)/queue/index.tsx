@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   KeyboardAvoidingView,
@@ -14,6 +14,7 @@ import {
 import type { Band, QueueItem } from '@autopilot/contracts'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
 import { router, Stack } from 'expo-router'
+import { useHeaderHeight } from 'expo-router/react-navigation'
 import { StatusLine } from '../../../src/components/StatusLine.tsx'
 import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
@@ -21,7 +22,6 @@ import { age, rowMeta } from '../../../src/format.ts'
 import { doneItem, rememberDone, serverName, unpair, useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
 import { Bars, EmptyList, Sides, WorkstreamBadge, edgeSpace, GUTTER, type } from '../../../src/ui.tsx'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
 const VIEWS: { id: QueueView; title: string; about: string; bands: Band[]; symbol: SFSymbol }[] = [
@@ -67,8 +67,13 @@ export default function QueueScreen() {
   const [view, setView] = useState<QueueView>('needs_me')
   // Every open task: the current tab tapped again, as on the Mac.
   const [all, setAll] = useState(false)
-  const insets = useSafeAreaInsets()
+  // The page starts under the bar where iOS draws one across the top: the title's line is counted from the screen's edge.
+  const headerHeight = useHeaderHeight()
   const [selected, setSelected] = useState<string | null>(null)
+  const pageTop = useRef<(() => void) | null>(null)
+  const toTop = useCallback((scrollUp: () => void) => {
+    pageTop.current = scrollUp
+  }, [])
   const [filter, setFilter] = useState('')
   const [folded, setFolded] = useState<Set<string>>(new Set())
   // Done is not kept on the phone: read from the Mac for its tab's count, again when a task leaves
@@ -177,7 +182,7 @@ export default function QueueScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* The same column as on the Mac: search, then the tabs, then the sections. */}
         {/* The title level with the camera beside it, as the tabs are with the last button. */}
-        <View style={{ paddingTop: edgeSpace(TITLE_HEIGHT, insets.top), gap: 4 }}>
+        <View style={{ paddingTop: Math.max(8, edgeSpace(TITLE_HEIGHT) - headerHeight), gap: 4 }}>
           <Text style={[type.heading, styles.heading]} numberOfLines={1}>
             {all ? 'All open' : current?.title}
           </Text>
@@ -234,13 +239,14 @@ export default function QueueScreen() {
 
   return (
     <>
-      {/* No title bar: the tabs say where you are. The header stays, empty and see-through, for its buttons. */}
+      {/* No title in the bar: the page has its own. The bar is solid, so where iOS draws it inside the window
+          (split screen on the Duo) the list is laid out beside it rather than under it. */}
       <Stack.Screen
         options={{
           title: '',
           headerLargeTitle: false,
-          headerTransparent: true,
-          headerStyle: { backgroundColor: 'transparent' },
+          headerTransparent: false,
+          headerStyle: { backgroundColor: colours.well },
           scrollEdgeEffects: { top: 'hidden' },
         }}
       />
@@ -255,14 +261,25 @@ export default function QueueScreen() {
       <Stack.Toolbar placement="bottom">
         <Stack.Toolbar.SearchBarSlot />
         <Stack.Toolbar.Spacer />
+        {/* In the split, the way through the list sits here too, with the Mac's thin arrows. */}
+        <Stack.Toolbar.Button
+          icon="arrow.up"
+          accessibilityLabel="Previous task"
+          hidden={!selectedItem || at < 0}
+          disabled={!stepTo(order[at - 1])}
+          onPress={() => stepTo(order[at - 1])?.()}
+        />
+        <Stack.Toolbar.Button
+          icon="arrow.down"
+          accessibilityLabel="Next task"
+          hidden={!selectedItem || at < 0}
+          disabled={!stepTo(order[at + 1])}
+          onPress={() => stepTo(order[at + 1])?.()}
+        />
         <Stack.Toolbar.Button icon="plus" accessibilityLabel="New task" onPress={() => router.push('/new')} />
       </Stack.Toolbar>
       {selectedItem ? (
-        <TaskToolbar
-          item={selectedItem}
-          closeAfter={false}
-          step={at >= 0 ? { previous: stepTo(order[at - 1]), next: stepTo(order[at + 1]) } : undefined}
-        />
+        <TaskToolbar item={selectedItem} closeAfter={false} onTop={() => pageTop.current?.()} />
       ) : (
         // Settings at the top: the phone has none of its own (sources and workstreams are the Mac's), just your Mac:
         // how it is reached, and a way to unpair. Syncing runs by itself.
@@ -292,7 +309,7 @@ export default function QueueScreen() {
           </View>
           <View style={{ flex: 1 }}>
             {selectedItem ? (
-              <TaskView key={selectedItem.task.id} item={selectedItem} edges={['right']} />
+              <TaskView key={selectedItem.task.id} item={selectedItem} edges={['right']} onTop={toTop} />
             ) : (
               <View style={styles.placeholder}>
                 <Text style={styles.empty}>Pick a task.</Text>
@@ -365,7 +382,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     padding: 3,
     borderRadius: 12,
-    backgroundColor: colours.well,
+    backgroundColor: colours.window,
   },
   tab: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 34, borderRadius: 9 },
   // Lifted off the well, as the Mac's.
@@ -398,5 +415,5 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, lineHeight: 22, color: colours.text },
   meta: { marginTop: 3, fontSize: 13, color: colours.text3 },
   empty: { padding: 28, fontSize: 15, lineHeight: 22, color: colours.text3, textAlign: 'center' },
-  placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: colours.surface },
+  placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: colours.well },
 })

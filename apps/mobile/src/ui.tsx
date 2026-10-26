@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react'
 import {
   AccessibilityInfo,
   Animated,
   Easing,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,7 +14,7 @@ import {
 } from 'react-native'
 import { claude, colours, fonts, pilot, radius, space, tones, type Tone } from '@autopilot/design'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { emptyWords, linkKind, parseMarkdown, workstreamMark, type Inline, type LinkKind } from '@autopilot/client'
 
 /**
@@ -126,9 +127,13 @@ export const Sides = ({
   /** The screen edges this view touches: the split's list column only the left, its task only the right. */
   edges?: ('left' | 'right')[]
 }) => (
-  <SafeAreaView edges={edges} style={[styles.sides, colour ? { backgroundColor: colour } : null]}>
-    {children}
-  </SafeAreaView>
+  // Its own provider, measured where the screen is: iOS puts the Duo's bar inside the window in
+  // split view and reports it in the screen's safe area, which the app's root provider never sees.
+  <SafeAreaProvider style={[styles.sides, colour ? { backgroundColor: colour } : null]}>
+    <SafeAreaView edges={edges} style={styles.sides}>
+      {children}
+    </SafeAreaView>
+  </SafeAreaProvider>
 )
 
 const Inlines = ({ inlines, onLink }: { inlines: Inline[]; onLink: (url: string) => void }) =>
@@ -278,9 +283,22 @@ export const Banner = ({ tone = 'alert', children }: { tone?: Tone; children: Re
 export const bannerText = (tone: Tone = 'alert') => [styles.bannerText, { color: tones[tone].fg }]
 
 /** A small choice or link; `on` when it is the chosen one. */
-export const Chip = ({ label, on, icon, onPress }: { label: string; on?: boolean; icon?: ReactNode; onPress: () => void }) => (
+export const Chip = ({
+  label,
+  on,
+  icon,
+  pill = false,
+  onPress,
+}: {
+  label: string
+  on?: boolean
+  icon?: ReactNode
+  /** Round and filled, as Claude's composer draws its choices (the model, the environment). */
+  pill?: boolean
+  onPress: () => void
+}) => (
   <Pressable
-    style={[styles.chip, on && styles.chipOn, icon ? styles.chipWithIcon : null]}
+    style={[styles.chip, pill && styles.chipPill, on && styles.chipOn, icon ? styles.chipWithIcon : null]}
     onPress={onPress}
     accessibilityRole="button"
     accessibilityState={on === undefined ? undefined : { selected: on }}
@@ -396,23 +414,49 @@ export const Composer = ({
 )
 
 /** Twice the distance from the composer's bottom edge to the middle of its send: what edgeSpace centres. */
-export const COMPOSER_BAR = 54
+export const COMPOSER_BAR = 56
 
 /** A round tool in the composer's bar: attach, and the like. */
 export const ComposerTool = ({ symbol, label, onPress }: { symbol: SFSymbol; label: string; onPress: () => void }) => (
   <Pressable style={styles.composerTool} onPress={onPress} hitSlop={4} accessibilityRole="button" accessibilityLabel={label}>
-    <SymbolView name={symbol} size={17} tintColor={colours.text2} />
+    <SymbolView name={symbol} size={18} tintColor={colours.text} />
   </Pressable>
 )
+
+/**
+ * A screen that keeps its composer above the keyboard, as Claude's does: its bottom padding is
+ * exactly how far the keyboard reaches into it, plus a small gap, measured in the window, so a
+ * pushed screen, a sheet and a split-view half all come out the same. With the keyboard down the
+ * composer sits on the edge line beside the bar's last button.
+ */
+export const KeyboardScreen = ({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) => {
+  const box = useRef<ComponentRef<typeof View>>(null)
+  const [covered, setCovered] = useState(0)
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', (e) => {
+      box.current?.measureInWindow((_x, y, _w, height) => setCovered(Math.max(0, y + height - e.endCoordinates.screenY)))
+    })
+    const hide = Keyboard.addListener('keyboardWillHide', () => setCovered(0))
+    return () => {
+      show.remove()
+      hide.remove()
+    }
+  }, [])
+  return (
+    <View ref={box} style={[{ flex: 1, paddingBottom: covered > 0 ? covered + 12 : edgeSpace(COMPOSER_BAR) }, style]}>
+      {children}
+    </View>
+  )
+}
 
 /** The composer's text field: grows with what is written, up to a point. */
 export const composerInput = {
   minHeight: 44,
   maxHeight: 160,
-  fontSize: 16,
-  lineHeight: 22,
+  fontSize: 17,
+  lineHeight: 23,
   color: colours.text,
-  paddingHorizontal: 4,
+  paddingHorizontal: 6,
 } as const
 
 /** Pixel art drawn in squares: the pilot, or Claude. */
@@ -504,26 +548,27 @@ export const EmptyList = ({ view }: { view: string | null }) => {
 
 const styles = StyleSheet.create({
   disabled: { opacity: 0.4 },
+  // As Claude's own: a rounded, lighter box on the dark ground, round 36-point buttons under the text.
   composer: {
-    borderRadius: radius.xl,
-    backgroundColor: colours.surface,
+    borderRadius: 26,
+    backgroundColor: colours.raised,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colours.borderStrong,
     padding: 10,
-    paddingTop: 12,
-    gap: 8,
+    paddingTop: 14,
+    gap: 10,
   },
   composerBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   composerTools: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
   composerTool: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colours.raised,
+    backgroundColor: colours.button,
   },
-  composerSend: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colours.clay },
+  composerSend: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colours.clay },
   check: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   checkText: { flex: 1, gap: 4 },
   checkDone: { color: colours.text2 },
@@ -570,6 +615,15 @@ const styles = StyleSheet.create({
     backgroundColor: colours.raised,
   },
   chipOn: { borderColor: colours.text },
+  chipPill: {
+    height: 36,
+    paddingVertical: 0,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 0,
+    backgroundColor: colours.button,
+    justifyContent: 'center',
+  },
   chipText: { fontSize: 14, color: colours.text },
   emptyList: { alignItems: 'center', paddingTop: 48, paddingHorizontal: 28 },
   sky: { width: 200, height: 96, marginBottom: 18, overflow: 'hidden' },

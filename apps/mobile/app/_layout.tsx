@@ -61,7 +61,7 @@ export default function Root() {
   return (
     <>
       <StatusBar style={colourScheme === 'light' ? 'dark' : 'light'} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colours.window } }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colours.well } }}>
         <Stack.Screen name="index" />
         <Stack.Protected guard={sync !== null}>
           <Stack.Screen name="(tabs)" />

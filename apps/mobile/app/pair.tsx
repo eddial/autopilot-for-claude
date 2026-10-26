@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   back: { alignSelf: 'center', marginTop: 16 },
   narrow: { maxWidth: 520, width: '100%', alignSelf: 'center' },
   centred: { textAlign: 'center' },
-  screen: { flex: 1, backgroundColor: colours.window },
+  screen: { flex: 1, backgroundColor: colours.well },
   content: { padding: 24, gap: 20, alignItems: 'stretch' },
   wide: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 32 },
   column: { flex: 1, maxWidth: 420 },
