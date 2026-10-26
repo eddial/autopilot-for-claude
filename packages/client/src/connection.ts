@@ -147,7 +147,7 @@ export const pair = async (
   key: string,
 ): Promise<Connection> => {
   const link = new Link({ server: invite.server, routes: invite.routes, fingerprint: invite.fingerprint, token: '' }, pinned)
-  if (!(await link.probe())) throw new Offline(`${invite.server} cannot be reached on this network`)
+  if (!(await link.probe())) throw new Offline(`${invite.server} cannot be reached on this network.`)
   const { token } = await within(PAIR_MS, (signal) =>
     link.api.devices.pair({ idempotencyKey: key, code: invite.code, name: device.name, kind: device.kind }, { signal }),
   )
