@@ -80,3 +80,25 @@ From the top:
 
 What is the platform's, not ours: the Mac's window buttons above the tabs and the resizable width;
 the phone's safe areas.
+
+## The iPhone on the Duo
+
+Built to Apple's [Design for iPhone Duo](https://developer.apple.com/videos/play/tech-talks/111466/)
+and [Prepare your app for iPhone Duo](https://developer.apple.com/videos/play/tech-talks/111461/):
+
+- **Native bars only.** Actions are `Stack.Toolbar` items, so iOS moves them into the vertical bar on
+  the outer display and in landscape, and to the outer edge in split view (the left edge when the app
+  is on the left). Top items go to the top of the bar, bottom items to the bottom; nothing custom
+  floats where the bar goes.
+- **Two lines, one gutter.** A screen's title is centred on the line of the camera and the bar's
+  first button, its bottom bar (the tabs, the composer's send) on the line of the bar's last button
+  (`EDGE`, `edgeSpace` in `src/ui.tsx`). Every screen starts and ends on `GUTTER`. Sides come from the
+  safe area measured per screen (`Sides`), never a fixed width, so the bar's side and split view need
+  no special case.
+- **Size classes, not devices.** Compact width is one column; regular width (`SPLIT_WIDTH`) is list
+  and task side by side, the same hierarchy, so opening and closing the phone changes nothing else.
+- **The keyboard.** The composer sits just above it, measured where the screen is (`KeyboardScreen`),
+  as Claude's own composer does; with it down, the send lines up with the bar's last button.
+
+Test every change folded and open, portrait and landscape, split view left and right, keyboard up
+and down. The simulator folds with a hinge event (see `docs/RUNNING.md`).

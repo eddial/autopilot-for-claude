@@ -157,3 +157,9 @@ A session works in a folder, and it is always a git repository:
 | `autopilot new "…" --save` | A task in New, without starting a session |
 | `autopilot token "Claude Desktop" read` | A token for another agent; add `autopilot mcp` with `AUTOPILOT_TOKEN` to its MCP config |
 | `autopilot service uninstall` | Stop the background server |
+
+## The iPhone Duo simulator
+
+`simctl` cannot fold the Duo. `apps/mobile/scripts/duo.sh outer|inner [portrait|landscape-left|landscape-right]`
+sends the same hinge and orientation events as Device Hub's controls. For split view, long-press
+Autopilot on the inner Home Screen and choose Open in Split View; the app opens on the left.
