@@ -31,7 +31,7 @@ export const type = StyleSheet.create({
   meta: { fontSize: 13, color: colours.text3 },
   note: { fontSize: 14, lineHeight: 20, color: colours.text3, padding: space[3] },
   /** Section labels: small capitals, quiet. */
-  label: { fontSize: 11.5, fontWeight: '500', letterSpacing: 0.7, textTransform: 'uppercase', color: colours.text3 },
+  label: { fontSize: 13, fontWeight: '500', color: colours.text2 },
 })
 
 /** Where something stands, in a tone: "Your turn", "Running". */

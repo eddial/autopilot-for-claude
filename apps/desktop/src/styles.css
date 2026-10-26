@@ -201,8 +201,8 @@ button {
   border: 0;
   background: transparent;
   color: var(--text-2);
-  font-family: var(--mono);
   font-size: 12.5px;
+  font-weight: 500;
   text-align: left;
 }
 
@@ -373,8 +373,7 @@ button {
 }
 
 .row[aria-selected='true'] {
-  border-color: var(--text-3);
-  background: var(--raised);
+  background: var(--button);
 }
 
 .row .text {
@@ -484,13 +483,13 @@ button {
   padding: 7px 14px;
   border-radius: 9px;
   border: 0.5px solid var(--border-strong);
-  background: var(--button);
+  background: var(--raised);
   color: var(--text);
   font-size: 14px;
 }
 
 .btn:hover {
-  background: var(--button-hover);
+  background: var(--hover);
 }
 
 .btn:disabled,
@@ -676,22 +675,22 @@ button {
   z-index: 2;
 }
 
+/* Each group of properties a card, as the panels beside a Claude session. */
 .side-group {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding-bottom: 14px;
-  border-bottom: 0.5px solid var(--border);
-}
-
-.side-group:last-child {
-  border-bottom: 0;
+  padding: 8px 6px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
 }
 
 .side-heading {
-  padding: 0 8px 6px;
-  font-size: 12px;
-  color: var(--text-3);
+  padding: 4px 8px 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
 }
 
 .prop {
@@ -1055,7 +1054,7 @@ button {
 
 /* The actions, at the top of the properties: one place for them, beside the title. */
 .side-actions {
-  padding: 8px 0 4px 8px;
+  padding: 8px 0 0;
 }
 
 .side-actions .task-actions {
@@ -1192,13 +1191,12 @@ button {
   line-height: 20px;
 }
 
+/* A section's name, as Claude heads its panels: a small word in sentence case, no capitals. */
 .section-label {
   margin-bottom: 10px;
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-3);
+  color: var(--text-2);
 }
 
 .props {

@@ -20,23 +20,7 @@ import { markSeen, send, useDetail, useStore } from '../store.ts'
 import { AttachButton, FileChips, useFiles } from './Files.tsx'
 import { Menu, type MenuItem } from './Menu.tsx'
 import type { Tone } from '@autopilot/design'
-import {
-  ArrowUp,
-  Avatar,
-  Bars,
-  WorkstreamMark,
-  Banner,
-  Button,
-  Claude,
-  Dot,
-  Icon,
-  Markdown,
-  Meta,
-  NavIcon,
-  Pill,
-  Spacer,
-  Tag,
-} from '../ui.tsx'
+import { ArrowUp, Avatar, Bars, WorkstreamMark, Banner, Button, Claude, Dot, Icon, Markdown, Meta, NavIcon, Spacer, Tag } from '../ui.tsx'
 import { LinkIcon, Linked, SideLink } from './Links.tsx'
 import { BAND_TITLE } from '../view.ts'
 
@@ -186,7 +170,10 @@ export const TaskPane = ({ item, workstreams, upNext = null, onClose }: Props) =
                 <h2 className="serif">{task.title}</h2>
                 {/* Narrow, the properties sit here; wide, in the column on the right (styles.css). */}
                 <div className="props">
-                  <Pill tone={BAND_TONE[item.band]}>{BAND_TITLE[item.band]}</Pill>
+                  <span className="prop-text">
+                    <Dot tone={BAND_TONE[item.band]} />
+                    {BAND_TITLE[item.band]}
+                  </span>
                   <Tag>{task.workstream}</Tag>
                   {task.priority <= 2 && <Tag>{task.priority === 1 ? 'Urgent' : 'High priority'}</Tag>}
                   <Meta as="span">
@@ -776,7 +763,10 @@ const Properties = ({
       <div className="side-group">
         {/* Where it stands, said once; what you can do about it is in the buttons above. */}
         <Prop label="Status">
-          <Pill tone={BAND_TONE[item.band]}>{BAND_TITLE[item.band]}</Pill>
+          <span className="prop-text">
+            <Dot tone={BAND_TONE[item.band]} />
+            {BAND_TITLE[item.band]}
+          </span>
         </Prop>
         <Prop label="Workstream">
           <Menu

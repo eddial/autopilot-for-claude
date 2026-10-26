@@ -25,7 +25,7 @@ import { useDraft } from '../drafts.ts'
 import { FileChips, useFiles } from '../files.tsx'
 import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
 import { colours, radius, tones, type Tone } from '@autopilot/design'
-import { Avatar, Banner, Button, Chip, LinkIcon, Markdown, Pill, Sides, Tag, bannerText, type } from '../ui.tsx'
+import { Avatar, Banner, Button, Chip, Dot, LinkIcon, Markdown, Sides, Tag, bannerText, type } from '../ui.tsx'
 
 /** A task: its brief, what waits on you, and its activity; the same in a pushed screen and in the wide split. */
 export const TaskView = ({ item, onTitleOff }: { item: QueueItem; onTitleOff?: (off: boolean) => void }) => {
@@ -160,7 +160,10 @@ export const TaskView = ({ item, onTitleOff }: { item: QueueItem; onTitleOff?: (
             </Text>
             <Text style={type.title}>{task.title}</Text>
             <View style={styles.row}>
-              <Pill tone={BAND_TONE[item.band]} label={BAND_TITLE[item.band]} />
+              <View style={styles.status}>
+                <Dot tone={BAND_TONE[item.band]} />
+                <Text style={type.meta}>{BAND_TITLE[item.band]}</Text>
+              </View>
               <Tag label={task.workstream} />
               {task.priority <= 2 && <Tag label={task.priority === 1 ? 'Urgent' : 'High priority'} />}
               <Text style={type.meta}>
@@ -458,6 +461,7 @@ const styles = StyleSheet.create({
   pastedPeek: { lineHeight: 18 },
   more: { marginTop: 6 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  status: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   // A plain box, as on the Mac: the avatar on the rail says who asks.
   ask: {
     gap: 8,
