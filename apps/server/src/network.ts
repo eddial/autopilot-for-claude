@@ -37,8 +37,16 @@ export const isAllowedAddress = (address: string | undefined): boolean => {
   return allowed.check(ip, isIPv4(ip) ? 'ipv4' : 'ipv6')
 }
 
-/** Where Tailscale's command lives on a Mac: inside the app, or on the PATH. */
-const TAILSCALE_CLI = ['/Applications/Tailscale.app/Contents/MacOS/Tailscale', 'tailscale']
+/**
+ * Where Tailscale's command lives on a Mac. The app's binary acts as the command only when called
+ * `tailscale` (lower case); as `Tailscale` it tries to open the app, which fails from a service.
+ */
+const TAILSCALE_CLI = [
+  '/Applications/Tailscale.app/Contents/MacOS/tailscale',
+  '/usr/local/bin/tailscale',
+  '/opt/homebrew/bin/tailscale',
+  'tailscale',
+]
 
 /**
  * This Mac's Tailscale address, or null when Tailscale is not running or not signed in. Asked of
@@ -49,8 +57,8 @@ const readTailnetAddress = (): string | null => {
   for (const cli of TAILSCALE_CLI) {
     try {
       const out = execFileSync(cli, ['ip', '-4'], { encoding: 'utf8', timeout: 3000, stdio: ['ignore', 'pipe', 'ignore'] }).trim()
-      const first = out.split('\n')[0]?.trim() ?? ''
-      return TAILSCALE.check(first, 'ipv4') ? first : null
+      const first = out.split('\n').find((line) => isIPv4(line.trim()) && TAILSCALE.check(line.trim(), 'ipv4'))
+      if (first) return first.trim()
     } catch {
       // Not here, or not running: try the next, then the interfaces.
     }
