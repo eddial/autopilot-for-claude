@@ -1,5 +1,8 @@
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { CreateTask, FileItem, PostUpdate } from '@autopilot/contracts'
+import { Change, CreateTask, FileItem, PostUpdate } from '@autopilot/contracts'
 import { backfillMirrors, openDatabase } from '../src/db.ts'
 import { DomainError, Service } from '../src/service.ts'
 
@@ -196,6 +199,19 @@ describe('filing', () => {
     expect(backfillMirrors(db)).toEqual([{ id: named.id, mirrors: 'LLE-16161' }])
     expect(backfillMirrors(db)).toEqual([])
     expect([named, plain, closed].map((t) => s.task(t.id).source.mirrors)).toEqual(['LLE-16161', null, null])
+  })
+
+  it('gives tasks in the change feed from before Auto-fix the setting, so a client catching up reads them', () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'autopilot-')), 'db.sqlite')
+    const db = openDatabase(file)
+    create(new Service({ db }), { start: false })
+    db.exec(`update changes set payload = json_remove(payload, '$.task.autofix')`)
+    const version = (db.prepare('pragma user_version').get() as { user_version: number }).user_version
+    db.exec(`pragma user_version = ${version - 1}`)
+    db.close()
+    const changes = new Service({ db: openDatabase(file) }).changesSince(0, 100).changes
+    expect(changes.filter((c) => c.type === 'task.upserted')).not.toEqual([])
+    for (const change of changes) Change.parse(change)
   })
 })
 

@@ -222,6 +222,14 @@ const MIGRATIONS: (string | ((db: DatabaseSync) => void))[] = [
   -- Auto-fix on the pull requests a task's session opens, on unless switched off.
   alter table tasks add column autofix integer not null default 1;
   `,
+  `
+  -- Tasks in the change feed and stored results from before Auto-fix get it too, or a client
+  -- catching up from before then is refused every page.
+  update changes set payload = json_set(payload, '$.task.autofix', json('true'))
+    where type = 'task.upserted' and json_type(payload, '$.task.autofix') is null;
+  update applied set result = json_set(result, '$.autofix', json('true'))
+    where json_valid(result) and json_type(result, '$.brief') is not null and json_type(result, '$.autofix') is null;
+  `,
 ]
 
 export const openDatabase = (file: string): DatabaseSync => {
