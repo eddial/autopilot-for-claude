@@ -67,16 +67,23 @@ const matches = (item: QueueItem, filter: string): boolean =>
 const TITLE_HEIGHT = 30
 const TABS_HEIGHT = 40
 
-/** Regular width (the Duo's inner display full screen): list and task side by side. */
-const SPLIT_WIDTH = 700
+/**
+ * The Duo open, either way up: list and task side by side, as Claude puts its chats beside the
+ * conversation. Folded (short) or in a split-view half (narrow) it is one or the other.
+ */
+const SPLIT_WIDTH = 600
+const SPLIT_HEIGHT = 600
 
 export default function QueueScreen() {
   const items = useItems()
   const sync = useSyncInstance()
   const syncState = useSyncState()
   const { status } = syncState
-  const { width } = useWindowDimensions()
-  const split = width >= SPLIT_WIDTH
+  const { width, height } = useWindowDimensions()
+  const split = width >= SPLIT_WIDTH && height >= SPLIT_HEIGHT
+  // Upright, iOS lays the bar across the bottom, over the composer's send: the list beside the task
+  // is the way through it there, so the arrows stay away.
+  const upright = height > width
   const [view, setView] = useState<QueueView>('needs_me')
   // Every open task: the current tab tapped again, as on the Mac.
   const [all, setAll] = useState(false)
@@ -311,6 +318,8 @@ export default function QueueScreen() {
         placeholder="Search"
         autoCapitalize="none"
         hideWhenScrolling={false}
+        // A button that opens into the field, as Claude's search: no long bar across the bottom.
+        placement="integratedButton"
         onChangeText={(e) => setFilter(e.nativeEvent.text)}
         onCancelButtonPress={() => setFilter('')}
       />
@@ -323,14 +332,14 @@ export default function QueueScreen() {
         <Stack.Toolbar.Button
           icon="arrow.up"
           accessibilityLabel="Previous task"
-          hidden={!selectedItem || at < 0}
+          hidden={!selectedItem || at < 0 || upright}
           disabled={!stepTo(order[at - 1])}
           onPress={() => stepTo(order[at - 1])?.()}
         />
         <Stack.Toolbar.Button
           icon="arrow.down"
           accessibilityLabel="Next task"
-          hidden={!selectedItem || at < 0}
+          hidden={!selectedItem || at < 0 || upright}
           disabled={!stepTo(order[at + 1])}
           onPress={() => stepTo(order[at + 1])?.()}
         />
