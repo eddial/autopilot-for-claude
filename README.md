@@ -9,10 +9,17 @@ It runs on your Mac as a small server and an app that sits beside Claude Code, w
 for the queue on the go. It is the successor of `autopilot-for-linear`, which uses Linear as its
 control plane; this one has its own.
 
-**Status:** being planned. Nothing here is built yet. Private until the first usable release.
+**Status:** in daily use by its author: the server, the Mac app and the iPhone app work end to
+end. Private until the first usable release.
+
+**Start here:** [docs/GUIDE.md](docs/GUIDE.md) shows how to use it, and
+[docs/RUNNING.md](docs/RUNNING.md) how to install and check it on a Mac.
 
 | Document | What it covers |
 | --- | --- |
+| [docs/GUIDE.md](docs/GUIDE.md) | Using it: setting up, the queue and its order, tasks and sessions, the keys, the iPhone |
+| [docs/RUNNING.md](docs/RUNNING.md) | Installing and checking it on a Mac, the iPhone build, the CLI |
+| [docs/DESIGN.md](docs/DESIGN.md) | The design tokens and building blocks both apps draw with, and the iPhone Duo |
 | [docs/PRODUCT.md](docs/PRODUCT.md) | The experience: the queue, the attention model, tasks as updates, onboarding, the screens, the pilot |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Roles, how it runs on the Mac and reaches the iPhone, the stack, repo layout, storage, write-back, security |
 | [docs/API.md](docs/API.md) | The contract: entities, commands, changes, update kinds, access scopes, and the MCP tools any agent can use |

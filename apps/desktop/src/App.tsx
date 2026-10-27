@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem, Signal, Workstream } from '@autopilot/contracts'
-import { attentionKey } from '@autopilot/client'
+import { attentionKey, type GroupBy } from '@autopilot/client'
 import { api, shell } from './api.ts'
 import { NewTask } from './components/NewTask.tsx'
 import { listOrder, QueueList } from './components/QueueList.tsx'
@@ -104,6 +104,21 @@ export const App = () => {
   const [stay, setStay] = useState<{ id: string; tab: QueueView; all: boolean; at: number } | null>(null)
   const [showingTask, setShowingTask] = useState(false)
   const [listWidth, setListWidth] = useState(() => stored('listWidth', 420))
+  const [groupBy, setGroupBy] = useState<GroupBy>(() => {
+    try {
+      return localStorage.getItem('groupBy') === 'priority' ? 'priority' : 'workstream'
+    } catch {
+      return 'workstream'
+    }
+  })
+  const chooseGroupBy = (by: GroupBy) => {
+    setGroupBy(by)
+    try {
+      localStorage.setItem('groupBy', by)
+    } catch {
+      // Private storage: the grouping just is not remembered.
+    }
+  }
   const [workstreams, setWorkstreams] = useState<Workstream[]>([])
   const [signals, setSignals] = useState<Signal[]>([])
   const [doneList, setDone] = useState<{ seq: number; items: QueueItem[] }>({ seq: -1, items: [] })
@@ -246,7 +261,7 @@ export const App = () => {
 
   // Next and previous in the list as it reads: ↓ and ↑ (← and → too, with ⌘ from an empty box),
   // or the arrows under the list. In a box you are writing in, the arrows move the cursor as usual.
-  const ordered = useMemo(() => listOrder(listed), [listed])
+  const ordered = useMemo(() => listOrder(listed, groupBy), [listed, groupBy])
   const at = ordered.findIndex((i) => i.task.id === selected)
   const nextItem = at >= 0 ? (ordered[at + 1] ?? null) : null
   const step = useCallback(
@@ -328,6 +343,8 @@ export const App = () => {
         all={all}
         onTab={switchTab}
         counts={counts}
+        groupBy={groupBy}
+        onGroupBy={chooseGroupBy}
         items={listed}
         view={view}
         go={go}

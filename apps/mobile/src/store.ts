@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { AppState } from 'react-native'
-import { overlay, Sync, type Connection, type Storage, type SyncState } from '@autopilot/client'
+import { overlay, Sync, type Connection, type GroupBy, type Storage, type SyncState } from '@autopilot/client'
 import { queueItems, type QueueItem } from '@autopilot/contracts'
 import * as BackgroundTask from 'expo-background-task'
 import { randomUUID } from 'expo-crypto'
@@ -21,6 +21,10 @@ const storage: Storage = {
   get: (key) => KV.getItem(`autopilot.${key}`),
   set: (key, value) => KV.setItem(`autopilot.${key}`, value),
 }
+
+/** How the list is grouped, remembered on the phone. */
+export const groupBy = (): GroupBy => (KV.getItemSync('autopilot.groupBy') === 'priority' ? 'priority' : 'workstream')
+export const saveGroupBy = (by: GroupBy) => void KV.setItem('autopilot.groupBy', by)
 
 const notify = (items: QueueItem[]) => {
   for (const item of items.slice(0, 3)) {

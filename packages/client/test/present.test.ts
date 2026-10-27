@@ -1,7 +1,7 @@
-import type { Update } from '@autopilot/contracts'
+import type { QueueItem, Update } from '@autopilot/contracts'
 import { describe, expect, it } from 'vitest'
 import { parseMarkdown } from '../src/markdown.ts'
-import { isArtifact, linkSource, updateLabel, updateTone } from '../src/present.ts'
+import { isArtifact, linkSource, sectionsOf, updateLabel, updateTone } from '../src/present.ts'
 
 const decision = (open: boolean): Update => ({
   id: 'u1',
@@ -48,6 +48,28 @@ describe('how updates read', () => {
 
 /** A cell or line of plain text, as the parser gives it. */
 const t = (text: string) => [{ kind: 'text', text }]
+
+// Only what grouping reads: id, workstream, priority.
+const row = (id: string, workstream: string, priority: number) => ({ task: { id, workstream, priority } }) as QueueItem
+
+describe('sections of a list', () => {
+  const list = [row('AP-1', 'inbox', 1), row('AP-2', 'sales', 3), row('AP-3', 'dev', 1), row('AP-4', 'sales', 1)]
+  const read = (by: 'workstream' | 'priority') => sectionsOf(list, by).map((s) => [s.title, ...s.items.map((i) => i.task.id)])
+
+  it('by workstream: in the order of their most pressing task, the inbox last', () => {
+    expect(read('workstream')).toEqual([
+      ['sales', 'AP-2', 'AP-4'],
+      ['dev', 'AP-3'],
+      ['inbox', 'AP-1'],
+    ])
+  })
+  it('by priority: Urgent to Low, each workstream together inside, the inbox last', () => {
+    expect(read('priority')).toEqual([
+      ['Urgent', 'AP-3', 'AP-4', 'AP-1'],
+      ['Normal', 'AP-2'],
+    ])
+  })
+})
 
 describe('markdown', () => {
   it('reads headings, lists and paragraphs, with bold, code and links inside a line', () => {

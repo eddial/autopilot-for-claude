@@ -2926,3 +2926,20 @@ textarea.inline-reply {
   line-height: 1.5;
   color: var(--text-3);
 }
+
+/* Between search and New: how the list is grouped. */
+.search-row .group-by {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text-2);
+}
+
+.search-row .group-by:hover,
+.search-row .group-by[aria-expanded='true'] {
+  background: var(--raised);
+  color: var(--text);
+}

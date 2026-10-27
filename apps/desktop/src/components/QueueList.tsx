@@ -1,12 +1,13 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem } from '@autopilot/contracts'
-import { emptyWords } from '@autopilot/client'
+import { emptyWords, sectionsOf, type GroupBy } from '@autopilot/client'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { Menu } from './Menu.tsx'
 import { useDraft } from '../drafts.ts'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
 import { ALL_OPEN, QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
-import { Banner, Bars, Button, WorkstreamMark, NavIcon, Pilot, SearchIcon, type NavIconName } from '../ui.tsx'
+import { Banner, Bars, Button, Icon, WorkstreamMark, NavIcon, Pilot, SearchIcon, type NavIconName } from '../ui.tsx'
 
 type Props = {
   tab: QueueView
@@ -17,6 +18,9 @@ type Props = {
   /** How many tasks each tab holds; Done only once it has been read. */
   counts: Partial<Record<QueueView | 'all', number>>
   items: QueueItem[]
+  /** How the list is cut into sections. */
+  groupBy: GroupBy
+  onGroupBy: (by: GroupBy) => void
   view: View
   go: (view: View) => void
   selected: string | null
@@ -100,39 +104,60 @@ const matches = (item: QueueItem, filter: string): boolean =>
       return item.task.title.toLowerCase().includes(word) || item.task.id.toLowerCase() === word
     })
 
-type Entry = { kind: 'group'; workstream: string; count: number; folded: boolean } | { kind: 'item'; item: QueueItem }
+type Entry =
+  { kind: 'group'; key: string; title: string; priority: number | null; count: number; folded: boolean } | { kind: 'item'; item: QueueItem }
+
+const GROUPINGS: { by: GroupBy; label: string }[] = [
+  { by: 'workstream', label: 'Group by workstream' },
+  { by: 'priority', label: 'Group by priority' },
+]
+
+/** The tasks of a list top to bottom, as its sections show them: what Next and ⌘] go through. */
+export const listOrder = (items: QueueItem[], by: GroupBy): QueueItem[] => sectionsOf(items, by).flatMap((s) => s.items)
 
 /**
  * The left of the window: search, the status tabs, and the tasks of the tab in a section per
- * workstream. It is the nav and the list in one, as on the phone; Settings sits at the window's
- * top right.
+ * workstream or per priority. It is the nav and the list in one, as on the phone; Settings sits at
+ * the window's top right.
  */
-/** The workstreams of a list in the order of their most pressing task (the queue comes sorted), the inbox last. */
-const sectionOrder = (items: QueueItem[]) =>
-  [...new Set(items.map((i) => i.task.workstream))].toSorted((a, b) => Number(a === 'inbox') - Number(b === 'inbox'))
-
-/** The tasks of a list top to bottom, as its sections show them: what Next and ⌘] go through. */
-export const listOrder = (items: QueueItem[]): QueueItem[] =>
-  sectionOrder(items).flatMap((workstream) => items.filter((i) => i.task.workstream === workstream))
-
 export const QueueList = (props: Props) => {
-  const { tab, all, onTab, counts, items, view, go, selected, onSelect, onOpen, width, banner, showingTasks, lingering, place } = props
+  const {
+    tab,
+    all,
+    onTab,
+    counts,
+    items,
+    groupBy,
+    onGroupBy,
+    view,
+    go,
+    selected,
+    onSelect,
+    onOpen,
+    width,
+    banner,
+    showingTasks,
+    lingering,
+    place,
+  } = props
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [folded, setFolded] = useState<Set<string>>(new Set())
   const title = all ? 'All open' : (QUEUE_VIEWS.find((q) => q.id === tab)?.title ?? '')
   const visible = useMemo(() => items.filter((i) => matches(i, filter)), [items, filter])
-  // Sections in the order of their most pressing task (the queue comes sorted), the inbox last.
-  const entries = useMemo((): Entry[] => {
-    return sectionOrder(visible).flatMap((workstream) => {
-      const inSection = visible.filter((i) => i.task.workstream === workstream)
-      const shut = folded.has(workstream)
-      return [
-        { kind: 'group' as const, workstream, count: inSection.length, folded: shut },
-        ...(shut ? [] : inSection.map((item) => ({ kind: 'item' as const, item }))),
-      ]
-    })
-  }, [visible, folded])
+  // Sections in the order of their most pressing task (the queue comes sorted), the inbox last; or Urgent to Low.
+  const entries = useMemo(
+    (): Entry[] =>
+      sectionsOf(visible, groupBy).flatMap((section) => {
+        const shut = folded.has(section.key)
+        const priority = groupBy === 'priority' ? (section.items[0]?.task.priority ?? null) : null
+        return [
+          { kind: 'group' as const, key: section.key, title: section.title, priority, count: section.items.length, folded: shut },
+          ...(shut ? [] : section.items.map((item) => ({ kind: 'item' as const, item }))),
+        ]
+      }),
+    [visible, groupBy, folded],
+  )
   const fold = (workstream: string) =>
     setFolded((f) => {
       const next = new Set(f)
@@ -179,7 +204,7 @@ export const QueueList = (props: Props) => {
     estimateSize: (i) => (entries[i]?.kind === 'group' ? 40 : 70),
     getItemKey: (i) => {
       const e = entries[i]
-      return e?.kind === 'item' ? e.item.task.id : `group-${e?.workstream ?? i}`
+      return e?.kind === 'item' ? e.item.task.id : `group-${e?.key ?? i}`
     },
     overscan: 10,
   })
@@ -230,6 +255,12 @@ export const QueueList = (props: Props) => {
           <input ref={search} aria-label="Filter tasks" placeholder="Search" value={filter} onChange={(e) => setFilter(e.target.value)} />
           <kbd className="hint hint-cmd">⌘F</kbd>
         </label>
+        <Menu
+          className="group-by"
+          label={<Icon name="group" size={14} />}
+          chevron={false}
+          items={GROUPINGS.map((g) => ({ label: g.label, checked: groupBy === g.by, run: () => onGroupBy(g.by) }))}
+        />
         <Button
           kind="tool"
           className="with-icon new-task"
@@ -286,9 +317,15 @@ export const QueueList = (props: Props) => {
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }}
               >
                 {entry.kind === 'group' ? (
-                  <Button kind="section" aria-expanded={!entry.folded} onClick={() => fold(entry.workstream)}>
-                    <WorkstreamMark name={entry.workstream} />
-                    <span className="ws-name">{entry.workstream}</span>
+                  <Button kind="section" aria-expanded={!entry.folded} onClick={() => fold(entry.key)}>
+                    {entry.priority === null ? (
+                      <WorkstreamMark name={entry.title} />
+                    ) : (
+                      <span className="ws-mark quiet">
+                        <Bars priority={entry.priority} />
+                      </span>
+                    )}
+                    <span className="ws-name">{entry.title}</span>
                     {entry.folded && <span className="ws-count">{entry.count}</span>}
                   </Button>
                 ) : expanded === entry.item.task.id ? (
@@ -300,6 +337,7 @@ export const QueueList = (props: Props) => {
                     left={lingering === entry.item.task.id}
                     hint={order.indexOf(entry.item.task.id) < 9 ? order.indexOf(entry.item.task.id) + 1 : undefined}
                     status={all}
+                    workstream={groupBy === 'priority'}
                     onSelect={pick}
                     onOpen={onOpen}
                   />
@@ -340,6 +378,8 @@ type RowProps = {
   hint?: number | undefined
   /** Under All, where the statuses mix: its status as its tab's icon. */
   status?: boolean
+  /** Grouped by priority, where the workstreams mix: its workstream in its line. */
+  workstream?: boolean
   /** It has left this tab (you answered it) and stays, faded, until you move on. */
   left?: boolean
   onSelect?: (id: string) => void
@@ -351,7 +391,7 @@ const PRIORITY_NAME: Record<number, string> = { 1: 'Urgent', 2: 'High priority',
 
 /** Rerenders only when what it shows changed: the store keeps unchanged tasks and asks as the same objects. */
 const TaskRow = memo(
-  ({ item, selected, left = false, hint, status = false, onSelect, onOpen }: RowProps) => (
+  ({ item, selected, left = false, hint, status = false, workstream = false, onSelect, onOpen }: RowProps) => (
     <Button
       kind="row"
       className={[item.unread ? null : 'read', left ? 'left' : null, status ? 'with-status' : null].filter(Boolean).join(' ') || undefined}
@@ -371,7 +411,7 @@ const TaskRow = memo(
       )}
       <div className="text">
         <div className="title">{item.task.title}</div>
-        <div className="meta">{rowMeta(item, false)}</div>
+        <div className="meta">{rowMeta(item, workstream)}</div>
       </div>
       {/* When, and under it how much it matters, as on the task's properties. */}
       <span className="row-end">
@@ -387,6 +427,7 @@ const TaskRow = memo(
     a.left === b.left &&
     a.hint === b.hint &&
     a.status === b.status &&
+    a.workstream === b.workstream &&
     a.item.task === b.item.task &&
     a.item.openAsk === b.item.openAsk &&
     a.item.session === b.item.session &&

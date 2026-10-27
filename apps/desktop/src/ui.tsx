@@ -68,6 +68,8 @@ const ICONS = {
   /** Opens a menu below. */
   more: <path d="M4.5 6.5 8 10l3.5-3.5" />,
   plus: <path d="M8 3.5v9M3.5 8h9" />,
+  /** How a list is grouped. */
+  group: <path d="M3 4.5h10M4.75 8h6.5M6.5 11.5h3" />,
   dismiss: <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />,
 } as const
 

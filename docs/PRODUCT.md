@@ -36,8 +36,11 @@ Tasks are grouped into bands by whose turn it is, then ordered inside each band.
 
 | Band | Enters when | Order inside |
 | --- | --- | --- |
-| **Your turn** | An open update needs you (decision, question, review, stuck); a session waits on a permission prompt; a health issue or routing proposal | Blocking a live session first, then urgent, then longest wait. Unread items have a filled dot, seen ones a hollow dot |
+| **Your turn** | An open update needs you (decision, question, review, stuck); a session waits on a permission prompt; a health issue or routing proposal | Priority, then blocking a live session first, then longest wait. Unread items have a filled dot, seen ones a hollow dot |
 | **New** | A signal filed it, or you saved a task without starting it | Priority, then newest. Urgent ones go straight to Your turn and notify |
+
+Your turn and New show together as Needs me, ordered by priority first: an urgent new task sits
+above a normal one waiting on your answer, and at the same priority your turn comes before new.
 | **Running** | A session is working on it | Latest activity, with one line of what it is doing |
 | **Waiting on others** | The session handed over to someone and left a watcher | Folded. When the watcher sees news, a workstream with autonomy 3 or more wakes the session; otherwise, and when it times out, the task returns to Your turn |
 | **Snoozed** | You snoozed it until a time | Returns to Your turn when due |
@@ -95,8 +98,9 @@ Autonomy levels, watchers, schedules, models and agent tokens are not part of on
 
 1. **List** (resizable), which is the navigation too: the status tabs on top (Needs me, Running,
    Waiting on others, Snoozed, Done), each an icon and a count; search with tokens
-   (`ws:customers from:slack`) and New task beside it; the tab's tasks as cards in a section per
-   workstream, ordered by their most pressing task with the inbox last, each section folding away;
+   (`ws:customers from:slack`), then how the list is grouped, then New task; the tab's tasks as
+   cards in a section per workstream, ordered by their most pressing task with the inbox last, or
+   per priority (Urgent to Low, each workstream together inside), each section folding away;
    Set up and Servers at the foot, Set up with a health dot when a source fails. Space opens a row in place to answer
    it without opening the task.
 2. **Task** (closable): the conversation and the reply box with Open session, Snooze and Done.

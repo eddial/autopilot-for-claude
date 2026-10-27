@@ -20,8 +20,19 @@ import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
 import { NewTask } from '../../../src/components/NewTask.tsx'
 import { age, rowMeta } from '../../../src/format.ts'
-import { doneItem, rememberDone, serverName, unpair, useItems, useSyncInstance, useSyncState } from '../../../src/store.ts'
+import {
+  doneItem,
+  groupBy as storedGroupBy,
+  rememberDone,
+  saveGroupBy,
+  serverName,
+  unpair,
+  useItems,
+  useSyncInstance,
+  useSyncState,
+} from '../../../src/store.ts'
 import { colours, shapes } from '@autopilot/design'
+import { sectionsOf, type GroupBy } from '@autopilot/client'
 import { Bars, EmptyList, Sides, WorkstreamBadge, COMPOSER_BAR, edgeSpace, GUTTER, shaped, type, useBottomGap } from '../../../src/ui.tsx'
 
 type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
@@ -77,6 +88,11 @@ export default function QueueScreen() {
   }, [])
   const [filter, setFilter] = useState('')
   const [folded, setFolded] = useState<Set<string>>(new Set())
+  const [groupBy, setGroupBy] = useState<GroupBy>(storedGroupBy)
+  const chooseGroupBy = (by: GroupBy) => {
+    setGroupBy(by)
+    saveGroupBy(by)
+  }
   // Done is not kept on the phone: read from the Mac for its tab's count, again when a task leaves
   // the open ones, and when the tab is opened.
   const [done, setDone] = useState<QueueItem[] | null>(null)
@@ -107,19 +123,20 @@ export default function QueueScreen() {
     if (id !== 'all') setView(id)
   }
 
-  // A section per workstream, in the order of its most pressing task; the inbox last.
+  // A section per workstream, in the order of its most pressing task, the inbox last; or Urgent to Low.
   const sections = useMemo(() => {
     const bands = current?.bands ?? []
     const listed = all
       ? openItems.filter((i) => matches(i, filter))
       : (view === 'done' ? (done ?? []) : items).filter((i) => bands.includes(i.band) && matches(i, filter))
-    const names = [...new Set(listed.map((i) => i.task.workstream))]
-    const order = [...names.filter((n) => n !== 'inbox'), ...names.filter((n) => n === 'inbox')]
-    return order.map((name) => {
-      const inSection = listed.filter((i) => i.task.workstream === name)
-      return { name, count: inSection.length, data: folded.has(name) ? [] : inSection }
-    })
-  }, [items, openItems, all, done, view, current, filter, folded])
+    return sectionsOf(listed, groupBy).map((s) => ({
+      name: s.key,
+      title: s.title,
+      priority: groupBy === 'priority' ? (s.items[0]?.task.priority ?? null) : null,
+      count: s.items.length,
+      data: folded.has(s.key) ? [] : s.items,
+    }))
+  }, [items, openItems, all, done, view, current, filter, folded, groupBy])
   const fold = (name: string) =>
     setFolded((f) => {
       const next = new Set(f)
@@ -222,14 +239,26 @@ export default function QueueScreen() {
                 accessibilityRole="button"
                 accessibilityState={{ expanded: !shut }}
               >
-                <WorkstreamBadge name={section.name} />
-                <Text style={[styles.sectionName, shut && { color: colours.text3 }]}>{section.name}</Text>
+                {section.priority === null ? (
+                  <WorkstreamBadge name={section.title} />
+                ) : (
+                  <View style={styles.priorityBadge}>
+                    <Bars priority={section.priority} />
+                  </View>
+                )}
+                <Text style={[styles.sectionName, shut && { color: colours.text3 }]}>{section.title}</Text>
                 {shut && <Text style={styles.sectionCount}>{section.count}</Text>}
               </Pressable>
             )
           }}
           renderItem={({ item }) => (
-            <Row item={item} selected={split && item.task.id === selected} status={all} onPress={() => open(item.task.id)} />
+            <Row
+              item={item}
+              selected={split && item.task.id === selected}
+              status={all}
+              workstream={groupBy === 'priority'}
+              onPress={() => open(item.task.id)}
+            />
           )}
         />
         {/* The tabs under the list, where the thumb is; search and New in the bar below them. */}
@@ -288,6 +317,14 @@ export default function QueueScreen() {
         // how it is reached, and a way to unpair. Syncing runs by itself.
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Menu icon="gearshape" accessibilityLabel="Settings" title={macTitle(syncState)}>
+            <Stack.Toolbar.Menu inline title="Group the list">
+              <Stack.Toolbar.MenuAction icon="square.stack" isOn={groupBy === 'workstream'} onPress={() => chooseGroupBy('workstream')}>
+                By workstream
+              </Stack.Toolbar.MenuAction>
+              <Stack.Toolbar.MenuAction icon="chart.bar" isOn={groupBy === 'priority'} onPress={() => chooseGroupBy('priority')}>
+                By priority
+              </Stack.Toolbar.MenuAction>
+            </Stack.Toolbar.Menu>
             <Stack.Toolbar.MenuAction
               icon="xmark"
               destructive
@@ -335,7 +372,20 @@ const BottomRow = ({ beside, children }: { beside: boolean; children: ReactNode 
   return <View style={{ marginBottom: beside ? withComposer : centred }}>{children}</View>
 }
 
-const Row = ({ item, selected, status, onPress }: { item: QueueItem; selected: boolean; status: boolean; onPress: () => void }) => (
+const Row = ({
+  item,
+  selected,
+  status,
+  workstream,
+  onPress,
+}: {
+  item: QueueItem
+  selected: boolean
+  status: boolean
+  /** Grouped by priority, where the workstreams mix: its workstream in its line. */
+  workstream: boolean
+  onPress: () => void
+}) => (
   <Pressable
     style={[styles.row, selected && { backgroundColor: colours[shapes.row.selected] }]}
     onPress={onPress}
@@ -352,7 +402,7 @@ const Row = ({ item, selected, status, onPress }: { item: QueueItem; selected: b
         {item.task.title}
       </Text>
       <Text style={styles.meta} numberOfLines={2}>
-        {rowMeta(item, false)}
+        {rowMeta(item, workstream)}
       </Text>
     </View>
     {/* When, and under it how much it matters, as on the Mac. */}
@@ -420,6 +470,14 @@ const styles = StyleSheet.create({
   section: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: GUTTER, paddingTop: 18, paddingBottom: 8 },
   sectionName: { fontSize: 14, fontWeight: '500', color: colours.text2 },
   sectionCount: { marginLeft: 'auto', fontSize: 13, color: colours.text3 },
+  priorityBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colours.raised,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',

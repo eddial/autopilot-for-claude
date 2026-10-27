@@ -282,3 +282,28 @@ export const emptyWords = (view: string | null): { title: string; line: string }
       return { title: 'Clear skies', line: 'No open tasks anywhere. Autopilot fills this as signals file and sessions hand over.' }
   }
 }
+
+/** The priorities by number, as a list's sections name them. */
+export const PRIORITY_NAMES: Record<number, string> = { 1: 'Urgent', 2: 'High', 3: 'Normal', 4: 'Low' }
+
+/** How a list is cut into sections: by workstream, or by priority with each workstream together inside. */
+export type GroupBy = 'workstream' | 'priority'
+
+export type QueueSection = { key: string; title: string; items: QueueItem[] }
+
+/** Workstreams in the order of their most pressing task (the queue comes sorted), the inbox last. */
+const workstreams = (items: QueueItem[]): string[] => {
+  const names = [...new Set(items.map((i) => i.task.workstream))]
+  return [...names.filter((n) => n !== 'inbox'), ...names.filter((n) => n === 'inbox')]
+}
+
+const byWorkstream = (items: QueueItem[]): QueueItem[] =>
+  workstreams(items).flatMap((name) => items.filter((i) => i.task.workstream === name))
+
+/** A sorted list in sections, the same on the Mac and the iPhone; read top to bottom, it is the order Next steps through. */
+export const sectionsOf = (items: QueueItem[], by: GroupBy): QueueSection[] =>
+  by === 'workstream'
+    ? workstreams(items).map((name) => ({ key: name, title: name, items: items.filter((i) => i.task.workstream === name) }))
+    : [1, 2, 3, 4]
+        .map((p) => ({ key: `p${p}`, title: PRIORITY_NAMES[p] ?? '', items: byWorkstream(items.filter((i) => i.task.priority === p)) }))
+        .filter((s) => s.items.length > 0)
