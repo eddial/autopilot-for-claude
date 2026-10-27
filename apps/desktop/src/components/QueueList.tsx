@@ -115,7 +115,8 @@ const GROUPINGS: { by: GroupBy; label: string }[] = [
 ]
 
 /** The tasks of a list top to bottom, as its sections show them: what Next and ⌘] go through. */
-export const listOrder = (items: QueueItem[], by: GroupBy): QueueItem[] => sectionsOf(items, by).flatMap((s) => s.items)
+export const listOrder = (items: QueueItem[], by: GroupBy, parted: boolean): QueueItem[] =>
+  sectionsOf(items, by, parted).flatMap((s) => s.items)
 
 /**
  * The left of the window: search, the status tabs, and the tasks of the tab in a section per
@@ -150,7 +151,7 @@ export const QueueList = (props: Props) => {
   // Sections in the order of their most pressing task (the queue comes sorted), the inbox last; or Urgent to Low.
   const entries = useMemo(
     (): Entry[] =>
-      sectionsOf(visible, groupBy).flatMap((section) => {
+      sectionsOf(visible, groupBy, !all && tab === 'needs_me').flatMap((section) => {
         const shut = folded.has(section.key)
         const priority = groupBy === 'priority' ? (section.items[0]?.task.priority ?? null) : null
         return [
@@ -159,7 +160,7 @@ export const QueueList = (props: Props) => {
           ...(shut ? [] : section.items.map((item) => ({ kind: 'item' as const, item }))),
         ]
       }),
-    [visible, groupBy, folded],
+    [visible, groupBy, folded, all, tab],
   )
   const fold = (workstream: string) =>
     setFolded((f) => {

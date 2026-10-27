@@ -92,6 +92,10 @@ const t = (text: string) => [{ kind: 'text', text }]
 // Only what grouping reads: id, workstream, priority.
 const row = (id: string, workstream: string, priority: number) => ({ task: { id, workstream, priority } }) as QueueItem
 
+/** Needs me's sections, each with the part it opens, if any. */
+const parts = (items: QueueItem[]) =>
+  sectionsOf(items, 'workstream', true).map((s) => [s.part?.title ?? null, s.title, ...s.items.map((i) => i.task.id)])
+
 describe('sections of a list', () => {
   const list = [row('AP-1', 'inbox', 1), row('AP-2', 'sales', 3), row('AP-3', 'dev', 1), row('AP-4', 'sales', 1)]
   const read = (by: 'workstream' | 'priority') => sectionsOf(list, by).map((s) => [s.title, ...s.items.map((i) => i.task.id)])
@@ -115,11 +119,16 @@ describe('sections of a list', () => {
       { ...row('AP-2', 'dev', 2), band: 'triage' },
       { ...row('AP-3', 'sales', 2), band: 'triage' },
     ] as QueueItem[]
-    expect(sectionsOf(needs, 'workstream').map((s) => [s.part?.title ?? null, s.title, ...s.items.map((i) => i.task.id)])).toEqual([
+    expect(parts(needs)).toEqual([
       ['Your turn', 'sales', 'AP-1'],
       ['Triage', 'dev', 'AP-2'],
       [null, 'sales', 'AP-3'],
     ])
+    // Answered, AP-4 runs but stays where it was, in Your turn, and the parts stay.
+    const answered = [needs[0], { ...row('AP-4', 'sales', 3), band: 'running' }, ...needs.slice(1)] as QueueItem[]
+    expect(parts(answered)[0]).toEqual(['Your turn', 'sales', 'AP-1', 'AP-4'])
+    // Everything open (All) is not cut into parts.
+    expect(sectionsOf(answered, 'workstream').every((s) => s.part === undefined)).toBe(true)
   })
 })
 

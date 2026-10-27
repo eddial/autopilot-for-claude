@@ -271,7 +271,7 @@ export const App = () => {
 
   // Next and previous in the list as it reads: ↓ and ↑ (← and → too, with ⌘ from an empty box),
   // or the arrows under the list. In a box you are writing in, the arrows move the cursor as usual.
-  const ordered = useMemo(() => listOrder(listed, groupBy), [listed, groupBy])
+  const ordered = useMemo(() => listOrder(listed, groupBy, !all && tab === 'needs_me'), [listed, groupBy, all, tab])
   const at = ordered.findIndex((i) => i.task.id === selected)
   const nextItem = at >= 0 ? (ordered[at + 1] ?? null) : null
   const step = useCallback(

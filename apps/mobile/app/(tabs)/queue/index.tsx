@@ -129,7 +129,7 @@ export default function QueueScreen() {
     const listed = all
       ? openItems.filter((i) => matches(i, filter))
       : (view === 'done' ? (done ?? []) : items).filter((i) => bands.includes(i.band) && matches(i, filter))
-    return sectionsOf(listed, groupBy).map((s) => ({
+    return sectionsOf(listed, groupBy, !all && view === 'needs_me').map((s) => ({
       name: s.key,
       title: s.title,
       priority: groupBy === 'priority' ? (s.items[0]?.task.priority ?? null) : null,

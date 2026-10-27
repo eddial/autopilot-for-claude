@@ -411,12 +411,18 @@ const byWorkstream = (items: QueueItem[]): QueueItem[] =>
   workstreams(items).flatMap((name) => items.filter((i) => i.task.workstream === name))
 
 /** A sorted list in sections, the same on the Mac and the iPhone; read top to bottom, it is the order Next steps through. */
-export const sectionsOf = (items: QueueItem[], by: GroupBy): QueueSection[] => {
-  // Only where both parts are there, and nothing else is: Needs me, not All.
-  const parted = PARTS.every((p) => items.some((i) => i.band === p.band)) && items.every((i) => PARTS.some((p) => p.band === i.band))
-  if (!parted) return sectionsIn(items, by)
+export const sectionsOf = (items: QueueItem[], by: GroupBy, parted = false): QueueSection[] => {
+  // Needs me (`parted`) in its two parts, once both have something in them.
+  if (!parted || !PARTS.every((p) => items.some((i) => i.band === p.band))) return sectionsIn(items, by)
+  // A task that just left (answered, so it runs) is kept where it was: in the part of the one before it.
+  const partOf = new Map<QueueItem, QueueItem['band']>()
+  let last = PARTS[0]?.band ?? 'your_turn'
+  for (const item of items) {
+    if (PARTS.some((p) => p.band === item.band)) last = item.band
+    partOf.set(item, last)
+  }
   return PARTS.flatMap(({ band, title }) => {
-    const inPart = items.filter((i) => i.band === band)
+    const inPart = items.filter((i) => partOf.get(i) === band)
     return sectionsIn(inPart, by).map((s, i) => ({
       ...s,
       key: `${band}:${s.key}`,
