@@ -36,6 +36,7 @@ export const TaskToolbar = ({
   step,
   onTop,
   onNew,
+  onClose,
 }: {
   item: QueueItem
   closeAfter: boolean
@@ -45,6 +46,8 @@ export const TaskToolbar = ({
   onTop?: () => void
   /** New task, first in the bar: the Duo open upright, where the bottom row is the list's. */
   onNew?: () => void
+  /** Beside the list: closes the task, leaving the list and New task. */
+  onClose?: () => void
 }) => {
   const sync = useSyncInstance()
   // The Duo folded in landscape has one button fewer in its bar: Snooze goes into ⋯ there.
@@ -110,6 +113,7 @@ export const TaskToolbar = ({
         <Stack.Toolbar.Menu icon="moon" accessibilityLabel="Snooze" title="Snooze" hidden={closed || short}>
           {snoozes}
         </Stack.Toolbar.Menu>
+        <Stack.Toolbar.Button icon="xmark" accessibilityLabel="Close the task" hidden={!onClose} onPress={() => onClose?.()} />
         <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More" title="More" hidden={closed && !onTop && !onNew}>
           <Stack.Toolbar.Menu icon="moon" title="Snooze" hidden={closed || !short}>
             {snoozes}

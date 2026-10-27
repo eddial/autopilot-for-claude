@@ -59,7 +59,6 @@ export const TaskView = ({
   onTitleOff,
   edges,
   onTop,
-  top = 0,
 }: {
   item: QueueItem
   onTitleOff?: (off: boolean) => void
@@ -67,8 +66,6 @@ export const TaskView = ({
   onTop?: (toTop: () => void) => void
   /** The screen edges it touches; in the split, only the right. */
   edges?: ('left' | 'right')[]
-  /** Room at the top for a bar laid across it (the open Duo upright), so the title starts below. */
-  top?: number
 }) => {
   const sync = useSyncInstance()
   const { conflicts, outbox } = useSyncState()
@@ -242,7 +239,7 @@ export const TaskView = ({
       <Sides edges={edges}>
         <ScrollView
           ref={scroll}
-          contentContainerStyle={[styles.page, top > 0 && { paddingTop: top }]}
+          contentContainerStyle={styles.page}
           contentInsetAdjustmentBehavior="automatic"
           keyboardDismissMode="interactive"
           scrollEventThrottle={100}

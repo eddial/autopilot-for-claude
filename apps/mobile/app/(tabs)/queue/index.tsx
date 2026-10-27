@@ -3,6 +3,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  PanResponder,
   Pressable,
   RefreshControl,
   SectionList,
@@ -177,6 +178,18 @@ export default function QueueScreen() {
     // items is read once, when the request comes in.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [wanted, loaded, split])
+  // A sideways swipe across the open task closes it, back to New task beside the list. Only a
+  // clearly sideways drag: scrolling the conversation stays the scroll view's.
+  const swipeAway = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dx) > 24 && Math.abs(g.dx) > 2.5 * Math.abs(g.dy),
+        onPanResponderRelease: (_, g) => {
+          if (Math.abs(g.dx) > 80) setSelected(null)
+        },
+      }),
+    [],
+  )
   const selectedItem = split && selected ? (items.find((i) => i.task.id === selected) ?? doneItem(selected)) : undefined
   const at = selected ? order.indexOf(selected) : -1
   const stepTo = (to: string | undefined) => (to ? () => setSelected(to) : null)
@@ -228,9 +241,10 @@ export default function QueueScreen() {
           refreshControl={<RefreshControl refreshing={false} tintColor={colours.text3} onRefresh={() => void sync?.syncOnce(0)} />}
           keyboardDismissMode="on-drag"
           ListFooterComponent={<BottomRoom beside={split} />}
-          // The tab's name and what it holds scroll with the list, in the same plane as its rows.
+          // The tab's name and what it holds scroll with the list, in the same plane as its rows. Open,
+          // the Duo's bar is beside the list (or over the task), never above it: level with the camera.
           ListHeaderComponent={
-            <View style={{ paddingTop: narrow ? edgeSpace(TITLE_HEIGHT) : Math.max(headerHeight + 8, edgeSpace(TITLE_HEIGHT)), gap: 4 }}>
+            <View style={{ paddingTop: split ? edgeSpace(TITLE_HEIGHT) : Math.max(headerHeight + 8, edgeSpace(TITLE_HEIGHT)), gap: 4 }}>
               <Text style={[type.title, styles.heading]} numberOfLines={1}>
                 {all ? 'All open' : current?.title}
               </Text>
@@ -315,16 +329,18 @@ export default function QueueScreen() {
           scrollEdgeEffects: { top: 'hidden' },
         }}
       />
-      {/* Search folds into the bar at the bottom, beside New: both in reach of the thumb. */}
-      <Stack.SearchBar
-        placeholder="Search"
-        autoCapitalize="none"
-        hideWhenScrolling={false}
-        // A button that opens into the field, as Claude's search: no long bar across the bottom.
-        placement="integratedButton"
-        onChangeText={(e) => setFilter(e.nativeEvent.text)}
-        onCancelButtonPress={() => setFilter('')}
-      />
+      {/* Search is the list's: with a task open beside it, the bar is the task's. */}
+      {!selectedItem && (
+        <Stack.SearchBar
+          placeholder="Search"
+          autoCapitalize="none"
+          hideWhenScrolling={false}
+          // A button that opens into the field, as Claude's search: no long bar across the bottom.
+          placement="integratedButton"
+          onChangeText={(e) => setFilter(e.nativeEvent.text)}
+          onCancelButtonPress={() => setFilter('')}
+        />
+      )}
       {/* With a task open beside the list: close it, and step through the list with the Mac's thin
           arrows. With none: search, and New (in the split the empty side is New task already). */}
       <Stack.Toolbar placement="bottom">
@@ -360,6 +376,7 @@ export default function QueueScreen() {
           closeAfter={false}
           onTop={() => pageTop.current?.()}
           onNew={narrow ? () => setSelected(null) : undefined}
+          onClose={() => setSelected(null)}
         />
       ) : (
         // Settings at the top: the phone has none of its own (sources and workstreams are the Mac's), just your Mac:
@@ -398,13 +415,9 @@ export default function QueueScreen() {
           </View>
           <View style={{ flex: 1 }}>
             {selectedItem ? (
-              <TaskView
-                key={selectedItem.task.id}
-                item={selectedItem}
-                edges={['right']}
-                onTop={toTop}
-                top={narrow ? headerHeight + 12 : 0}
-              />
+              <View style={{ flex: 1 }} {...swipeAway.panHandlers}>
+                <TaskView key={selectedItem.task.id} item={selectedItem} edges={['right']} onTop={toTop} />
+              </View>
             ) : (
               <NewTask
                 onDone={() => undefined}
