@@ -27,6 +27,8 @@ const ASKED: Partial<Record<Update['kind'], string>> = {
 }
 
 export const updateLabel = (update: Update): string => {
+  // A watcher's news on what the task waits on, for you to act on: not a question.
+  if (update.author === 'watcher' && update.kind === 'question') return update.open ? 'News on what you were waiting for' : 'News came in'
   const ask = update.open ? ASKING[update.kind] : (ASKED[update.kind] ?? ASKING[update.kind])
   if (ask) return ask
   switch (update.kind) {

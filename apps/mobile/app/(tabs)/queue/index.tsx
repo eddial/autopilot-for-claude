@@ -182,13 +182,7 @@ export default function QueueScreen() {
             accessibilityLabel={count === undefined ? v.title : `${v.title}, ${count}`}
           >
             <SymbolView name={v.symbol} size={15} tintColor={on ? colours.text : colours.text3} />
-            {count !== undefined && (
-              <Text
-                style={[styles.tabCount, on && { color: colours.text }, v.id === 'needs_me' && count > 0 && { color: colours.pilotSoft }]}
-              >
-                {count}
-              </Text>
-            )}
+            {count !== undefined && <Text style={[styles.tabCount, on && { color: colours.text }]}>{count}</Text>}
           </Pressable>
         )
       })}
@@ -496,7 +490,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colours.raised,
   },
   row: {
     flexDirection: 'row',

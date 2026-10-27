@@ -71,13 +71,16 @@ describe('watchers', () => {
     expect(service.pendingOutbox().map((o) => o.kind)).toEqual(['start_session'])
   })
 
-  it('puts news on your turn when the workstream may not start by itself', async () => {
+  it('puts news on your turn, in plain words, when the workstream may not start by itself', async () => {
     const { service, watchers, task, replies, advance } = setup(2)
     replies.push({ fingerprint: 'r0', changed: false, summary: '' }, { fingerprint: 'r1', changed: true, summary: 'Joris approved.' })
     await watchers.tick()
     advance(30)
     await watchers.tick()
-    expect(service.getTask(task.id)).toMatchObject({ band: 'your_turn' })
+    const detail = service.getTask(task.id)
+    expect(detail).toMatchObject({ band: 'your_turn' })
+    // What happened, first, in plain words; the watcher's own note stays out.
+    expect(detail.updates.at(-1)?.body).toMatch(/^Joris approved\./)
     expect(service.pendingOutbox()).toEqual([])
   })
 

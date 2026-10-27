@@ -26,6 +26,22 @@ export type WatchersOptions = {
   log?: (message: string) => void
 }
 
+/** A source's name on its chip: what kind of place it is, numbered when there are several. */
+const sourceTitle = (url: string, n: number | null): string => {
+  const host = new URL(url).hostname
+  const name =
+    (
+      [
+        [/slack\.com$/, 'Slack thread'],
+        [/^mail\.google\.com$/, 'Email'],
+        [/github\.com$/, 'GitHub'],
+        [/linear\.app$/, 'Linear issue'],
+        [/^docs\.google\.com$/, 'Google Doc'],
+      ] as const
+    ).find(([pattern]) => pattern.test(host))?.[1] ?? host
+  return n ? `${name} ${n}` : name
+}
+
 /**
  * Checks what a waiting task depends on (a thread, a PR, a reply) every `every` until `until`.
  * Watchers run while the task waits on others or on the owner's review; while a session works on
@@ -97,8 +113,11 @@ export class Watchers {
       const attachments: Link[] = result.sources
         .filter((url) => URL.canParse(url))
         .slice(0, 10)
-        .map((url) => ({ url, title: new URL(url).hostname }))
-      service.watcherNews(id, { body: `${watcher.what}: ${result.summary}`, attachments, wake: autonomy >= 3 })
+        .map((url, i, all) => ({ url, title: sourceTitle(url, all.length > 1 ? i + 1 : null) }))
+      // To you, what happened alone; to a session it wakes, also what it was watching for (its own
+      // note, ids and all), to know where to look.
+      const wake = autonomy >= 3
+      service.watcherNews(id, { body: wake ? `${watcher.what}: ${result.summary}` : result.summary, attachments, wake })
     }
     service.watcherChecked(id, result.fingerprint)
   }
@@ -115,7 +134,7 @@ export class Watchers {
         'Return:',
         '- fingerprint: a short, stable record of the latest activity by people (ids, timestamps, counts, open/closed/merged) for the next run to compare against. Leave out values that move on their own: CI or mergeable state still computing, view counts, relative times',
         '- changed: true only when a person did something since the previous fingerprint (a reply, a new commit or review, a status or decision); always false on the first run',
-        '- summary: when changed, one to three sentences: what is new, who, when; else ""',
+        '- summary: when changed, one to three plain sentences for the owner: who did what, and when; say what it means for the task if that is clear. Names, not ids: no channel, user or message ids or timestamps. Else ""',
         '- sources: the URLs of what changed',
       ].join('\n\n'),
     ].join('\n\n---\n\n')

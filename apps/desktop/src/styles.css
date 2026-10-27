@@ -173,10 +173,6 @@ button {
   font-weight: 500;
 }
 
-.tab .you {
-  color: var(--pilot-soft);
-}
-
 .search-row {
   display: flex;
   align-items: center;
@@ -244,6 +240,11 @@ button {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+/* Priority bars in a section's place: the bars alone, no tile behind them. */
+.ws-mark.bare {
+  background: none;
 }
 
 .ws-mark.pilot {

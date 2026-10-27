@@ -293,7 +293,7 @@ export const QueueList = (props: Props) => {
               onClick={() => onTab(q.id)}
             >
               <NavIcon name={q.icon} size={15} />
-              {count !== undefined && <span className={q.id === 'needs_me' && count > 0 ? 'you' : undefined}>{count}</span>}
+              {count !== undefined && <span>{count}</span>}
               <kbd className="hint hint-cmd">⌘{i + 1}</kbd>
             </Button>
           )
@@ -333,7 +333,7 @@ export const QueueList = (props: Props) => {
                     {entry.priority === null ? (
                       <WorkstreamMark name={entry.title} />
                     ) : (
-                      <span className="ws-mark quiet">
+                      <span className="ws-mark bare">
                         <Bars priority={entry.priority} />
                       </span>
                     )}
