@@ -3051,72 +3051,191 @@ textarea.inline-reply {
 }
 
 .tumble {
-  position: relative;
-  height: 64px;
-  margin: 18px 12px 0;
+  /* Fills the empty list and puts the horizon in its middle. */
+  height: 100%;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   overflow: hidden;
-  border-bottom: 1px solid var(--border);
 }
 
+.tumble-stage {
+  position: relative;
+  height: 72px;
+  /* The ground fades out at both ends, as the clouds do. */
+  mask-image: linear-gradient(90deg, transparent, var(--text) 18%, var(--text) 82%, transparent);
+}
+
+.tumble-horizon {
+  position: absolute;
+  right: 0;
+  bottom: 14px;
+  left: 0;
+  height: 1px;
+  background: var(--border);
+}
+
+.tumble-cactus {
+  position: absolute;
+  bottom: 14px;
+  left: 72%;
+  opacity: 0.4;
+}
+
+/* One crossing in 7 s, then a lull before the next. */
 .tumble-weed {
   position: absolute;
-  bottom: 3px;
+  bottom: 15px;
   left: -40px;
-  opacity: 0.6;
-  animation: tumble-across 9.5s linear infinite;
+  width: 32px;
+  height: 32px;
+  animation: tumble-across 10.5s linear infinite;
 }
 
+.tumble-hop,
 .tumble-spin {
   display: block;
-  animation: tumble-roll 9.5s linear infinite;
+  width: 32px;
+  height: 32px;
 }
 
-/* Across in the first two thirds, then a pause off the edge before the next one. */
+.tumble-hop {
+  opacity: 0.5;
+  animation: tumble-hop 10.5s linear infinite;
+}
+
+/* A turn for every circumference it travels, so it rolls rather than skids. */
+.tumble-spin {
+  animation: tumble-spin 10.5s linear infinite;
+}
+
+.tumble-shadow {
+  position: absolute;
+  bottom: -4px;
+  left: 4px;
+  width: 24px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  animation: tumble-shadow 10.5s linear infinite;
+}
+
+/* Gusts: quick, easing off, quick again. */
 @keyframes tumble-across {
   0% {
     left: -40px;
   }
 
-  68%,
+  17% {
+    left: 26%;
+  }
+
+  37% {
+    left: 50%;
+  }
+
+  50% {
+    left: 70%;
+  }
+
+  67%,
   100% {
-    left: 100%;
+    left: calc(100% + 40px);
   }
 }
 
-@keyframes tumble-roll {
+@keyframes tumble-spin {
   0% {
-    transform: translateY(0) rotate(0deg);
+    transform: rotate(0deg);
   }
 
-  10% {
-    transform: translateY(-9px) rotate(130deg);
+  17% {
+    transform: rotate(480deg);
   }
 
-  20% {
-    transform: translateY(0) rotate(260deg);
+  37% {
+    transform: rotate(860deg);
   }
 
-  30% {
-    transform: translateY(-5px) rotate(390deg);
+  50% {
+    transform: rotate(1180deg);
   }
 
-  40% {
-    transform: translateY(0) rotate(520deg);
-  }
-
-  52% {
-    transform: translateY(-7px) rotate(680deg);
-  }
-
-  68%,
+  67%,
   100% {
-    transform: translateY(0) rotate(900deg);
+    transform: rotate(1680deg);
+  }
+}
+
+/* Each landing lower than the last. */
+@keyframes tumble-hop {
+  0%,
+  10%,
+  20%,
+  36%,
+  42%,
+  49%,
+  57%,
+  62%,
+  67%,
+  100% {
+    transform: translateY(0);
+  }
+
+  5% {
+    transform: translateY(-14px);
+  }
+
+  28% {
+    transform: translateY(-9px);
+  }
+
+  45% {
+    transform: translateY(-5px);
+  }
+
+  59% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes tumble-shadow {
+  0%,
+  10%,
+  20%,
+  36%,
+  42%,
+  49%,
+  57%,
+  62%,
+  67%,
+  100% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+
+  5% {
+    transform: scaleX(0.45);
+    opacity: 0.45;
+  }
+
+  28% {
+    transform: scaleX(0.6);
+    opacity: 0.6;
+  }
+
+  45% {
+    transform: scaleX(0.8);
+    opacity: 0.8;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .tumble-weed,
-  .tumble-spin {
+  .tumble-hop,
+  .tumble-spin,
+  .tumble-shadow {
     animation: none;
   }
 

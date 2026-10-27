@@ -182,23 +182,49 @@ export const pilot = {
   } as Record<string, string>,
 } as const
 
-/** A tumbleweed, rolling across a list with nothing in it: greyscale, faint. 16×12. */
+/**
+ * A tumbleweed, rolling across a list with nothing in it: a loose ball of dry twigs, the far side
+ * darker than the near, a few ends sticking out. Greyscale and faint. 16×16.
+ */
 export const tumbleweed = {
   rows: [
-    '.....tTTt.......',
-    '...tT.t..Tt.....',
-    '..T..tTTt..T....',
-    '.t.TT....tT.t...',
-    '.T.t..TT..t.T...',
-    'T.T..T..T..T.t..',
-    '.T.t..TT..t.T...',
-    '.t.Tt....tT.t...',
-    '..T..tTTt..T....',
-    '...tT.t..Tt.....',
-    '.....tTTt.......',
-    '................',
+    '......L..M......',
+    '....MM.LM..M....',
+    '...M..MD.M.LM...',
+    '..L.MD..M..D.M..',
+    '.M.D..LM.DM...L.',
+    '.M..MD...M..DM..',
+    'M.DM..L.MD.M..M.',
+    '.MD..MMD..L..DM.',
+    'M..LD..M.DM.M..M',
+    '.M..M.D..M..D.M.',
+    '..MD..LM.D.MM.L.',
+    '.L..MD..M..D.M..',
+    '..M..M.DM.LM..M.',
+    '...ML..M..D.M...',
+    '....M.MD.ML.....',
+    '......M..M......',
   ],
-  colours: { T: colours.text3, t: colours.muted } as Record<string, string>,
+  colours: { L: colours.text2, M: colours.text3, D: colours.muted } as Record<string, string>,
+} as const
+
+/** A small cactus on the horizon the tumbleweed crosses, so the line reads as ground. 16×12. */
+export const cactus = {
+  rows: [
+    '.......D........',
+    '......DDD.......',
+    '......DDD..D....',
+    '.D....DDD..D....',
+    '.D....DDD..D....',
+    '.D....DDDDDD....',
+    '.DDDDDDDD.......',
+    '......DDD.......',
+    '......DDD.......',
+    '......DDD.......',
+    '......DDD.......',
+    '......DDD.......',
+  ],
+  colours: { D: colours.muted } as Record<string, string>,
 } as const
 
 /** Claude's own pixel mascot, in clay, for what a Claude session did. 16×8. */

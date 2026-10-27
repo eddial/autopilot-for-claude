@@ -362,6 +362,8 @@ export default function QueueScreen() {
                 </View>
               )
             }}
+            // Empty: the list's middle is the empty state's, between the title and the tabs.
+            contentContainerStyle={sections.length === 0 ? { flexGrow: 1 } : undefined}
             initialNumToRender={12}
             maxToRenderPerBatch={10}
             windowSize={7}

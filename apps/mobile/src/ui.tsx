@@ -14,7 +14,21 @@ import {
   type ViewStyle,
   useWindowDimensions,
 } from 'react-native'
-import { claude, colours, fonts, MARKS, pilot, radius, shapes, space, tones, tumbleweed, type Mark, type Tone } from '@autopilot/design'
+import {
+  claude,
+  colours,
+  fonts,
+  cactus,
+  MARKS,
+  pilot,
+  radius,
+  shapes,
+  space,
+  tones,
+  tumbleweed,
+  type Mark,
+  type Tone,
+} from '@autopilot/design'
 import Svg, { Circle, Path } from 'react-native-svg'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
 import { SafeAreaProvider, SafeAreaView, useSafeAreaFrame, useSafeAreaInsets, type Metrics } from 'react-native-safe-area-context'
@@ -665,7 +679,18 @@ export const FlyingPilot = () => {
   )
 }
 
-/** A faint tumbleweed rolling and hopping across an empty list, every few seconds; still when motion is reduced. */
+/** The tumbleweed's size, in points: 16 pixels of 2.5. */
+const WEED = 40
+/** One crossing, then the wait before the next. */
+const CROSSING = 7000
+const LULL = 3500
+
+/**
+ * A faint tumbleweed crossing an empty list on a horizon in its middle, now and then. It rolls as
+ * far as it turns (one turn per circumference), moves with the gusts (quick, easing, quick again),
+ * hops lower each time it lands, and its shadow shrinks while it is in the air. Still, in the
+ * middle, when motion is reduced.
+ */
 export const Tumbleweed = () => {
   const [width, setWidth] = useState(0)
   const [still, setStill] = useState(false)
@@ -677,14 +702,23 @@ export const Tumbleweed = () => {
     if (!width || still) return
     const run = Animated.loop(
       Animated.sequence([
-        Animated.timing(t, { toValue: 1, duration: 6500, easing: Easing.linear, useNativeDriver: true }),
-        Animated.delay(3000),
+        Animated.timing(t, { toValue: 1, duration: CROSSING, easing: Easing.linear, useNativeDriver: true }),
+        Animated.delay(LULL),
         Animated.timing(t, { toValue: 0, duration: 0, useNativeDriver: true }),
       ]),
     )
     run.start()
     return () => run.stop()
   }, [t, width, still])
+  // Where it is along the way: a gust, a lull, another gust.
+  const along = t.interpolate({ inputRange: [0, 0.25, 0.55, 0.75, 1], outputRange: [0, 0.3, 0.52, 0.72, 1] })
+  const distance = width + WEED * 2
+  const x = along.interpolate({ inputRange: [0, 1], outputRange: [-WEED, width + WEED] })
+  const turn = along.interpolate({ inputRange: [0, 1], outputRange: ['0deg', `${(distance / (Math.PI * WEED)) * 360}deg`] })
+  // Hops, each lower than the last, on the same clock.
+  const hops = { inputRange: [0, 0.08, 0.16, 0.3, 0.42, 0.55, 0.64, 0.74, 0.86, 0.93, 1], height: [0, 16, 0, 0, 10, 0, 0, 6, 0, 3, 0] }
+  const y = t.interpolate({ inputRange: hops.inputRange, outputRange: hops.height.map((h) => -h) })
+  const shadow = t.interpolate({ inputRange: hops.inputRange, outputRange: hops.height.map((h) => 1 - h / 24) })
   return (
     <View
       style={styles.tumble}
@@ -692,28 +726,24 @@ export const Tumbleweed = () => {
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <View style={styles.tumbleGround} />
-      <Animated.View
-        style={[
-          styles.weed,
-          still
-            ? { left: width / 2 - 20 }
-            : {
-                transform: [
-                  { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [-48, width + 8] }) },
-                  {
-                    translateY: t.interpolate({
-                      inputRange: [0, 0.14, 0.28, 0.42, 0.56, 0.7, 0.84, 1],
-                      outputRange: [0, -10, 0, -6, 0, -8, 0, -4],
-                    }),
-                  },
-                  { rotate: t.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '900deg'] }) },
-                ],
-              },
-        ]}
-      >
-        <Mascot art={tumbleweed} pixel={2.5} label="" />
-      </Animated.View>
+      <View style={styles.stage}>
+        <View style={[styles.cactus, { left: width * 0.72 }]}>
+          <Mascot art={cactus} pixel={1.5} label="" />
+        </View>
+        <View style={styles.horizon} />
+        {still ? (
+          <View style={[styles.weed, { left: width / 2 - WEED / 2 }]}>
+            <Mascot art={tumbleweed} pixel={WEED / 16} label="" />
+          </View>
+        ) : (
+          <>
+            <Animated.View style={[styles.weedShadow, { transform: [{ translateX: x }, { scaleX: shadow }], opacity: shadow }]} />
+            <Animated.View style={[styles.weed, { transform: [{ translateX: x }, { translateY: y }, { rotate: turn }] }]}>
+              <Mascot art={tumbleweed} pixel={WEED / 16} label="" />
+            </Animated.View>
+          </>
+        )}
+      </View>
     </View>
   )
 }
@@ -811,9 +841,13 @@ const styles = StyleSheet.create({
   flying: { position: 'absolute', top: 26, left: 68 },
   emptyTitle: { fontFamily: fonts.serifNative, fontSize: 22, color: colours.text },
   emptyLine: { marginTop: 6, fontSize: 15, lineHeight: 21, textAlign: 'center', color: colours.text3, maxWidth: 300 },
-  tumble: { height: 76, marginTop: 24, marginHorizontal: GUTTER, overflow: 'hidden' },
-  tumbleGround: { position: 'absolute', left: 0, right: 0, bottom: 4, height: StyleSheet.hairlineWidth, backgroundColor: colours.border },
-  weed: { position: 'absolute', bottom: 5, left: 0, opacity: 0.6 },
+  // Fills the empty list and puts the horizon in its middle.
+  tumble: { flex: 1, minHeight: 160, justifyContent: 'center', overflow: 'hidden' },
+  stage: { height: 72 },
+  horizon: { position: 'absolute', left: GUTTER, right: GUTTER, bottom: 14, height: StyleSheet.hairlineWidth, backgroundColor: colours.border },
+  cactus: { position: 'absolute', bottom: 14, opacity: 0.4 },
+  weed: { position: 'absolute', bottom: 15, left: 0, width: WEED, height: WEED, opacity: 0.5 },
+  weedShadow: { position: 'absolute', bottom: 11, left: 4, width: WEED - 8, height: 4, borderRadius: 2, backgroundColor: colours.border },
   button: { paddingHorizontal: space[6], paddingVertical: 9, borderRadius: radius.md, alignSelf: 'flex-start' },
   buttonText: { fontSize: 15, color: colours.text },
   pilotRow: { flexDirection: 'row' },
