@@ -64,12 +64,11 @@ const blocksLiveSession = (item: QueueItem): boolean =>
 /** Since when the task has been waiting on you. */
 const waitingSince = (item: QueueItem): number => time(item.openAsk?.createdAt ?? item.task.updatedAt)
 
-/** Your turn and New are one list (Needs me): priority leads there, whose turn it is next. */
-const needsYou = (band: Band): boolean => band === 'your_turn' || band === 'new'
+/** Where you act (your turn, then new to triage), priority leads inside each band. */
+const byPriority = (band: Band): boolean => band === 'your_turn' || band === 'new'
 
 export const compareQueue = (a: QueueItem, b: QueueItem): number => {
-  const byPriority = needsYou(a.band) && needsYou(b.band) ? a.task.priority - b.task.priority : 0
-  const byBand = byPriority || BAND_ORDER[a.band] - BAND_ORDER[b.band]
+  const byBand = BAND_ORDER[a.band] - BAND_ORDER[b.band] || (byPriority(a.band) ? a.task.priority - b.task.priority : 0)
   if (byBand !== 0) return byBand
 
   let order = 0

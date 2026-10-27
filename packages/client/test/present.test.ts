@@ -88,6 +88,18 @@ describe('sections of a list', () => {
       ['Normal', 'AP-2'],
     ])
   })
+  it('splits Needs me into your turn, then what came in to triage', () => {
+    const needs = [
+      { ...row('AP-1', 'sales', 3), band: 'your_turn' },
+      { ...row('AP-2', 'dev', 2), band: 'new' },
+      { ...row('AP-3', 'sales', 2), band: 'new' },
+    ] as QueueItem[]
+    expect(sectionsOf(needs, 'workstream').map((s) => [s.part?.title ?? null, s.title, ...s.items.map((i) => i.task.id)])).toEqual([
+      ['Your turn', 'sales', 'AP-1'],
+      ['Triage', 'dev', 'AP-2'],
+      [null, 'sales', 'AP-3'],
+    ])
+  })
 })
 
 describe('markdown', () => {

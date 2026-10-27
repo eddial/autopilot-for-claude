@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem } from '@autopilot/contracts'
-import { emptyWords, sectionsOf, type GroupBy } from '@autopilot/client'
+import { emptyWords, rowStatus, sectionsOf, type GroupBy } from '@autopilot/client'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Menu } from './Menu.tsx'
 import { useDraft } from '../drafts.ts'
@@ -105,7 +105,9 @@ const matches = (item: QueueItem, filter: string): boolean =>
     })
 
 type Entry =
-  { kind: 'group'; key: string; title: string; priority: number | null; count: number; folded: boolean } | { kind: 'item'; item: QueueItem }
+  | { kind: 'part'; title: string; count: number }
+  | { kind: 'group'; key: string; title: string; priority: number | null; count: number; folded: boolean }
+  | { kind: 'item'; item: QueueItem }
 
 const GROUPINGS: { by: GroupBy; label: string }[] = [
   { by: 'workstream', label: 'Group by workstream' },
@@ -152,6 +154,7 @@ export const QueueList = (props: Props) => {
         const shut = folded.has(section.key)
         const priority = groupBy === 'priority' ? (section.items[0]?.task.priority ?? null) : null
         return [
+          ...(section.part ? [{ kind: 'part' as const, ...section.part }] : []),
           { kind: 'group' as const, key: section.key, title: section.title, priority, count: section.items.length, folded: shut },
           ...(shut ? [] : section.items.map((item) => ({ kind: 'item' as const, item }))),
         ]
@@ -201,10 +204,10 @@ export const QueueList = (props: Props) => {
   const virtual = useVirtualizer({
     count: entries.length,
     getScrollElement: () => rows.current,
-    estimateSize: (i) => (entries[i]?.kind === 'group' ? 40 : 70),
+    estimateSize: (i) => (entries[i]?.kind === 'item' ? 70 : 40),
     getItemKey: (i) => {
       const e = entries[i]
-      return e?.kind === 'item' ? e.item.task.id : `group-${e?.key ?? i}`
+      return e?.kind === 'item' ? e.item.task.id : e?.kind === 'group' ? `group-${e.key}` : `part-${e?.title ?? i}`
     },
     overscan: 10,
   })
@@ -316,7 +319,12 @@ export const QueueList = (props: Props) => {
                 // oxlint-disable-next-line react/forbid-dom-props -- placed by the virtualiser
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }}
               >
-                {entry.kind === 'group' ? (
+                {entry.kind === 'part' ? (
+                  <h2 className="list-part">
+                    {entry.title}
+                    <span className="list-part-count">{entry.count}</span>
+                  </h2>
+                ) : entry.kind === 'group' ? (
                   <Button kind="section" aria-expanded={!entry.folded} onClick={() => fold(entry.key)}>
                     {entry.priority === null ? (
                       <WorkstreamMark name={entry.title} />
@@ -386,6 +394,19 @@ type RowProps = {
   onOpen: (id: string) => void
 }
 
+/** Under the title: where it stands, when it is your turn, in green; then what it is about now. */
+const RowMeta = ({ item, workstream }: { item: QueueItem; workstream: boolean }) => {
+  const status = rowStatus(item)
+  const meta = rowMeta(item, workstream)
+  return (
+    <div className="meta">
+      {status && <span className="row-label">{status}</span>}
+      {status && meta ? ' · ' : null}
+      {meta}
+    </div>
+  )
+}
+
 /** The priorities by number, for a row's bars. */
 const PRIORITY_NAME: Record<number, string> = { 1: 'Urgent', 2: 'High priority', 3: 'Normal priority', 4: 'Low priority' }
 
@@ -411,7 +432,7 @@ const TaskRow = memo(
       )}
       <div className="text">
         <div className="title">{item.task.title}</div>
-        <div className="meta">{rowMeta(item, workstream)}</div>
+        <RowMeta item={item} workstream={workstream} />
       </div>
       {/* When, and under it how much it matters, as on the task's properties. */}
       <span className="row-end">

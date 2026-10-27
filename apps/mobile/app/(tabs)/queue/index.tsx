@@ -32,7 +32,7 @@ import {
   useSyncState,
 } from '../../../src/store.ts'
 import { colours, shapes } from '@autopilot/design'
-import { sectionsOf, type GroupBy } from '@autopilot/client'
+import { rowStatus, sectionsOf, type GroupBy } from '@autopilot/client'
 import { Bars, EmptyList, Sides, WorkstreamBadge, COMPOSER_BAR, edgeSpace, GUTTER, shaped, type, useBottomGap } from '../../../src/ui.tsx'
 
 type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
@@ -134,6 +134,7 @@ export default function QueueScreen() {
       title: s.title,
       priority: groupBy === 'priority' ? (s.items[0]?.task.priority ?? null) : null,
       count: s.items.length,
+      part: s.part ?? null,
       data: folded.has(s.key) ? [] : s.items,
     }))
   }, [items, openItems, all, done, view, current, filter, folded, groupBy])
@@ -233,22 +234,30 @@ export default function QueueScreen() {
           renderSectionHeader={({ section }) => {
             const shut = folded.has(section.name)
             return (
-              <Pressable
-                style={styles.section}
-                onPress={() => fold(section.name)}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: !shut }}
-              >
-                {section.priority === null ? (
-                  <WorkstreamBadge name={section.title} />
-                ) : (
-                  <View style={styles.priorityBadge}>
-                    <Bars priority={section.priority} />
+              <View>
+                {section.part && (
+                  <View style={styles.part}>
+                    <Text style={styles.partTitle}>{section.part.title}</Text>
+                    <Text style={styles.partCount}>{section.part.count}</Text>
                   </View>
                 )}
-                <Text style={[styles.sectionName, shut && { color: colours.text3 }]}>{section.title}</Text>
-                {shut && <Text style={styles.sectionCount}>{section.count}</Text>}
-              </Pressable>
+                <Pressable
+                  style={styles.section}
+                  onPress={() => fold(section.name)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: !shut }}
+                >
+                  {section.priority === null ? (
+                    <WorkstreamBadge name={section.title} />
+                  ) : (
+                    <View style={styles.priorityBadge}>
+                      <Bars priority={section.priority} />
+                    </View>
+                  )}
+                  <Text style={[styles.sectionName, shut && { color: colours.text3 }]}>{section.title}</Text>
+                  {shut && <Text style={styles.sectionCount}>{section.count}</Text>}
+                </Pressable>
+              </View>
             )
           }}
           renderItem={({ item }) => (
@@ -402,6 +411,8 @@ const Row = ({
         {item.task.title}
       </Text>
       <Text style={styles.meta} numberOfLines={2}>
+        {rowStatus(item) && <Text style={styles.rowLabel}>{rowStatus(item)}</Text>}
+        {rowStatus(item) ? ' · ' : null}
         {rowMeta(item, workstream)}
       </Text>
     </View>
@@ -435,6 +446,10 @@ const BAND_SYMBOL: Record<QueueItem['band'], SFSymbol> = {
 }
 
 const styles = StyleSheet.create({
+  part: { flexDirection: 'row', alignItems: 'baseline', gap: 6, paddingHorizontal: GUTTER, paddingTop: 18, paddingBottom: 2 },
+  partTitle: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', color: colours.text3 },
+  partCount: { fontSize: 12, fontWeight: '500', color: colours.text3 },
+  rowLabel: { color: colours.pilotSoft, fontWeight: '500' },
   heading: { marginHorizontal: GUTTER },
   caption: { marginHorizontal: GUTTER, fontSize: 13, color: colours.text3 },
   tabs: {

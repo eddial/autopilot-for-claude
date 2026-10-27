@@ -90,7 +90,7 @@ const item = (id: string, over: Partial<QueueItem> & { priority?: number; askAt?
 }
 
 describe('compareQueue', () => {
-  it('orders what needs you by priority, then your turn before new, then live sessions first, then longest wait', () => {
+  it('orders your turn before new to triage, each by priority, then live sessions first, then longest wait', () => {
     const live = {
       id: 's',
       taskId: 'AP-4',
@@ -112,6 +112,6 @@ describe('compareQueue', () => {
       item('AP-4', { askAt: '2026-10-25T11:30:00Z', session: live }),
       item('AP-5', { askAt: '2026-10-25T11:45:00Z', priority: 1 }),
     ]
-    expect(items.toSorted(compareQueue).map((i) => i.task.id)).toEqual(['AP-5', 'AP-6', 'AP-4', 'AP-3', 'AP-2', 'AP-1'])
+    expect(items.toSorted(compareQueue).map((i) => i.task.id)).toEqual(['AP-5', 'AP-4', 'AP-3', 'AP-2', 'AP-6', 'AP-1'])
   })
 })

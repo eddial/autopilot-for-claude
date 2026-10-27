@@ -306,17 +306,29 @@ export const firstLine = (text: string): string => {
 }
 
 /**
+ * Where a row stands, before its line, where the tab does not already say: what the ask wants of you
+ * (a decision, a review, an answer), and why a task without one is your turn.
+ */
+export const rowStatus = (item: QueueItem): string | null => {
+  if (item.band !== 'your_turn') return null
+  if (item.openAsk) return updateLabel(item.openAsk)
+  if (item.session?.state === 'waiting_permission') return 'Needs a permission'
+  if (item.task.state === 'snoozed') return 'Back from snooze'
+  return item.task.state === 'new' ? 'New' : 'Your turn'
+}
+
+/**
  * What a row in either app says under its title: what it is about now, in words that differ per
  * task. Snoozed says when it comes back; waiting on you, the question itself; running, what the
- * session is doing; new, the start of its brief. The tab already says which of these it is.
+ * session is doing; new, the start of its brief.
  */
 export const rowDetail = (item: QueueItem): string | null => {
   if (item.band === 'snoozed' && item.task.snoozedUntil) return `Until ${shortDate(item.task.snoozedUntil)}`
-  if (item.openAsk) return firstLine(item.openAsk.body) || updateLabel(item.openAsk)
-  if (item.session?.state === 'waiting_permission') return 'Waiting for a permission'
+  if (item.openAsk) return firstLine(item.openAsk.body) || null
+  if (item.session?.state === 'waiting_permission') return item.session.activity ?? null
   if (item.band === 'running') return item.session?.activity ?? 'Working'
   if (item.band === 'waiting') return 'Waiting on others'
-  if (item.band === 'new') return firstLine(item.task.brief) || 'Not started'
+  if (item.band === 'new' || item.task.state === 'new') return firstLine(item.task.brief) || 'Not started'
   return null
 }
 
@@ -364,7 +376,17 @@ export const PRIORITY_NAMES: Record<number, string> = { 1: 'Urgent', 2: 'High', 
 /** How a list is cut into sections: by workstream, or by priority with each workstream together inside. */
 export type GroupBy = 'workstream' | 'priority'
 
-export type QueueSection = { key: string; title: string; items: QueueItem[] }
+/**
+ * A section of a list. Needs me holds two parts, what waits on your answer and what came in to
+ * triage; the first section of each part carries the part's name, for the heading above it.
+ */
+export type QueueSection = { key: string; title: string; items: QueueItem[]; part?: { title: string; count: number } }
+
+/** The parts of Needs me, in order. */
+const PARTS: { band: QueueItem['band']; title: string }[] = [
+  { band: 'your_turn', title: 'Your turn' },
+  { band: 'new', title: 'Triage' },
+]
 
 /** Workstreams in the order of their most pressing task (the queue comes sorted), the inbox last. */
 const workstreams = (items: QueueItem[]): string[] => {
@@ -376,7 +398,21 @@ const byWorkstream = (items: QueueItem[]): QueueItem[] =>
   workstreams(items).flatMap((name) => items.filter((i) => i.task.workstream === name))
 
 /** A sorted list in sections, the same on the Mac and the iPhone; read top to bottom, it is the order Next steps through. */
-export const sectionsOf = (items: QueueItem[], by: GroupBy): QueueSection[] =>
+export const sectionsOf = (items: QueueItem[], by: GroupBy): QueueSection[] => {
+  // Only where both parts are there, and nothing else is: Needs me, not All.
+  const parted = PARTS.every((p) => items.some((i) => i.band === p.band)) && items.every((i) => PARTS.some((p) => p.band === i.band))
+  if (!parted) return sectionsIn(items, by)
+  return PARTS.flatMap(({ band, title }) => {
+    const inPart = items.filter((i) => i.band === band)
+    return sectionsIn(inPart, by).map((s, i) => ({
+      ...s,
+      key: `${band}:${s.key}`,
+      ...(i === 0 ? { part: { title, count: inPart.length } } : {}),
+    }))
+  })
+}
+
+const sectionsIn = (items: QueueItem[], by: GroupBy): QueueSection[] =>
   by === 'workstream'
     ? workstreams(items).map((name) => ({ key: name, title: name, items: items.filter((i) => i.task.workstream === name) }))
     : [1, 2, 3, 4]
