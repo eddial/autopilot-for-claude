@@ -84,6 +84,7 @@ export default function QueueScreen() {
   // Upright, iOS lays the bar across the bottom, over the composer's send: the list beside the task
   // is the way through it there, so the arrows stay away.
   const upright = height > width
+  const narrow = split && upright
   const [view, setView] = useState<QueueView>('needs_me')
   // Every open task: the current tab tapped again, as on the Mac.
   const [all, setAll] = useState(false)
@@ -193,21 +194,22 @@ export default function QueueScreen() {
 
   const tabs = (
     <View style={styles.tabs} accessibilityRole="tablist">
-      {/* As on the Mac: each status, then All; every tab its symbol and count. */}
+      {/* As on the Mac: each status, then All; every tab its symbol and count. In the narrow column
+          (the Duo open upright) only the chosen tab says its count, so the six still breathe. */}
       {[...VIEWS, { id: 'all' as const, title: 'All open', symbol: 'square.3.layers.3d' as SFSymbol }].map((v) => {
         const on = v.id === 'all' ? all : !all && v.id === view
         const count = v.id === 'all' ? openItems.length : counts[v.id]
         return (
           <Pressable
             key={v.id}
-            style={[styles.tab, on && styles.tabOn]}
+            style={[styles.tab, on && styles.tabOn, narrow && on && { flex: 1.8 }]}
             onPress={() => pick(v.id)}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
             accessibilityLabel={count === undefined ? v.title : `${v.title}, ${count}`}
           >
             <SymbolView name={v.symbol} size={15} tintColor={on ? colours.text : colours.text3} />
-            {count !== undefined && <Text style={[styles.tabCount, on && { color: colours.text }]}>{count}</Text>}
+            {count !== undefined && (on || !narrow) && <Text style={[styles.tabCount, on && { color: colours.text }]}>{count}</Text>}
           </Pressable>
         )
       })}
@@ -228,7 +230,7 @@ export default function QueueScreen() {
           ListFooterComponent={<BottomRoom beside={split} />}
           // The tab's name and what it holds scroll with the list, in the same plane as its rows.
           ListHeaderComponent={
-            <View style={{ paddingTop: Math.max(headerHeight + 8, edgeSpace(TITLE_HEIGHT)), gap: 4 }}>
+            <View style={{ paddingTop: narrow ? edgeSpace(TITLE_HEIGHT) : Math.max(headerHeight + 8, edgeSpace(TITLE_HEIGHT)), gap: 4 }}>
               <Text style={[type.title, styles.heading]} numberOfLines={1}>
                 {all ? 'All open' : current?.title}
               </Text>
@@ -327,7 +329,13 @@ export default function QueueScreen() {
           arrows. With none: search, and New (in the split the empty side is New task already). */}
       <Stack.Toolbar placement="bottom">
         <Stack.Toolbar.SearchBarSlot hidden={Boolean(selectedItem)} />
-        <Stack.Toolbar.Button icon="xmark" accessibilityLabel="Close the task" hidden={!selectedItem} onPress={() => setSelected(null)} />
+        {/* With a task open beside the list: New task in its place, as Claude's new chat beside its chats. */}
+        <Stack.Toolbar.Button
+          icon="square.and.pencil"
+          accessibilityLabel="New task"
+          hidden={!selectedItem}
+          onPress={() => setSelected(null)}
+        />
         <Stack.Toolbar.Spacer />
         <Stack.Toolbar.Button
           icon="arrow.up"
