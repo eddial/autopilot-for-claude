@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react'
-import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Keyboard, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import {
   filedBy,
   firstLookQuestions,
@@ -112,6 +112,7 @@ export const TaskView = ({
   const start = () => {
     const body = text.trim()
     setText('')
+    Keyboard.dismiss()
     void send(
       body
         ? { kind: 'instruct', taskId: task.id, body: `Answers to the first look's questions:\n\n${body}` }
@@ -198,6 +199,8 @@ export const TaskView = ({
     const attachments = files.links.length > 0 ? { attachments: files.links } : {}
     setText('')
     files.clear()
+    // Sent: the keyboard goes, so the conversation shows the message landing.
+    Keyboard.dismiss()
     void send(
       ask
         ? { kind: 'answer', taskId: task.id, updateId: ask.id, text: body, ...attachments }
