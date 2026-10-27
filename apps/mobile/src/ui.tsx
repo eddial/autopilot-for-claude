@@ -651,11 +651,18 @@ export const FlyingPilot = () => {
  */
 export const EmptyList = ({ view, quiet = false }: { view: string | null; quiet?: boolean }) => {
   const words = emptyWords(view)
+  // Beside New task, which says it in words: only the shape of an empty list, rows that are not
+  // there, fading out. Hidden from VoiceOver, which hears the words beside it.
   if (quiet)
     return (
-      <Text style={styles.emptyQuiet} numberOfLines={2}>
-        <Text style={{ color: colours.text2 }}>{words.title}</Text> · {words.line}
-      </Text>
+      <View style={styles.ghosts} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        {[0.55, 0.32, 0.16].map((opacity, i) => (
+          <View key={i} style={[styles.ghost, { opacity }]}>
+            <View style={[styles.ghostBar, { width: ['72%', '58%', '66%'][i] as `${number}%` }]} />
+            <View style={[styles.ghostBar, styles.ghostShort]} />
+          </View>
+        ))}
+      </View>
     )
   return (
     <View style={styles.emptyList}>
@@ -741,7 +748,10 @@ const styles = StyleSheet.create({
   flying: { position: 'absolute', top: 26, left: 68 },
   emptyTitle: { fontFamily: fonts.serifNative, fontSize: 22, color: colours.text },
   emptyLine: { marginTop: 6, fontSize: 15, lineHeight: 21, textAlign: 'center', color: colours.text3, maxWidth: 300 },
-  emptyQuiet: { marginHorizontal: GUTTER, marginTop: 20, fontSize: 14, lineHeight: 20, color: colours.text3 },
+  ghosts: { marginHorizontal: GUTTER, marginTop: 16, gap: 8 },
+  ghost: { ...shaped('row'), backgroundColor: 'transparent', padding: 14, gap: 8 },
+  ghostBar: { height: 10, borderRadius: 5, backgroundColor: colours.border },
+  ghostShort: { width: '34%' },
   button: { paddingHorizontal: space[6], paddingVertical: 9, borderRadius: radius.md, alignSelf: 'flex-start' },
   buttonText: { fontSize: 15, color: colours.text },
   pilotRow: { flexDirection: 'row' },

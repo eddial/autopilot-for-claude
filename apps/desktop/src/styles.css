@@ -3050,15 +3050,43 @@ textarea.inline-reply {
   }
 }
 
-.empty-quiet {
-  padding: 18px 20px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text-3);
+.ghosts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 12px;
 }
 
-.empty-quiet-title {
-  color: var(--text-2);
+.ghost {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.ghost:nth-child(1) {
+  opacity: 0.55;
+}
+
+.ghost:nth-child(2) {
+  opacity: 0.32;
+}
+
+.ghost:nth-child(3) {
+  opacity: 0.16;
+}
+
+.ghost-bar {
+  width: 68%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--border);
+}
+
+.ghost-bar.short {
+  width: 34%;
 }
 
 .start .sky {

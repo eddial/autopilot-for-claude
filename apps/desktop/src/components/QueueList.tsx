@@ -60,10 +60,16 @@ const Arrow = ({ dir }: { dir: 'up' | 'down' }) => (
  */
 const EmptyList = ({ tab, quiet }: { tab: QueueView | null; quiet: boolean }) => {
   const words = emptyWords(tab)
+  // Beside New task, which says it in words: only the shape of an empty list, fading out.
   if (quiet)
     return (
-      <div className="empty-quiet">
-        <span className="empty-quiet-title">{words.title}</span> · {words.line}
+      <div className="ghosts" aria-hidden="true">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="ghost">
+            <span className="ghost-bar" />
+            <span className="ghost-bar short" />
+          </div>
+        ))}
       </div>
     )
   return (
