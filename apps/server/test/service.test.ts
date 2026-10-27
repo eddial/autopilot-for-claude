@@ -49,7 +49,8 @@ describe('tasks', () => {
     const s = setup()
     const task = create(s, { start: false })
     expect(s.queue().items[0]?.band).toBe('triage')
-    expect(s.pendingOutbox()).toEqual([])
+    // No session: only the quick pass that files it, left on Automatic.
+    expect(s.pendingOutbox().map((o) => o.kind)).toEqual(['file_task'])
     expect(task.state).toBe('triage')
   })
 })
@@ -174,7 +175,22 @@ describe('filing', () => {
     expect(again).toMatchObject({ id: first.id, matched: true, state: 'triage' })
     expect(s.getTask(first.id).updates.map((u) => u.body)).toEqual(['Set up Cloudflare WAF\n\nFrom the standup.'])
     expect(s.queue().items).toHaveLength(1)
-    expect(s.pendingOutbox()).toEqual([])
+    expect(s.pendingOutbox().filter((o) => o.kind === 'start_session')).toEqual([])
+  })
+
+  it('keeps files sent with a new task on it before its session is asked for', () => {
+    const s = setup()
+    const task = s.createTask(
+      CreateTask.parse({
+        idempotencyKey: key(),
+        brief: 'See the screenshot',
+        files: [{ name: 'shot.png', type: 'image/png', data: 'iVBORw0K' }],
+      }),
+      'owner',
+      (taskId, file) => ({ url: `file:///files/${taskId}/${file.name}`, title: file.name }),
+    )
+    expect(task.links.map((l) => l.url)).toEqual([`file:///files/${task.id}/shot.png`])
+    expect(s.pendingOutbox().map((o) => o.kind)).toEqual(['start_session'])
   })
 
   it('finds tasks closed in the last 30 days, with their state', () => {
@@ -205,9 +221,10 @@ describe('filing', () => {
     const file = join(mkdtempSync(join(tmpdir(), 'autopilot-')), 'db.sqlite')
     const db = openDatabase(file)
     create(new Service({ db }), { start: false })
-    db.exec(`update changes set payload = json_remove(payload, '$.task.autofix')`)
+    // Back to before the step that fills in Auto-fix (and the one after it, which it then runs again).
+    db.exec(`update changes set payload = json_remove(payload, '$.task.autofix'); alter table tasks drop column named`)
     const version = (db.prepare('pragma user_version').get() as { user_version: number }).user_version
-    db.exec(`pragma user_version = ${version - 1}`)
+    db.exec(`pragma user_version = ${version - 2}`)
     db.close()
     const changes = new Service({ db: openDatabase(file) }).changesSince(0, 100).changes
     expect(changes.filter((c) => c.type === 'task.upserted')).not.toEqual([])

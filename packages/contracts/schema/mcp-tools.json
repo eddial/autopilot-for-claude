@@ -92,6 +92,36 @@
           "type": "string",
           "maxLength": 20000
         },
+        "files": {
+          "maxItems": 10,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "type": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "data": {
+                "type": "string",
+                "maxLength": 28000000,
+                "format": "base64",
+                "contentEncoding": "base64",
+                "pattern": "^$|^(?:[0-9a-zA-Z+/]{4})*(?:(?:[0-9a-zA-Z+/]{2}==)|(?:[0-9a-zA-Z+/]{3}=))?$"
+              }
+            },
+            "required": [
+              "name",
+              "type",
+              "data"
+            ]
+          }
+        },
         "workstream": {
           "type": "string"
         },
@@ -156,10 +186,7 @@
             "closed"
           ]
         }
-      },
-      "required": [
-        "title"
-      ]
+      }
     }
   },
   {

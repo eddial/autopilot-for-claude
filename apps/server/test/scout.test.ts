@@ -44,7 +44,7 @@ const setup = (onRun: () => void = () => {}, workstreams: Workstream[] = []) => 
   const runClaude: RunClaude = (_prompt, options) => {
     calls.push({ tools: options.tools })
     onRun()
-    return Promise.resolve(REPLY)
+    return Promise.resolve({ ...REPLY, title: 'Reply to Acme on the SSO date' })
   }
   const scout = new Scout({ service, paths, workstreams: () => workstreams, runClaude, prompts: PROMPTS, owner: 'Badr' })
   const create = (title: string, start: boolean, workstream = 'customers') =>
@@ -99,5 +99,18 @@ describe('scout', () => {
     const task = create('Reply to Acme about SSO', true, 'inbox')
     await scout.place(task.id)
     expect(service.getTask(task.id).task.workstream).toBe('customers')
+  })
+
+  it('names a task created from a brief alone: its first line at once, a real title from the quick pass', async () => {
+    const { service, scout } = setup(() => {}, [ws('customers')])
+    const brief =
+      'Sarah at Acme wants to know if SSO ships before their audit on 1 December, can you check with engineering and draft something'
+    const task = service.createTask(CreateTask.parse({ idempotencyKey: 'create-from-brief', brief, workstream: 'customers', start: false }))
+    expect(task.title).toBe('Sarah at Acme wants to know if SSO ships before their audit on 1 December, can…')
+    expect(service.pendingOutbox().map((o) => o.kind)).toEqual(['file_task'])
+    await scout.place(task.id)
+    expect(service.task(task.id).title).toBe('Reply to Acme on the SSO date')
+    // Named once: renaming it afterwards is the owner's.
+    expect(service.needsName(task.id)).toBe(false)
   })
 })

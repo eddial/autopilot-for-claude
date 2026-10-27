@@ -1,4 +1,4 @@
-import type { Link, LiveQueue, Task } from '@autopilot/contracts'
+import { titleFromBrief, type Link, type LiveQueue, type Task } from '@autopilot/contracts'
 import type { Api } from './connection.ts'
 
 /** Tasks created while offline show under this prefix until the server numbers them. */
@@ -8,13 +8,17 @@ export const PENDING_PREFIX = 'NEW-'
 export type Command =
   | { kind: 'answer'; taskId: string; updateId: string; optionId?: string; text?: string; attachments?: Link[] }
   | { kind: 'instruct'; taskId: string; body: string; attachments?: Link[] }
-  | { kind: 'create'; title: string; brief: string; workstream?: string; priority?: number; start: boolean }
+  /** No title: Autopilot names it from the brief. Files go with it, as the bytes, before it exists. */
+  | { kind: 'create'; title?: string; brief: string; workstream?: string; priority?: number; start: boolean; files?: NewFileData[] }
   | { kind: 'start'; taskId: string }
   /** Brings back an ended session with Remote Control, to open it; where the task stands is unchanged. */
   | { kind: 'resume'; taskId: string }
   | { kind: 'snooze'; taskId: string; until: string }
   | { kind: 'close'; taskId: string; outcome: 'done' | 'canceled' }
   | { kind: 'edit'; taskId: string; workstream?: string; priority?: number; autofix?: boolean }
+
+/** A file pasted or picked into a new task, kept as its bytes until the task is created. */
+export type NewFileData = { name: string; type: string; data: string }
 
 /** A command waiting to be sent. Its id is the idempotency key, so sending it twice applies it once. */
 export type Pending = { id: string; n: number; at: string; command: Command }
@@ -44,9 +48,10 @@ export const execute = async (api: Api, { id, command: c }: Pending): Promise<un
     case 'create':
       return api.tasks.create({
         idempotencyKey,
-        title: c.title,
+        ...(c.title ? { title: c.title } : {}),
         brief: c.brief,
         start: c.start,
+        ...(c.files?.length ? { files: c.files } : {}),
         ...(c.workstream ? { workstream: c.workstream } : {}),
         ...(c.priority ? { priority: c.priority } : {}),
       })
@@ -108,7 +113,7 @@ export const overlay = (queue: LiveQueue, outbox: Pending[], now: Date): LiveQue
         const id = `${PENDING_PREFIX}${n}`
         tasks[id] = {
           id,
-          title: c.title,
+          title: c.title ?? titleFromBrief(c.brief),
           brief: c.brief,
           workstream: c.workstream ?? 'inbox',
           priority: c.priority ?? 3,

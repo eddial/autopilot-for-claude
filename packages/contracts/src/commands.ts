@@ -6,9 +6,15 @@ import { Duration, Id, IdempotencyKey, Link, Priority, TaskId, Timestamp } from 
 /** Every write carries an idempotency key, so a retried or replayed command applies once. */
 export const command = <T extends z.ZodRawShape>(shape: T) => z.object({ idempotencyKey: IdempotencyKey, ...shape })
 
+/** A file sent with a new task, before the task exists to upload it to: base64, up to 20 MB. */
+export const NewFile = z.object({ name: z.string().min(1).max(200), type: z.string().max(200), data: z.base64().max(28_000_000) })
+
 export const CreateTask = command({
-  title: z.string().min(1).max(120),
+  /** Left out, Autopilot names the task from its brief: a first line at once, a proper title a moment later. */
+  title: z.string().min(1).max(120).optional(),
   brief: z.string().max(20_000).default(''),
+  /** Files pasted or dropped into the new task, kept with it on the Mac and linked from it. */
+  files: z.array(NewFile).max(10).optional(),
   /** Defaults from routing when omitted. */
   workstream: z.string().optional(),
   priority: Priority.optional(),

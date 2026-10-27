@@ -4,6 +4,7 @@ import {
   bandOf,
   compareQueue,
   isAsk,
+  titleFromBrief,
   type AddWatcher,
   type AnswerUpdate,
   type AttachLink,
@@ -23,6 +24,7 @@ import {
   type Instruct,
   type Link,
   type MatchItems,
+  type NewFile,
   type PostUpdate,
   type ReportSession,
   type RoutingProposal,
@@ -63,7 +65,7 @@ export const isPullRequest = (url: string): boolean => /^https:\/\/github\.com\/
 /** Who is calling, from their token. */
 export type Principal = { tokenId: string; name: string; scope: Scope; taskId: string | null }
 
-export type OutboxKind = 'start_session' | 'deliver_answer' | 'end_session' | 'autofix_pr'
+export type OutboxKind = 'start_session' | 'deliver_answer' | 'end_session' | 'autofix_pr' | 'file_task'
 export type OutboxItem = {
   id: number
   kind: OutboxKind
@@ -444,6 +446,8 @@ export class Service {
     source: Task['source']
     links: Link[]
     createdBy: Author
+    /** False for a title taken from the brief, until Autopilot names the task. */
+    named?: boolean
   }): Task {
     const { id, num } = this.nextTaskId()
     const at = this.iso()
@@ -468,9 +472,27 @@ export class Service {
         at,
         at,
       )
+    if (fields.named === false) this.sql('update tasks set named = 0 where id = ?').run(id)
     const task = this.task(id)
     this.emit({ type: 'task.upserted', task })
     return task
+  }
+
+  /** Whether the task still has the first line of its brief for a title, waiting to be named. */
+  needsName(taskId: string): boolean {
+    const row = this.sql('select named from tasks where id = ?').get(taskId) as { named: number } | undefined
+    return row?.named === 0
+  }
+
+  /** Autopilot's title for a task created from a brief alone; the owner renaming it meanwhile wins. */
+  nameTask(taskId: string, title: string): Task {
+    return this.transaction(() => {
+      const task = this.task(taskId)
+      if (!this.needsName(taskId)) return task
+      this.sql('update tasks set named = 1 where id = ?').run(taskId)
+      const named = title.trim().slice(0, 120)
+      return named ? this.touch(task, { title: named }) : task
+    })
   }
 
   private assertOpen(task: Task): void {
@@ -484,25 +506,42 @@ export class Service {
     this.assertOpen(this.task(taskId))
   }
 
-  createTask(input: In<typeof CreateTask>, by: Author = 'owner'): CreatedTask {
+  /**
+   * `store` keeps the files sent with the task (the API passes one that writes them beside the
+   * task's other files) and returns their links, so they are on the task before its session starts.
+   */
+  createTask(
+    input: In<typeof CreateTask>,
+    by: Author = 'owner',
+    store: (taskId: string, file: z.infer<typeof NewFile>, n: number) => Link = () => {
+      throw new DomainError('BAD_REQUEST', { field: 'files' }, 'Files cannot be sent here')
+    },
+  ): CreatedTask {
     return this.idempotent(input.idempotencyKey, 'tasks.create', () => {
+      const brief = input.brief.trim()
+      const sent = input.files ?? []
+      if (!input.title && !brief && sent.length === 0)
+        throw new DomainError('BAD_REQUEST', { field: 'brief' }, 'Describe the task or send a file')
+      // No title: the brief's first line for now, and Autopilot names it in a moment.
+      const title = input.title ?? (brief ? titleFromBrief(brief) : (sent[0]?.name ?? 'New task').slice(0, 120))
       const url = input.sourceUrl ?? null
       const ticket = input.ticket ?? null
       const links = input.links.map((l) => ({ ...l, at: l.at ?? this.iso() }))
+      const files = (taskId: string) => sent.map((f, n) => ({ ...store(taskId, f, n), at: this.iso() }))
       // The same thread or ticket as an open task: it goes there, as when a signal files it twice.
       const existing = this.openWithSource(ticket?.id ?? null, url)
       if (existing) {
         const task = this.addToTask(existing, {
-          body: input.brief ? `${input.title}\n\n${input.brief}` : input.title,
+          body: brief ? `${title}\n\n${brief}` : title,
           author: by,
-          attachments: url ? [{ url, title: input.title.slice(0, 200) }] : [],
-          links,
+          attachments: url ? [{ url, title: title.slice(0, 200) }] : [],
+          links: [...links, ...files(existing.id)],
           ticket,
         })
         return { ...task, matched: true }
       }
-      const task = this.insertTask({
-        title: input.title,
+      const inserted = this.insertTask({
+        title,
         brief: input.brief,
         workstream: input.workstream ?? this.defaultWorkstream,
         priority: input.priority ?? 3,
@@ -510,8 +549,13 @@ export class Service {
         source: { signal: null, url, mirrors: ticket?.id ?? null },
         links,
         createdBy: by,
+        named: input.title !== undefined,
       })
+      const kept = files(inserted.id)
+      const task = kept.length > 0 ? this.touch(inserted, { links: [...links, ...kept] }) : inserted
       if (input.start) this.enqueue('start_session', { taskId: task.id })
+      // Left in Triage without a title or a workstream: named and filed now, not at the first look.
+      else if (!input.title || !input.workstream) this.enqueue('file_task', { taskId: task.id })
       return { ...task, matched: false }
     })
   }

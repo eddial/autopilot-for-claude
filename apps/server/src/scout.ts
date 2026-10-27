@@ -19,8 +19,8 @@ export const ScoutOutput = z.object({
 })
 export type ScoutOutput = z.infer<typeof ScoutOutput>
 
-/** Where a task started without a workstream belongs, from the routing alone. */
-const Placement = z.object({ workstream: z.string() })
+/** A quick pass on a task created on Automatic or from a brief alone: its title, and where it belongs. */
+const Filing = z.object({ title: z.string(), workstream: z.string() })
 
 export type ScoutOptions = {
   service: Service
@@ -104,31 +104,42 @@ export class Scout {
   }
 
   /**
-   * A task started without one of the owner's workstreams (New left on Automatic): picks where it
-   * belongs before its session opens, from the title, brief and each workstream's routing, so the
-   * session starts in that workstream's folder. Reads nothing else; a quick call.
+   * A task created on Automatic, or from a brief alone: names it and picks where it belongs, before
+   * its session opens or its first look, from the brief and each workstream's routing, so the
+   * session starts in that workstream's folder under a real title. Reads nothing else; a quick call.
    */
   async place(taskId: string): Promise<void> {
     const { service } = this.o
     const task = service.task(taskId)
     const choices = this.o.workstreams().filter((w) => w.name !== 'autopilot')
-    if (choices.length === 0 || choices.some((w) => w.name === task.workstream)) return
+    const unplaced = choices.length > 0 && !choices.some((w) => w.name === task.workstream)
+    const naming = service.needsName(taskId)
+    if (!unplaced && !naming) return
     const prompt = [
-      `# Task ${task.id}: ${task.title}`,
-      `Brief:\n\n${task.brief.slice(0, 4000) || '(none)'}`,
-      `The workstreams, each with what lands in it:\n\n${choices.map((w) => `- ${w.name}: ${w.routing.replace(/\s+/g, ' ').slice(0, 300)}`).join('\n')}`,
-      `Return workstream: the name of the one this task belongs in, or "" when none fits.`,
+      `# Task ${task.id}`,
+      `What the owner wrote:\n\n${task.brief.slice(0, 4000) || task.title}`,
+      ...(task.links.length > 0 ? [`Files sent with it:\n\n${task.links.map((l) => `- ${l.title}`).join('\n')}`] : []),
+      naming
+        ? [
+            'Return title: what is to be done, in a few words, as a to-do list would put it: at most 70 characters,',
+            'in the language the owner wrote in, sentence case, no full stop, names and ticket ids kept. Not a summary of the brief.',
+          ].join(' ')
+        : 'Return title: "".',
+      unplaced
+        ? `The workstreams, each with what lands in it:\n\n${choices.map((w) => `- ${w.name}: ${w.routing.replace(/\s+/g, ' ').slice(0, 300)}`).join('\n')}\n\nReturn workstream: the name of the one this task fits best. The owner left it to you, so pick the closest even when none fits exactly.`
+        : 'Return workstream: "".',
     ].join('\n\n')
     const output = await this.o.runClaude(prompt, {
-      label: `place ${task.id}`,
+      label: `file ${task.id}`,
       tools: [],
       model: this.o.model,
-      schema: z.toJSONSchema(Placement),
+      schema: z.toJSONSchema(Filing),
       mcpConfig: this.mcpConfig(),
       cwd: this.o.paths.home,
     })
-    const { workstream } = Placement.parse(typeof output === 'string' ? JSON.parse(output) : output)
-    if (choices.some((w) => w.name === workstream)) service.placeTask(task.id, workstream)
+    const { title, workstream } = Filing.parse(typeof output === 'string' ? JSON.parse(output) : output)
+    if (naming) service.nameTask(task.id, title)
+    if (unplaced && choices.some((w) => w.name === workstream)) service.placeTask(task.id, workstream)
   }
 
   private prompt(task: Task, workstream: Workstream | undefined, place: string | null, choices: Workstream[]): string {

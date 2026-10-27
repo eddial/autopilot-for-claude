@@ -68,6 +68,62 @@ export const useFiles = (taskId: string) => {
   }
 }
 
+/**
+ * Files pasted, dropped or picked into a new task, which has no id to upload them to yet: kept as
+ * their bytes and sent with the task when it is created.
+ */
+export const useNewFiles = () => {
+  const [files, setFiles] = useState<(Sent & { data: string | null; type: string })[]>([])
+  const add = (list: FileList | File[]) => {
+    for (const file of Array.from(list)) {
+      const key = crypto.randomUUID()
+      const name = file.name || `Pasted ${file.type.split('/')[1] ?? 'file'}`
+      const tooBig = file.size > MAX_BYTES
+      const link = { url: `about:blank#${key}`, title: name, subtitle: sizeText(file.size) }
+      setFiles((all) => [
+        ...all,
+        { key, name, link: tooBig ? null : link, failed: tooBig ? 'Over 20 MB' : null, data: null, type: file.type },
+      ])
+      if (tooBig) continue
+      void base64(file).then(
+        (data) => setFiles((all) => all.map((f) => (f.key === key ? { ...f, data } : f))),
+        () => setFiles((all) => all.map((f) => (f.key === key ? { ...f, link: null, failed: 'Could not read it' } : f))),
+      )
+    }
+  }
+  return {
+    files,
+    add,
+    /** Still being read: creating waits for these. */
+    busy: files.some((f) => !f.failed && f.data === null),
+    /** What goes with the new task. */
+    ready: () =>
+      files.flatMap((f) =>
+        f.data !== null && !f.failed ? [{ name: f.name, type: f.type || 'application/octet-stream', data: f.data }] : [],
+      ),
+    remove: (key: string) => setFiles((all) => all.filter((f) => f.key !== key)),
+    clear: () => setFiles([]),
+    onPaste: (e: ClipboardEvent) => {
+      if (e.clipboardData.files.length === 0) return
+      e.preventDefault()
+      add(e.clipboardData.files)
+    },
+    drop: {
+      onDragOver: (e: DragEvent) => {
+        if (e.dataTransfer.types.includes('Files')) e.preventDefault()
+      },
+      onDrop: (e: DragEvent) => {
+        if (e.dataTransfer.files.length === 0) return
+        e.preventDefault()
+        add(e.dataTransfer.files)
+      },
+    },
+  }
+}
+
+const sizeText = (bytes: number): string =>
+  bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
+
 /** The files in a reply before it is sent, each with a way to take it out again. */
 export const FileChips = ({ files, onRemove }: { files: Sent[]; onRemove: (key: string) => void }) =>
   files.length > 0 ? (

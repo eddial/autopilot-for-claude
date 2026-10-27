@@ -159,7 +159,9 @@ export class Launcher {
             ? this.deliver(item.payload.taskId, item.payload.updateId ?? '')
             : item.kind === 'autofix_pr'
               ? this.autofix(item.payload.taskId, item.payload.url ?? '', item.payload.stop === true)
-              : this.end(item.payload.taskId)
+              : item.kind === 'file_task'
+                ? this.file(item.payload.taskId)
+                : this.end(item.payload.taskId)
       if (outcome === 'done') {
         service.finishOutbox(item.id)
         if (item.kind !== 'start_session') log(`${item.kind.replace('_', ' ')} ${item.payload.taskId}`)
@@ -174,6 +176,23 @@ export class Launcher {
         service.finishOutbox(item.id, message)
       }
     }
+  }
+
+  /** A task left in Triage on Automatic or without a title: named and filed in one quick pass. */
+  private file(taskId: string): 'done' | 'defer' {
+    const { place } = this.opts
+    const state = this.placing.get(taskId)
+    if (!place || state === 'done') {
+      this.placing.delete(taskId)
+      return 'done'
+    }
+    if (!state) {
+      this.placing.set(taskId, 'pending')
+      void place(taskId)
+        .catch((error: unknown) => this.opts.log(`file ${taskId}: ${String(error)}`))
+        .finally(() => this.placing.set(taskId, 'done'))
+    }
+    return 'defer'
   }
 
   /** Starts a session on the task, or brings back an ended one (`resume`), its conversation and all. */
@@ -192,7 +211,8 @@ export class Launcher {
     const workstreams = this.opts.workstreams()
     const { place } = this.opts
     const unplaced = !workstreams.some((w) => w.name === asked.workstream) && workstreams.some((w) => w.name !== 'autopilot')
-    if (!resumed && place && unplaced && this.placing.get(taskId) !== 'done') {
+    // Created from a brief alone: named in the same quick pass, so the session starts with its title.
+    if (!resumed && place && (unplaced || service.needsName(taskId)) && this.placing.get(taskId) !== 'done') {
       if (!this.placing.has(taskId)) {
         this.placing.set(taskId, 'pending')
         void place(taskId)

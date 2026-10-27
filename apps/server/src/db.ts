@@ -230,6 +230,10 @@ const MIGRATIONS: (string | ((db: DatabaseSync) => void))[] = [
   update applied set result = json_set(result, '$.autofix', json('true'))
     where json_valid(result) and json_type(result, '$.brief') is not null and json_type(result, '$.autofix') is null;
   `,
+  `
+  -- A task created from a brief alone carries its first line until Autopilot names it.
+  alter table tasks add column named integer not null default 1;
+  `,
 ]
 
 export const openDatabase = (file: string): DatabaseSync => {

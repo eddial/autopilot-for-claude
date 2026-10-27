@@ -4,9 +4,10 @@ import type { Workstream } from '@autopilot/contracts'
 import KV from 'expo-sqlite/kv-store'
 import { SymbolView } from 'expo-symbols'
 import { useDraft } from '../drafts.ts'
+import { FileChips, useFiles } from '../files.tsx'
 import { useSyncInstance } from '../store.ts'
 import { colours } from '@autopilot/design'
-import { Chip, Composer, Pilot, Sides, composerInput, GUTTER, type, KeyboardScreen } from '../ui.tsx'
+import { Chip, Composer, ComposerTool, Pilot, Sides, composerInput, GUTTER, type, KeyboardScreen } from '../ui.tsx'
 
 const PRIORITIES = [
   { value: 1, label: 'Urgent' },
@@ -25,8 +26,9 @@ const pickFrom = (title: string, options: string[], current: number, then: (inde
 /**
  * New task, as Claude's own composer: what to do in one box, the workstream and priority as pills
  * above it, starting and sending inside it. All of it sits on the keyboard, so it fits the Duo's
- * outer screen. The first line is the title, the rest the brief. Works offline: it waits in the
- * outbox and reaches the Mac later. A sheet of its own on a phone; the empty side of the split.
+ * outer screen. Only what needs doing: Autopilot writes the title from it. Files picked or pasted
+ * go with it. Works offline: it waits in the outbox and reaches the Mac later. A sheet of its own
+ * on a phone; the empty side of the split.
  */
 export const NewTask = ({ onDone, edges, autoFocus = true }: { onDone: () => void; edges?: ('left' | 'right')[]; autoFocus?: boolean }) => {
   const sync = useSyncInstance()
@@ -35,6 +37,7 @@ export const NewTask = ({ onDone, edges, autoFocus = true }: { onDone: () => voi
   const [priority, setPriority] = useState(3)
   const [start, setStart] = useState(true)
   const [workstreams, setWorkstreams] = useState<Workstream[]>([])
+  const files = useFiles(null)
 
   // The last list seen online, so picking a workstream works offline too.
   useEffect(() => {
@@ -50,20 +53,22 @@ export const NewTask = ({ onDone, edges, autoFocus = true }: { onDone: () => voi
 
   const streams = workstreams.filter((w) => w.name !== 'autopilot').map((w) => w.name)
   const priorityLabel = PRIORITIES.find((p) => p.value === priority)?.label ?? 'Normal'
-  const [first = '', ...rest] = text.trim().split('\n')
-  const title = first.trim().slice(0, 120)
+  const brief = text.trim()
+  const ready = (brief.length > 0 || files.files.length > 0) && !files.busy
 
   const create = () => {
-    if (!sync || !title) return
+    if (!sync || !ready) return
+    const sent = files.newFiles()
     void sync.send({
       kind: 'create',
-      title,
-      brief: [first.trim().slice(120), ...rest].join('\n').trim(),
+      brief,
       start,
       priority,
       ...(workstream ? { workstream } : {}),
+      ...(sent.length > 0 ? { files: sent } : {}),
     })
     setText('')
+    files.clear()
     onDone()
   }
 
@@ -101,22 +106,26 @@ export const NewTask = ({ onDone, edges, autoFocus = true }: { onDone: () => voi
             onPress={pickPriority}
           />
         </View>
+        <FileChips files={files.files} onRemove={files.remove} />
         <Composer
-          ready={Boolean(title)}
+          ready={ready}
           onSend={create}
           sendLabel={start ? 'Create and start' : 'Save'}
           tools={
-            <Chip
-              pill
-              label={start ? 'Start now' : 'Start later'}
-              icon={<SymbolView name={start ? 'play.fill' : 'pause'} size={12} tintColor={colours.text2} />}
-              onPress={() => setStart(!start)}
-            />
+            <>
+              <ComposerTool symbol="plus" label="Attach files" onPress={files.pick} />
+              <Chip
+                pill
+                label={start ? 'Start now' : 'Start later'}
+                icon={<SymbolView name={start ? 'play.fill' : 'pause'} size={12} tintColor={colours.text2} />}
+                onPress={() => setStart(!start)}
+              />
+            </>
           }
         >
           <TextInput
             style={composerInput}
-            placeholder="Describe a task. The first line is its title."
+            placeholder="What needs doing?"
             placeholderTextColor={colours.text3}
             value={text}
             onChangeText={setText}

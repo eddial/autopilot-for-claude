@@ -3,6 +3,7 @@ import type { Workstream } from '@autopilot/contracts'
 import { api, key } from '../api.ts'
 import { useDraft } from '../drafts.ts'
 import { Banner, Bars, Button, Icon, NavIcon, Pilot, Row, Spacer, WorkstreamMark } from '../ui.tsx'
+import { AttachButton, FileChips, useNewFiles } from './Files.tsx'
 import { Menu } from './Menu.tsx'
 
 type Props = { workstreams: Workstream[]; onCreated: (id: string) => void }
@@ -18,33 +19,36 @@ const AutoMark = () => (
 )
 
 export const NewTask = ({ workstreams, onCreated }: Props) => {
-  const [title, setTitle] = useDraft('new:title')
+  // Only what needs doing: Autopilot writes the title from it.
   const [brief, setBrief] = useDraft('new:brief')
+  const files = useNewFiles()
   // Automatic (null) leaves it to routing, as a task from a source: the first look or, when it
   // starts straight away, a quick pass before its session opens.
   const [workstream, setWorkstream] = useState<string | null>(null)
   const [priority, setPriority] = useState(3)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const titleRef = useRef<HTMLInputElement>(null)
+  const briefRef = useRef<HTMLTextAreaElement>(null)
+  const ready = (brief.trim().length > 0 || files.files.length > 0) && !files.busy
 
-  useEffect(() => titleRef.current?.focus(), [])
+  useEffect(() => briefRef.current?.focus(), [])
 
   const create = async (start: boolean) => {
-    if (!title.trim()) return
+    if (!ready) return
+    const sent = files.ready()
     setBusy(true)
     setError(null)
     try {
       const task = await api.tasks.create({
         idempotencyKey: key(),
-        title: title.trim().slice(0, 120),
         brief: brief.trim(),
+        ...(sent.length > 0 ? { files: sent } : {}),
         ...(workstream ? { workstream } : {}),
         priority,
         start,
       })
-      setTitle('')
       setBrief('')
+      files.clear()
       onCreated(task.id)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -61,33 +65,30 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
           <h1 className="serif">What’s next?</h1>
         </Row>
         <form
+          {...files.drop}
           className="composer"
           onSubmit={(e) => {
             e.preventDefault()
             void create(true)
           }}
         >
-          <input
-            ref={titleRef}
-            className="title-input"
-            aria-label="Title"
-            placeholder="Title"
-            maxLength={120}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
           <textarea
-            aria-label="Brief"
-            rows={4}
-            placeholder="Details for the session"
+            ref={briefRef}
+            aria-label="What needs doing"
+            rows={5}
+            placeholder="What needs doing? Paste or drop files too."
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
+            onPaste={files.onPaste}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void create(true)
             }}
           />
+          <FileChips files={files.files} onRemove={files.remove} />
           <div className="composer-bar">
-            <Button kind="send" type="submit" aria-label="Create and start" title="Create and start (⌘↩)" disabled={busy || !title.trim()}>
+            <AttachButton onFiles={files.add} />
+            <Spacer />
+            <Button kind="send" type="submit" aria-label="Create and start" title="Create and start (⌘↩)" disabled={busy || !ready}>
               <Icon name="enter" size={14} />
             </Button>
           </div>
@@ -139,7 +140,7 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
               run: () => setPriority(p),
             }))}
           />
-          <Button kind="prop" disabled={busy || !title.trim()} onClick={() => void create(false)}>
+          <Button kind="prop" disabled={busy || !ready} onClick={() => void create(false)}>
             Save without starting
           </Button>
         </div>

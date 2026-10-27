@@ -106,7 +106,12 @@ Pictures an update attaches, such as screenshots, show as thumbnails: click one 
 (Escape closes it), or on the iPhone tap it and pinch to zoom.
 
 Whatever you type in the reply box goes to the session. If the session has ended, your reply
-starts a new one in the same worktree, which picks up where the last one left off.
+starts a new one in the same worktree, which picks up where the last one left off. Paste, drop or
+attach files with it; on the iPhone, the + button offers Paste Image when you have copied one.
+
+A new task needs only what needs doing: write it, paste or drop files in, and Autopilot names it.
+The first line stands in as its title for a moment. Left on **Automatic**, it goes to the
+workstream it fits best, never the inbox.
 
 At the top of a task:
 

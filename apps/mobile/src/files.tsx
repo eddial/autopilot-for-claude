@@ -2,16 +2,18 @@ import { useState } from 'react'
 import { ActionSheetIOS, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { Link } from '@autopilot/contracts'
 import { randomUUID } from 'expo-crypto'
+import * as Clipboard from 'expo-clipboard'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
 import { SymbolView } from 'expo-symbols'
 import { colours, radius } from '@autopilot/design'
 import { useSyncInstance } from './store.ts'
 
-/** A file on its way into a reply: uploading, kept on the Mac, or refused. */
-type Sent = { key: string; name: string; link: Link | null; failed: string | null }
+/** A file on its way into a reply: uploading, kept on the Mac, or refused. For a new task, its bytes. */
+type Sent = { key: string; name: string; link: Link | null; failed: string | null; type?: string; data?: string | null }
 
-type Picked = { uri: string; name: string; type: string; size?: number | null | undefined }
+/** A picked file, by where it is; a pasted one comes as its bytes. */
+type Picked = { uri: string; name: string; type: string; size?: number | null | undefined; data?: string }
 
 const MAX_BYTES = 20 * 1024 * 1024
 
@@ -26,11 +28,15 @@ const base64 = async (uri: string): Promise<string> => {
   })
 }
 
+const sizeText = (bytes: number): string =>
+  bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
+
 /**
- * Files picked for a reply, as on the Mac: each uploads to the Mac as soon as it is picked (only
- * while the Mac can be reached; files do not wait in the outbox) and shows as a chip until sent.
+ * Files picked or pasted into a reply, as on the Mac: each uploads to the Mac as soon as it is added
+ * (only while the Mac can be reached; files do not wait in the outbox) and shows as a chip until
+ * sent. With no task yet (a new one), they are kept as their bytes and go with the task instead.
  */
-export const useFiles = (taskId: string) => {
+export const useFiles = (taskId: string | null) => {
   const sync = useSyncInstance()
   const [files, setFiles] = useState<Sent[]>([])
   const set = (key: string, changes: Partial<Sent>) => setFiles((all) => all.map((f) => (f.key === key ? { ...f, ...changes } : f)))
@@ -38,10 +44,21 @@ export const useFiles = (taskId: string) => {
   const add = (picked: Picked[]) => {
     for (const file of picked) {
       const key = randomUUID()
-      const tooBig = (file.size ?? 0) > MAX_BYTES
-      setFiles((all) => [...all, { key, name: file.name, link: null, failed: tooBig ? 'Over 20 MB' : null }])
-      if (tooBig || !sync) continue
-      void base64(file.uri)
+      const size = file.size ?? (file.data ? Math.floor((file.data.length * 3) / 4) : 0)
+      const tooBig = size > MAX_BYTES
+      setFiles((all) => [...all, { key, name: file.name, link: null, failed: tooBig ? 'Over 20 MB' : null, type: file.type, data: null }])
+      if (tooBig) continue
+      const bytes = file.data ? Promise.resolve(file.data) : base64(file.uri)
+      if (taskId === null) {
+        void bytes.then(
+          (data) =>
+            set(key, { data, link: { url: `about:blank#${key}`, title: file.name, subtitle: sizeText(size || (data.length * 3) / 4) } }),
+          () => set(key, { failed: 'Could not read it' }),
+        )
+        continue
+      }
+      if (!sync) continue
+      void bytes
         .then((data) => sync.online((api) => api.files.upload({ idempotencyKey: key, taskId, name: file.name, type: file.type, data })))
         .then(
           (link) => set(key, { link }),
@@ -50,34 +67,50 @@ export const useFiles = (taskId: string) => {
     }
   }
 
+  /** An image copied anywhere, pasted in as a PNG. */
+  const paste = () =>
+    void Clipboard.getImageAsync({ format: 'png' }).then((image) => {
+      if (image) add([{ uri: '', name: 'Pasted image.png', type: 'image/png', data: image.data.replace(/^data:[^,]*,/, '') }])
+    })
+
   /** The paperclip: photos or a file, from the sheet iOS shows. */
   const pick = () =>
-    ActionSheetIOS.showActionSheetWithOptions({ options: ['Photo Library', 'Choose File', 'Cancel'], cancelButtonIndex: 2 }, (i) => {
-      if (i === 0)
-        void ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, quality: 0.9 }).then((r) => {
-          if (!r.canceled)
-            add(
-              r.assets.map((a) => ({
-                uri: a.uri,
-                name: a.fileName ?? `Photo.${a.mimeType?.split('/')[1] ?? 'jpg'}`,
-                type: a.mimeType ?? 'image/jpeg',
-                size: a.fileSize,
-              })),
-            )
-        })
-      if (i === 1)
-        void DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true }).then((r) => {
-          if (!r.canceled)
-            add(r.assets.map((a) => ({ uri: a.uri, name: a.name, type: a.mimeType ?? 'application/octet-stream', size: a.size })))
-        })
+    void Clipboard.hasImageAsync().then((copied) => {
+      const options = [...(copied ? ['Paste Image'] : []), 'Photo Library', 'Choose File', 'Cancel']
+      ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: options.length - 1 }, (chosen) => {
+        // The same numbers whether or not Paste is offered.
+        const i = copied ? chosen - 1 : chosen
+        if (i === -1) paste()
+        if (i === 0)
+          void ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, quality: 0.9 }).then((r) => {
+            if (!r.canceled)
+              add(
+                r.assets.map((a) => ({
+                  uri: a.uri,
+                  name: a.fileName ?? `Photo.${a.mimeType?.split('/')[1] ?? 'jpg'}`,
+                  type: a.mimeType ?? 'image/jpeg',
+                  size: a.fileSize,
+                })),
+              )
+          })
+        if (i === 1)
+          void DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true }).then((r) => {
+            if (!r.canceled)
+              add(r.assets.map((a) => ({ uri: a.uri, name: a.name, type: a.mimeType ?? 'application/octet-stream', size: a.size })))
+          })
+      })
     })
 
   return {
     files,
     links: files.flatMap((f) => (f.link ? [f.link] : [])),
+    /** For a new task: the files' bytes, to go with it. */
+    newFiles: () =>
+      files.flatMap((f) => (f.data && !f.failed ? [{ name: f.name, type: f.type ?? 'application/octet-stream', data: f.data }] : [])),
     /** Still uploading: sending waits for these. */
     busy: files.some((f) => !f.link && !f.failed),
     pick,
+    paste,
     remove: (key: string) => setFiles((all) => all.filter((f) => f.key !== key)),
     clear: () => setFiles([]),
   }

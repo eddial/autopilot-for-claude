@@ -202,7 +202,17 @@ export const createRouter = ({
 
     tasks: {
       get: guarded.tasks.get.handler(({ input }) => service.getTask(input.id)),
-      create: guarded.tasks.create.handler(({ input, context }) => service.createTask(input, authorOf(context.principal))),
+      create: guarded.tasks.create.handler(({ input, context }) =>
+        service.createTask(input, authorOf(context.principal), (taskId, file, n) => {
+          try {
+            // Each file its own key, so two of the same name are kept apart and a retry writes them once.
+            return storeFile(files, { ...file, taskId, idempotencyKey: `${n}${input.idempotencyKey}` })
+          } catch (error) {
+            if (error instanceof RangeError) throw new DomainError('BAD_REQUEST', { field: 'files' }, error.message)
+            throw error
+          }
+        }),
+      ),
       edit: guarded.tasks.edit.handler(({ input }) => service.editTask(input)),
       start: guarded.tasks.start.handler(({ input }) => service.startTask(input)),
       resume: guarded.tasks.resume.handler(({ input }) => service.resumeTask(input)),

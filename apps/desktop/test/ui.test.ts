@@ -65,8 +65,8 @@ describe('the Mac app window', () => {
     )
     await expect.poll(() => page.getByRole('option', { name: /Book the team offsite/ }).count()).toBe(1)
     await page.getByRole('button', { name: 'New task' }).click()
-    await page.getByLabel('Title').fill('Decide on prompt caching for agent-service')
-    await page.getByLabel('Brief').fill('Measure Opus first; do not touch prod.')
+    // No title to fill in: the first line stands in for one until Autopilot names it.
+    await page.getByLabel('What needs doing').fill('Decide on prompt caching for agent-service\n\nMeasure Opus first; do not touch prod.')
     await page.getByRole('button', { name: 'Automatic' }).click()
     await page.getByRole('menuitemradio', { name: 'engineering' }).click()
     await shot('new-task')

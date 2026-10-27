@@ -1748,17 +1748,10 @@ button {
   box-shadow: 0 4px 16px -6px var(--shadow);
 }
 
-.start .title-input {
-  font-size: 16px;
-  font-weight: 500;
-}
-
 .start .composer textarea {
-  margin-top: 8px;
-  color: var(--text-2);
-  /* Grows with the brief, from four lines to half the window, then scrolls. */
+  /* Grows with what you write, from five lines to half the window, then scrolls. */
   field-sizing: content;
-  min-height: 4lh;
+  min-height: 5lh;
   max-height: 50vh;
 }
 
