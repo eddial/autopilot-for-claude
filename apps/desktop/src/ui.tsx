@@ -563,14 +563,14 @@ export const Tumbleweed = () => (
   <div className="tumble" aria-hidden="true">
     <div className="tumble-stage">
       <span className="tumble-cactus">
-        <Mascot art={cactus} pixel={1.5} label="" />
+        <Mascot art={cactus} pixel={3} label="" />
       </span>
       <span className="tumble-horizon" />
       <span className="tumble-weed">
         <span className="tumble-shadow" />
         <span className="tumble-hop">
           <span className="tumble-spin">
-            <Mascot art={tumbleweed} pixel={2} label="" />
+            <Mascot art={tumbleweed} pixel={1.5} label="" />
           </span>
         </span>
       </span>

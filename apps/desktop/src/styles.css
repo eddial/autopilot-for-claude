@@ -3086,18 +3086,18 @@ textarea.inline-reply {
 /* One crossing in 7 s, then a lull before the next. */
 .tumble-weed {
   position: absolute;
-  bottom: 15px;
+  bottom: 14px;
   left: -40px;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   animation: tumble-across 10.5s linear infinite;
 }
 
 .tumble-hop,
 .tumble-spin {
   display: block;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
 }
 
 .tumble-hop {
@@ -3111,13 +3111,15 @@ textarea.inline-reply {
 }
 
 .tumble-shadow {
+  /* A soft dark ellipse lying on the ground line, centred under the ball. */
   position: absolute;
-  bottom: -4px;
-  left: 4px;
-  width: 24px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--border);
+  bottom: -2px;
+  left: 2px;
+  width: 20px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--shadow);
+  filter: blur(0.5px);
   animation: tumble-shadow 10.5s linear infinite;
 }
 
@@ -3212,22 +3214,22 @@ textarea.inline-reply {
   67%,
   100% {
     transform: scaleX(1);
-    opacity: 1;
+    opacity: 0.8;
   }
 
   5% {
-    transform: scaleX(0.45);
-    opacity: 0.45;
+    transform: scaleX(0.4);
+    opacity: 0.25;
   }
 
   28% {
-    transform: scaleX(0.6);
-    opacity: 0.6;
+    transform: scaleX(0.55);
+    opacity: 0.4;
   }
 
   45% {
-    transform: scaleX(0.8);
-    opacity: 0.8;
+    transform: scaleX(0.75);
+    opacity: 0.6;
   }
 }
 

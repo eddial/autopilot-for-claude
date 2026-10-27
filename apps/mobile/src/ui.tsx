@@ -679,8 +679,8 @@ export const FlyingPilot = () => {
   )
 }
 
-/** The tumbleweed's size, in points: 16 pixels of 2.5. */
-const WEED = 40
+/** The tumbleweed's size, in points: 16 pixels of 1.75, a little shorter than the cactus. */
+const WEED = 28
 /** One crossing, then the wait before the next. */
 const CROSSING = 7000
 const LULL = 3500
@@ -718,7 +718,10 @@ export const Tumbleweed = () => {
   // Hops, each lower than the last, on the same clock.
   const hops = { inputRange: [0, 0.08, 0.16, 0.3, 0.42, 0.55, 0.64, 0.74, 0.86, 0.93, 1], height: [0, 16, 0, 0, 10, 0, 0, 6, 0, 3, 0] }
   const y = t.interpolate({ inputRange: hops.inputRange, outputRange: hops.height.map((h) => -h) })
-  const shadow = t.interpolate({ inputRange: hops.inputRange, outputRange: hops.height.map((h) => 1 - h / 24) })
+  // The shadow on the ground: as wide as the ball when it touches down, smaller and fainter the
+  // higher it is.
+  const shadow = t.interpolate({ inputRange: hops.inputRange, outputRange: hops.height.map((h) => 1 - h / 22) })
+  const shade = t.interpolate({ inputRange: hops.inputRange, outputRange: hops.height.map((h) => 0.55 - h / 40) })
   return (
     <View
       style={styles.tumble}
@@ -728,7 +731,7 @@ export const Tumbleweed = () => {
     >
       <View style={styles.stage}>
         <View style={[styles.cactus, { left: width * 0.72 }]}>
-          <Mascot art={cactus} pixel={1.5} label="" />
+          <Mascot art={cactus} pixel={3.5} label="" />
         </View>
         <View style={styles.horizon} />
         {still ? (
@@ -737,7 +740,7 @@ export const Tumbleweed = () => {
           </View>
         ) : (
           <>
-            <Animated.View style={[styles.weedShadow, { transform: [{ translateX: x }, { scaleX: shadow }], opacity: shadow }]} />
+            <Animated.View style={[styles.weedShadow, { transform: [{ translateX: x }, { scaleX: shadow }], opacity: shade }]} />
             <Animated.View style={[styles.weed, { transform: [{ translateX: x }, { translateY: y }, { rotate: turn }] }]}>
               <Mascot art={tumbleweed} pixel={WEED / 16} label="" />
             </Animated.View>
@@ -853,8 +856,9 @@ const styles = StyleSheet.create({
     backgroundColor: colours.border,
   },
   cactus: { position: 'absolute', bottom: 14, opacity: 0.4 },
-  weed: { position: 'absolute', bottom: 15, left: 0, width: WEED, height: WEED, opacity: 0.5 },
-  weedShadow: { position: 'absolute', bottom: 11, left: 4, width: WEED - 8, height: 4, borderRadius: 2, backgroundColor: colours.border },
+  weed: { position: 'absolute', bottom: 15, left: 0, width: WEED, height: WEED, opacity: 0.55 },
+  // A soft dark ellipse lying on the ground line, centred under the ball.
+  weedShadow: { position: 'absolute', bottom: 12, left: 2, width: WEED - 4, height: 4, borderRadius: 2, backgroundColor: colours.shadow },
   button: { paddingHorizontal: space[6], paddingVertical: 9, borderRadius: radius.md, alignSelf: 'flex-start' },
   buttonText: { fontSize: 15, color: colours.text },
   pilotRow: { flexDirection: 'row' },
