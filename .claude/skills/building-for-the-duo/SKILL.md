@@ -19,7 +19,8 @@ it, and test every pose before saying a screen is done. The rules themselves are
 - **Split view** (inner, landscape only): two apps, 50/50. The app's bar sits on its **outer edge**:
   the left edge when the app is on the left, the right edge when it is on the right.
 - **Short screens drop toolbar items into an overflow (⋯)** by themselves. Keep the bar short:
-  `TaskToolbar` hides back-to-top when the height is under 500 so the arrows keep their place.
+  `TaskToolbar` keeps back-to-top inside its ⋯ menu, and Snooze too when the height is under 500, so
+  the arrows keep their place.
 
 ## Layout rules (all in `apps/mobile/src/ui.tsx`)
 

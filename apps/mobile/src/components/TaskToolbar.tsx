@@ -25,8 +25,9 @@ const snoozeTimes = (): { label: string; until: Date }[] => {
 
 /**
  * A task's actions as native bar items. At the top: the prominent action (Open session, or Start)
- * in ink as on the Mac, Mark done and Snooze each their own button, Not for me behind ⋯, and back
- * to the top of the page. At the bottom, in a pushed screen: the way through the list, with the
+ * in ink as on the Mac, Mark done and Snooze each their own button, and ⋯ with back to the top of
+ * the page and Not for me (and Snooze, on a short screen). The Duo's bar has room for no more: one
+ * button more and iOS folds the arrows into an overflow ⋯ of its own. At the bottom, in a pushed screen: the way through the list, with the
  * Mac's thin arrows (the split puts them in its own bottom bar, beside search).
  */
 export const TaskToolbar = ({
@@ -43,10 +44,9 @@ export const TaskToolbar = ({
   onTop?: () => void
 }) => {
   const sync = useSyncInstance()
-  const opening = useRef(false)
-  // A short screen (the Duo folded, in landscape) has room in its bar for only so many buttons:
-  // back to the top goes first, so the way through the list stays out of the overflow menu.
+  // The Duo folded in landscape has one button fewer in its bar: Snooze goes into ⋯ there.
   const short = useWindowDimensions().height < 500
+  const opening = useRef(false)
   const { task, session } = item
   const closed = item.band === 'done'
   // Before I start in the timeline starts it when the first look has questions: one Start, there.
@@ -70,6 +70,14 @@ export const TaskToolbar = ({
     void sync?.send({ kind: 'close', taskId: task.id, outcome })
     if (closeAfter && router.canGoBack()) router.back()
   }
+  const snoozes = snoozeTimes().map((t) => (
+    <Stack.Toolbar.MenuAction
+      key={t.label}
+      onPress={() => void sync?.send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() })}
+    >
+      {t.label}
+    </Stack.Toolbar.MenuAction>
+  ))
   return (
     <>
       {/* Each its own item, directly in the toolbar: the native bar ignores fragments inside it. */}
@@ -95,27 +103,20 @@ export const TaskToolbar = ({
           />
         ) : null}
         <Stack.Toolbar.Button icon="checkmark" accessibilityLabel="Mark done" hidden={closed} onPress={() => done('done')} />
-        <Stack.Toolbar.Menu icon="moon" accessibilityLabel="Snooze" title="Snooze" hidden={closed}>
-          {snoozeTimes().map((t) => (
-            <Stack.Toolbar.MenuAction
-              key={t.label}
-              onPress={() => void sync?.send({ kind: 'snooze', taskId: task.id, until: t.until.toISOString() })}
-            >
-              {t.label}
-            </Stack.Toolbar.MenuAction>
-          ))}
+        <Stack.Toolbar.Menu icon="moon" accessibilityLabel="Snooze" title="Snooze" hidden={closed || short}>
+          {snoozes}
         </Stack.Toolbar.Menu>
-        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More" title="More" hidden={closed}>
-          <Stack.Toolbar.MenuAction icon="xmark" destructive onPress={() => done('canceled')}>
+        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More" title="More" hidden={closed && !onTop}>
+          <Stack.Toolbar.Menu icon="moon" title="Snooze" hidden={closed || !short}>
+            {snoozes}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.MenuAction icon="arrow.up.to.line" hidden={!onTop} onPress={() => onTop?.()}>
+            Back to the top
+          </Stack.Toolbar.MenuAction>
+          <Stack.Toolbar.MenuAction icon="xmark" destructive hidden={closed} onPress={() => done('canceled')}>
             Not for me
           </Stack.Toolbar.MenuAction>
         </Stack.Toolbar.Menu>
-        <Stack.Toolbar.Button
-          icon="arrow.up.to.line"
-          accessibilityLabel="Back to the top"
-          hidden={!onTop || short}
-          onPress={() => onTop?.()}
-        />
       </Stack.Toolbar>
       {step && (
         <Stack.Toolbar placement="bottom">
