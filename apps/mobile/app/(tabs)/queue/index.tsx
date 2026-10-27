@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   Alert,
   Animated,
@@ -179,22 +179,26 @@ export default function QueueScreen() {
     // items is read once, when the request comes in.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [wanted, loaded, split])
-  // The open task is a layer over New task: it follows a leftward drag and slides off to the left,
-  // showing New task under it; a short drag springs back. Only a clearly sideways drag: scrolling
-  // the conversation stays the scroll view's. The close button slides it off the same way.
+  // The open task is a layer over New task: it follows a drag to the right, as iOS's own way back,
+  // and slides off to the right, showing New task under it; a short drag springs back. Only a
+  // clearly sideways drag: scrolling the conversation stays the scroll view's. The close button
+  // slides it off the same way. It stays off screen until the layer is gone, and is put back before
+  // the next task paints, so the old position never shows.
   const [slide] = useState(() => new Animated.Value(0))
   const slideAway = () =>
-    Animated.timing(slide, { toValue: -width, duration: 220, useNativeDriver: true }).start(() => {
-      setSelected(null)
-      slide.setValue(0)
+    Animated.timing(slide, { toValue: width, duration: 220, useNativeDriver: true }).start(({ finished }) => {
+      if (finished) setSelected(null)
     })
+  useLayoutEffect(() => {
+    slide.setValue(0)
+  }, [selected, slide])
   const swipeAway = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponderCapture: (_, g) => g.dx < -16 && Math.abs(g.dx) > 2.5 * Math.abs(g.dy),
-        onPanResponderMove: (_, g) => slide.setValue(Math.min(0, g.dx)),
+        onMoveShouldSetPanResponderCapture: (_, g) => g.dx > 16 && Math.abs(g.dx) > 2.5 * Math.abs(g.dy),
+        onPanResponderMove: (_, g) => slide.setValue(Math.max(0, g.dx)),
         onPanResponderRelease: (_, g) => {
-          if (g.dx < -100 || g.vx < -0.6) slideAway()
+          if (g.dx > 100 || g.vx > 0.6) slideAway()
           else Animated.spring(slide, { toValue: 0, useNativeDriver: true }).start()
         },
         onPanResponderTerminate: () => Animated.spring(slide, { toValue: 0, useNativeDriver: true }).start(),
@@ -426,7 +430,7 @@ export default function QueueScreen() {
           >
             {list}
           </View>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, overflow: 'hidden' }}>
             <NewTask
               onDone={() => undefined}
               edges={['right']}
