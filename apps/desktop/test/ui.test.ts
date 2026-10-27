@@ -57,6 +57,11 @@ describe('the Mac app window', () => {
 
     // Something already in Needs me, which the window must not jump to once the new task runs.
     asking('Book the team offsite', 0)
+    // And something to triage under it, so Needs me shows both parts.
+    server.service.createTask(
+      CreateTask.parse({ idempotencyKey: 'ui-create-triage', title: 'Look at the new vendor', start: false }),
+      'owner',
+    )
     await expect.poll(() => page.getByRole('option', { name: /Book the team offsite/ }).count()).toBe(1)
     await page.getByRole('button', { name: 'New task' }).click()
     await page.getByLabel('Title').fill('Decide on prompt caching for agent-service')
@@ -96,6 +101,9 @@ describe('the Mac app window', () => {
     await expect
       .poll(() => server.service.getTask(task.id).updates.map((u) => `${u.author}/${u.kind}`))
       .toEqual(['session/decision', 'owner/instruction'])
+    // Answered, it runs and so leaves Needs me, but stays open where it was, so you see the answer land.
+    await expect.poll(() => page.locator('.entry').filter({ hasText: 'Opus only' }).count()).toBeGreaterThan(0)
+    expect(await page.getByRole('heading', { level: 2, name: 'Decide on prompt caching for agent-service' }).count()).toBe(1)
     await expect.poll(() => page.getByRole('heading', { name: 'Needs me' }).isVisible()).toBe(true)
 
     await page.setViewportSize({ width: 700, height: 900 })
@@ -104,6 +112,29 @@ describe('the Mac app window', () => {
     await shot('beside-claude-list')
     await page.setViewportSize({ width: 1440, height: 900 })
   }, 60_000)
+
+  it('keeps a task you answer open in Needs me, so you see the answer land', async () => {
+    asking('Pick the venue', 7)
+    asking('Pick the caterer', 8)
+    await needsMe()
+    await page.getByRole('option', { name: /Pick the venue/ }).click()
+    await page.getByLabel('Reply to Autopilot').fill('The one by the canal')
+    await page.keyboard.press('Meta+Enter')
+    await expect.poll(() => page.locator('.entry').filter({ hasText: 'The one by the canal' }).count()).toBeGreaterThan(0)
+    expect(await page.getByRole('option', { name: /Pick the venue/, selected: true }).count()).toBe(1)
+  }, 30_000)
+
+  it('keeps it open too when it was opened under another tab and is still there', async () => {
+    asking('Pick the photographer', 9)
+    await tab('All open').click()
+    await page.getByRole('option', { name: /Pick the photographer/ }).click()
+    await needsMe()
+    await page.getByLabel('Reply to Autopilot').fill('The one from last year')
+    await page.keyboard.press('Meta+Enter')
+    await expect.poll(() => page.locator('.entry').filter({ hasText: 'The one from last year' }).count()).toBeGreaterThan(0)
+    // Still listed where it was, and still the one open.
+    expect(await page.getByRole('option', { name: /Pick the photographer/, selected: true }).count()).toBe(1)
+  }, 30_000)
 
   it('closes the open task when moving to a list without it', async () => {
     server.service.createTask(CreateTask.parse({ idempotencyKey: 'ui-create-2', title: 'Renew the office lease', start: false }), 'owner')

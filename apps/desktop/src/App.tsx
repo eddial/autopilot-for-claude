@@ -166,27 +166,19 @@ export const App = () => {
     document.body.dataset.connection = connection
   }, [connection])
 
-  // What the tab lists without the task kept in place, and, for picking one, where each sits.
+  // What the tab lists without the task kept in place.
   const inTab = useMemo(() => tabItems(tab, items, done, all), [tab, items, done, all])
-  const where = useRef({ tab, all, ids: [] as string[] })
-  useEffect(() => {
-    where.current = { tab, all, ids: inTab.map((i) => i.task.id) }
-  }, [tab, all, inTab])
 
   // Stable, so list rows that did not change skip rendering. A task opened for you (just created,
   // from a notification) stays open in the tab you are on even when it belongs to another, as an
   // answered one does, until you move on: the first of the tab took its place before.
   const openTask = useCallback((id: string) => {
-    const { tab: on, all: every, ids } = where.current
-    setStay({ id, tab: on, all: every, at: Math.max(0, ids.indexOf(id)) })
     setView({ kind: 'task' })
     setSelected(id)
     setShowingTask(true)
   }, [])
   // Picking a task from the list while a place (Settings, New task) is open goes back to tasks.
   const selectTask = useCallback((id: string) => {
-    const { tab: on, all: every, ids } = where.current
-    setStay({ id, tab: on, all: every, at: Math.max(0, ids.indexOf(id)) })
     setSelected(id)
     setView((v) => (v.kind === 'task' ? v : { kind: 'task' }))
   }, [])
@@ -253,6 +245,20 @@ export const App = () => {
   }, [travel])
   const held = useHeldKey()
 
+  // The open task's place in the tab you see it in, however it got there (picked, opened for you,
+  // back and forward, or kept open as you changed tab). Set while rendering, not after: the list
+  // would otherwise open its first task in the task's place before the place is known.
+  if (selected && !(stay?.id === selected && stay.tab === tab && stay.all === all)) {
+    setStay({
+      id: selected,
+      tab,
+      all,
+      at: Math.max(
+        0,
+        inTab.findIndex((i) => i.task.id === selected),
+      ),
+    })
+  }
   // The open task stays where it was in its tab after it leaves it (you answered, so it runs), so
   // you see your reply land; it goes when you move on or change tab.
   const lingering =
