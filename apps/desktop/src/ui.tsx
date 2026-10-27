@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
 import { parseMarkdown, workstreamMark, type Inline } from '@autopilot/client'
-import { claude, MARKS, pilot, space, type Mark, type Space, type Tone } from '@autopilot/design'
+import { claude, MARKS, pilot, space, tumbleweed, type Mark, type Space, type Tone } from '@autopilot/design'
 
 /**
  * The window's building blocks. Screens compose these and lay themselves out with classes from
@@ -550,6 +550,17 @@ export const FlyingPilot = () => (
     <span className="cloud three" />
     <span className="flying">
       <Pilot pixel={4} />
+    </span>
+  </div>
+)
+
+/** A faint tumbleweed rolling and hopping across an empty list now and then; still when motion is reduced. */
+export const Tumbleweed = () => (
+  <div className="tumble" aria-hidden="true">
+    <span className="tumble-weed">
+      <span className="tumble-spin">
+        <Mascot art={tumbleweed} pixel={2} label="" />
+      </span>
     </span>
   </div>
 )

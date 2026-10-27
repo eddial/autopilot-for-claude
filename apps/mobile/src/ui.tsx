@@ -12,11 +12,12 @@ import {
   View,
   type StyleProp,
   type ViewStyle,
+  useWindowDimensions,
 } from 'react-native'
-import { claude, colours, fonts, MARKS, pilot, radius, shapes, space, tones, type Mark, type Tone } from '@autopilot/design'
+import { claude, colours, fonts, MARKS, pilot, radius, shapes, space, tones, tumbleweed, type Mark, type Tone } from '@autopilot/design'
 import Svg, { Circle, Path } from 'react-native-svg'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
+import { SafeAreaProvider, SafeAreaView, useSafeAreaFrame, useSafeAreaInsets, type Metrics } from 'react-native-safe-area-context'
 import { emptyWords, linkKind, parseMarkdown, workstreamMark, type Inline, type LinkKind } from '@autopilot/client'
 
 /**
@@ -144,6 +145,20 @@ export const Avatar = ({ who }: { who: Who }) => {
  * inner one in landscape, the vertical bar takes the hardware edge. Top and bottom are the scroll
  * view's (contentInsetAdjustmentBehavior); the sides are measured where this view sits.
  */
+// The last insets measured for each place a Sides sits (its edges, in this window size), so the
+// next one starts from them: a task opened beside the list would otherwise draw a frame without the
+// Duo's bar, its composer too wide, then shrink.
+const measured = new Map<string, Metrics>()
+
+const Remember = ({ place }: { place: string }) => {
+  const insets = useSafeAreaInsets()
+  const frame = useSafeAreaFrame()
+  useEffect(() => {
+    measured.set(place, { insets, frame })
+  }, [place, insets, frame])
+  return null
+}
+
 export const Sides = ({
   children,
   colour,
@@ -153,15 +168,20 @@ export const Sides = ({
   colour?: string
   /** The screen edges this view touches: the split's list column only the left, its task only the right. */
   edges?: ('left' | 'right')[]
-}) => (
-  // Its own provider, measured where the screen is: iOS puts the Duo's bar inside the window in
-  // split view and reports it in the screen's safe area, which the app's root provider never sees.
-  <SafeAreaProvider style={[styles.sides, colour ? { backgroundColor: colour } : null]}>
-    <SafeAreaView edges={edges} style={styles.sides}>
-      {children}
-    </SafeAreaView>
-  </SafeAreaProvider>
-)
+}) => {
+  const { width, height } = useWindowDimensions()
+  const place = `${edges.join(',')}:${width}x${height}`
+  return (
+    // Its own provider, measured where the screen is: iOS puts the Duo's bar inside the window in
+    // split view and reports it in the screen's safe area, which the app's root provider never sees.
+    <SafeAreaProvider style={[styles.sides, colour ? { backgroundColor: colour } : null]} initialMetrics={measured.get(place) ?? null}>
+      <Remember place={place} />
+      <SafeAreaView edges={edges} style={styles.sides}>
+        {children}
+      </SafeAreaView>
+    </SafeAreaProvider>
+  )
+}
 
 const Inlines = ({ inlines, onLink }: { inlines: Inline[]; onLink: (url: string) => void }) =>
   inlines.map((n, i) => {
@@ -645,25 +665,68 @@ export const FlyingPilot = () => {
   )
 }
 
+/** A faint tumbleweed rolling and hopping across an empty list, every few seconds; still when motion is reduced. */
+export const Tumbleweed = () => {
+  const [width, setWidth] = useState(0)
+  const [still, setStill] = useState(false)
+  const [t] = useState(() => new Animated.Value(0))
+  useEffect(() => {
+    void AccessibilityInfo.isReduceMotionEnabled().then(setStill)
+  }, [])
+  useEffect(() => {
+    if (!width || still) return
+    const run = Animated.loop(
+      Animated.sequence([
+        Animated.timing(t, { toValue: 1, duration: 6500, easing: Easing.linear, useNativeDriver: true }),
+        Animated.delay(3000),
+        Animated.timing(t, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ]),
+    )
+    run.start()
+    return () => run.stop()
+  }, [t, width, still])
+  return (
+    <View
+      style={styles.tumble}
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <View style={styles.tumbleGround} />
+      <Animated.View
+        style={[
+          styles.weed,
+          still
+            ? { left: width / 2 - 20 }
+            : {
+                transform: [
+                  { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [-48, width + 8] }) },
+                  {
+                    translateY: t.interpolate({
+                      inputRange: [0, 0.14, 0.28, 0.42, 0.56, 0.7, 0.84, 1],
+                      outputRange: [0, -10, 0, -6, 0, -8, 0, -4],
+                    }),
+                  },
+                  { rotate: t.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '900deg'] }) },
+                ],
+              },
+        ]}
+      >
+        <Mascot art={tumbleweed} pixel={2.5} label="" />
+      </Animated.View>
+    </View>
+  )
+}
+
 /**
  * An empty tab: the flying pilot with what the emptiness means. `quiet` when New task is beside it
  * (the split), which then carries the pilot: one line here, so the screen has one pilot, not two.
  */
 export const EmptyList = ({ view, quiet = false }: { view: string | null; quiet?: boolean }) => {
   const words = emptyWords(view)
-  // Beside New task, which says it in words: only the shape of an empty list, rows that are not
-  // there, fading out. Hidden from VoiceOver, which hears the words beside it.
-  if (quiet)
-    return (
-      <View style={styles.ghosts} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        {[0.55, 0.32, 0.16].map((opacity, i) => (
-          <View key={i} style={[styles.ghost, { opacity }]}>
-            <View style={[styles.ghostBar, { width: ['72%', '58%', '66%'][i] as `${number}%` }]} />
-            <View style={[styles.ghostBar, styles.ghostShort]} />
-          </View>
-        ))}
-      </View>
-    )
+  // Beside New task, which says it in words: a tumbleweed rolls across the empty list, and that is
+  // all. Hidden from VoiceOver, which hears the words beside it.
+  if (quiet) return <Tumbleweed />
   return (
     <View style={styles.emptyList}>
       <FlyingPilot />
@@ -748,10 +811,9 @@ const styles = StyleSheet.create({
   flying: { position: 'absolute', top: 26, left: 68 },
   emptyTitle: { fontFamily: fonts.serifNative, fontSize: 22, color: colours.text },
   emptyLine: { marginTop: 6, fontSize: 15, lineHeight: 21, textAlign: 'center', color: colours.text3, maxWidth: 300 },
-  ghosts: { marginHorizontal: GUTTER, marginTop: 16, gap: 8 },
-  ghost: { ...shaped('row'), backgroundColor: 'transparent', padding: 14, gap: 8 },
-  ghostBar: { height: 10, borderRadius: 5, backgroundColor: colours.border },
-  ghostShort: { width: '34%' },
+  tumble: { height: 76, marginTop: 24, marginHorizontal: GUTTER, overflow: 'hidden' },
+  tumbleGround: { position: 'absolute', left: 0, right: 0, bottom: 4, height: StyleSheet.hairlineWidth, backgroundColor: colours.border },
+  weed: { position: 'absolute', bottom: 5, left: 0, opacity: 0.6 },
   button: { paddingHorizontal: space[6], paddingVertical: 9, borderRadius: radius.md, alignSelf: 'flex-start' },
   buttonText: { fontSize: 15, color: colours.text },
   pilotRow: { flexDirection: 'row' },

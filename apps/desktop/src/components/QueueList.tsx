@@ -7,7 +7,7 @@ import { useDraft } from '../drafts.ts'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
 import { ALL_OPEN, QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
-import { Banner, Bars, Button, Icon, WorkstreamMark, NavIcon, FlyingPilot, SearchIcon, type NavIconName } from '../ui.tsx'
+import { Banner, Bars, Button, Icon, WorkstreamMark, NavIcon, FlyingPilot, Tumbleweed, SearchIcon, type NavIconName } from '../ui.tsx'
 
 type Props = {
   tab: QueueView
@@ -60,18 +60,8 @@ const Arrow = ({ dir }: { dir: 'up' | 'down' }) => (
  */
 const EmptyList = ({ tab, quiet }: { tab: QueueView | null; quiet: boolean }) => {
   const words = emptyWords(tab)
-  // Beside New task, which says it in words: only the shape of an empty list, fading out.
-  if (quiet)
-    return (
-      <div className="ghosts" aria-hidden="true">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="ghost">
-            <span className="ghost-bar" />
-            <span className="ghost-bar short" />
-          </div>
-        ))}
-      </div>
-    )
+  // Beside New task, which says it in words: a tumbleweed rolls across the empty list, and that is all.
+  if (quiet) return <Tumbleweed />
   return (
     <div className="empty-list">
       <FlyingPilot />

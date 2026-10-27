@@ -182,6 +182,25 @@ export const pilot = {
   } as Record<string, string>,
 } as const
 
+/** A tumbleweed, rolling across a list with nothing in it: greyscale, faint. 16×12. */
+export const tumbleweed = {
+  rows: [
+    '.....tTTt.......',
+    '...tT.t..Tt.....',
+    '..T..tTTt..T....',
+    '.t.TT....tT.t...',
+    '.T.t..TT..t.T...',
+    'T.T..T..T..T.t..',
+    '.T.t..TT..t.T...',
+    '.t.Tt....tT.t...',
+    '..T..tTTt..T....',
+    '...tT.t..Tt.....',
+    '.....tTTt.......',
+    '................',
+  ],
+  colours: { T: colours.text3, t: colours.muted } as Record<string, string>,
+} as const
+
 /** Claude's own pixel mascot, in clay, for what a Claude session did. 16×8. */
 export const claude = {
   rows: [
