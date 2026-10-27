@@ -64,7 +64,7 @@ const matches = (item: QueueItem, filter: string): boolean =>
     })
 
 /** The title's line, and the tab bar's: what edgeSpace centres on the edge line. */
-const TITLE_HEIGHT = 34
+const TITLE_HEIGHT = 30
 const TABS_HEIGHT = 40
 
 /** Regular width (the Duo's inner display full screen): list and task side by side. */
@@ -211,17 +211,6 @@ export default function QueueScreen() {
     // In the split the list is the left column: the right edge's inset (the Duo's bar) is the task's.
     <Sides edges={split ? ['left'] : undefined}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {/* The same column as on the Mac: search, then the tabs, then the sections. */}
-        {/* The title level with the camera beside it, as the tabs are with the last button. */}
-        <View style={{ paddingTop: Math.max(headerHeight + 8, edgeSpace(TITLE_HEIGHT)), gap: 4 }}>
-          <Text style={[type.heading, styles.heading]} numberOfLines={1}>
-            {all ? 'All open' : current?.title}
-          </Text>
-          <Text style={styles.caption} numberOfLines={1}>
-            {all ? 'Every open task, across workstreams' : current?.about}
-          </Text>
-          <StatusLine />
-        </View>
         <SectionList
           style={{ flex: 1 }}
           sections={sections}
@@ -229,6 +218,19 @@ export default function QueueScreen() {
           stickySectionHeadersEnabled={false}
           refreshControl={<RefreshControl refreshing={false} tintColor={colours.text3} onRefresh={() => void sync?.syncOnce(0)} />}
           keyboardDismissMode="on-drag"
+          ListFooterComponent={<BottomRoom beside={split} />}
+          // The tab's name and what it holds scroll with the list, in the same plane as its rows.
+          ListHeaderComponent={
+            <View style={{ paddingTop: Math.max(headerHeight + 8, edgeSpace(TITLE_HEIGHT)), gap: 4 }}>
+              <Text style={[type.title, styles.heading]} numberOfLines={1}>
+                {all ? 'All open' : current?.title}
+              </Text>
+              <Text style={styles.caption} numberOfLines={1}>
+                {all ? 'Every open task, across workstreams' : current?.about}
+              </Text>
+              <StatusLine />
+            </View>
+          }
 
           ListEmptyComponent={
             filter || (view === 'done' && done === null) || (status !== 'online' && view === 'needs_me' && items.length === 0) ? (
@@ -247,11 +249,11 @@ export default function QueueScreen() {
             const shut = folded.has(section.name)
             return (
               <View>
-                {/* Triage, under Needs me: its name and what it holds, as the screen's title has. */}
+                {/* Triage, under Needs me: its name and what it holds, set as the tab's own title is. */}
                 {section.part && (
                   <View style={styles.part}>
-                    <Text style={styles.partTitle}>{section.part.title}</Text>
-                    <Text style={styles.partAbout} numberOfLines={2}>
+                    <Text style={[type.title, styles.heading]}>{section.part.title}</Text>
+                    <Text style={styles.caption} numberOfLines={2}>
                       {section.part.about}
                     </Text>
                   </View>
@@ -390,11 +392,19 @@ export default function QueueScreen() {
  * The tabs, on the bottom line: read inside Sides, which measures where this screen's bars are.
  * Beside a task (the split) their bottom edge lines up with the composer's instead.
  */
-const BottomRow = ({ beside, children }: { beside: boolean; children: ReactNode }) => {
+const useBottomRowGap = (beside: boolean) => {
   const centred = useBottomGap(TABS_HEIGHT)
   const withComposer = useBottomGap(COMPOSER_BAR)
-  return <View style={{ marginBottom: beside ? withComposer : centred }}>{children}</View>
+  return beside ? withComposer : centred
 }
+
+/** The tabs float over the list's end, so rows scroll on under them and no strip cuts the list off. */
+const BottomRow = ({ beside, children }: { beside: boolean; children: ReactNode }) => (
+  <View style={{ position: 'absolute', left: 0, right: 0, bottom: useBottomRowGap(beside) }}>{children}</View>
+)
+
+/** Room at the end of the list for the tabs floating over it, so the last row can scroll clear. */
+const BottomRoom = ({ beside }: { beside: boolean }) => <View style={{ height: useBottomRowGap(beside) + TABS_HEIGHT + 16 }} />
 
 const Row = ({
   item,
@@ -461,9 +471,7 @@ const BAND_SYMBOL: Record<QueueItem['band'], SFSymbol> = {
 }
 
 const styles = StyleSheet.create({
-  part: { gap: 2, paddingHorizontal: GUTTER, paddingTop: 22, paddingBottom: 2 },
-  partTitle: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', color: colours.text2 },
-  partAbout: { fontSize: 13, color: colours.text3 },
+  part: { gap: 4, paddingTop: 28, paddingBottom: 2 },
   rowLabel: { color: colours.pilotSoft, fontWeight: '500' },
   heading: { marginHorizontal: GUTTER },
   caption: { marginHorizontal: GUTTER, fontSize: 13, color: colours.text3 },
