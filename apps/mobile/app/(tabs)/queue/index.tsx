@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   Alert,
+  Animated,
   KeyboardAvoidingView,
   Platform,
   PanResponder,
@@ -178,17 +179,29 @@ export default function QueueScreen() {
     // items is read once, when the request comes in.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [wanted, loaded, split])
-  // A sideways swipe across the open task closes it, back to New task beside the list. Only a
-  // clearly sideways drag: scrolling the conversation stays the scroll view's.
+  // The open task is a layer over New task: it follows a leftward drag and slides off to the left,
+  // showing New task under it; a short drag springs back. Only a clearly sideways drag: scrolling
+  // the conversation stays the scroll view's. The close button slides it off the same way.
+  const [slide] = useState(() => new Animated.Value(0))
+  const slideAway = () =>
+    Animated.timing(slide, { toValue: -width, duration: 220, useNativeDriver: true }).start(() => {
+      setSelected(null)
+      slide.setValue(0)
+    })
   const swipeAway = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dx) > 24 && Math.abs(g.dx) > 2.5 * Math.abs(g.dy),
+        onMoveShouldSetPanResponderCapture: (_, g) => g.dx < -16 && Math.abs(g.dx) > 2.5 * Math.abs(g.dy),
+        onPanResponderMove: (_, g) => slide.setValue(Math.min(0, g.dx)),
         onPanResponderRelease: (_, g) => {
-          if (Math.abs(g.dx) > 80) setSelected(null)
+          if (g.dx < -100 || g.vx < -0.6) slideAway()
+          else Animated.spring(slide, { toValue: 0, useNativeDriver: true }).start()
         },
+        onPanResponderTerminate: () => Animated.spring(slide, { toValue: 0, useNativeDriver: true }).start(),
       }),
-    [],
+    // slideAway reads width when it runs.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+    [slide, width],
   )
   const selectedItem = split && selected ? (items.find((i) => i.task.id === selected) ?? doneItem(selected)) : undefined
   const at = selected ? order.indexOf(selected) : -1
@@ -376,7 +389,7 @@ export default function QueueScreen() {
           closeAfter={false}
           onTop={() => pageTop.current?.()}
           onNew={narrow ? () => setSelected(null) : undefined}
-          onClose={() => setSelected(null)}
+          onClose={slideAway}
         />
       ) : (
         // Settings at the top: the phone has none of its own (sources and workstreams are the Mac's), just your Mac:
@@ -414,19 +427,23 @@ export default function QueueScreen() {
             {list}
           </View>
           <View style={{ flex: 1 }}>
-            {selectedItem ? (
-              <View style={{ flex: 1 }} {...swipeAway.panHandlers}>
+            <NewTask
+              onDone={() => undefined}
+              edges={['right']}
+              autoFocus={false}
+              clear={
+                !selectedItem && sections.length === 0 && !filter && !(view === 'done' && done === null)
+                  ? emptyWords(all ? null : view).title
+                  : undefined
+              }
+            />
+            {selectedItem && (
+              <Animated.View
+                style={[StyleSheet.absoluteFill, { backgroundColor: colours.well, transform: [{ translateX: slide }] }]}
+                {...swipeAway.panHandlers}
+              >
                 <TaskView key={selectedItem.task.id} item={selectedItem} edges={['right']} onTop={toTop} />
-              </View>
-            ) : (
-              <NewTask
-                onDone={() => undefined}
-                edges={['right']}
-                autoFocus={false}
-                clear={
-                  sections.length === 0 && !filter && !(view === 'done' && done === null) ? emptyWords(all ? null : view).title : undefined
-                }
-              />
+              </Animated.View>
             )}
           </View>
         </View>
