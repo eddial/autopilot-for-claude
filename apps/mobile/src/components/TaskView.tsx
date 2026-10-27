@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react'
-import { Keyboard, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Keyboard, LayoutAnimation, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import {
   filedBy,
   firstLookQuestions,
@@ -78,6 +78,8 @@ export const TaskView = ({
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null)
   useEffect(() => onTop?.(() => scroll.current?.scrollTo({ y: 0, animated: true })), [onTop])
   const pinned = useRef(true)
+  // Opening lands at the end at once; after that the page glides there with the entries' animation.
+  const landed = useRef(false)
   // Where the title ends on the page, and whether it is out of sight (the bar then says it).
   const titleEnd = useRef(0)
   const titleOff = useRef(false)
@@ -120,24 +122,37 @@ export const TaskView = ({
     )
   }
 
+  // An entry keeps its key as it changes shape, so it moves instead of being drawn again: the ask
+  // under its own id, card or not, and your reply under what it answers (or its words) both while
+  // it waits for the Mac and once the Mac has it.
+  const yours = new Set<string>()
+  const ownKey = (key: string, fallback: string) => {
+    if (yours.has(key)) return fallback
+    yours.add(key)
+    return key
+  }
+  const keyOf = (u: Update) => (u.author !== 'owner' ? u.id : ownKey(u.answers ? `you:${u.answers}` : `you:${u.body}`, u.id))
+  // The session's newest words stay open after you answer them; only older ones fold.
+  const newest = [...activity].reverse().find((u) => u.author !== 'owner' && u.kind !== 'event')
+
   // From how it began to where it stands now, read downwards like a conversation.
   const entries = [
     <Entry key="created" label={createdText(task)} by={null} at={shortDate(task.createdAt)} who={task.createdBy} body="" event />,
     ...activity.map((u) =>
       u.kind === 'event' ? (
-        <Entry key={u.id} label={updateLabel(u)} by={null} at={age(u.createdAt)} who={u.author} body={eventText(u)} event>
+        <Entry key={keyOf(u)} label={updateLabel(u)} by={null} at={age(u.createdAt)} who={u.author} body={eventText(u)} event>
           <Links update={u} />
         </Entry>
       ) : (
         <Entry
-          key={u.id}
+          key={keyOf(u)}
           label={updateLabel(u)}
           by={updateAuthor(u)}
           at={age(u.createdAt)}
           who={u.author}
           body={u.body}
           // The newest shows in full; older long ones fold.
-          folds={u !== activity.at(-1) || ask !== null || asking}
+          folds={u !== newest || ask !== null || asking}
         >
           <Links update={u} />
         </Entry>
@@ -146,11 +161,14 @@ export const TaskView = ({
     ...pending.flatMap((p) => {
       const { command } = p
       const words = pendingText(command) ?? (command.kind === 'answer' ? options.find((o) => o.id === command.optionId)?.label : undefined)
-      return words ? [<Entry key={p.id} label="You" by={null} at="waiting to reach your Mac" who="owner" body={words} sending />] : []
+      const key = command.kind === 'answer' ? `you:${command.updateId}` : command.kind === 'instruct' ? `you:${command.body}` : p.id
+      return words
+        ? [<Entry key={ownKey(key, p.id)} label="You" by={null} at="waiting to reach your Mac" who="owner" body={words} sending />]
+        : []
     }),
     // Where it stands now: what waits on you, as the last entry with its answers, or the Now line.
     ask ? (
-      <Entry key="ask" label={updateLabel(ask)} by={null} at={age(ask.createdAt)} who={ask.author} body={ask.body} card>
+      <Entry key={ask.id} label={updateLabel(ask)} by={null} at={age(ask.createdAt)} who={ask.author} body={ask.body} card>
         <Links update={ask} />
         {ask.kind === 'done' && (
           <View style={styles.row}>
@@ -188,6 +206,14 @@ export const TaskView = ({
       <Entry key="now" label="Now" by={null} at={nowText(item)} who="now" tone={nowTone(item)} body="" event />
     ),
   ]
+  // When entries come, go or change shape (an answer sent, the card closing, the Mac's copy of
+  // your reply), the page eases into its new layout instead of jumping to it.
+  const shape = `${entries.map((e) => e.key).join('|')}:${ask?.id ?? ''}`
+  const [lastShape, setLastShape] = useState(shape)
+  if (lastShape !== shape) {
+    setLastShape(shape)
+    LayoutAnimation.configureNext(EASE)
+  }
   const refused = conflicts.filter((c) => 'taskId' in c.command && c.command.taskId === task.id)
 
   const files = useFiles(task.id)
@@ -226,7 +252,8 @@ export const TaskView = ({
           }}
           onContentSizeChange={(_, height) => {
             if (!pinned.current) return
-            scroll.current?.scrollToEnd({ animated: false })
+            scroll.current?.scrollToEnd({ animated: landed.current })
+            landed.current = true
             // Jumping to the end sends no scroll event: say where the title is from the sizes.
             showTitle(height - viewport.current)
           }}
@@ -490,6 +517,15 @@ const OtherLinks = ({ update, links }: { update: Update; links: Update['attachme
       )}
     </View>
   ) : null
+
+/** Entries move and resize together; a new one fades in once the rest has nearly settled, so it
+ * never shows over text still moving out of its way. */
+const EASE = {
+  duration: 280,
+  update: { type: LayoutAnimation.Types.easeInEaseOut },
+  create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity, delay: 200, duration: 180 },
+  delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity, duration: 120 },
+}
 
 /** One entry on the rail: a mark in its tone, who and when, and what it says. */
 const Entry = ({
