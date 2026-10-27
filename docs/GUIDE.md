@@ -102,6 +102,9 @@ yours sit in bubbles on the right. The label tells you what an update wants:
 | **Stuck** | The session cannot go on without you; it says why |
 | **Finished** | The work is done: close the task, or ask for more |
 
+Pictures an update attaches, such as screenshots, show as thumbnails: click one to see it large
+(Escape closes it), or on the iPhone tap it and pinch to zoom.
+
 Whatever you type in the reply box goes to the session. If the session has ended, your reply
 starts a new one in the same worktree, which picks up where the last one left off.
 

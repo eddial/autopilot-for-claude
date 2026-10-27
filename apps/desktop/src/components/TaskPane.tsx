@@ -50,6 +50,7 @@ import {
   Tag,
 } from '../ui.tsx'
 import { LinkIcon, Linked, SideLink } from './Links.tsx'
+import { isPicture, Shots } from './Shots.tsx'
 import { BAND_TITLE } from '../view.ts'
 
 type Props = {
@@ -285,17 +286,25 @@ const Body = ({ text, full = false }: { text: string; full?: boolean }) => {
   )
 }
 
-const Attachments = ({ links }: { links: Update['attachments'] }) =>
-  links.length > 0 ? (
-    <div className="attachments">
-      {links.map((a) => (
-        <Button key={a.url} kind="chip" title={a.title} onClick={() => open(a.url)}>
-          <LinkIcon link={a} />
-          <span className="chip-text">{a.title.replace(/^(file|gmail|slack|github|linear|drive):\s*/i, '')}</span>
-        </Button>
-      ))}
-    </div>
-  ) : null
+/** What an update attaches: pictures as thumbnails, the rest as chips. */
+const Attachments = ({ taskId, links }: { taskId: string; links: Update['attachments'] }) => {
+  const others = links.filter((a) => !isPicture(a.url))
+  return (
+    <>
+      <Shots taskId={taskId} links={links.filter((a) => isPicture(a.url))} />
+      {others.length > 0 && (
+        <div className="attachments">
+          {others.map((a) => (
+            <Button key={a.url} kind="chip" title={a.title} onClick={() => open(a.url)}>
+              <LinkIcon link={a} />
+              <span className="chip-text">{a.title.replace(/^(file|gmail|slack|github|linear|drive):\s*/i, '')}</span>
+            </Button>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
 
 /**
  * A new task whose first look has questions: asked here, before the start, so the session begins
@@ -369,7 +378,7 @@ const AskCard = ({ update }: { update: Update }) => {
         {updateLabel(update)} · {age(update.createdAt)}
       </div>
       <Body text={update.body} />
-      <Attachments links={update.attachments} />
+      <Attachments taskId={update.taskId} links={update.attachments} />
       {update.kind === 'done' && (
         <div className="options">
           <Button kind="primary" onClick={() => send({ kind: 'close', taskId: update.taskId, outcome: 'done' })}>
@@ -437,7 +446,7 @@ const Entry = ({ update, latest }: { update: Update; latest: boolean }) => {
         {by ? ` · ${by}` : ''} · {age(update.createdAt)}
       </div>
       {update.author === 'owner' && isPaste(update.body) ? <Pasted text={update.body} /> : <Body text={update.body} full={latest} />}
-      <Attachments links={update.attachments} />
+      <Attachments taskId={update.taskId} links={update.attachments} />
     </li>
   )
 }

@@ -1461,6 +1461,103 @@ button {
   overflow-wrap: anywhere;
 }
 
+/* Pictures an update attaches: thumbnails in a row, captioned, each opening large. */
+.shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.shot-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 168px;
+  margin: 0;
+}
+
+.shot-figure figcaption {
+  font-size: 12px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shot {
+  display: block;
+  width: 168px;
+  height: 112px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--shape-chip-radius);
+  border: 0.5px solid var(--shape-chip-edge);
+  background: var(--shape-chip-fill);
+  cursor: zoom-in;
+}
+
+.shot:hover {
+  border-color: var(--text-3);
+}
+
+.shot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top left;
+}
+
+.shot-empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* A picture opened large, over the window. */
+.shot-large {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  background: var(--scrim);
+  backdrop-filter: blur(14px);
+}
+
+.backdrop {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 32px 32px 0;
+  border: 0;
+  background: none;
+  cursor: zoom-out;
+}
+
+.backdrop img {
+  /* The whole picture in the window, above its caption. */
+  max-width: calc(100vw - 64px);
+  max-height: calc(100vh - 96px);
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 12px 40px var(--shadow);
+}
+
+.shot-large-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 32px 20px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
 .attachments {
   display: flex;
   flex-wrap: wrap;

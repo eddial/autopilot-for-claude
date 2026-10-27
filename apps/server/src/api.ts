@@ -237,7 +237,7 @@ export const createRouter = ({
 
     links: {
       attach: guarded.links.attach.handler(({ input, context }) => service.attachLink(input, authorOf(context.principal))),
-      preview: guarded.links.preview.handler(({ input }) => previewLink(service.task(input.taskId), input.url)),
+      preview: guarded.links.preview.handler(({ input }) => previewLink(service.linkedUrls(input.taskId), input.url)),
     },
 
     watchers: {

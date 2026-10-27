@@ -309,6 +309,15 @@ export class Service {
     }
   }
 
+  /** Everything the task points to: its links, and what its updates attach. */
+  linkedUrls(id: string): Set<string> {
+    const task = this.task(id)
+    const attached = (this.sql("select attachments from updates where task_id = ? and attachments != '[]'").all(id) as Row[]).flatMap((r) =>
+      parse<Link[]>(r.attachments).map((l) => l.url),
+    )
+    return new Set([...task.links.map((l) => l.url), ...attached])
+  }
+
   getTask(id: string): TaskDetail {
     const task = this.task(id)
     const item = this.item(task)

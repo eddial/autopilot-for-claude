@@ -20,6 +20,10 @@ const BUTTON_CLASS = {
   link: 'link',
   /** A link or an attachment. */
   chip: 'chip',
+  /** A picture an update attaches, as a thumbnail that opens it large. */
+  shot: 'shot',
+  /** What sits behind a picture opened large; a click anywhere closes it. */
+  backdrop: 'backdrop',
   icon: 'icon-button',
   /** The round send arrow in a composer. */
   send: 'send',

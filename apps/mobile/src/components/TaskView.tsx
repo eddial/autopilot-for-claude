@@ -29,6 +29,7 @@ import { age, ago, BAND_TITLE } from '../format.ts'
 import { useDraft } from '../drafts.ts'
 import { FileChips, useFiles } from '../files.tsx'
 import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
+import { isPicture, Shots } from './Shots.tsx'
 import { colours, radius, tones, type Tone } from '@autopilot/design'
 import {
   Avatar,
@@ -456,10 +457,18 @@ const BAND_TONE: Record<QueueItem['band'], Tone> = {
   done: 'quiet',
 }
 
-const Links = ({ update }: { update: Update }) =>
-  update.attachments.length > 0 ? (
+/** What an update attaches: pictures as thumbnails, the rest as chips or rows. */
+const Links = ({ update }: { update: Update }) => (
+  <>
+    <Shots taskId={update.taskId} links={update.attachments.filter((a) => isPicture(a.url))} />
+    <OtherLinks update={update} links={update.attachments.filter((a) => !isPicture(a.url))} />
+  </>
+)
+
+const OtherLinks = ({ update, links }: { update: Update; links: Update['attachments'] }) =>
+  links.length > 0 ? (
     <View style={styles.row}>
-      {update.attachments.map((a) =>
+      {links.map((a) =>
         // A file on the Mac cannot open here: it reads in place instead.
         a.url.startsWith('file:') ? (
           <View key={a.url} style={styles.fullWidth}>

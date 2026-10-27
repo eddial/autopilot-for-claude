@@ -1,6 +1,7 @@
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { CreateTask, PostUpdate } from '@autopilot/contracts'
 import { startTestServer, type TestServer } from '@autopilot/testkit'
 import { chromium, type Browser, type Page } from 'playwright-core'
@@ -134,6 +135,37 @@ describe('the Mac app window', () => {
     await expect.poll(() => page.locator('.entry').filter({ hasText: 'The one from last year' }).count()).toBeGreaterThan(0)
     // Still listed where it was, and still the one open.
     expect(await page.getByRole('option', { name: /Pick the photographer/, selected: true }).count()).toBe(1)
+  }, 30_000)
+
+  it('shows the pictures an update attaches, and opens one large', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ap-shot-'))
+    // The smallest PNG there is: one transparent pixel.
+    writeFileSync(
+      join(dir, 'shot.png'),
+      Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64'),
+    )
+    const task = asking('Look at the screenshots', 10)
+    server.service.postUpdate(
+      PostUpdate.parse({
+        idempotencyKey: 'ui-shot-1',
+        taskId: task.id,
+        kind: 'review',
+        body: 'Screenshots are in.',
+        attachments: [{ url: pathToFileURL(join(dir, 'shot.png')).href, title: 'Screenshot: the new node' }],
+      }),
+      'session',
+    )
+    await needsMe()
+    await page.getByRole('option', { name: /Look at the screenshots/ }).click()
+    const thumb = page.getByRole('button', { name: 'Open Screenshot: the new node' })
+    // Drawn, not only placed: the window lets the picture in.
+    await expect.poll(() => thumb.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
+    await shot('pictures')
+    await thumb.click()
+    await expect.poll(() => page.getByRole('dialog', { name: 'Screenshot: the new node' }).count()).toBe(1)
+    await shot('picture-large')
+    await page.keyboard.press('Escape')
+    await expect.poll(() => page.getByRole('dialog', { name: 'Screenshot: the new node' }).count()).toBe(0)
   }, 30_000)
 
   it('closes the open task when moving to a list without it', async () => {

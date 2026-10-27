@@ -145,6 +145,8 @@ export const LinkPreview = z.object({
   text: z.string().nullable(),
   bytes: z.int().min(0),
   truncated: z.boolean(),
+  /** A picture, whole, as a `data:` URL; absent for anything else or one too large. */
+  image: z.string().optional(),
 })
 export type LinkPreview = z.infer<typeof LinkPreview>
 

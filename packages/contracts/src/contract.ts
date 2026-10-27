@@ -201,7 +201,7 @@ export const contract = {
       .meta({ scopes: ['owner', 'session'], ownTask: true })
       .input(AttachLink)
       .output(Task),
-    /** The start of a text file the task links to: what a session made, readable in place. */
+    /** The start of a text file the task links to or an update attaches, or a picture whole: readable in place. */
     preview: base
       .meta({ scopes: [...READERS] })
       .input(PreviewLink)
