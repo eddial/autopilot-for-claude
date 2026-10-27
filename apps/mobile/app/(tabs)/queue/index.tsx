@@ -33,19 +33,7 @@ import {
 } from '../../../src/store.ts'
 import { colours, shapes } from '@autopilot/design'
 import { rowStatus, sectionsOf, type GroupBy } from '@autopilot/client'
-import {
-  Bars,
-  EmptyList,
-  TriageMark,
-  Sides,
-  WorkstreamBadge,
-  COMPOSER_BAR,
-  edgeSpace,
-  GUTTER,
-  shaped,
-  type,
-  useBottomGap,
-} from '../../../src/ui.tsx'
+import { Bars, EmptyList, Sides, WorkstreamBadge, COMPOSER_BAR, edgeSpace, GUTTER, shaped, type, useBottomGap } from '../../../src/ui.tsx'
 
 type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
 const VIEWS: { id: QueueView; title: string; about: string; bands: Band[]; symbol: SFSymbol }[] = [
@@ -422,8 +410,8 @@ const Row = ({
       <Text style={[styles.title, item.unread && { fontWeight: '500' }]} numberOfLines={2}>
         {item.task.title}
       </Text>
-      <Text style={styles.meta} numberOfLines={2}>
-        {rowStatus(item) && <Text style={styles.rowLabel}>{rowStatus(item)}</Text>}
+      <Text style={styles.meta} numberOfLines={1}>
+        {rowStatus(item) && <Text style={[styles.rowLabel, item.band === 'triage' && { color: colours.urgent }]}>{rowStatus(item)}</Text>}
         {rowStatus(item) ? ' · ' : null}
         {rowMeta(item, workstream)}
       </Text>
@@ -431,7 +419,7 @@ const Row = ({
     {/* When, and under it how much it matters, as on the Mac. */}
     <View style={styles.rowEnd}>
       <Text style={styles.meta}>{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</Text>
-      {item.band === 'triage' ? <TriageMark /> : <Bars priority={item.task.priority} listed />}
+      <Bars priority={item.task.priority} listed />
     </View>
   </Pressable>
 )

@@ -40,6 +40,7 @@ import {
   Dot,
   LinkIcon,
   SourceMark,
+  TriageMark,
   Markdown,
   Sides,
   Tag,
@@ -239,7 +240,7 @@ export const TaskView = ({
             <Text style={type.title}>{task.title}</Text>
             <View style={styles.row}>
               <View style={styles.status}>
-                <Dot tone={BAND_TONE[item.band]} />
+                {item.band === 'triage' ? <TriageMark /> : <Dot tone={BAND_TONE[item.band]} />}
                 <Text style={type.meta}>{BAND_TITLE[item.band]}</Text>
               </View>
               <Tag label={task.workstream} />

@@ -45,6 +45,7 @@ import {
   Meta,
   NavIcon,
   SourceMark,
+  TriageMark,
   Spacer,
   Tag,
 } from '../ui.tsx'
@@ -198,7 +199,7 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
                 {/* Narrow, the properties sit here; wide, in the column on the right (styles.css). */}
                 <div className="props">
                   <span className="prop-text">
-                    <Dot tone={BAND_TONE[item.band]} />
+                    {item.band === 'triage' ? <TriageMark /> : <Dot tone={BAND_TONE[item.band]} />}
                     {BAND_TITLE[item.band]}
                   </span>
                   <Tag>{task.workstream}</Tag>
@@ -727,7 +728,7 @@ const Properties = ({
         {/* Where it stands, said once; what you can do about it is in the buttons above. */}
         <Prop label="Status">
           <span className="prop-text">
-            <Dot tone={BAND_TONE[item.band]} />
+            {item.band === 'triage' ? <TriageMark /> : <Dot tone={BAND_TONE[item.band]} />}
             {BAND_TITLE[item.band]}
           </span>
         </Prop>

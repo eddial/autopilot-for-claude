@@ -7,7 +7,7 @@ import { useDraft } from '../drafts.ts'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
 import { ALL_OPEN, QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
-import { Banner, Bars, Button, Icon, WorkstreamMark, NavIcon, Pilot, SearchIcon, TriageMark, type NavIconName } from '../ui.tsx'
+import { Banner, Bars, Button, Icon, WorkstreamMark, NavIcon, Pilot, SearchIcon, type NavIconName } from '../ui.tsx'
 
 type Props = {
   tab: QueueView
@@ -400,7 +400,7 @@ const RowMeta = ({ item, workstream }: { item: QueueItem; workstream: boolean })
   const meta = rowMeta(item, workstream)
   return (
     <div className="meta">
-      {status && <span className="row-label">{status}</span>}
+      {status && <span className={`row-label${item.band === 'triage' ? ' triage' : ''}`}>{status}</span>}
       {status && meta ? ' · ' : null}
       {meta}
     </div>
@@ -437,16 +437,9 @@ const TaskRow = memo(
       {/* When, and under it how much it matters, as on the task's properties. */}
       <span className="row-end">
         <span className="age">{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</span>
-        {/* In triage, that it waits to be triaged; its priority once it is under way. */}
-        {item.band === 'triage' ? (
-          <span title="Triage">
-            <TriageMark />
-          </span>
-        ) : (
-          <span title={PRIORITY_NAME[item.task.priority]}>
-            <Bars priority={item.task.priority} listed />
-          </span>
-        )}
+        <span title={PRIORITY_NAME[item.task.priority]}>
+          <Bars priority={item.task.priority} listed />
+        </span>
       </span>
     </Button>
   ),

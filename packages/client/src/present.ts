@@ -318,9 +318,11 @@ export const firstLine = (text: string): string => {
 
 /**
  * Where a row stands, before its line, where the tab does not already say: what the ask wants of you
- * (a decision, a review, an answer), and why a task without one is your turn.
+ * (a decision, a review, an answer), why a task without one is your turn, or that it waits to be
+ * triaged. Both apps draw it green, and Triage in orange.
  */
 export const rowStatus = (item: QueueItem): string | null => {
+  if (item.band === 'triage') return 'Triage'
   if (item.band !== 'your_turn') return null
   if (item.openAsk) return updateLabel(item.openAsk)
   if (item.session?.state === 'waiting_permission') return 'Needs a permission'
