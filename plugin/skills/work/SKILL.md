@@ -48,9 +48,11 @@ Do the work up to the point where the owner only has to decide:
   remote. Push to the default branch, force-push or merge only when asked. When the repo is on
   GitHub, open a pull request (a draft unless the owner said otherwise) and `attach_link` it:
   Autopilot then turns on Claude Code's Auto-fix for it, which watches its checks and reviews and
-  pushes fixes in the cloud. When `/autofix-pr` arrives in this session, that is Autopilot doing
-  so: run it, post no update for it, and stop. Merge conflicts it does not catch: rebase on the
-  default branch before you hand over.
+  pushes fixes in the cloud, and adds a watcher for what Auto-fix does not report back (merged,
+  ready to merge, stuck). When `/autofix-pr` arrives in this session, that is Autopilot doing so:
+  run it, post no update for it, and stop. Merge conflicts it does not catch: rebase on the default
+  branch before you hand over. When the owner says to merge once it is ready ("merge when
+  ready"), merge it as soon as it is approved and green, without asking again.
 - **Decision needed** → gather the facts and options; recommend one.
 
 **Where you are.** In a worktree (a branch named after the task), commit there. Otherwise you are
@@ -74,9 +76,9 @@ progress chatter:
 | --- | --- |
 | `decision` | The owner picks between options you can act on; give `options` (id and short label), recommended first |
 | `question` | You need an answer in words |
-| `review` | A draft, document or PR is ready for them to read |
+| `review` | A draft, document or PR is ready for them to read, or a PR waits on their approval or merge |
 | `blocked` | You cannot continue: missing access, a failing tool, an unclear ask |
-| `waiting` | Someone else has to act; use `wait_on` with who and what, and a watcher |
+| `waiting` | Someone else has to act; use `wait_on` with who and what, and a watcher. A PR waiting on the owner is `review`, never `waiting` |
 | `done` | It is finished; say what came out of it |
 | `info` | Only for something worth keeping that needs nothing from them |
 
@@ -93,7 +95,8 @@ post the update.
 ### Watchers
 
 Before handing over as `waiting`, and in `review` when an outside thread may still move, add a
-watcher (a pull request needs none for its checks and reviews: Auto-fix has those) with `add_watcher` (or the `watcher` field of `wait_on`): what to
+watcher (a linked pull request has one already, and Auto-fix sees to its checks and reviews) with `add_watcher` (or the `watcher` field of `wait_on`): what to
 watch and what counts as news, how often (`30m` by default), and until when. News brings the task
 back to you. Look once yourself before you hand over: what you would wait for may already be there
 (the email came in, the reply is posted), and then it is not a wait.
+A watcher reads with the tools the owner's signals use unless you give it its own.

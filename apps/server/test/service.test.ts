@@ -2,7 +2,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { Change, CreateTask, FileItem, PostUpdate } from '@autopilot/contracts'
+import { AttachLink, Change, CreateTask, FileItem, PostUpdate } from '@autopilot/contracts'
 import { backfillMirrors, openDatabase } from '../src/db.ts'
 import { DomainError, Service } from '../src/service.ts'
 
@@ -191,6 +191,18 @@ describe('filing', () => {
     )
     expect(task.links.map((l) => l.url)).toEqual([`file:///files/${task.id}/shot.png`])
     expect(s.pendingOutbox().map((o) => o.kind)).toEqual(['start_session'])
+  })
+
+  it('watches a linked pull request, and keeps its task open when the ticket closes before it merges', () => {
+    const s = setup()
+    const ticket = { id: 'LLE-15000', closed: false }
+    const task = s.createTask(CreateTask.parse({ idempotencyKey: key(), title: 'Fix the retry', start: false, ticket }))
+    const pr = 'https://github.com/acme/app/pull/88'
+    s.attachLink(AttachLink.parse({ idempotencyKey: key(), taskId: task.id, link: { url: pr, title: 'Retry fix (PR #88)' } }))
+    s.attachLink(AttachLink.parse({ idempotencyKey: key(), taskId: task.id, link: { url: pr, title: 'Retry fix (PR #88)' } }))
+    expect(s.watcherRuns().map((r) => r.watcher.what)).toEqual([expect.stringContaining(pr)])
+    s.createTask(CreateTask.parse({ idempotencyKey: key(), title: 'Fix the retry', ticket: { ...ticket, closed: true } }))
+    expect(s.task(task.id).state).toBe('triage')
   })
 
   it('finds tasks closed in the last 30 days, with their state', () => {

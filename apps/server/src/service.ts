@@ -62,6 +62,10 @@ export class DomainError extends Error {
 /** A pull request on GitHub, which Claude Code's Auto-fix can watch. */
 export const isPullRequest = (url: string): boolean => /^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/.test(url)
 
+/** What the watcher a linked pull request gets looks for: what Auto-fix does not report back. */
+export const pullRequestWatch = (url: string): string =>
+  `Pull request ${url}: merged or closed, approved with checks green (ready to merge), or stuck where Auto-fix does not reach`
+
 /** Who is calling, from their token. */
 export type Principal = { tokenId: string; name: string; scope: Scope; taskId: string | null }
 
@@ -815,6 +819,10 @@ export class Service {
       // reviews, so the session asks for it once it is idle.
       if (by === 'session' && task.autofix && isPullRequest(input.link.url) && this.liveSession(task))
         this.enqueue('autofix_pr', { taskId: task.id, url: input.link.url })
+      // And a watcher sees to what Auto-fix does not report back: merged, ready to merge, or stuck.
+      const watched = this.sql('select what from watchers where task_id = ?').all(task.id) as Row[]
+      if (isPullRequest(input.link.url) && !watched.some((w) => str(w.what).includes(input.link.url)))
+        this.insertWatcher(task.id, { what: pullRequestWatch(input.link.url), every: '30m' })
       return this.touch(task, { links: [...task.links, { ...input.link, at: this.iso() }] })
     })
   }
@@ -1008,9 +1016,38 @@ export class Service {
    * A person acted on what the task waits on. With autonomy to start by itself the session picks it
    * up (a live one once idle, else a new one); otherwise it is the owner's turn.
    */
-  watcherNews(id: string, news: { body: string; attachments: Link[]; wake: boolean }): Update {
+  watcherNews(
+    id: string,
+    news: { body: string; attachments: Link[]; wake: boolean; pr?: 'merged' | 'closed' | 'ready' | 'stuck' | '' },
+  ): Update {
     return this.transaction(() => {
       const task = this.task(this.watcherTask(id))
+      // Merged: that pull request is done with. The last one the task waited on closes it.
+      if (news.pr === 'merged') {
+        this.sql('delete from watchers where id = ?').run(id)
+        const others = this.sql('select what from watchers where task_id = ?').all(task.id) as Row[]
+        const last = !others.some((w) => /\/pull\/\d+/.test(str(w.what)))
+        const update = this.insertUpdate(task, {
+          kind: last ? 'done' : 'event',
+          body: last ? `${news.body}\n\nNothing else to wait on, so this is closed.` : news.body,
+          author: 'watcher',
+          attachments: news.attachments,
+        })
+        if (last) this.close(this.task(task.id), 'done')
+        else this.touch(task, {})
+        return update
+      }
+      // Approved and green: only the merge is left, which is the owner's (or their go-ahead's).
+      if (news.pr === 'ready') {
+        const update = this.insertUpdate(task, {
+          kind: 'review',
+          body: `Ready to merge. ${news.body}\n\nSay "merge it" and the session merges it.`,
+          author: 'watcher',
+          attachments: news.attachments,
+        })
+        this.touch(task, { snoozedUntil: null })
+        return update
+      }
       const update = this.insertUpdate(task, {
         kind: news.wake ? 'info' : 'question',
         body: news.wake ? news.body : `${news.body}\n\nStart the task to let the session act on it, or close it.`,
@@ -1026,6 +1063,12 @@ export class Service {
       }
       return update
     })
+  }
+
+  /** Whether a watcher still waits on one of the task's pull requests. */
+  private watchesPullRequest(taskId: string): boolean {
+    const rows = this.sql('select what from watchers where task_id = ?').all(taskId) as Row[]
+    return rows.some((w) => /\/pull\/\d+/.test(str(w.what)))
   }
 
   /** `until` has passed with nothing new: the watcher goes, and a waiting task becomes the owner's call. */
@@ -1097,6 +1140,15 @@ export class Service {
     this.insertUpdate(task, { kind: 'signal', body: add.body, author: add.author, attachments: add.attachments })
     const links = [...task.links, ...add.links.filter((l) => !task.links.some((t) => t.url === l.url))]
     const touched = this.touch(task, { links })
+    // The ticket closed while the task's pull request is still open: the merge closes the task.
+    if (add.ticket?.closed && task.source.mirrors === add.ticket.id && this.watchesPullRequest(task.id)) {
+      this.insertUpdate(touched, {
+        kind: 'event',
+        body: `${add.ticket.id} was closed; the task stays open until its pull request merges.`,
+        author: 'system',
+      })
+      return touched
+    }
     if (add.ticket?.closed && task.source.mirrors === add.ticket.id) {
       this.insertUpdate(touched, { kind: 'done', body: `${add.ticket.id} was closed.`, author: 'system' })
       return this.close(this.task(task.id), 'done')

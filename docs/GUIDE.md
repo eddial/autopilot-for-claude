@@ -135,6 +135,14 @@ merges. It needs the Claude GitHub App on the repository. The task's timeline sa
 went on. To stop it, set **Auto-fix** to Off in the task's properties (it shows once a pull
 request is linked); Autopilot then stops it on each of the task's pull requests.
 
+Every linked pull request also gets a watcher for what Auto-fix does not tell Autopilot: once it
+merges, the task closes; once it is approved and green, the task asks you to merge ("merge it"
+and the session does); when it is stuck where Auto-fix does not reach (conflicts, nobody
+reviewing), the session is woken to sort it out. Tell a session "merge when ready" and it merges
+without asking again. A task whose ticket closes stays open until its pull request merges.
+Watchers read with the tools your signals use, through your connectors; with no signals at all
+they cannot read, and Autopilot says so.
+
 A session lives until its task closes. While it is idle, waiting on you, it takes up none of your
 parallel slots. If you open a session that has ended, Autopilot brings back the same conversation
 with Remote Control, so it never opens as archived.

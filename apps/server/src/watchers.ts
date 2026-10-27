@@ -7,12 +7,17 @@ import type { Paths } from './paths.ts'
 import type { Service } from './service.ts'
 import { durationMs, type RunClaude } from './signals.ts'
 
+/** Where a watched pull request stands, when what is watched is one; "" otherwise. */
+export const PullRequestNews = z.enum(['', 'merged', 'closed', 'ready', 'stuck'])
+export type PullRequestNews = z.infer<typeof PullRequestNews>
+
 /** What one check returns. */
 export const WatcherOutput = z.object({
   fingerprint: z.string(),
   changed: z.boolean(),
   summary: z.string(),
   sources: z.array(z.string()),
+  pr: PullRequestNews,
 })
 
 export type WatchersOptions = {
@@ -82,10 +87,15 @@ export class Watchers {
     }
   }
 
-  /** The tools a watcher reads with: its own, plus those of the signal that filed the task. */
+  /**
+   * The tools a watcher reads with: its own, plus those of the signal that filed the task; with
+   * neither (a task you made, a watcher set without tools), every tool the signals read with.
+   */
   private tools(own: string[], signal: string | null): string[] {
-    const fromSignal = signal ? (readSignals(this.o.paths.home).find((s) => s.name === signal)?.tools ?? []) : []
-    return [...new Set([...own, ...fromSignal])]
+    const signals = readSignals(this.o.paths.home)
+    const fromSignal = signal ? (signals.find((s) => s.name === signal)?.tools ?? []) : []
+    const chosen = [...own, ...fromSignal]
+    return [...new Set(chosen.length > 0 ? chosen : signals.flatMap((s) => s.tools))]
   }
 
   async check(id: string): Promise<void> {
@@ -96,9 +106,15 @@ export class Watchers {
     const tools = this.tools(watcher.tools, task.source.signal)
     if (tools.length === 0) {
       service.watcherChecked(id, null)
-      this.o.log(`watcher ${id} on ${task.id} has no tools to read with`)
+      // Said once where the owner sees it: a watcher that cannot read is no watcher at all.
+      service.openHealth(
+        'watchers-blind',
+        'Watchers have nothing to read with',
+        'No signal reads with any tools, so watchers cannot look at threads, emails or pull requests. Add a signal for each source your connectors reach (Settings → Signals).',
+      )
       return
     }
+    service.closeHealth('watchers-blind', 'Watchers can read again.')
     // A first run also says whether what it watches for is already there: what was set to wait for
     // an email can be set after the email came in. The task's latest updates say what is known.
     const known = fingerprint
@@ -123,8 +139,10 @@ export class Watchers {
         .map((url, i, all) => ({ url, title: sourceTitle(url, all.length > 1 ? i + 1 : null) }))
       // To you, what happened alone; to a session it wakes, also what it was watching for (its own
       // note, ids and all), to know where to look.
-      const wake = autonomy >= 3
-      service.watcherNews(id, { body: wake ? `${watcher.what}: ${result.summary}` : result.summary, attachments, wake })
+      // A pull request stuck where Auto-fix does not reach goes to its session whatever the
+      // autonomy: that is the session's work, not a question for the owner.
+      const wake = result.pr === 'stuck' || (result.pr === '' && autonomy >= 3)
+      service.watcherNews(id, { body: wake ? `${watcher.what}: ${result.summary}` : result.summary, attachments, wake, pr: result.pr })
     }
     service.watcherChecked(id, result.fingerprint)
   }
@@ -144,6 +162,13 @@ export class Watchers {
         '- changed: true when what is watched for happened since the previous fingerprint (a reply, an email that arrived, a new commit or review, a status or decision). On the first run there is no previous fingerprint: true only when what is watched for is already there and the latest updates above do not mention it yet, else false',
         '- summary: when changed, one to three plain sentences for the owner: who did what, and when; say what it means for the task if that is clear. Names, not ids: no channel, user or message ids or timestamps. Else ""',
         '- sources: the URLs of what changed',
+        [
+          '- pr: when what is watched is a pull request, where it stands now, else "". Claude Code Auto-fix already fixes failing checks and answers review comments on it, so do not report those as stuck.',
+          '"merged"; "closed" (closed without merging); "ready" (approved and every check green: only the merge is left);',
+          '"stuck" (it cannot move without work: merge conflicts, no reviewer requested and nobody reviewing, changes requested that nobody has answered for a day, checks failing for over an hour with no new commit);',
+          '"" when none of these, or when nothing changed.',
+        ].join(' '),
+        `Never count ${this.o.owner}'s own messages, comments or reviews as news: they already know what they said.`,
       ].join('\n\n'),
     ].join('\n\n---\n\n')
   }
