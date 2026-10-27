@@ -80,6 +80,8 @@ export const TaskView = ({
   const pinned = useRef(true)
   // Opening lands at the end at once; after that the page glides there with the entries' animation.
   const landed = useRef(false)
+  // Hidden until it has landed at its end, so the top never flashes before the jump.
+  const [shown, setShown] = useState(false)
   // Where the title ends on the page, and whether it is out of sight (the bar then says it).
   const titleEnd = useRef(0)
   const titleOff = useRef(false)
@@ -239,6 +241,7 @@ export const TaskView = ({
       <Sides edges={edges}>
         <ScrollView
           ref={scroll}
+          style={{ opacity: shown ? 1 : 0 }}
           contentContainerStyle={styles.page}
           contentInsetAdjustmentBehavior="automatic"
           keyboardDismissMode="interactive"
@@ -253,6 +256,7 @@ export const TaskView = ({
           onContentSizeChange={(_, height) => {
             if (!pinned.current) return
             scroll.current?.scrollToEnd({ animated: landed.current })
+            if (!landed.current) requestAnimationFrame(() => setShown(true))
             landed.current = true
             // Jumping to the end sends no scroll event: say where the title is from the sizes.
             showTitle(height - viewport.current)

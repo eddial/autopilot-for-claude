@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import {
   Alert,
   Animated,
+  LayoutAnimation,
   KeyboardAvoidingView,
   Platform,
   PanResponder,
@@ -14,6 +15,8 @@ import {
   View,
 } from 'react-native'
 import type { Band, QueueItem } from '@autopilot/contracts'
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
+import * as Haptics from 'expo-haptics'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
 import { router, Stack } from 'expo-router'
 import { useHeaderHeight } from 'expo-router/react-navigation'
@@ -206,6 +209,14 @@ export default function QueueScreen() {
     // oxlint-disable-next-line react-hooks/exhaustive-deps
     [slide, width],
   )
+  // Folded with a task open beside the list: it stays open, on its own screen.
+  useEffect(() => {
+    if (split || !selected) return
+    router.push({ pathname: '/queue/[id]', params: { id: selected, list: order.join(',') } })
+    setSelected(null)
+    // order is read when folding, not a reason to.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [split, selected])
   const selectedItem = split && selected ? (items.find((i) => i.task.id === selected) ?? doneItem(selected)) : undefined
   const at = selected ? order.indexOf(selected) : -1
   const stepTo = (to: string | undefined) => (to ? () => setSelected(to) : null)
@@ -221,34 +232,44 @@ export default function QueueScreen() {
     if (status === 'online' && top) void sync?.prefetch(top.split(','))
   }, [sync, status, top])
 
+  const tabItems = [...VIEWS, { id: 'all' as const, title: 'All open', symbol: 'square.3.layers.3d' as SFSymbol }]
+  const tabOrder: (QueueView | 'all')[] = tabItems.map((v) => v.id)
+  const shown: QueueView | 'all' = all ? 'all' : view
+  // A sideways swipe across the list moves one tab along, as paging through them: left for the next.
+  const pickRef = useRef(pick)
+  pickRef.current = pick
+  const currentRef = useRef(shown)
+  currentRef.current = shown
+  const swipeTabs = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dx) > 24 && Math.abs(g.dx) > 2.5 * Math.abs(g.dy),
+        onPanResponderRelease: (_, g) => {
+          if (Math.abs(g.dx) < 60 && Math.abs(g.vx) < 0.5) return
+          const here = tabOrder.indexOf(currentRef.current)
+          const to = tabOrder[here + (g.dx < 0 ? 1 : -1)]
+          if (!to) return
+          void Haptics.selectionAsync()
+          pickRef.current(to)
+        },
+      }),
+    // The order of the tabs is fixed.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  )
   const tabs = (
-    <View style={styles.tabs} accessibilityRole="tablist">
-      {/* As on the Mac: each status, then All; every tab its symbol and count. In the narrow column
-          (the Duo open upright) only the chosen tab says its count, so the six still breathe. */}
-      {[...VIEWS, { id: 'all' as const, title: 'All open', symbol: 'square.3.layers.3d' as SFSymbol }].map((v) => {
-        const on = v.id === 'all' ? all : !all && v.id === view
-        const count = v.id === 'all' ? openItems.length : counts[v.id]
-        return (
-          <Pressable
-            key={v.id}
-            style={[styles.tab, on && styles.tabOn, narrow && on && { flex: 1.8 }]}
-            onPress={() => pick(v.id)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={count === undefined ? v.title : `${v.title}, ${count}`}
-          >
-            <SymbolView name={v.symbol} size={15} tintColor={on ? colours.text : colours.text3} />
-            {count !== undefined && (on || !narrow) && <Text style={[styles.tabCount, on && { color: colours.text }]}>{count}</Text>}
-          </Pressable>
-        )
-      })}
-    </View>
+    <TabBar
+      items={tabItems.map((v) => ({ id: v.id, title: v.title, symbol: v.symbol, count: v.id === 'all' ? openItems.length : counts[v.id] }))}
+      selected={shown}
+      narrow={narrow}
+      onPick={(id) => pick(id as QueueView | 'all')}
+    />
   )
 
   const list = (
     // In the split the list is the left column: the right edge's inset (the Duo's bar) is the task's.
     <Sides edges={split ? ['left'] : undefined}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} {...swipeTabs.panHandlers}>
         <SectionList
           style={{ flex: 1 }}
           sections={sections}
@@ -456,6 +477,64 @@ export default function QueueScreen() {
   )
 }
 
+type Tab = { id: string; title: string; symbol: SFSymbol; count: number | undefined }
+
+/**
+ * The tabs: each status and All, a symbol and a count, on Liquid Glass where iOS has it. The chosen
+ * one is marked by a lifted pill that slides to it, so switching (a tap, or a swipe across the list)
+ * reads as one movement. In the narrow column only the chosen tab says its count, and is wider.
+ */
+const TabBar = ({ items, selected, narrow, onPick }: { items: Tab[]; selected: string; narrow: boolean; onPick: (id: string) => void }) => {
+  const [frames, setFrames] = useState<Record<string, { x: number; width: number }>>({})
+  const [x] = useState(() => new Animated.Value(0))
+  const [width] = useState(() => new Animated.Value(0))
+  const placed = useRef(false)
+  const frame = frames[selected]
+  useEffect(() => {
+    if (!frame) return
+    if (!placed.current) {
+      placed.current = true
+      x.setValue(frame.x)
+      width.setValue(frame.width)
+      return
+    }
+    Animated.parallel([
+      Animated.spring(x, { toValue: frame.x, useNativeDriver: false, damping: 22, stiffness: 260, mass: 0.8 }),
+      Animated.spring(width, { toValue: frame.width, useNativeDriver: false, damping: 22, stiffness: 260, mass: 0.8 }),
+    ]).start()
+  }, [frame, x, width])
+  const glass = isLiquidGlassAvailable()
+  const Bar = glass ? GlassView : View
+  return (
+    <Bar style={[styles.tabs, glass && styles.tabsGlass]} accessibilityRole="tablist">
+      {frame && <Animated.View pointerEvents="none" style={[styles.tabOn, { left: x, width }]} />}
+      {items.map((v) => {
+        const on = v.id === selected
+        return (
+          <Pressable
+            key={v.id}
+            style={[styles.tab, narrow && on && { flex: 1.8 }]}
+            onLayout={(e) => {
+              const { x: left, width: w } = e.nativeEvent.layout
+              setFrames((all) => (all[v.id]?.x === left && all[v.id]?.width === w ? all : { ...all, [v.id]: { x: left, width: w } }))
+            }}
+            onPress={() => {
+              LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'scaleX'))
+              onPick(v.id)
+            }}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={v.count === undefined ? v.title : `${v.title}, ${v.count}`}
+          >
+            <SymbolView name={v.symbol} size={15} tintColor={on ? colours.text : colours.text3} />
+            {v.count !== undefined && (on || !narrow) && <Text style={[styles.tabCount, on && { color: colours.text }]}>{v.count}</Text>}
+          </Pressable>
+        )
+      })}
+    </Bar>
+  )
+}
+
 /**
  * The tabs, on the bottom line: read inside Sides, which measures where this screen's bars are.
  * Beside a task (the split) their bottom edge lines up with the composer's instead.
@@ -562,8 +641,14 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: shapes.tab.radius,
   },
-  // Lifted off the well, as the Mac's.
+  // On Liquid Glass the bar is the glass itself, no fill of its own.
+  tabsGlass: { backgroundColor: 'transparent', borderRadius: 22 },
+  // Lifted off the well, as the Mac's; it slides from tab to tab.
   tabOn: {
+    position: 'absolute',
+    top: 3,
+    height: 34,
+    borderRadius: shapes.tab.radius,
     backgroundColor: colours[shapes.tab.selected],
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colours[shapes.tab.edge],
