@@ -54,7 +54,8 @@ export const mcpTools: readonly McpTool[] = [
   },
   {
     name: 'create_task',
-    description: 'Create a task. With start true (the default) a Claude Code session starts on it with the brief as its first prompt.',
+    description:
+      'Create a task. With start true (the default) a Claude Code session starts on it with the brief as its first prompt. Pass sourceUrl and ticket when it has them: an open task with the same one gets the brief as an update instead, and comes back with matched true.',
     procedure: ['tasks', 'create'],
     input: noKey(CreateTask),
   },
@@ -109,7 +110,8 @@ export const mcpTools: readonly McpTool[] = [
   },
   {
     name: 'match_items',
-    description: 'Search active tasks before filing, by source URL or a short name.',
+    description:
+      'Search tasks before filing or creating one, by source URL, ticket id or a short name: active tasks, and those closed in the last 30 days with their state.',
     procedure: ['items', 'match'],
     input: MatchItems,
   },

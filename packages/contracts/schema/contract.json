@@ -2216,6 +2216,27 @@
         "start": {
           "default": true,
           "type": "boolean"
+        },
+        "sourceUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "ticket": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+              "description": "Task identifier, e.g. AP-212"
+            },
+            "closed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "id",
+            "closed"
+          ]
         }
       },
       "required": [
@@ -2385,6 +2406,9 @@
               "type": "null"
             }
           ]
+        },
+        "matched": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -5501,7 +5525,8 @@
   "items.match": {
     "meta": {
       "scopes": [
-        "signal"
+        "signal",
+        "session"
       ]
     },
     "input": {

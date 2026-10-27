@@ -26,6 +26,11 @@ For each item:
    - otherwise it belongs there, even when on its own it would be dropped below (a reply, an FYI, a
      document someone sends for it): `update`, `taskId` the task, `note` one to three sentences on
      what is new and what it asks of {{owner}}.
+
+   `match_items` also returns tasks closed in the last 30 days, with their `state` (`done` or
+   `canceled`). An item that matches only a closed task was already handled → `drop`, reason
+   `already done in <task>`, unless it asks for something new; then `create` it and name the closed
+   task in the `summary`.
 3. **Drop** what matches no active task when nobody needs {{owner}} to do, answer or decide
    anything (FYIs, threads they already answered, threads where someone else owns the next step),
    and anything else the signal's rules say not to file.

@@ -15,6 +15,10 @@ export const CreateTask = command({
   links: z.array(Link).default([]),
   /** Start a session with the brief straight away (the default), or leave it in New. */
   start: z.boolean().default(true),
+  /** Where it came from: an open task with the same thread gets the brief as an update instead. */
+  sourceUrl: z.url().optional(),
+  /** The team ticket it mirrors (`LLE-15982`): an open mirror gets the brief as an update instead. */
+  ticket: z.object({ id: TaskId, closed: z.boolean() }).optional(),
 })
 
 export const EditTask = command({
@@ -126,7 +130,7 @@ export const SourceItem = z.object({
   title: z.string().max(120),
   summary: z.string().max(2_000),
   /** A team ticket assigned to the owner: the task mirrors it and closes when it closes. */
-  ticket: z.object({ id: TaskId, closed: z.boolean() }).optional(),
+  ticket: CreateTask.shape.ticket,
 })
 
 export const FileItem = command({

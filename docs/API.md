@@ -32,7 +32,7 @@ Every command takes an `idempotencyKey` and is authorised by scope.
 
 | Command | Scope | Effect |
 | --- | --- | --- |
-| `tasks.create { title, brief, workstream?, priority?, links?, start }` | `owner`, `create`, `session` | Creates a task; `start: true` starts its session with `brief` as the first prompt. Workstream and priority default from routing |
+| `tasks.create { title, brief, workstream?, priority?, links?, start, sourceUrl?, ticket? }` | `owner`, `create`, `session` | Creates a task; `start: true` starts its session with `brief` as the first prompt. Workstream and priority default from routing. When an open task has the same `sourceUrl` or mirrors the same `ticket { id, closed }`, it creates nothing: the brief becomes a `signal` update on that task, which comes back with `matched: true` |
 | `tasks.edit { id, title?, workstream?, priority? }` | `owner` | Changing the workstream re-files it (and teaches routing) |
 | `tasks.start { id }` | `owner` | Triage → Running |
 | `tasks.snooze { id, until }` | `owner` | |
@@ -45,7 +45,7 @@ Every command takes an `idempotencyKey` and is authorised by scope.
 | `sessions.report { taskId, state, activity? }` | `session` (own task) | From the session's Claude Code hooks: working, idle, waiting on a permission prompt, ended. Answers are delivered only when idle |
 | `links.attach { taskId, url, title, subtitle? }` | `owner`, `session` (own) | |
 | `watchers.add { taskId, what, every?, until?, tools? }` / `watchers.remove` | `owner`, `session` (own) | |
-| `items.match { query }` | `signal` | The searches a signal run does before filing |
+| `items.match { queries }` | `signal`, `session` | The searches a signal run or a session does before filing: active tasks, and those closed in the last 30 days with their state |
 | `items.file { item }` | `signal` | Creates a task or adds a `signal` update; logs a `Decision`. An item with `ticket { id, closed }` mirrors a team ticket: one task per ticket, closed when the ticket closes |
 | `routing.decide { proposalId, accept }` | `owner` | Accepting writes the edit into the home files (`CONFLICT` with `version_mismatch` when the file changed since) and closes the proposal's task |
 | `signals.run { name, dryMinutes? }`, `signals.pause` | `owner` | |
@@ -85,7 +85,8 @@ scopes and input schema, is generated into `packages/contracts/schema/mcp-tools.
 | `post_update` | `session` (own task), `watcher` |
 | `attach_link`, `add_watcher`, `wait_on` | `owner`, `session` (own task) |
 | `answer_update`, `start_task`, `snooze_task`, `close_task` | `owner` |
-| `match_items`, `file_item` | `signal` |
+| `match_items` | `signal`, `session` |
+| `file_item` | `signal` |
 
 Sessions get a `session` token for their own task automatically; signal runs get a `signal` token.
 Other agents (Claude Desktop, a Lleverage agent) get a token from Servers → Agents.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CreateTask, FileItem, PostUpdate } from '@autopilot/contracts'
-import { openDatabase } from '../src/db.ts'
+import { backfillMirrors, openDatabase } from '../src/db.ts'
 import { DomainError, Service } from '../src/service.ts'
 
 let n = 0
@@ -155,6 +155,47 @@ describe('filing', () => {
     expect(s.getTask(first.taskId ?? '').band).toBe('done')
     // A closed ticket nobody mirrors is not filed.
     expect(ticket({}, true).action).toBe('dropped')
+  })
+
+  it('gives a task created for a ticket already mirrored to that task instead', () => {
+    const s = setup()
+    const ticket = { id: 'LLE-16513', closed: false }
+    const first = s.createTask(
+      CreateTask.parse({ idempotencyKey: key(), title: 'Choose a production WAF', start: false, ticket }),
+      'session',
+    )
+    const again = s.createTask(
+      CreateTask.parse({ idempotencyKey: key(), title: 'Set up Cloudflare WAF', brief: 'From the standup.', ticket }),
+      'session',
+    )
+    expect(again).toMatchObject({ id: first.id, matched: true, state: 'triage' })
+    expect(s.getTask(first.id).updates.map((u) => u.body)).toEqual(['Set up Cloudflare WAF\n\nFrom the standup.'])
+    expect(s.queue().items).toHaveLength(1)
+    expect(s.pendingOutbox()).toEqual([])
+  })
+
+  it('finds tasks closed in the last 30 days, with their state', () => {
+    let clock = Date.parse('2026-10-01T10:00:00Z')
+    const s = new Service({ db: openDatabase(':memory:'), now: () => new Date(clock) })
+    const old = create(s, { title: 'Answer the ARR question', start: false })
+    s.closeTask({ idempotencyKey: key(), id: old.id, outcome: 'done' })
+    clock = Date.parse('2026-10-20T10:00:00Z')
+    const recent = create(s, { title: 'Answer the ARR threshold', start: false })
+    s.closeTask({ idempotencyKey: key(), id: recent.id, outcome: 'done' })
+    clock = Date.parse('2026-11-05T10:00:00Z')
+    expect(s.matchItems({ queries: ['ARR'] }).tasks.map((t) => [t.id, t.state])).toEqual([[recent.id, 'done']])
+  })
+
+  it('backfills the mirror of an active task that names its ticket in the title, once', () => {
+    const db = openDatabase(':memory:')
+    const s = new Service({ db })
+    const named = create(s, { title: 'Cap trial accounts at €10 usage (LLE-16161)', start: false })
+    const plain = create(s, { title: 'Merge AP-60 into AP-36', start: false })
+    const closed = create(s, { title: 'Partner plugin audit fixes (LLE-13616)', start: false })
+    s.closeTask({ idempotencyKey: key(), id: closed.id, outcome: 'done' })
+    expect(backfillMirrors(db)).toEqual([{ id: named.id, mirrors: 'LLE-16161' }])
+    expect(backfillMirrors(db)).toEqual([])
+    expect([named, plain, closed].map((t) => s.task(t.id).source.mirrors)).toEqual(['LLE-16161', null, null])
   })
 })
 

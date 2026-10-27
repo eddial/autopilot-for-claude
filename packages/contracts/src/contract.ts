@@ -100,6 +100,14 @@ export const TaskDetail = z.object({
 })
 export type TaskDetail = z.infer<typeof TaskDetail>
 
+/** What `tasks.create` returns: the task, and whether it was an open one with the same source. */
+export const CreatedTask = Task.extend({
+  /** True when no task was created: the brief went to this open task, which has the same source URL or ticket. */
+  matched: z.boolean().optional(),
+})
+export type CreatedTask = z.infer<typeof CreatedTask>
+
+/** Active tasks, and those closed in the last 30 days: `state` says which. */
 export const MatchedTask = z.object({
   id: TaskId,
   title: z.string(),
@@ -150,7 +158,7 @@ export const contract = {
     create: base
       .meta({ scopes: ['owner', 'create', 'session'] })
       .input(CreateTask)
-      .output(Task),
+      .output(CreatedTask),
     edit: base.meta({ scopes: OWNER }).input(EditTask).output(Task),
     start: base.meta({ scopes: OWNER }).input(TaskRef).output(Task),
     /** Brings back the task's last session, the same conversation, with Remote Control: to open it from anywhere. */
@@ -213,7 +221,7 @@ export const contract = {
 
   items: {
     match: base
-      .meta({ scopes: ['signal'] })
+      .meta({ scopes: ['signal', 'session'] })
       .input(MatchItems)
       .output(z.object({ tasks: z.array(MatchedTask) })),
     file: base

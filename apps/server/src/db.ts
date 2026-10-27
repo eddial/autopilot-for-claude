@@ -8,7 +8,33 @@ import { DatabaseSync } from 'node:sqlite'
  *
  * Migrations only ever append; `user_version` records how many have run.
  */
-const MIGRATIONS = [
+/** A team ticket a title names at its end, as sessions wrote them: `Cap trial accounts at €10 usage (LLE-16161)`. */
+const TICKET_IN_TITLE = /\(([A-Z][A-Z0-9]*-\d+)\)\s*$/
+
+/**
+ * Active tasks that name their ticket in the title but do not mirror it, because a session filed
+ * them: they mirror it now, so the ticket's signal finds them and its closing closes them. A ticket
+ * another task already mirrors stays with that task. Returns the tasks it changed.
+ */
+export const backfillMirrors = (db: DatabaseSync): { id: string; mirrors: string }[] => {
+  const rows = db.prepare(`select id, title from tasks where state not in ('done', 'canceled') and mirrors is null order by num`).all() as {
+    id: string
+    title: string
+  }[]
+  const taken = db.prepare('select 1 from tasks where mirrors = ?')
+  const set = db.prepare('update tasks set mirrors = ? where id = ?')
+  const changed: { id: string; mirrors: string }[] = []
+  for (const row of rows) {
+    const ticket = TICKET_IN_TITLE.exec(row.title)?.[1]
+    if (!ticket || taken.get(ticket)) continue
+    set.run(ticket, row.id)
+    changed.push({ id: row.id, mirrors: ticket })
+  }
+  return changed
+}
+
+/** A migration is SQL, or a function for what SQL cannot say. */
+const MIGRATIONS: (string | ((db: DatabaseSync) => void))[] = [
   `
   create table tasks (
     id text primary key,
@@ -191,6 +217,7 @@ const MIGRATIONS = [
   update changes set payload = replace(replace(payload, '"state":"new"', '"state":"triage"'), '"band":"new"', '"band":"triage"');
   update applied set result = replace(replace(result, '"state":"new"', '"state":"triage"'), '"band":"new"', '"band":"triage"');
   `,
+  (db) => void backfillMirrors(db),
 ]
 
 export const openDatabase = (file: string): DatabaseSync => {
@@ -200,7 +227,9 @@ export const openDatabase = (file: string): DatabaseSync => {
   for (let version = row.user_version; version < MIGRATIONS.length; version++) {
     db.exec('begin')
     try {
-      db.exec(MIGRATIONS[version] ?? '')
+      const migration = MIGRATIONS[version] ?? ''
+      if (typeof migration === 'string') db.exec(migration)
+      else migration(db)
       db.exec(`pragma user_version = ${version + 1}`)
       db.exec('commit')
     } catch (error) {

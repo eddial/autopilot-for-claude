@@ -35,7 +35,9 @@ describe('contract', () => {
   })
 
   it('limits session tokens to their own task on every procedure a session may write through', () => {
-    const sessionWrites = procedures.filter((proc) => proc.meta.scopes.includes('session') && proc.path !== 'tasks.create')
+    // A session files follow-ups, and searches the queue before it does.
+    const queueWide = ['tasks.create', 'items.match']
+    const sessionWrites = procedures.filter((proc) => proc.meta.scopes.includes('session') && !queueWide.includes(proc.path))
     expect(sessionWrites.filter((proc) => proc.meta.ownTask !== true).map((proc) => proc.path)).toEqual([])
   })
 })
@@ -72,6 +74,7 @@ describe('MCP tools', () => {
       'attach_link',
       'add_watcher',
       'wait_on',
+      'match_items',
     ])
     expect(toolsFor('signal').map((t) => t.name)).toEqual(['list_workstreams', 'match_items', 'file_item'])
   })

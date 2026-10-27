@@ -13,6 +13,7 @@ import {
   type CloseTask,
   type CreateTask,
   type CreateToken,
+  type CreatedTask,
   type Device,
   type PairDevice,
   type DecideRouting,
@@ -82,6 +83,8 @@ export const newId = (): string => `${Date.now().toString(36)}${randomBytes(5).t
 export const hashSecret = (secret: string): string => createHash('sha256').update(secret).digest('hex')
 
 const ACTIVE = `state not in ('done', 'canceled')`
+/** How far back `match_items` finds closed tasks. */
+const RECENTLY_CLOSED_MS = 30 * 24 * 60 * 60 * 1000
 
 /**
  * Everything the API can do, on top of SQLite. Each write runs in one
@@ -464,20 +467,35 @@ export class Service {
     this.assertOpen(this.task(taskId))
   }
 
-  createTask(input: In<typeof CreateTask>, by: Author = 'owner'): Task {
+  createTask(input: In<typeof CreateTask>, by: Author = 'owner'): CreatedTask {
     return this.idempotent(input.idempotencyKey, 'tasks.create', () => {
+      const url = input.sourceUrl ?? null
+      const ticket = input.ticket ?? null
+      const links = input.links.map((l) => ({ ...l, at: l.at ?? this.iso() }))
+      // The same thread or ticket as an open task: it goes there, as when a signal files it twice.
+      const existing = this.openWithSource(ticket?.id ?? null, url)
+      if (existing) {
+        const task = this.addToTask(existing, {
+          body: input.brief ? `${input.title}\n\n${input.brief}` : input.title,
+          author: by,
+          attachments: url ? [{ url, title: input.title.slice(0, 200) }] : [],
+          links,
+          ticket,
+        })
+        return { ...task, matched: true }
+      }
       const task = this.insertTask({
         title: input.title,
         brief: input.brief,
         workstream: input.workstream ?? this.defaultWorkstream,
         priority: input.priority ?? 3,
         state: input.start ? 'running' : 'triage',
-        source: { signal: null, url: null, mirrors: null },
-        links: input.links.map((l) => ({ ...l, at: l.at ?? this.iso() })),
+        source: { signal: null, url, mirrors: ticket?.id ?? null },
+        links,
         createdBy: by,
       })
       if (input.start) this.enqueue('start_session', { taskId: task.id })
-      return task
+      return { ...task, matched: false }
     })
   }
 
@@ -968,13 +986,17 @@ export class Service {
 
   // ── signals ───────────────────────────────────────────────────────────────
 
+  /** Active tasks, and those closed in the last 30 days, so finished work is not filed again. */
   matchItems(input: In<typeof MatchItems>) {
+    const since = new Date(this.now().getTime() - RECENTLY_CLOSED_MS).toISOString()
     const seen = new Map<string, Task>()
     for (const query of input.queries) {
       const like = `%${query.replace(/[%_]/g, '')}%`
-      const rows = this.db
-        .prepare(`select * from tasks where ${ACTIVE} and (source_url = ? or title like ? or links like ? or brief like ?) limit 20`)
-        .all(query, like, like, like) as Row[]
+      const rows = this.sql(
+        `select * from tasks where (${ACTIVE} or updated_at >= ?)
+         and (source_url = ? or mirrors = ? or title like ? or links like ? or brief like ?)
+         order by ${ACTIVE} desc, updated_at desc limit 20`,
+      ).all(since, query, query, like, like, like) as Row[]
       for (const row of rows) seen.set(str(row.id), this.toTask(row))
     }
     return {
@@ -989,20 +1011,39 @@ export class Service {
     }
   }
 
+  /** The open task that mirrors this ticket, or else has this source URL. */
+  private openWithSource(ticket: string | null, url: string | null): Task | null {
+    const row = ((ticket ? this.sql(`select id from tasks where ${ACTIVE} and mirrors = ?`).get(ticket) : undefined) ??
+      (url ? this.sql(`select id from tasks where ${ACTIVE} and source_url = ?`).get(url) : undefined)) as Row | undefined
+    return row ? this.task(str(row.id)) : null
+  }
+
+  /** Something more for an open task: an update with its source, the new links, and its ticket closing closes it. */
+  private addToTask(
+    task: Task,
+    add: { body: string; author: Author; attachments: Link[]; links: Link[]; ticket: { id: string; closed: boolean } | null },
+  ): Task {
+    this.assertOpen(task)
+    this.insertUpdate(task, { kind: 'signal', body: add.body, author: add.author, attachments: add.attachments })
+    const links = [...task.links, ...add.links.filter((l) => !task.links.some((t) => t.url === l.url))]
+    const touched = this.touch(task, { links })
+    if (add.ticket?.closed && task.source.mirrors === add.ticket.id) {
+      this.insertUpdate(touched, { kind: 'done', body: `${add.ticket.id} was closed.`, author: 'system' })
+      return this.close(this.task(task.id), 'done')
+    }
+    return touched
+  }
+
   fileItem(input: In<typeof FileItem>): Decision {
     return this.idempotent(input.idempotencyKey, 'items.file', () => {
       const { item } = input
       let action = input.action
       let taskId = input.taskId ?? null
       // Never file the same thread or team ticket twice: an active task with it becomes an update.
-      const existing = (
-        item.ticket
-          ? this.sql(`select id from tasks where ${ACTIVE} and mirrors = ?`).get(item.ticket.id)
-          : this.sql(`select id from tasks where ${ACTIVE} and source_url = ?`).get(item.url)
-      ) as Row | undefined
+      const existing = item.ticket ? this.openWithSource(item.ticket.id, null) : this.openWithSource(null, item.url)
       if (existing && (action === 'create' || item.ticket)) {
         action = action === 'drop' && !item.ticket?.closed ? 'drop' : 'update'
-        taskId = str(existing.id)
+        taskId = existing.id
       }
       // A closed ticket with no mirror needs no task.
       if (action === 'create' && item.ticket?.closed) action = 'drop'
@@ -1020,22 +1061,13 @@ export class Service {
         taskId = task.id
       } else if (action === 'update') {
         if (!taskId) throw new DomainError('BAD_REQUEST', { field: 'taskId' }, 'An update needs the task it belongs to')
-        const task = this.task(taskId)
-        this.assertOpen(task)
-        this.insertUpdate(task, {
-          kind: 'signal',
+        this.addToTask(this.task(taskId), {
           body: input.note || item.summary,
           author: 'signal',
           attachments: [{ url: item.url, title: `${item.sender} · ${item.channel}`.slice(0, 200) }],
+          links: [{ url: item.url, title: `${item.signal}: ${item.title}`.slice(0, 200), at: this.iso() }],
+          ticket: item.ticket ?? null,
         })
-        const links = task.links.some((l) => l.url === item.url)
-          ? task.links
-          : [...task.links, { url: item.url, title: `${item.signal}: ${item.title}`.slice(0, 200), at: this.iso() }]
-        const touched = this.touch(task, { links })
-        if (item.ticket?.closed && task.source.mirrors === item.ticket.id) {
-          this.insertUpdate(touched, { kind: 'done', body: `${item.ticket.id} was closed.`, author: 'system' })
-          this.close(this.task(task.id), 'done')
-        }
       }
       const decision: Decision = {
         id: newId(),

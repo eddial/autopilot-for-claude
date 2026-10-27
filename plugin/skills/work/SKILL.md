@@ -7,7 +7,8 @@ description: How an Autopilot session works a task — read it with get_task, pr
 
 You were started for one task. The Autopilot MCP server (`autopilot`) gives you its tools, limited
 to this task: `get_task`, `post_update`, `attach_link`, `add_watcher`, `wait_on`, and
-`create_task` for a follow-up. The owner may watch this session live through Remote Control.
+`create_task` for a follow-up, with `match_items` to search the queue first. The owner may watch
+this session live through Remote Control.
 
 ## 1. Read
 
@@ -21,6 +22,19 @@ to this task: `get_task`, `post_update`, `attach_link`, `add_watcher`, `wait_on`
 When the task mirrors a team ticket (`source.mirrors`), that ticket is the real one: branches,
 commits and PRs name the ticket and are written for the team, never Autopilot. Write nothing on the
 ticket unless the owner asks.
+
+### Filing other tasks
+
+When the work turns up something else to do (a to-do from a meeting, a ticket, another thread),
+search before you file it: `match_items` with short queries, the source URL or ticket id first,
+then one or two single-word names. It returns active tasks and those closed in the last 30 days.
+
+- An active task already covers it → do not file it again; name that task in your handover.
+- A closed task covered it → leave it, unless it asks for something new; then file it and name
+  the closed task in the brief.
+- Nothing matches → `create_task`, with `sourceUrl` (the thread it came from) and `ticket` (`{ id,
+  closed }`, for a team ticket such as `LLE-16513`) when it has them. An open task with the same
+  one gets your brief as an update instead and comes back with `matched: true`; say so.
 
 ## 2. Prepare
 

@@ -110,6 +110,19 @@ describe('API over the socket', () => {
     expect(answer.code).toBe('FORBIDDEN')
   })
 
+  it('lets a session search the queue and turns a follow-up for a thread already filed into an update', async () => {
+    const sourceUrl = 'https://example.slack.com/archives/C1/p7'
+    const filed = await owner.tasks.create({ idempotencyKey: k(), title: 'Review the WAF choice', start: false, sourceUrl })
+    const mine = await owner.tasks.create({ idempotencyKey: k(), title: 'Standup notes', start: false })
+    const session = connect(socket, service.issueToken(`session ${mine.id}`, 'session', mine.id).secret)
+
+    const found = await session.items.match({ queries: [sourceUrl] })
+    expect(found.tasks.map((t) => t.id)).toEqual([filed.id])
+    const again = await session.tasks.create({ idempotencyKey: k(), title: 'Set up Cloudflare WAF', start: false, sourceUrl })
+    expect(again).toMatchObject({ id: filed.id, matched: true })
+    expect((await owner.tasks.get({ id: filed.id })).updates.map((u) => [u.kind, u.author])).toEqual([['signal', 'session']])
+  })
+
   it('returns a typed conflict when an ask was already answered', async () => {
     const task = await owner.tasks.create({ idempotencyKey: k(), title: 'Ask', start: false })
     const session = connect(socket, service.issueToken('s', 'session', task.id).secret)
