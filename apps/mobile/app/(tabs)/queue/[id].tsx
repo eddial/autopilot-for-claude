@@ -1,9 +1,9 @@
-import { useCallback, useRef } from 'react'
-import { Text, View } from 'react-native'
+import { useCallback, useEffect, useRef } from 'react'
+import { Text, useWindowDimensions, View } from 'react-native'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
-import { doneItem, useItems } from '../../../src/store.ts'
+import { doneItem, requestOpen, useItems } from '../../../src/store.ts'
 import { colours } from '@autopilot/design'
 
 /** A way to another task in the same screen, or none at the end of the list. */
@@ -16,6 +16,14 @@ export default function TaskScreen() {
   const at = order.indexOf(id)
   const step = at >= 0 ? { previous: go(order[at - 1]), next: go(order[at + 1]) } : undefined
   const item = useItems().find((i) => i.task.id === id) ?? doneItem(id)
+  // Unfolded with a task open: the queue shows it beside the list, on the tab that holds it.
+  const { width, height } = useWindowDimensions()
+  const roomy = width >= 600 && height >= 600
+  useEffect(() => {
+    if (!roomy || !router.canGoBack()) return
+    requestOpen(id)
+    router.back()
+  }, [roomy, id])
   const pageTop = useRef<(() => void) | null>(null)
   const toTop = useCallback((scrollUp: () => void) => {
     pageTop.current = scrollUp
