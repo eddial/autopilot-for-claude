@@ -844,7 +844,14 @@ const styles = StyleSheet.create({
   // Fills the empty list and puts the horizon in its middle.
   tumble: { flex: 1, minHeight: 160, justifyContent: 'center', overflow: 'hidden' },
   stage: { height: 72 },
-  horizon: { position: 'absolute', left: GUTTER, right: GUTTER, bottom: 14, height: StyleSheet.hairlineWidth, backgroundColor: colours.border },
+  horizon: {
+    position: 'absolute',
+    left: GUTTER,
+    right: GUTTER,
+    bottom: 14,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colours.border,
+  },
   cactus: { position: 'absolute', bottom: 14, opacity: 0.4 },
   weed: { position: 'absolute', bottom: 15, left: 0, width: WEED, height: WEED, opacity: 0.5 },
   weedShadow: { position: 'absolute', bottom: 11, left: 4, width: WEED - 8, height: 4, borderRadius: 2, backgroundColor: colours.border },
