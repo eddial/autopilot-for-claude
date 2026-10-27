@@ -348,10 +348,11 @@ export const rowDetail = (item: QueueItem): string | null => {
 }
 
 /**
- * A message long enough to have been pasted rather than typed: both apps show it as a pasted
- * card, a few words of it and a click to read the rest, so it does not push the page apart.
+ * A message that looks pasted rather than typed: both apps show it as a pasted card, a few words of
+ * it and a click to read the rest, so it does not push the page apart. Pasted things (a log, an
+ * email, code) run to many lines; what you type runs to a few paragraphs, however long they are.
  */
-export const isPaste = (text: string): boolean => text.length > 600 || text.split('\n').length > 10
+export const isPaste = (text: string): boolean => text.split('\n').filter((l) => l.trim() !== '').length > 10 || text.length > 4000
 
 /** What a pasted card says about its text: "48 lines", or "2.3k characters" on one line. */
 export const pasteSize = (text: string): string => {

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { parseMarkdown } from '../src/markdown.ts'
 import {
   isArtifact,
+  isPaste,
   linkKind,
   linkSource,
   sectionsOf,
@@ -60,6 +61,12 @@ describe('how updates read', () => {
       signalMark('inbox', 'https://linear.app/a/issue/A-1'),
       signalMark('inbox'),
     ]).toEqual(['slack', 'googleCalendar', 'linear', null])
+  })
+
+  it('treats many lines as pasted, and a few long typed paragraphs as typed', () => {
+    const paragraph = 'I think we should stop listing models that are retired under the legacy models too. '.repeat(6)
+    expect(isPaste(`${paragraph}\n\n${paragraph}`)).toBe(false)
+    expect(isPaste(Array.from({ length: 14 }, (_, i) => `2026-10-27 12:0${i % 10} error in step ${i}`).join('\n'))).toBe(true)
   })
 
   it("leaves out a signal's channel and sender where they only repeat its name", () => {
