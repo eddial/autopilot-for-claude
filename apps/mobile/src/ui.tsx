@@ -681,6 +681,8 @@ export const FlyingPilot = () => {
 
 /** The tumbleweed's size, in points: 16 pixels of 1.75, a little shorter than the cactus. */
 const WEED = 28
+/** The horizon's segments, full in the middle, fading to nothing over the outer fifth on each side. */
+const HORIZON = Array.from({ length: 40 }, (_, i) => Math.min(1, Math.min(i + 0.5, 39.5 - i) / 8))
 /** One crossing, then the wait before the next. */
 const CROSSING = 7000
 const LULL = 3500
@@ -733,7 +735,12 @@ export const Tumbleweed = () => {
         <View style={[styles.cactus, { left: width * 0.72 }]}>
           <Mascot art={cactus} pixel={3.5} label="" />
         </View>
-        <View style={styles.horizon} />
+        {/* The ground fades out at both ends, as on the Mac: short segments, each a step fainter. */}
+        <View style={styles.horizon}>
+          {HORIZON.map((opacity, i) => (
+            <View key={i} style={[styles.horizonBit, { opacity }]} />
+          ))}
+        </View>
         {still ? (
           <View style={[styles.weed, { left: width / 2 - WEED / 2 }]}>
             <Mascot art={tumbleweed} pixel={WEED / 16} label="" />
@@ -847,14 +854,8 @@ const styles = StyleSheet.create({
   // Fills the empty list and puts the horizon in its middle.
   tumble: { flex: 1, minHeight: 160, justifyContent: 'center', overflow: 'hidden' },
   stage: { height: 72 },
-  horizon: {
-    position: 'absolute',
-    left: GUTTER,
-    right: GUTTER,
-    bottom: 14,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colours.border,
-  },
+  horizon: { position: 'absolute', left: 0, right: 0, bottom: 14, height: StyleSheet.hairlineWidth, flexDirection: 'row' },
+  horizonBit: { flex: 1, backgroundColor: colours.border },
   cactus: { position: 'absolute', bottom: 14, opacity: 0.4 },
   weed: { position: 'absolute', bottom: 15, left: 0, width: WEED, height: WEED, opacity: 0.55 },
   // A soft dark ellipse lying on the ground line, centred under the ball.
