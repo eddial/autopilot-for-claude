@@ -57,11 +57,7 @@ export const StatusLine = () => {
         <Text style={styles.title} numberOfLines={1}>
           {status.title}
         </Text>
-        {status.detail && (
-          <Text style={styles.detail} numberOfLines={3}>
-            {status.detail}
-          </Text>
-        )}
+        {status.detail && <Text style={styles.detail}>{status.detail}</Text>}
       </View>
       {status.retry && <Text style={styles.action}>Try now</Text>}
     </Pressable>
