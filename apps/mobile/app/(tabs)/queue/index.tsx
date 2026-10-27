@@ -501,8 +501,9 @@ type Tab = { id: string; title: string; symbol: SFSymbol; count: number | undefi
  */
 const TabBar = ({ items, selected, narrow, onPick }: { items: Tab[]; selected: string; narrow: boolean; onPick: (id: string) => void }) => {
   const [frames, setFrames] = useState<Record<string, { x: number; width: number }>>({})
+  // Moved on the UI thread (a transform, the native driver), so it keeps the frame rate while the
+  // new list renders; its width follows the tab at once.
   const [x] = useState(() => new Animated.Value(0))
-  const [width] = useState(() => new Animated.Value(0))
   const placed = useRef(false)
   const frame = frames[selected]
   useEffect(() => {
@@ -510,19 +511,17 @@ const TabBar = ({ items, selected, narrow, onPick }: { items: Tab[]; selected: s
     if (!placed.current) {
       placed.current = true
       x.setValue(frame.x)
-      width.setValue(frame.width)
       return
     }
-    Animated.parallel([
-      Animated.spring(x, { toValue: frame.x, useNativeDriver: false, damping: 22, stiffness: 260, mass: 0.8 }),
-      Animated.spring(width, { toValue: frame.width, useNativeDriver: false, damping: 22, stiffness: 260, mass: 0.8 }),
-    ]).start()
-  }, [frame, x, width])
+    Animated.spring(x, { toValue: frame.x, useNativeDriver: true, damping: 24, stiffness: 300, mass: 0.7 }).start()
+  }, [frame, x])
   const glass = isLiquidGlassAvailable()
   const Bar = glass ? GlassView : View
   return (
     <Bar style={[styles.tabs, glass && styles.tabsGlass]} accessibilityRole="tablist">
-      {frame && <Animated.View pointerEvents="none" style={[styles.tabOn, { left: x, width }]} />}
+      {frame && (
+        <Animated.View pointerEvents="none" style={[styles.tabOn, { left: 0, width: frame.width, transform: [{ translateX: x }] }]} />
+      )}
       {items.map((v) => {
         const on = v.id === selected
         return (
