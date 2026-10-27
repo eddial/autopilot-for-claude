@@ -35,6 +35,7 @@ export const TaskToolbar = ({
   closeAfter,
   step,
   onTop,
+  onNew,
 }: {
   item: QueueItem
   closeAfter: boolean
@@ -42,10 +43,13 @@ export const TaskToolbar = ({
   step?: { previous: (() => void) | null; next: (() => void) | null }
   /** Back to the top of the page: the brief, where the newest entry opens it at the bottom. */
   onTop?: () => void
+  /** New task, first in the bar: the Duo open upright, where the bottom row is the list's. */
+  onNew?: () => void
 }) => {
   const sync = useSyncInstance()
   // The Duo folded in landscape has one button fewer in its bar: Snooze goes into ⋯ there.
-  const short = useWindowDimensions().height < 500
+  // Upright on the open Duo (onNew) the bar spans both halves: it keeps to the task's by folding too.
+  const short = useWindowDimensions().height < 500 || onNew !== undefined
   const opening = useRef(false)
   const { task, session } = item
   const closed = item.band === 'done'
@@ -106,10 +110,13 @@ export const TaskToolbar = ({
         <Stack.Toolbar.Menu icon="moon" accessibilityLabel="Snooze" title="Snooze" hidden={closed || short}>
           {snoozes}
         </Stack.Toolbar.Menu>
-        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More" title="More" hidden={closed && !onTop}>
+        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More" title="More" hidden={closed && !onTop && !onNew}>
           <Stack.Toolbar.Menu icon="moon" title="Snooze" hidden={closed || !short}>
             {snoozes}
           </Stack.Toolbar.Menu>
+          <Stack.Toolbar.MenuAction icon="square.and.pencil" hidden={!onNew} onPress={() => onNew?.()}>
+            New task
+          </Stack.Toolbar.MenuAction>
           <Stack.Toolbar.MenuAction icon="arrow.up.to.line" hidden={!onTop} onPress={() => onTop?.()}>
             Back to the top
           </Stack.Toolbar.MenuAction>

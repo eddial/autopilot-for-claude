@@ -328,12 +328,13 @@ export default function QueueScreen() {
       {/* With a task open beside the list: close it, and step through the list with the Mac's thin
           arrows. With none: search, and New (in the split the empty side is New task already). */}
       <Stack.Toolbar placement="bottom">
-        <Stack.Toolbar.SearchBarSlot hidden={Boolean(selectedItem)} />
+        {/* Upright, the bottom row is the list's: search goes up into the bar beside its buttons. */}
+        <Stack.Toolbar.SearchBarSlot hidden={Boolean(selectedItem) || narrow} />
         {/* With a task open beside the list: New task in its place, as Claude's new chat beside its chats. */}
         <Stack.Toolbar.Button
           icon="square.and.pencil"
           accessibilityLabel="New task"
-          hidden={!selectedItem}
+          hidden={!selectedItem || narrow}
           onPress={() => setSelected(null)}
         />
         <Stack.Toolbar.Spacer />
@@ -354,7 +355,12 @@ export default function QueueScreen() {
         <Stack.Toolbar.Button icon="plus" accessibilityLabel="New task" hidden={split} onPress={() => router.push('/new')} />
       </Stack.Toolbar>
       {selectedItem ? (
-        <TaskToolbar item={selectedItem} closeAfter={false} onTop={() => pageTop.current?.()} />
+        <TaskToolbar
+          item={selectedItem}
+          closeAfter={false}
+          onTop={() => pageTop.current?.()}
+          onNew={narrow ? () => setSelected(null) : undefined}
+        />
       ) : (
         // Settings at the top: the phone has none of its own (sources and workstreams are the Mac's), just your Mac:
         // how it is reached, and a way to unpair. Syncing runs by itself.
@@ -392,7 +398,13 @@ export default function QueueScreen() {
           </View>
           <View style={{ flex: 1 }}>
             {selectedItem ? (
-              <TaskView key={selectedItem.task.id} item={selectedItem} edges={['right']} onTop={toTop} />
+              <TaskView
+                key={selectedItem.task.id}
+                item={selectedItem}
+                edges={['right']}
+                onTop={toTop}
+                top={narrow ? headerHeight + 12 : 0}
+              />
             ) : (
               <NewTask
                 onDone={() => undefined}
