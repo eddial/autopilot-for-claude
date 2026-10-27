@@ -1,3 +1,4 @@
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
 import { useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react'
 import {
   AccessibilityInfo,
@@ -321,6 +322,31 @@ export const Banner = ({ tone = 'alert', children }: { tone?: Tone; children: Re
 export const bannerText = (tone: Tone = 'alert') => [styles.bannerText, { color: tones[tone].fg }]
 
 /** A small choice or link; `on` when it is the chosen one. */
+/** Liquid Glass where iOS has it (26 and later); before that, the solid fill the shape names. */
+const GLASS = isLiquidGlassAvailable()
+
+/**
+ * What floats over the page (the composer, its round tools, the pills above it) is Liquid Glass,
+ * as iOS draws its own bars; what is content (rows, cards) stays solid. Interactive glass answers
+ * a touch with the system's own shimmer.
+ */
+export const Glass = ({
+  style,
+  interactive = false,
+  children,
+}: {
+  style: StyleProp<ViewStyle>
+  interactive?: boolean
+  children: ReactNode
+}) =>
+  GLASS ? (
+    <GlassView style={[style, styles.glass]} isInteractive={interactive}>
+      {children}
+    </GlassView>
+  ) : (
+    <View style={style}>{children}</View>
+  )
+
 export const Chip = ({
   label,
   on,
@@ -334,19 +360,31 @@ export const Chip = ({
   /** Round and filled, as Claude's composer draws its choices (the model, the environment). */
   pill?: boolean
   onPress: () => void
-}) => (
-  <Pressable
-    style={[styles.chip, pill && styles.chipPill, on && styles.chipOn, icon ? styles.chipWithIcon : null]}
-    onPress={onPress}
-    accessibilityRole="button"
-    accessibilityState={on === undefined ? undefined : { selected: on }}
-  >
-    {icon}
-    <Text style={[styles.chipText, on && { color: colours.text }]} numberOfLines={1}>
-      {label}
-    </Text>
-  </Pressable>
-)
+}) => {
+  const content = (
+    <>
+      {icon}
+      <Text style={[styles.chipText, on && { color: colours.text }]} numberOfLines={1}>
+        {label}
+      </Text>
+    </>
+  )
+  const a11y = { accessibilityRole: 'button' as const, accessibilityState: on === undefined ? undefined : { selected: on } }
+  // A pill floats over the composer: glass, with the press area filling it.
+  if (pill)
+    return (
+      <Glass style={[styles.chipPill, { paddingHorizontal: 0 }]} interactive>
+        <Pressable style={[styles.chipPillPress, icon ? styles.chipWithIcon : null]} onPress={onPress} {...a11y}>
+          {content}
+        </Pressable>
+      </Glass>
+    )
+  return (
+    <Pressable style={[styles.chip, on && styles.chipOn, icon ? styles.chipWithIcon : null]} onPress={onPress} {...a11y}>
+      {content}
+    </Pressable>
+  )
+}
 
 const BUTTON = {
   /** The one thing to do next. */
@@ -434,7 +472,7 @@ export const Composer = ({
   onSend: () => void
   sendLabel?: string
 }) => (
-  <View style={styles.composer}>
+  <Glass style={styles.composer}>
     {children}
     <View style={styles.composerBar}>
       <View style={styles.composerTools}>{tools}</View>
@@ -448,7 +486,7 @@ export const Composer = ({
         <SymbolView name="arrow.up" size={16} weight="semibold" tintColor={colours.window} />
       </Pressable>
     </View>
-  </View>
+  </Glass>
 )
 
 /** Twice the distance from the composer's bottom edge to the middle of its send: what edgeSpace centres. */
@@ -456,9 +494,11 @@ export const COMPOSER_BAR = 56
 
 /** A round tool in the composer's bar: attach, and the like. */
 export const ComposerTool = ({ symbol, label, onPress }: { symbol: SFSymbol; label: string; onPress: () => void }) => (
-  <Pressable style={styles.composerTool} onPress={onPress} hitSlop={4} accessibilityRole="button" accessibilityLabel={label}>
-    <SymbolView name={symbol} size={18} tintColor={colours.text} />
-  </Pressable>
+  <Glass style={styles.composerTool} interactive>
+    <Pressable style={styles.fill} onPress={onPress} hitSlop={4} accessibilityRole="button" accessibilityLabel={label}>
+      <SymbolView name={symbol} size={18} tintColor={colours.text} />
+    </Pressable>
+  </Glass>
 )
 
 /**
@@ -635,6 +675,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   composerBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  // Glass is its own fill and edge: none drawn under it.
+  glass: { backgroundColor: 'transparent', borderWidth: 0 },
+  fill: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
+  chipPillPress: { height: 36, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 },
   composerTools: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
   composerTool: {
     width: 36,

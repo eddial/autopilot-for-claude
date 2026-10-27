@@ -2,7 +2,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import {
   Alert,
   Animated,
-  LayoutAnimation,
   KeyboardAvoidingView,
   Platform,
   PanResponder,
@@ -257,6 +256,20 @@ export default function QueueScreen() {
     // oxlint-disable-next-line react-hooks/exhaustive-deps
     [],
   )
+  // Switching tabs slides the new list in from the side it lies on: nothing more.
+  const [listShift] = useState(() => new Animated.Value(0))
+  const lastTab = useRef(shown)
+  const listWidth = split ? Math.min(420, width * 0.42) : width
+  useLayoutEffect(() => {
+    const from = tabOrder.indexOf(lastTab.current)
+    const to = tabOrder.indexOf(shown)
+    lastTab.current = shown
+    if (from === to || from < 0) return
+    listShift.setValue((to > from ? 1 : -1) * listWidth)
+    Animated.timing(listShift, { toValue: 0, duration: 220, useNativeDriver: true }).start()
+    // Only a change of tab slides the list.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown])
   const tabs = (
     <TabBar
       items={tabItems.map((v) => ({ id: v.id, title: v.title, symbol: v.symbol, count: v.id === 'all' ? openItems.length : counts[v.id] }))}
@@ -270,83 +283,85 @@ export default function QueueScreen() {
     // In the split the list is the left column: the right edge's inset (the Duo's bar) is the task's.
     <Sides edges={split ? ['left'] : undefined}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} {...swipeTabs.panHandlers}>
-        <SectionList
-          style={{ flex: 1 }}
-          sections={sections}
-          keyExtractor={(i) => i.task.id}
-          stickySectionHeadersEnabled={false}
-          refreshControl={<RefreshControl refreshing={false} tintColor={colours.text3} onRefresh={() => void sync?.syncOnce(0)} />}
-          keyboardDismissMode="on-drag"
-          ListFooterComponent={<BottomRoom beside={split} />}
-          // The tab's name and what it holds scroll with the list, in the same plane as its rows. Open,
-          // the Duo's bar is beside the list (or over the task), never above it: level with the camera.
-          ListHeaderComponent={
-            <View style={{ paddingTop: split ? edgeSpace(TITLE_HEIGHT) : Math.max(headerHeight + 8, edgeSpace(TITLE_HEIGHT)), gap: 4 }}>
-              <Text style={[type.title, styles.heading]} numberOfLines={1}>
-                {all ? 'All open' : current?.title}
-              </Text>
-              <Text style={styles.caption} numberOfLines={1}>
-                {all ? 'Every open task, across workstreams' : current?.about}
-              </Text>
-              <StatusLine />
-            </View>
-          }
+        <Animated.View style={{ flex: 1, transform: [{ translateX: listShift }] }}>
+          <SectionList
+            style={{ flex: 1 }}
+            sections={sections}
+            keyExtractor={(i) => i.task.id}
+            stickySectionHeadersEnabled={false}
+            refreshControl={<RefreshControl refreshing={false} tintColor={colours.text3} onRefresh={() => void sync?.syncOnce(0)} />}
+            keyboardDismissMode="on-drag"
+            ListFooterComponent={<BottomRoom beside={split} />}
+            // The tab's name and what it holds scroll with the list, in the same plane as its rows. Open,
+            // the Duo's bar is beside the list (or over the task), never above it: level with the camera.
+            ListHeaderComponent={
+              <View style={{ paddingTop: split ? edgeSpace(TITLE_HEIGHT) : Math.max(headerHeight + 8, edgeSpace(TITLE_HEIGHT)), gap: 4 }}>
+                <Text style={[type.title, styles.heading]} numberOfLines={1}>
+                  {all ? 'All open' : current?.title}
+                </Text>
+                <Text style={styles.caption} numberOfLines={1}>
+                  {all ? 'Every open task, across workstreams' : current?.about}
+                </Text>
+                <StatusLine />
+              </View>
+            }
 
-          ListEmptyComponent={
-            filter || (view === 'done' && done === null) || (status !== 'online' && view === 'needs_me' && items.length === 0) ? (
-              <Text style={styles.empty}>
-                {filter
-                  ? 'Nothing matches the search.'
-                  : view === 'done'
-                    ? 'Done is read from your Mac when it is in reach.'
-                    : 'Nothing cached yet.'}
-              </Text>
-            ) : (
-              <EmptyList view={all ? null : view} quiet={split && !selectedItem} />
-            )
-          }
-          renderSectionHeader={({ section }) => {
-            const shut = folded.has(section.name)
-            return (
-              <View>
-                {/* Triage, under Needs me: its name and what it holds, set as the tab's own title is. */}
-                {section.part && (
-                  <View style={styles.part}>
-                    <Text style={[type.title, styles.heading]}>{section.part.title}</Text>
-                    <Text style={styles.caption} numberOfLines={2}>
-                      {section.part.about}
-                    </Text>
-                  </View>
-                )}
-                <Pressable
-                  style={styles.section}
-                  onPress={() => fold(section.name)}
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded: !shut }}
-                >
-                  {section.priority === null ? (
-                    <WorkstreamBadge name={section.title} />
-                  ) : (
-                    <View style={styles.priorityBadge}>
-                      <Bars priority={section.priority} />
+            ListEmptyComponent={
+              filter || (view === 'done' && done === null) || (status !== 'online' && view === 'needs_me' && items.length === 0) ? (
+                <Text style={styles.empty}>
+                  {filter
+                    ? 'Nothing matches the search.'
+                    : view === 'done'
+                      ? 'Done is read from your Mac when it is in reach.'
+                      : 'Nothing cached yet.'}
+                </Text>
+              ) : (
+                <EmptyList view={all ? null : view} quiet={split && !selectedItem} />
+              )
+            }
+            renderSectionHeader={({ section }) => {
+              const shut = folded.has(section.name)
+              return (
+                <View>
+                  {/* Triage, under Needs me: its name and what it holds, set as the tab's own title is. */}
+                  {section.part && (
+                    <View style={styles.part}>
+                      <Text style={[type.title, styles.heading]}>{section.part.title}</Text>
+                      <Text style={styles.caption} numberOfLines={2}>
+                        {section.part.about}
+                      </Text>
                     </View>
                   )}
-                  <Text style={[styles.sectionName, shut && { color: colours.text3 }]}>{section.title}</Text>
-                  {shut && <Text style={styles.sectionCount}>{section.count}</Text>}
-                </Pressable>
-              </View>
-            )
-          }}
-          renderItem={({ item }) => (
-            <Row
-              item={item}
-              selected={split && item.task.id === selected}
-              status={all}
-              workstream={groupBy === 'priority'}
-              onPress={() => open(item.task.id)}
-            />
-          )}
-        />
+                  <Pressable
+                    style={styles.section}
+                    onPress={() => fold(section.name)}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: !shut }}
+                  >
+                    {section.priority === null ? (
+                      <WorkstreamBadge name={section.title} />
+                    ) : (
+                      <View style={styles.priorityBadge}>
+                        <Bars priority={section.priority} />
+                      </View>
+                    )}
+                    <Text style={[styles.sectionName, shut && { color: colours.text3 }]}>{section.title}</Text>
+                    {shut && <Text style={styles.sectionCount}>{section.count}</Text>}
+                  </Pressable>
+                </View>
+              )
+            }}
+            renderItem={({ item }) => (
+              <Row
+                item={item}
+                selected={split && item.task.id === selected}
+                status={all}
+                workstream={groupBy === 'priority'}
+                onPress={() => open(item.task.id)}
+              />
+            )}
+          />
+        </Animated.View>
         {/* The tabs under the list, where the thumb is; search and New in the bar below them. */}
         <BottomRow beside={split}>{tabs}</BottomRow>
       </KeyboardAvoidingView>
@@ -518,10 +533,7 @@ const TabBar = ({ items, selected, narrow, onPick }: { items: Tab[]; selected: s
               const { x: left, width: w } = e.nativeEvent.layout
               setFrames((all) => (all[v.id]?.x === left && all[v.id]?.width === w ? all : { ...all, [v.id]: { x: left, width: w } }))
             }}
-            onPress={() => {
-              LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'scaleX'))
-              onPick(v.id)
-            }}
+            onPress={() => onPick(v.id)}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
             accessibilityLabel={v.count === undefined ? v.title : `${v.title}, ${v.count}`}
@@ -642,13 +654,14 @@ const styles = StyleSheet.create({
     borderRadius: shapes.tab.radius,
   },
   // On Liquid Glass the bar is the glass itself, no fill of its own.
-  tabsGlass: { backgroundColor: 'transparent', borderRadius: 22 },
+  tabsGlass: { backgroundColor: 'transparent', borderRadius: 20 },
   // Lifted off the well, as the Mac's; it slides from tab to tab.
   tabOn: {
     position: 'absolute',
     top: 3,
     height: 34,
-    borderRadius: shapes.tab.radius,
+    // Round, inside the round bar: its curve follows the bar's, 3 points in.
+    borderRadius: 17,
     backgroundColor: colours[shapes.tab.selected],
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colours[shapes.tab.edge],
