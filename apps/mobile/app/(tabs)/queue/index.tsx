@@ -410,8 +410,7 @@ export default function QueueScreen() {
       {/* With a task open beside the list: close it, and step through the list with the Mac's thin
           arrows. With none: search, and New (in the split the empty side is New task already). */}
       <Stack.Toolbar placement="bottom">
-        {/* Upright, the bottom row is the list's: search goes up into the bar beside its buttons. */}
-        <Stack.Toolbar.SearchBarSlot hidden={Boolean(selectedItem) || narrow} />
+        {/* Search is a button in the bar at the top, in every pose: never a second one down here. */}
         {/* With a task open beside the list: New task in its place, as Claude's new chat beside its chats. */}
         <Stack.Toolbar.Button
           icon="square.and.pencil"

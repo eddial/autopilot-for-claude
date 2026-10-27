@@ -41,6 +41,10 @@ export type SyncState = {
   status: Status
   routeKind: 'lan' | 'tailscale' | null
   lastSyncedAt: string | null
+  /** Reaching for the Mac right now (a probe or a call on the way); offline stays offline meanwhile. */
+  trying: boolean
+  /** Offline: when the next try is due, backing off from 5 seconds to 30; a kick tries at once. */
+  nextTryAt: string | null
   queue: LiveQueue
   outbox: Pending[]
   conflicts: Conflict[]
@@ -76,12 +80,16 @@ export class Sync {
     status: 'connecting',
     routeKind: null,
     lastSyncedAt: null,
+    trying: false,
+    nextTryAt: null,
     queue: emptyQueue,
     outbox: [],
     conflicts: [],
     details: {},
   }
   private saveTimer: ReturnType<typeof setTimeout> | null = null
+  /** Rounds in a row that could not reach the Mac: how long to wait before the next. */
+  private failures = 0
   /** Conversations being fetched, with the feed changes that arrived meanwhile (see `detail`). */
   private readonly fetching = new Map<string, Change[]>()
   /** Every ask that has been in your turn here: notified once, however often it comes and goes. */
@@ -223,26 +231,29 @@ export class Sync {
   async syncOnce(waitSeconds = 0): Promise<void> {
     try {
       if (!this.link.route()) {
-        this.set({ status: 'connecting' })
+        // Offline stays offline while it tries again, so the screen does not flicker each round.
+        this.set({ status: this.state.status === 'offline' ? 'offline' : 'connecting', trying: true })
         const route = await this.link.probe()
         if (!route) throw new Error('offline')
         this.set({ routeKind: route.kind === 'socket' ? null : route.kind })
       }
       await this.flush()
       await this.catchUp(waitSeconds)
-      this.set({ status: 'online', lastSyncedAt: this.o.now().toISOString() })
+      this.failures = 0
+      this.set({ status: 'online', trying: false, lastSyncedAt: this.o.now().toISOString() })
       this.saveQueueSoon()
     } catch (error) {
       // The Mac refused the token (the feed is always this device's to read, so a refusal means
       // it was removed): retrying will not help, pairing again will.
       if (error instanceof ORPCError && (error.status === 401 || error.status === 403)) {
         this.running = false
-        this.set({ status: 'unpaired', routeKind: null })
+        this.set({ status: 'unpaired', routeKind: null, trying: false })
         return
       }
       // No route, or a call failed on the way: the next round probes the routes again.
       this.link.lost()
-      this.set({ status: 'offline', routeKind: null })
+      this.failures++
+      this.set({ status: 'offline', routeKind: null, trying: false })
     }
   }
 
@@ -339,7 +350,12 @@ export class Sync {
       while (this.running && this.generation === generation) {
         await this.syncOnce(this.state.status === 'online' ? this.o.waitSeconds : 0)
         if (this.state.status === 'unpaired') return
-        if (this.state.status !== 'online') await this.pause(5_000)
+        if (this.state.status !== 'online') {
+          const wait = Math.min(30_000, 5_000 * 2 ** Math.max(0, this.failures - 1))
+          this.set({ nextTryAt: new Date(this.o.now().getTime() + wait).toISOString() })
+          await this.pause(wait)
+          this.set({ nextTryAt: null })
+        }
       }
     })()
   }

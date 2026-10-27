@@ -12,6 +12,7 @@ import {
   signalSender,
   updateLabel,
   updateTone,
+  syncStatus,
 } from '../src/present.ts'
 
 const decision = (open: boolean): Update => ({
@@ -178,5 +179,25 @@ describe('markdown', () => {
         ],
       },
     ])
+  })
+
+  it('says where syncing stands: silent when live, a countdown while offline, reaching while it tries', () => {
+    const now = new Date('2026-10-27T12:00:00Z')
+    const base = {
+      status: 'online' as const,
+      lastSyncedAt: '2026-10-27T11:57:00Z',
+      trying: false,
+      nextTryAt: null,
+      outbox: [],
+      conflicts: [],
+    }
+    expect(syncStatus(base, 'Mac', now)).toBeNull()
+    expect(syncStatus({ ...base, status: 'offline', nextTryAt: '2026-10-27T12:00:12Z' }, 'Mac', now)).toMatchObject({
+      light: 'off',
+      title: 'Offline',
+      detail: "Can't reach Mac · synced 3m ago · retrying in 12s",
+      retry: true,
+    })
+    expect(syncStatus({ ...base, status: 'offline', trying: true }, 'Mac', now)).toMatchObject({ light: 'trying', title: 'Reconnecting…' })
   })
 })

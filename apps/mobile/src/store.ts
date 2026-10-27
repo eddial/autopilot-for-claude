@@ -125,6 +125,8 @@ const emptyState: SyncState = {
   status: 'offline',
   routeKind: null,
   lastSyncedAt: null,
+  trying: false,
+  nextTryAt: null,
   queue: { seq: 0, tasks: {}, asks: {}, sessions: {} },
   outbox: [],
   conflicts: [],

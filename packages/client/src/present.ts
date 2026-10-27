@@ -1,4 +1,5 @@
 import type { QueueItem, Task, Update } from '@autopilot/contracts'
+import type { SyncState } from './sync.ts'
 import { MARKS, type Mark } from '@autopilot/design'
 
 /**
@@ -438,3 +439,44 @@ const sectionsIn = (items: QueueItem[], by: GroupBy): QueueSection[] =>
     : [1, 2, 3, 4]
         .map((p) => ({ key: `p${p}`, title: PRIORITY_NAMES[p] ?? '', items: byWorkstream(items.filter((i) => i.task.priority === p)) }))
         .filter((s) => s.items.length > 0)
+
+const changes = (n: number) => (n === 1 ? '1 change' : `${n} changes`)
+
+/** The light beside the sync status: live, reaching for it, off, or something to look at. */
+export type SyncLight = 'live' | 'trying' | 'off' | 'problem'
+
+/**
+ * Where syncing with the Mac stands, as a light and a line or two, or null when all is well and
+ * there is nothing to say. `retryIn` counts down to the next try while offline.
+ */
+export const syncStatus = (
+  state: Pick<SyncState, 'status' | 'lastSyncedAt' | 'trying' | 'nextTryAt' | 'outbox' | 'conflicts'>,
+  mac: string,
+  now: Date,
+): { light: SyncLight; title: string; detail: string | null; retry: boolean } | null => {
+  const kept = state.outbox.length > 0 ? `${changes(state.outbox.length)} kept here, sent when it's back` : null
+  if (state.conflicts.length > 0)
+    return { light: 'problem', title: `${changes(state.conflicts.length)} not applied`, detail: 'Open the task to see why', retry: false }
+  if (state.status === 'offline') {
+    const synced = state.lastSyncedAt ? `synced ${relativeAgo(state.lastSyncedAt, now)}` : 'not synced yet'
+    if (state.trying) return { light: 'trying', title: 'Reconnecting…', detail: kept ?? `Reaching ${mac} · ${synced}`, retry: false }
+    const seconds = state.nextTryAt ? Math.max(1, Math.ceil((Date.parse(state.nextTryAt) - now.getTime()) / 1000)) : null
+    return {
+      light: 'off',
+      title: 'Offline',
+      detail: kept ?? [`Can't reach ${mac}`, synced, seconds ? `retrying in ${seconds}s` : null].filter(Boolean).join(' · '),
+      retry: true,
+    }
+  }
+  if (state.status === 'connecting') return { light: 'trying', title: `Connecting to ${mac}…`, detail: null, retry: false }
+  if (state.outbox.length > 0) return { light: 'trying', title: `Sending ${changes(state.outbox.length)}…`, detail: null, retry: false }
+  return null
+}
+
+const relativeAgo = (iso: string, now: Date): string => {
+  const s = Math.max(0, Math.round((now.getTime() - Date.parse(iso)) / 1000))
+  if (s < 60) return 'just now'
+  if (s < 3600) return `${Math.round(s / 60)}m ago`
+  if (s < 86_400) return `${Math.round(s / 3600)}h ago`
+  return `${Math.round(s / 86_400)}d ago`
+}
