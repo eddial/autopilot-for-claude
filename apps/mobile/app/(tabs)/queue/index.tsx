@@ -181,8 +181,7 @@ export default function QueueScreen() {
   }, [wanted, loaded, split])
   // The open task is a layer over New task: it follows a drag to the right, as iOS's own way back,
   // and slides off to the right, showing New task under it; a short drag springs back. Only a
-  // clearly sideways drag: scrolling the conversation stays the scroll view's. The close button
-  // slides it off the same way. It stays off screen until the layer is gone, and is put back before
+  // clearly sideways drag: scrolling the conversation stays the scroll view's. It stays off screen until the layer is gone, and is put back before
   // the next task paints, so the old position never shows.
   const [slide] = useState(() => new Animated.Value(0))
   const slideAway = () =>
@@ -393,7 +392,6 @@ export default function QueueScreen() {
           closeAfter={false}
           onTop={() => pageTop.current?.()}
           onNew={narrow ? () => setSelected(null) : undefined}
-          onClose={slideAway}
         />
       ) : (
         // Settings at the top: the phone has none of its own (sources and workstreams are the Mac's), just your Mac:
