@@ -99,7 +99,15 @@ export class Watchers {
       this.o.log(`watcher ${id} on ${task.id} has no tools to read with`)
       return
     }
-    const output = await this.o.runClaude(this.prompt(task.id, task.title, task.brief, watcher.what, fingerprint), {
+    // A first run also says whether what it watches for is already there: what was set to wait for
+    // an email can be set after the email came in. The task's latest updates say what is known.
+    const known = fingerprint
+      ? []
+      : service
+          .getTask(task.id)
+          .updates.slice(-6)
+          .map((u) => `- ${u.author} (${u.kind}): ${u.body.slice(0, 400)}`)
+    const output = await this.o.runClaude(this.prompt(task.id, task.title, task.brief, watcher.what, fingerprint, known), {
       tools,
       model: this.o.model,
       schema: z.toJSONSchema(WatcherOutput),
@@ -107,8 +115,7 @@ export class Watchers {
       cwd: this.o.paths.home,
     })
     const result = WatcherOutput.parse(typeof output === 'string' ? JSON.parse(output) : output)
-    // The first run only sets the baseline.
-    if (result.changed && fingerprint) {
+    if (result.changed) {
       const autonomy = this.o.workstreams().find((w) => w.name === task.workstream)?.autonomy ?? 2
       const attachments: Link[] = result.sources
         .filter((url) => URL.canParse(url))
@@ -122,7 +129,7 @@ export class Watchers {
     service.watcherChecked(id, result.fingerprint)
   }
 
-  private prompt(taskId: string, title: string, brief: string, what: string, fingerprint: string | null): string {
+  private prompt(taskId: string, title: string, brief: string, what: string, fingerprint: string | null, known: string[]): string {
     const instructions = readFileSync(join(this.o.prompts, 'instructions.md'), 'utf8').replaceAll('{{owner}}', this.o.owner)
     return [
       instructions,
@@ -131,9 +138,10 @@ export class Watchers {
         '# Task',
         'Read-only: look at the current state of what is watched with your tools. Create, change, send and comment on nothing.',
         `Previous fingerprint: ${fingerprint ?? 'none (first run)'}`,
+        ...(known.length > 0 ? [`The task's latest updates (what is already known):\n\n${known.join('\n')}`] : []),
         'Return:',
         '- fingerprint: a short, stable record of the latest activity by people (ids, timestamps, counts, open/closed/merged) for the next run to compare against. Leave out values that move on their own: CI or mergeable state still computing, view counts, relative times',
-        '- changed: true only when a person did something since the previous fingerprint (a reply, a new commit or review, a status or decision); always false on the first run',
+        '- changed: true when what is watched for happened since the previous fingerprint (a reply, an email that arrived, a new commit or review, a status or decision). On the first run there is no previous fingerprint: true only when what is watched for is already there and the latest updates above do not mention it yet, else false',
         '- summary: when changed, one to three plain sentences for the owner: who did what, and when; say what it means for the task if that is clear. Names, not ids: no channel, user or message ids or timestamps. Else ""',
         '- sources: the URLs of what changed',
       ].join('\n\n'),

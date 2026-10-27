@@ -71,6 +71,13 @@ describe('watchers', () => {
     expect(service.pendingOutbox().map((o) => o.kind)).toEqual(['start_session'])
   })
 
+  it('reports on the first run when what it watches for is already there', async () => {
+    const { service, watchers, task, replies } = setup(3)
+    replies.push({ fingerprint: 'r0', changed: true, summary: 'Notion’s export email came in at 12:02.' })
+    await watchers.tick()
+    expect(service.getTask(task.id).updates.at(-1)).toMatchObject({ author: 'watcher', kind: 'info' })
+  })
+
   it('puts news on your turn, in plain words, when the workstream may not start by itself', async () => {
     const { service, watchers, task, replies, advance } = setup(2)
     replies.push({ fingerprint: 'r0', changed: false, summary: '' }, { fingerprint: 'r1', changed: true, summary: 'Joris approved.' })

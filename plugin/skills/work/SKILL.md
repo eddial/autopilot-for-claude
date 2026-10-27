@@ -95,4 +95,5 @@ post the update.
 Before handing over as `waiting`, and in `review` when an outside thread may still move, add a
 watcher (a pull request needs none for its checks and reviews: Auto-fix has those) with `add_watcher` (or the `watcher` field of `wait_on`): what to
 watch and what counts as news, how often (`30m` by default), and until when. News brings the task
-back to you.
+back to you. Look once yourself before you hand over: what you would wait for may already be there
+(the email came in, the reply is posted), and then it is not a wait.
