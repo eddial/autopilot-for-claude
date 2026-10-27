@@ -12,7 +12,7 @@ import {
   type Pending,
 } from '@autopilot/client'
 import type { QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contracts'
-import { filedBy, firstLookQuestions, isArtifact, isPaste, pasteSize, signalName, withoutQuestions } from '@autopilot/client'
+import { filedBy, firstLookQuestions, isArtifact, isPaste, pasteSize, signalMark, signalName, withoutQuestions } from '@autopilot/client'
 import { shell } from '../api.ts'
 import { age, ago, updateLabel } from '../format.ts'
 import { useDraft } from '../drafts.ts'
@@ -33,6 +33,7 @@ import {
   Markdown,
   Meta,
   NavIcon,
+  SourceMark,
   Spacer,
   Tag,
 } from '../ui.tsx'
@@ -857,10 +858,11 @@ const SideGroup = ({ heading, rows, shown, list = false }: { heading: string; ro
 /** A message a signal filed or added: where, from whom, when; opens the message. */
 const SignalRow = ({ mention }: { mention: TaskSignal }) => {
   const link = /^https?:\/\//.test(mention.url)
+  const mark = signalMark(mention.signal, mention.url)
   const body = (
     <>
       <span className="signal-head">
-        <NavIcon name="signals" size={13} />
+        {mark ? <SourceMark mark={mark} size={13} /> : <NavIcon name="signals" size={13} />}
         {signalName(mention.signal)}
         {mention.channel ? ` · ${mention.channel}` : ''}
       </span>

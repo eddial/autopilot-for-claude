@@ -1,7 +1,7 @@
 import type { QueueItem, Update } from '@autopilot/contracts'
 import { describe, expect, it } from 'vitest'
 import { parseMarkdown } from '../src/markdown.ts'
-import { isArtifact, linkSource, sectionsOf, updateLabel, updateTone } from '../src/present.ts'
+import { isArtifact, linkKind, linkSource, sectionsOf, signalMark, updateLabel, updateTone } from '../src/present.ts'
 
 const decision = (open: boolean): Update => ({
   id: 'u1',
@@ -31,6 +31,25 @@ describe('how updates read', () => {
         'https://www.example.com/a',
       ].map(linkSource),
     ).toEqual(['Gmail', 'Slack', 'File', 'example.com'])
+  })
+
+  it('marks a link and a signal with where they live, and a file or an unknown place with none', () => {
+    expect(
+      [
+        'https://acme.slack.com/archives/C1/p1',
+        'https://docs.google.com/spreadsheets/d/1',
+        'https://acme.atlassian.net/wiki/spaces/X',
+        'https://acme.atlassian.net/browse/X-1',
+        'file:///Users/b/plan.md',
+        'https://www.example.com/a',
+      ].map((url) => linkKind({ url, title: 'x' }).mark ?? null),
+    ).toEqual(['slack', 'googleSheets', 'confluence', 'jira', null, null])
+    expect([
+      signalMark('slack'),
+      signalMark('calendar'),
+      signalMark('inbox', 'https://linear.app/a/issue/A-1'),
+      signalMark('inbox'),
+    ]).toEqual(['slack', 'googleCalendar', 'linear', null])
   })
 
   it('lists what a session made to share as artifacts, apart from the rest', () => {

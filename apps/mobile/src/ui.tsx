@@ -12,7 +12,8 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
-import { claude, colours, fonts, pilot, radius, shapes, space, tones, type Tone } from '@autopilot/design'
+import { claude, colours, fonts, MARKS, pilot, radius, shapes, space, tones, type Mark, type Tone } from '@autopilot/design'
+import Svg, { Path } from 'react-native-svg'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { emptyWords, linkKind, parseMarkdown, workstreamMark, type Inline, type LinkKind } from '@autopilot/client'
@@ -254,10 +255,22 @@ const KIND_SYMBOL: Record<LinkKind['icon'], SFSymbol> = {
   table: 'tablecells',
 }
 
-/** What kind of thing a link is, as the system draws it. */
-export const LinkIcon = ({ link, size = 14 }: { link: { url: string; title: string }; size?: number }) => (
-  <SymbolView name={KIND_SYMBOL[linkKind(link).icon]} size={size} tintColor={colours.text3} />
+/** Where something lives, as its maker draws it, in grey; a little smaller than a symbol, as on the Mac. */
+export const SourceMark = ({ mark, size = 14 }: { mark: Mark; size?: number }) => (
+  <Svg width={size} height={size} viewBox="-2.5 -2.5 29 29" fill={colours.text3}>
+    <Path d={MARKS[mark]} />
+  </Svg>
 )
+
+/** Where a link lives, by its mark; what kind of thing it is, as the system draws it, where it has none. */
+export const LinkIcon = ({ link, size = 14 }: { link: { url: string; title: string }; size?: number }) => {
+  const kind = linkKind(link)
+  return kind.mark ? (
+    <SourceMark mark={kind.mark} size={size} />
+  ) : (
+    <SymbolView name={KIND_SYMBOL[kind.icon]} size={size} tintColor={colours.text3} />
+  )
+}
 
 const MARK_TONE = {
   pilot: { bg: colours.pilotTint, fg: colours.pilotSoft },

@@ -6,6 +6,7 @@ import {
   isArtifact,
   isPaste,
   pasteSize,
+  signalMark,
   signalName,
   createdText,
   eventText,
@@ -36,6 +37,7 @@ import {
   ComposerTool,
   Dot,
   LinkIcon,
+  SourceMark,
   Markdown,
   Sides,
   Tag,
@@ -339,10 +341,7 @@ const Signals = ({ signals }: { signals: TaskSignal[] }) => {
           accessibilityRole="link"
           accessibilityLabel={`${signalName(m.signal)}: ${m.title}`}
         >
-          <Text style={type.meta}>
-            {signalName(m.signal)}
-            {m.channel ? ` · ${m.channel}` : ''}
-          </Text>
+          <SignalHead signal={m.signal} url={m.url} channel={m.channel} />
           <Text style={styles.signalTitle}>{m.title}</Text>
           <Text style={type.meta}>
             {m.sender} · {Number.isNaN(Date.parse(m.at)) ? m.at : ago(m.at)}
@@ -351,6 +350,20 @@ const Signals = ({ signals }: { signals: TaskSignal[] }) => {
         </Pressable>
       ))}
       {signals.length > 3 && <MoreToggle open={all} onToggle={() => setAll((x) => !x)} count={signals.length} />}
+    </View>
+  )
+}
+
+/** Where a signal heard it: the source's mark, its name, the channel. */
+const SignalHead = ({ signal, url, channel }: { signal: string; url: string; channel: string | null | undefined }) => {
+  const mark = signalMark(signal, url)
+  return (
+    <View style={styles.signalHead}>
+      {mark && <SourceMark mark={mark} size={12} />}
+      <Text style={type.meta}>
+        {signalName(signal)}
+        {channel ? ` · ${channel}` : ''}
+      </Text>
     </View>
   )
 }
@@ -556,6 +569,7 @@ const styles = StyleSheet.create({
   section: { gap: 8 },
   // On the page's own colour: no box, so its text starts on the page's margin like the rest.
   signal: { gap: 2, marginTop: 8, paddingVertical: 6 },
+  signalHead: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   signalTitle: { fontSize: 15, lineHeight: 21, color: colours.textBody },
   folded: { maxHeight: 200, overflow: 'hidden' },
   pasted: {

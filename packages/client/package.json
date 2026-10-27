@@ -13,7 +13,8 @@
   "dependencies": {
     "@autopilot/contracts": "workspace:*",
     "@orpc/client": "catalog:",
-    "@orpc/contract": "catalog:"
+    "@orpc/contract": "catalog:",
+    "@autopilot/design": "workspace:*"
   },
   "devDependencies": {
     "@autopilot/server": "workspace:*",

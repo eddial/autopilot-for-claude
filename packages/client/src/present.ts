@@ -1,4 +1,5 @@
 import type { QueueItem, Task, Update } from '@autopilot/contracts'
+import { MARKS, type Mark } from '@autopilot/design'
 
 /**
  * How an update reads on a task's page, the same on the Mac and the iPhone: its label, who posted
@@ -66,19 +67,72 @@ export const updateAuthor = (update: Update): string | null => (update.kind === 
 /** An event's line after who did it: "Linked …" reads "linked …" after "Session". */
 export const eventText = (update: Update): string => update.body.charAt(0).toLowerCase() + update.body.slice(1)
 
-const SOURCES: [RegExp, string][] = [
-  [/(^|\.)mail\.google\.com$/, 'Gmail'],
-  [/(^|\.)docs\.google\.com$/, 'Google Docs'],
-  [/(^|\.)drive\.google\.com$/, 'Google Drive'],
-  [/(^|\.)slack\.com$/, 'Slack'],
-  [/(^|\.)github\.com$/, 'GitHub'],
-  [/(^|\.)linear\.app$/, 'Linear'],
-  [/(^|\.)notion\.(so|site)$/, 'Notion'],
-  [/(^|\.)fathom\.video$/, 'Fathom'],
-  [/(^|\.)claude\.ai$/, 'Claude'],
+/** Where a link lives: its host (and, where one host holds several apps, its path), name and mark. */
+const SOURCES: [host: RegExp, name: string, mark: Mark | null, path?: RegExp][] = [
+  [/(^|\.)mail\.google\.com$/, 'Gmail', 'gmail'],
+  [/^docs\.google\.com$/, 'Google Sheets', 'googleSheets', /^\/spreadsheets\//],
+  [/^docs\.google\.com$/, 'Google Slides', 'googleSlides', /^\/presentation\//],
+  [/^docs\.google\.com$/, 'Google Docs', 'googleDocs'],
+  [/^drive\.google\.com$/, 'Google Drive', 'googleDrive'],
+  [/^calendar\.google\.com$/, 'Google Calendar', 'googleCalendar'],
+  [/^meet\.google\.com$/, 'Google Meet', 'googleMeet'],
+  [/(^|\.)slack\.com$/, 'Slack', 'slack'],
+  [/(^|\.)github\.com$/, 'GitHub', 'github'],
+  [/(^|\.)gitlab\.com$/, 'GitLab', 'gitlab'],
+  [/(^|\.)linear\.app$/, 'Linear', 'linear'],
+  [/(^|\.)notion\.(so|site)$/, 'Notion', 'notion'],
+  [/(^|\.)fathom\.video$/, 'Fathom', 'fathom'],
+  [/(^|\.)claude\.ai$/, 'Claude', 'claude'],
+  [/(^|\.)figma\.com$/, 'Figma', 'figma'],
+  [/\.atlassian\.net$/, 'Confluence', 'confluence', /^\/wiki\//],
+  [/\.atlassian\.net$/, 'Jira', 'jira'],
+  [/(^|\.)zoom\.us$/, 'Zoom', 'zoom'],
+  [/(^|\.)loom\.com$/, 'Loom', 'loom'],
+  [/(^|\.)dropbox\.com$/, 'Dropbox', 'dropbox'],
+  [/(^|\.)asana\.com$/, 'Asana', 'asana'],
+  [/(^|\.)trello\.com$/, 'Trello', 'trello'],
+  [/(^|\.)clickup\.com$/, 'ClickUp', 'clickup'],
+  [/(^|\.)airtable\.com$/, 'Airtable', 'airtable'],
+  [/(^|\.)miro\.com$/, 'Miro', 'miro'],
+  [/(^|\.)discord\.(com|gg)$/, 'Discord', 'discord'],
+  [/(^|\.)intercom\.(com|io)$/, 'Intercom', 'intercom'],
+  [/(^|\.)hubspot\.com$/, 'HubSpot', 'hubspot'],
+  [/(^|\.)(salesforce|force)\.com$/, 'Salesforce', 'salesforce'],
+  [/(^|\.)stripe\.com$/, 'Stripe', 'stripe'],
+  [/(^|\.)vercel\.(com|app)$/, 'Vercel', 'vercel'],
+  [/(^|\.)sentry\.io$/, 'Sentry', 'sentry'],
+  [/(^|\.)calendly\.com$/, 'Calendly', 'calendly'],
+  [/(^|\.)zendesk\.com$/, 'Zendesk', 'zendesk'],
+  [/(^|\.)(youtube\.com|youtu\.be)$/, 'YouTube', 'youtube'],
+  [/(^|\.)(whatsapp\.com|wa\.me)$/, 'WhatsApp', 'whatsapp'],
+  [/(^|\.)(telegram\.org|t\.me)$/, 'Telegram', 'telegram'],
+  [/(^|\.)(x|twitter)\.com$/, 'X', 'x'],
+  [/^outlook\.(office|office365|live)\.com$/, 'Outlook', 'outlook'],
+  [/^teams\.(microsoft|live)\.com$/, 'Teams', 'teams'],
+  [/\.sharepoint\.com$/, 'SharePoint', 'sharepoint'],
+  [/^(onedrive\.live\.com|1drv\.ms)$/, 'OneDrive', 'onedrive'],
 ]
 
-/** Where a link goes, for a list of linked things: `Gmail`, `GitHub`, `File`, or the host. */
+/** What signals are called, where it is not their mark's name. */
+const SIGNAL_MARKS: Record<string, Mark> = {
+  calendar: 'googleCalendar',
+  drive: 'googleDrive',
+  docs: 'googleDocs',
+  meet: 'googleMeet',
+  sheets: 'googleSheets',
+  microsoft: 'outlook',
+  office: 'outlook',
+  mail: 'gmail',
+  twitter: 'x',
+}
+
+/** A signal's mark, by its name or, failing that, by where its message lives. */
+export const signalMark = (signal: string, url?: string): Mark | null => {
+  const name = signal.toLowerCase()
+  if (name in MARKS) return name as Mark
+  return SIGNAL_MARKS[name] ?? (url ? (sourceOf(url)?.[2] ?? null) : null)
+}
+
 /** A signal or source as its makers write it: GitHub, not Github. */
 export const signalName = (name: string): string => ({ github: 'GitHub' })[name] ?? name.charAt(0).toUpperCase() + name.slice(1)
 
@@ -100,16 +154,30 @@ export const workstreamMark = (name: string): { letters: string; tone: 'pilot' |
 export const filedBy = (task: Task): string =>
   task.source.signal ? `From ${signalName(task.source.signal)}` : task.createdBy === 'system' ? 'From Autopilot' : 'Created by you'
 
-export const linkSource = (url: string): string => {
-  // Not URL: React Native's has no hostname.
-  if (url.startsWith('file:')) return 'File'
-  const hostname = /^[a-z][a-z0-9+.-]*:\/\/([^/:?#]+)/i.exec(url)?.[1]?.toLowerCase()
-  if (!hostname) return 'Link'
-  return SOURCES.find(([pattern]) => pattern.test(hostname))?.[1] ?? hostname.replace(/^www\./, '')
+// Not URL: React Native's has no hostname.
+const parts = (url: string) => {
+  const match = /^[a-z][a-z0-9+.-]*:\/\/([^/:?#]+)(?::\d+)?([^?#]*)/i.exec(url)
+  return match?.[1] ? { host: match[1].toLowerCase(), path: match[2] ?? '' } : null
 }
 
-/** What sort of thing a link is: the label, and the icon both apps draw. */
-export type LinkKind = { label: string; icon: 'document' | 'code' | 'mail' | 'link' | 'image' | 'table' }
+const sourceOf = (url: string) => {
+  const at = parts(url)
+  return at ? SOURCES.find(([host, , , path]) => host.test(at.host) && (!path || path.test(at.path))) : undefined
+}
+
+/** Where a link goes, for a list of linked things: `Gmail`, `GitHub`, `File`, or the host. */
+export const linkSource = (url: string): string => {
+  if (url.startsWith('file:')) return 'File'
+  const at = parts(url)
+  if (!at) return 'Link'
+  return sourceOf(url)?.[1] ?? at.host.replace(/^www\./, '')
+}
+
+/**
+ * What sort of thing a link is: the label, the icon both apps draw, and the mark of where it lives,
+ * which they draw grey in the icon's place when there is one.
+ */
+export type LinkKind = { label: string; icon: 'document' | 'code' | 'mail' | 'link' | 'image' | 'table'; mark?: Mark | null }
 
 const FILES: [RegExp, LinkKind][] = [
   [/\.(md|markdown|txt|rtf|docx?|pages|pdf|html?)$/i, { label: 'Document', icon: 'document' }],
@@ -121,22 +189,29 @@ const FILES: [RegExp, LinkKind][] = [
 export const linkKind = (link: { url: string; title: string }): LinkKind => {
   const { url } = link
   if (url.startsWith('file:')) return FILES.find(([pattern]) => pattern.test(url))?.[1] ?? { label: 'File', icon: 'document' }
+  const mark = sourceOf(url)?.[2] ?? null
+  return { ...kindOf(link), mark }
+}
+
+const kindOf = ({ url, title }: { url: string; title: string }): LinkKind => {
   if (/github\.com\/[^/]+\/[^/]+\/pull\//.test(url)) return { label: 'Pull request', icon: 'code' }
   if (/github\.com\/[^/]+\/[^/]+\/(tree|compare)\//.test(url)) return { label: 'Branch', icon: 'code' }
   const source = linkSource(url)
-  if (source === 'Gmail') return { label: /draft/i.test(link.title) ? 'Email draft' : 'Email', icon: 'mail' }
-  if (source === 'Slack') return { label: /draft/i.test(link.title) ? 'Slack draft' : 'Slack message', icon: 'mail' }
+  if (source === 'Gmail' || source === 'Outlook') return { label: /draft/i.test(title) ? 'Email draft' : 'Email', icon: 'mail' }
+  if (source === 'Slack') return { label: /draft/i.test(title) ? 'Slack draft' : 'Slack message', icon: 'mail' }
   if (source === 'Google Docs') return { label: 'Google Doc', icon: 'document' }
+  if (source === 'Google Sheets') return { label: 'Google Sheet', icon: 'table' }
+  if (source === 'Google Slides') return { label: 'Google Slides', icon: 'document' }
   if (source === 'Claude' && /\/artifact\//.test(url)) return { label: 'Artifact', icon: 'document' }
   return { label: source, icon: 'link' }
 }
 
 /**
  * What a session made to share, which both apps list as Artifacts apart from the rest: a file it
- * wrote, a Google Doc, a Claude artifact. Pull requests, branches, drafts and sources stay Linked.
+ * wrote, a Google Doc, Sheet or Slides, a Claude artifact. Pull requests, branches, drafts and sources stay Linked.
  */
 export const isArtifact = (link: { url: string; title: string }): boolean =>
-  link.url.startsWith('file:') || ['Google Doc', 'Artifact'].includes(linkKind(link).label)
+  link.url.startsWith('file:') || ['Google Doc', 'Google Sheet', 'Google Slides', 'Artifact'].includes(linkKind(link).label)
 
 export const updateTone = (update: Update): EntryTone => {
   if (update.kind in ASKING) return update.open ? 'pilot' : 'quiet'

@@ -3,7 +3,7 @@ import { linkKind, linkSource } from '@autopilot/client'
 import type { LinkPreview, Link } from '@autopilot/contracts'
 import { api, shell } from '../api.ts'
 import { ago } from '../format.ts'
-import { Button, Chevron, Markdown, Meta, NavIcon } from '../ui.tsx'
+import { Button, Chevron, Markdown, Meta, NavIcon, SourceMark } from '../ui.tsx'
 import { useContextMenu } from './Menu.tsx'
 
 /**
@@ -67,7 +67,7 @@ export const LinkRow = ({ taskId, link }: { taskId: string; link: Link }) => {
     <li className="link-row">
       <div className="link-head">
         <span className="link-icon">
-          <NavIcon name={kind.icon} size={16} />
+          <KindIcon link={link} size={16} />
         </span>
         <Button kind="item" className="link-title" onClick={() => open(link.url)}>
           <span className="title">{titleOf(link)}</span>
@@ -126,8 +126,14 @@ export const Linked = ({ taskId, links, noun }: { taskId: string; links: Link[];
   )
 }
 
-/** The kind's icon on an update's attachment chip. */
-export const LinkIcon = ({ link }: { link: Link }) => <NavIcon name={linkKind(link).icon} size={13} />
+/** Where a link lives, by its mark; its kind where it has none. */
+const KindIcon = ({ link, size }: { link: Link; size: number }) => {
+  const kind = linkKind(link)
+  return kind.mark ? <SourceMark mark={kind.mark} size={size} /> : <NavIcon name={kind.icon} size={size} />
+}
+
+/** The link's icon on an update's attachment chip. */
+export const LinkIcon = ({ link }: { link: Link }) => <KindIcon link={link} size={13} />
 
 /**
  * A link in the task's properties: its kind's icon, the title on one line, and what it is and
@@ -156,7 +162,7 @@ export const SideLink = ({ taskId, link, at }: { taskId: string; link: Link; at:
     <li className={`side-link${reading ? ' reading' : ''}`} onContextMenu={(e) => context.open(e, items)}>
       <Button kind="item" className="side-link-main" title={hint} onClick={() => open(link.url)}>
         <span className="side-link-icon">
-          <NavIcon name={kind.icon} size={15} />
+          <KindIcon link={link} size={15} />
         </span>
         <span className="side-link-text">
           <span className="side-link-title">{title}</span>

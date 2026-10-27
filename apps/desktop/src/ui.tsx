@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
 import { parseMarkdown, workstreamMark, type Inline } from '@autopilot/client'
-import { claude, pilot, space, type Space, type Tone } from '@autopilot/design'
+import { claude, MARKS, pilot, space, type Mark, type Space, type Tone } from '@autopilot/design'
 
 /**
  * The window's building blocks. Screens compose these and lay themselves out with classes from
@@ -246,6 +246,16 @@ export const NavIcon = ({ name, size = 16 }: { name: NavIconName; size?: number 
     aria-hidden="true"
   >
     {NAV_ICONS[name]}
+  </svg>
+)
+
+/**
+ * Where something lives, as its maker draws it, in one colour (the text around it, kept grey). Solid
+ * marks read heavier than the line icons, so they draw a little smaller in the same box.
+ */
+export const SourceMark = ({ mark, size = 16 }: { mark: Mark; size?: number }) => (
+  <svg width={size} height={size} viewBox="-2.5 -2.5 29 29" fill="currentColor" aria-hidden="true">
+    <path d={MARKS[mark]} />
   </svg>
 )
 
