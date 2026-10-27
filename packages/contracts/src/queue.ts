@@ -50,10 +50,10 @@ export const bandOf = ({ task, openAsk, session }: BandInput, now: Date): Band =
   if (task.state === 'snoozed') return 'your_turn'
   if (task.state === 'running') return 'running'
   if (task.state === 'waiting') return 'waiting'
-  return task.priority === 1 ? 'your_turn' : 'new'
+  return task.priority === 1 ? 'your_turn' : 'triage'
 }
 
-const BAND_ORDER: Record<Band, number> = { your_turn: 0, new: 1, running: 2, waiting: 3, snoozed: 4, done: 5 }
+const BAND_ORDER: Record<Band, number> = { your_turn: 0, triage: 1, running: 2, waiting: 3, snoozed: 4, done: 5 }
 
 const time = (iso: string | null | undefined): number => (iso ? Date.parse(iso) : 0)
 
@@ -65,7 +65,7 @@ const blocksLiveSession = (item: QueueItem): boolean =>
 const waitingSince = (item: QueueItem): number => time(item.openAsk?.createdAt ?? item.task.updatedAt)
 
 /** Where you act (your turn, then new to triage), priority leads inside each band. */
-const byPriority = (band: Band): boolean => band === 'your_turn' || band === 'new'
+const byPriority = (band: Band): boolean => band === 'your_turn' || band === 'triage'
 
 export const compareQueue = (a: QueueItem, b: QueueItem): number => {
   const byBand = BAND_ORDER[a.band] - BAND_ORDER[b.band] || (byPriority(a.band) ? a.task.priority - b.task.priority : 0)
@@ -76,7 +76,7 @@ export const compareQueue = (a: QueueItem, b: QueueItem): number => {
     case 'your_turn':
       order = Number(blocksLiveSession(b)) - Number(blocksLiveSession(a)) || waitingSince(a) - waitingSince(b)
       break
-    case 'new':
+    case 'triage':
       order = time(b.task.createdAt) - time(a.task.createdAt)
       break
     case 'running':

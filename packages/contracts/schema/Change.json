@@ -47,7 +47,7 @@
             "state": {
               "type": "string",
               "enum": [
-                "new",
+                "triage",
                 "running",
                 "waiting",
                 "snoozed",

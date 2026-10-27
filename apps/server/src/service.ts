@@ -471,7 +471,7 @@ export class Service {
         brief: input.brief,
         workstream: input.workstream ?? this.defaultWorkstream,
         priority: input.priority ?? 3,
-        state: input.start ? 'running' : 'new',
+        state: input.start ? 'running' : 'triage',
         source: { signal: null, url: null, mirrors: null },
         links: input.links.map((l) => ({ ...l, at: l.at ?? this.iso() })),
         createdBy: by,
@@ -558,7 +558,7 @@ export class Service {
   closeTask(input: In<typeof CloseTask>): Task {
     return this.idempotent(input.idempotencyKey, 'tasks.close', () => {
       const task = this.task(input.id)
-      if (input.outcome === 'canceled' && task.state === 'new') this.correct(task, 'dismissed', null, null)
+      if (input.outcome === 'canceled' && task.state === 'triage') this.correct(task, 'dismissed', null, null)
       return this.close(task, input.outcome)
     })
   }
@@ -694,7 +694,7 @@ export class Service {
           case 'start':
             return this.start(task)
           case 'dismiss':
-            if (task.state === 'new') this.correct(task, 'dismissed', null, null)
+            if (task.state === 'triage') this.correct(task, 'dismissed', null, null)
             return this.close(task, 'canceled')
           case 'snooze':
             if (!input.until) throw new DomainError('BAD_REQUEST', { field: 'until' }, 'Snooze needs a time')
@@ -808,7 +808,7 @@ export class Service {
         waitingOn: input.waitingOn ?? null,
         attachments: input.attachments,
       })
-      const state: Task['state'] = input.kind === 'waiting' ? 'waiting' : task.state === 'new' ? 'new' : 'running'
+      const state: Task['state'] = input.kind === 'waiting' ? 'waiting' : task.state === 'triage' ? 'triage' : 'running'
       this.touch(task, { state })
       return update
     })
@@ -1012,7 +1012,7 @@ export class Service {
           brief: `${item.summary}\n\nFrom: ${item.sender} · ${item.channel} · ${item.at}\nSource: ${item.url}`,
           workstream: input.workstream ?? this.defaultWorkstream,
           priority: input.priority ?? 3,
-          state: 'new',
+          state: 'triage',
           source: { signal: item.signal, url: item.url, mirrors: item.ticket?.id ?? null },
           links: [{ url: item.url, title: `${item.signal}: ${item.title}`.slice(0, 200), at: this.iso() }],
           createdBy: 'signal',
@@ -1143,7 +1143,7 @@ export class Service {
         brief: '',
         workstream: 'autopilot',
         priority: 2,
-        state: 'new',
+        state: 'triage',
         source: { signal: null, url: null, mirrors: null },
         links: [],
         createdBy: 'system',

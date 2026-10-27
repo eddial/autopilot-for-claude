@@ -19,7 +19,7 @@ export const titleCase = (text: string): string => text.charAt(0).toUpperCase() 
 
 export const BAND_TITLE: Record<Band, string> = {
   your_turn: 'Your turn',
-  new: 'New',
+  triage: 'Triage',
   running: 'Running',
   waiting: 'Waiting on others',
   snoozed: 'Snoozed',

@@ -185,6 +185,12 @@ const MIGRATIONS = [
   -- The queue reads every open ask at once.
   create index updates_open on updates(task_id) where open = 1;
   `,
+  `
+  -- New is called Triage: the state, and the band in the change feed and stored results.
+  update tasks set state = 'triage' where state = 'new';
+  update changes set payload = replace(replace(payload, '"state":"new"', '"state":"triage"'), '"band":"new"', '"band":"triage"');
+  update applied set result = replace(replace(result, '"state":"new"', '"state":"triage"'), '"band":"new"', '"band":"triage"');
+  `,
 ]
 
 export const openDatabase = (file: string): DatabaseSync => {

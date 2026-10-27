@@ -89,7 +89,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
         log(`${c.session.taskId} session ${c.session.state}`)
       }
       if (c.type === 'task.upserted' && taskStates.get(c.task.id) !== c.task.state) {
-        if (taskStates.has(c.task.id) || c.task.state === 'new') log(`${c.task.id} ${c.task.state}: ${c.task.title.slice(0, 80)}`)
+        if (taskStates.has(c.task.id) || c.task.state === 'triage') log(`${c.task.id} ${c.task.state}: ${c.task.title.slice(0, 80)}`)
         taskStates.set(c.task.id, c.task.state)
       }
     }

@@ -43,7 +43,7 @@
           "type": "string",
           "enum": [
             "your_turn",
-            "new",
+            "triage",
             "running",
             "waiting",
             "snoozed",
@@ -100,7 +100,7 @@
                   "state": {
                     "type": "string",
                     "enum": [
-                      "new",
+                      "triage",
                       "running",
                       "waiting",
                       "snoozed",
@@ -257,7 +257,7 @@
                 "type": "string",
                 "enum": [
                   "your_turn",
-                  "new",
+                  "triage",
                   "running",
                   "waiting",
                   "snoozed",
@@ -641,7 +641,7 @@
                       "state": {
                         "type": "string",
                         "enum": [
-                          "new",
+                          "triage",
                           "running",
                           "waiting",
                           "snoozed",
@@ -1623,7 +1623,7 @@
             "state": {
               "type": "string",
               "enum": [
-                "new",
+                "triage",
                 "running",
                 "waiting",
                 "snoozed",
@@ -1780,7 +1780,7 @@
           "type": "string",
           "enum": [
             "your_turn",
-            "new",
+            "triage",
             "running",
             "waiting",
             "snoozed",
@@ -2252,7 +2252,7 @@
         "state": {
           "type": "string",
           "enum": [
-            "new",
+            "triage",
             "running",
             "waiting",
             "snoozed",
@@ -2475,7 +2475,7 @@
         "state": {
           "type": "string",
           "enum": [
-            "new",
+            "triage",
             "running",
             "waiting",
             "snoozed",
@@ -2685,7 +2685,7 @@
         "state": {
           "type": "string",
           "enum": [
-            "new",
+            "triage",
             "running",
             "waiting",
             "snoozed",
@@ -2895,7 +2895,7 @@
         "state": {
           "type": "string",
           "enum": [
-            "new",
+            "triage",
             "running",
             "waiting",
             "snoozed",
@@ -3112,7 +3112,7 @@
         "state": {
           "type": "string",
           "enum": [
-            "new",
+            "triage",
             "running",
             "waiting",
             "snoozed",
@@ -3360,7 +3360,7 @@
         "state": {
           "type": "string",
           "enum": [
-            "new",
+            "triage",
             "running",
             "waiting",
             "snoozed",
@@ -3578,7 +3578,7 @@
         "state": {
           "type": "string",
           "enum": [
-            "new",
+            "triage",
             "running",
             "waiting",
             "snoozed",
@@ -3788,7 +3788,7 @@
         "state": {
           "type": "string",
           "enum": [
-            "new",
+            "triage",
             "running",
             "waiting",
             "snoozed",
@@ -4024,7 +4024,7 @@
           "state": {
             "type": "string",
             "enum": [
-              "new",
+              "triage",
               "running",
               "waiting",
               "snoozed",
@@ -5142,7 +5142,7 @@
         "state": {
           "type": "string",
           "enum": [
-            "new",
+            "triage",
             "running",
             "waiting",
             "snoozed",
@@ -5546,7 +5546,7 @@
               "state": {
                 "type": "string",
                 "enum": [
-                  "new",
+                  "triage",
                   "running",
                   "waiting",
                   "snoozed",

@@ -27,8 +27,8 @@ describe('bandOf', () => {
   })
 
   it('sends urgent new tasks straight to your turn', () => {
-    expect(bandOf(input({ state: 'new', priority: 1 }), now)).toBe('your_turn')
-    expect(bandOf(input({ state: 'new', priority: 2 }), now)).toBe('new')
+    expect(bandOf(input({ state: 'triage', priority: 1 }), now)).toBe('your_turn')
+    expect(bandOf(input({ state: 'triage', priority: 2 }), now)).toBe('triage')
   })
 
   it('keeps closed tasks done whatever else is true', () => {
@@ -105,8 +105,8 @@ describe('compareQueue', () => {
       lastActivityAt: '2026-10-25T11:00:00Z',
     }
     const items = [
-      item('AP-1', { band: 'new' }),
-      item('AP-6', { band: 'new', priority: 2 }),
+      item('AP-1', { band: 'triage' }),
+      item('AP-6', { band: 'triage', priority: 2 }),
       item('AP-2', { askAt: '2026-10-25T11:00:00Z' }),
       item('AP-3', { askAt: '2026-10-25T09:00:00Z' }),
       item('AP-4', { askAt: '2026-10-25T11:30:00Z', session: live }),

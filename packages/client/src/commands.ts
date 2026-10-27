@@ -107,7 +107,7 @@ export const overlay = (queue: LiveQueue, outbox: Pending[], now: Date): LiveQue
           brief: c.brief,
           workstream: c.workstream ?? 'inbox',
           priority: c.priority ?? 3,
-          state: c.start ? 'running' : 'new',
+          state: c.start ? 'running' : 'triage',
           snoozedUntil: null,
           source: { signal: null, url: null, mirrors: null },
           links: [],

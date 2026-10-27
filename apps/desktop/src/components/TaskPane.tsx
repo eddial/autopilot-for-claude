@@ -12,7 +12,18 @@ import {
   type Pending,
 } from '@autopilot/client'
 import type { QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contracts'
-import { filedBy, firstLookQuestions, isArtifact, isPaste, pasteSize, signalMark, signalName, withoutQuestions } from '@autopilot/client'
+import {
+  filedBy,
+  firstLookQuestions,
+  isArtifact,
+  isPaste,
+  pasteSize,
+  signalChannel,
+  signalMark,
+  signalName,
+  signalSender,
+  withoutQuestions,
+} from '@autopilot/client'
 import { shell } from '../api.ts'
 import { age, ago, updateLabel } from '../format.ts'
 import { useDraft } from '../drafts.ts'
@@ -54,7 +65,7 @@ const open = (url: string) => {
 
 const BAND_TONE: Record<QueueItem['band'], Tone> = {
   your_turn: 'pilot',
-  new: 'quiet',
+  triage: 'quiet',
   running: 'claude',
   waiting: 'paused',
   snoozed: 'paused',
@@ -115,7 +126,7 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
   // What needs the owner goes on top; the activity below is everything else, oldest first.
   const ask = updates.find((u) => u.open && !answered.has(u.id)) ?? null
   // While the first look's questions are asked on top, its entry below keeps only what it found.
-  const asking = !ask && item.band === 'new' && firstLookQuestions(updates).length > 0
+  const asking = !ask && item.band === 'triage' && firstLookQuestions(updates).length > 0
   const activity = updates
     .filter((u) => u !== ask)
     .map((u) => (asking && u.author === 'scout' && u.kind === 'info' ? { ...u, body: withoutQuestions(u.body) } : u))
@@ -141,7 +152,7 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
             <AskCard update={ask} />
           </li>,
         ]
-      : item.band === 'new' && firstLookQuestions(updates).length > 0
+      : item.band === 'triage' && firstLookQuestions(updates).length > 0
         ? [
             <li key="before" className="entry ask-entry">
               <Avatar who="scout" />
@@ -196,7 +207,7 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
                     {filed} · {ago(task.createdAt)}
                   </Meta>
                 </div>
-                <Actions item={item} start={!(item.band === 'new' && firstLookQuestions(updates).length > 0)} />
+                <Actions item={item} start={!(item.band === 'triage' && firstLookQuestions(updates).length > 0)} />
               </header>
               {task.brief && (
                 <section className="section">
@@ -565,7 +576,7 @@ const Actions = ({ item, session: withSession = true, start = true }: { item: Qu
   const { preferred, choices } = useOpenSession(session)
   return (
     <div className="task-actions">
-      {start && item.band === 'new' && !live && (
+      {start && item.band === 'triage' && !live && (
         <Button kind="primary" className="with-icon" onClick={() => send({ kind: 'start', taskId: task.id })}>
           <Icon name="play" />
           Start
@@ -601,7 +612,7 @@ const Actions = ({ item, session: withSession = true, start = true }: { item: Qu
         <Icon name="done" />
         Mark done
       </Button>
-      {item.band === 'new' && (
+      {item.band === 'triage' && (
         <Menu
           className="icon-only"
           chevron={false}
@@ -709,7 +720,7 @@ const Properties = ({
     <aside className="task-side" aria-label="Properties">
       {!closed && (
         <div className="side-actions">
-          <Actions item={item} start={!(item.band === 'new' && firstLookQuestions(updates).length > 0)} />
+          <Actions item={item} start={!(item.band === 'triage' && firstLookQuestions(updates).length > 0)} />
         </div>
       )}
       <div className="side-group">
@@ -864,11 +875,11 @@ const SignalRow = ({ mention }: { mention: TaskSignal }) => {
       <span className="signal-head">
         {mark ? <SourceMark mark={mark} size={13} /> : <NavIcon name="signals" size={13} />}
         {signalName(mention.signal)}
-        {mention.channel ? ` · ${mention.channel}` : ''}
+        {signalChannel(mention) ? ` · ${signalChannel(mention)}` : ''}
       </span>
       <span className="signal-title">{mention.title}</span>
       <span className="signal-meta">
-        {mention.sender} · {Number.isNaN(Date.parse(mention.at)) ? mention.at : ago(mention.at)}
+        {[signalSender(mention), Number.isNaN(Date.parse(mention.at)) ? mention.at : ago(mention.at)].filter(Boolean).join(' · ')}
         {mention.action === 'updated' ? ' · added' : ''}
       </span>
     </>

@@ -8,7 +8,7 @@ The API is versioned; a server accepts its own version and the previous one.
 
 | Entity | Key fields |
 | --- | --- |
-| `Task` | `id` (`AP-212`), `title`, `brief`, `workstream`, `priority` (1–4), `band` (derived), `state` (`new`, `running`, `waiting`, `snoozed`, `done`, `canceled`), `snoozedUntil`, `source` (signal, URL, mirrored ticket), `links[]`, `sessionId`, `createdBy`, timestamps |
+| `Task` | `id` (`AP-212`), `title`, `brief`, `workstream`, `priority` (1–4), `band` (derived), `state` (`triage`, `running`, `waiting`, `snoozed`, `done`, `canceled`), `snoozedUntil`, `source` (signal, URL, mirrored ticket), `links[]`, `sessionId`, `createdBy`, timestamps |
 | `Update` | `id`, `taskId`, `kind` (below), `body`, `options[]` (for `decision`), `waitingOn`, `attachments[]`, `author` (`owner`, `session`, `signal`, `watcher`, `system`), `answers` (update id it answers), `open` (bool), `createdAt` |
 | `Session` | `id`, `taskId`, `machine`, `cwd`, `branch`, `resumeUrl`, `remoteControlUrl`, `state` (`starting`, `working`, `idle`, `waiting_permission`, `ended`), `startedAt`, `lastActivityAt` |
 | `Signal` | `name`, `schedule` (`every` or `cron`), `tools[]`, `model`, `paused`, `health`, `lastRunAt` |
@@ -34,7 +34,7 @@ Every command takes an `idempotencyKey` and is authorised by scope.
 | --- | --- | --- |
 | `tasks.create { title, brief, workstream?, priority?, links?, start }` | `owner`, `create`, `session` | Creates a task; `start: true` starts its session with `brief` as the first prompt. Workstream and priority default from routing |
 | `tasks.edit { id, title?, workstream?, priority? }` | `owner` | Changing the workstream re-files it (and teaches routing) |
-| `tasks.start { id }` | `owner` | New → Running |
+| `tasks.start { id }` | `owner` | Triage → Running |
 | `tasks.snooze { id, until }` | `owner` | |
 | `tasks.wait { id, on, watcher? }` | `owner`, `session` (own) | |
 | `tasks.close { id, outcome: done \| canceled }` | `owner` | Ends the session, cleans up the worktree unless it holds unpushed work |

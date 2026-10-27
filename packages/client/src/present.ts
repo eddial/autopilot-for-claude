@@ -126,6 +126,17 @@ const SIGNAL_MARKS: Record<string, Mark> = {
   twitter: 'x',
 }
 
+/**
+ * Where a signal heard something and who said it, each left out when it only repeats the signal's
+ * name, as a source with no channels or people of its own reports (Linear · linear, by Linear).
+ */
+const notTheSignal = (signal: string, text: string | null | undefined): string | null =>
+  text && text.trim().toLowerCase() !== signal.toLowerCase() ? text : null
+
+export const signalChannel = (m: { signal: string; channel?: string | null }): string | null => notTheSignal(m.signal, m.channel)
+
+export const signalSender = (m: { signal: string; sender?: string | null }): string | null => notTheSignal(m.signal, m.sender)
+
 /** A signal's mark, by its name or, failing that, by where its message lives. */
 export const signalMark = (signal: string, url?: string): Mark | null => {
   const name = signal.toLowerCase()
@@ -224,7 +235,7 @@ export const nowText = (item: QueueItem): string => {
   switch (item.band) {
     case 'your_turn':
       return 'Waiting on you'
-    case 'new':
+    case 'triage':
       return 'Not started'
     case 'running':
       return runningText(item.session)
@@ -314,7 +325,7 @@ export const rowStatus = (item: QueueItem): string | null => {
   if (item.openAsk) return updateLabel(item.openAsk)
   if (item.session?.state === 'waiting_permission') return 'Needs a permission'
   if (item.task.state === 'snoozed') return 'Back from snooze'
-  return item.task.state === 'new' ? 'New' : 'Your turn'
+  return item.task.state === 'triage' ? 'Urgent, not started' : 'Your turn'
 }
 
 /**
@@ -328,7 +339,7 @@ export const rowDetail = (item: QueueItem): string | null => {
   if (item.session?.state === 'waiting_permission') return item.session.activity ?? null
   if (item.band === 'running') return item.session?.activity ?? 'Working'
   if (item.band === 'waiting') return 'Waiting on others'
-  if (item.band === 'new' || item.task.state === 'new') return firstLine(item.task.brief) || 'Not started'
+  if (item.band === 'triage' || item.task.state === 'triage') return firstLine(item.task.brief) || 'Not started'
   return null
 }
 
@@ -357,8 +368,6 @@ export const emptyWords = (view: string | null): { title: string; line: string }
   switch (view) {
     case 'needs_me':
       return { title: 'All clear', line: 'Nothing needs you. The pilot has the controls.' }
-    case 'triage':
-      return { title: 'Nothing to sort', line: 'Whatever signals file lands here first, for you to start, snooze or let go.' }
     case 'running':
       return { title: 'Engines idle', line: 'No session is working. Start one with New.' }
     case 'waiting':
@@ -378,7 +387,17 @@ export const PRIORITY_NAMES: Record<number, string> = { 1: 'Urgent', 2: 'High', 
 /** How a list is cut into sections: by workstream, or by priority with each workstream together inside. */
 export type GroupBy = 'workstream' | 'priority'
 
-export type QueueSection = { key: string; title: string; items: QueueItem[] }
+/**
+ * A section of a list. Needs me holds two parts: what waits on your answer, then, below it, what
+ * came in to triage. The first section of each part carries the part's name, for a heading above it.
+ */
+export type QueueSection = { key: string; title: string; items: QueueItem[]; part?: { title: string; count: number } }
+
+/** The parts of Needs me, in order. */
+const PARTS: { band: QueueItem['band']; title: string }[] = [
+  { band: 'your_turn', title: 'Your turn' },
+  { band: 'triage', title: 'Triage' },
+]
 
 /** Workstreams in the order of their most pressing task (the queue comes sorted), the inbox last. */
 const workstreams = (items: QueueItem[]): string[] => {
@@ -390,7 +409,21 @@ const byWorkstream = (items: QueueItem[]): QueueItem[] =>
   workstreams(items).flatMap((name) => items.filter((i) => i.task.workstream === name))
 
 /** A sorted list in sections, the same on the Mac and the iPhone; read top to bottom, it is the order Next steps through. */
-export const sectionsOf = (items: QueueItem[], by: GroupBy): QueueSection[] =>
+export const sectionsOf = (items: QueueItem[], by: GroupBy): QueueSection[] => {
+  // Only where both parts are there, and nothing else is: Needs me, not All.
+  const parted = PARTS.every((p) => items.some((i) => i.band === p.band)) && items.every((i) => PARTS.some((p) => p.band === i.band))
+  if (!parted) return sectionsIn(items, by)
+  return PARTS.flatMap(({ band, title }) => {
+    const inPart = items.filter((i) => i.band === band)
+    return sectionsIn(inPart, by).map((s, i) => ({
+      ...s,
+      key: `${band}:${s.key}`,
+      ...(i === 0 ? { part: { title, count: inPart.length } } : {}),
+    }))
+  })
+}
+
+const sectionsIn = (items: QueueItem[], by: GroupBy): QueueSection[] =>
   by === 'workstream'
     ? workstreams(items).map((name) => ({ key: name, title: name, items: items.filter((i) => i.task.workstream === name) }))
     : [1, 2, 3, 4]

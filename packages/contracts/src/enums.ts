@@ -13,11 +13,11 @@ export type UpdateKind = z.infer<typeof UpdateKind>
 export const ASK_KINDS = ['decision', 'question', 'review', 'blocked', 'done'] as const satisfies readonly UpdateKind[]
 export type AskKind = (typeof ASK_KINDS)[number]
 
-export const TaskState = z.enum(['new', 'running', 'waiting', 'snoozed', 'done', 'canceled'])
+export const TaskState = z.enum(['triage', 'running', 'waiting', 'snoozed', 'done', 'canceled'])
 export type TaskState = z.infer<typeof TaskState>
 
 /** Where a task shows in the queue. Derived, never stored. */
-export const Band = z.enum(['your_turn', 'new', 'running', 'waiting', 'snoozed', 'done'])
+export const Band = z.enum(['your_turn', 'triage', 'running', 'waiting', 'snoozed', 'done'])
 export type Band = z.infer<typeof Band>
 
 /**

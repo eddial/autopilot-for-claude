@@ -68,7 +68,7 @@ describe('scout', () => {
     expect(update?.body).toContain('Before starting:\n- Promise the 24th, or a range?')
     expect(update?.attachments.map((a) => a.title)).toEqual(['slack: Sarah in #acme-support', 'github: SSO pull request'])
     // Informing is not asking: the task stays in New.
-    expect(service.getTask(waiting.id).band).toBe('new')
+    expect(service.getTask(waiting.id).band).toBe('triage')
     expect(service.getTask(started.id).updates).toEqual([])
   })
 

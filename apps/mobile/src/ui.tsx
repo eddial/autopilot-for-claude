@@ -13,7 +13,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { claude, colours, fonts, MARKS, pilot, radius, shapes, space, tones, type Mark, type Tone } from '@autopilot/design'
-import Svg, { Path } from 'react-native-svg'
+import Svg, { Circle, Path } from 'react-native-svg'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { emptyWords, linkKind, parseMarkdown, workstreamMark, type Inline, type LinkKind } from '@autopilot/client'
@@ -90,6 +90,21 @@ export const Bars = ({ priority, listed = false }: { priority: number; listed?: 
     </View>
   )
 }
+
+/** Not started yet, waiting to be triaged, as Linear marks it: arrows both ways on an orange disc. */
+export const TriageMark = () => (
+  <Svg width={14} height={14} viewBox="0 0 14 14" accessibilityLabel="Triage">
+    <Circle cx={7} cy={7} r={7} fill={colours.urgent} />
+    <Path
+      d="M3.6 7h6.8M5.4 5.2 3.6 7l1.8 1.8M8.6 5.2 10.4 7 8.6 8.8"
+      fill="none"
+      stroke={colours.urgentInk}
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+)
 
 /** A quiet property: a workstream, a priority. */
 export const Tag = ({ label }: { label: string }) => (

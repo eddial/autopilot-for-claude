@@ -308,6 +308,20 @@ export const Bars = ({ priority, listed = false }: { priority: number; listed?: 
     </span>
   )
 
+/** Not started yet, waiting to be triaged, as Linear marks it: arrows both ways on an orange disc. */
+export const TriageMark = () => (
+  <svg className="triage-mark" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+    <circle cx="7" cy="7" r="7" />
+    <path
+      d="M3.6 7h6.8M5.4 5.2 3.6 7l1.8 1.8M8.6 5.2 10.4 7 8.6 8.8"
+      fill="none"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+)
+
 /** A workstream's two-letter mark in its tint, the same wherever the workstream shows. */
 export const WorkstreamMark = ({ name }: { name: string }) => {
   const mark = workstreamMark(name)

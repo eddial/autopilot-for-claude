@@ -33,18 +33,29 @@ import {
 } from '../../../src/store.ts'
 import { colours, shapes } from '@autopilot/design'
 import { rowStatus, sectionsOf, type GroupBy } from '@autopilot/client'
-import { Bars, EmptyList, Sides, WorkstreamBadge, COMPOSER_BAR, edgeSpace, GUTTER, shaped, type, useBottomGap } from '../../../src/ui.tsx'
+import {
+  Bars,
+  EmptyList,
+  TriageMark,
+  Sides,
+  WorkstreamBadge,
+  COMPOSER_BAR,
+  edgeSpace,
+  GUTTER,
+  shaped,
+  type,
+  useBottomGap,
+} from '../../../src/ui.tsx'
 
-type QueueView = 'needs_me' | 'triage' | 'running' | 'waiting' | 'snoozed' | 'done'
+type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
 const VIEWS: { id: QueueView; title: string; about: string; bands: Band[]; symbol: SFSymbol }[] = [
   {
     id: 'needs_me',
     title: 'Needs me',
-    about: 'Under way and waiting on your answer',
-    bands: ['your_turn'],
+    about: 'Your answer, then what came in to triage',
+    bands: ['your_turn', 'triage'],
     symbol: 'hand.raised',
   },
-  { id: 'triage', title: 'Triage', about: 'Came in, not started', bands: ['new'], symbol: 'tray' },
   { id: 'running', title: 'Running', about: 'A session is working on it', bands: ['running'], symbol: 'hammer' },
   { id: 'waiting', title: 'Waiting on others', about: "Someone else's move", bands: ['waiting'], symbol: 'clock' },
   { id: 'snoozed', title: 'Snoozed', about: 'Put away until later', bands: ['snoozed'], symbol: 'moon' },
@@ -135,6 +146,7 @@ export default function QueueScreen() {
       title: s.title,
       priority: groupBy === 'priority' ? (s.items[0]?.task.priority ?? null) : null,
       count: s.items.length,
+      part: s.part ?? null,
       data: folded.has(s.key) ? [] : s.items,
     }))
   }, [items, openItems, all, done, view, current, filter, folded, groupBy])
@@ -158,7 +170,7 @@ export default function QueueScreen() {
   // A phone has no hover: once online, fetch the conversations at the top of the queue in the
   // background, so opening them needs no request.
   const top = items
-    .filter((i) => i.band === 'your_turn' || i.band === 'new')
+    .filter((i) => i.band === 'your_turn' || i.band === 'triage')
     .slice(0, 15)
     .map((i) => i.task.id)
     .join(',')
@@ -234,22 +246,30 @@ export default function QueueScreen() {
           renderSectionHeader={({ section }) => {
             const shut = folded.has(section.name)
             return (
-              <Pressable
-                style={styles.section}
-                onPress={() => fold(section.name)}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: !shut }}
-              >
-                {section.priority === null ? (
-                  <WorkstreamBadge name={section.title} />
-                ) : (
-                  <View style={styles.priorityBadge}>
-                    <Bars priority={section.priority} />
+              <View>
+                {section.part && (
+                  <View style={styles.part}>
+                    <Text style={styles.partTitle}>{section.part.title}</Text>
+                    <Text style={styles.partCount}>{section.part.count}</Text>
                   </View>
                 )}
-                <Text style={[styles.sectionName, shut && { color: colours.text3 }]}>{section.title}</Text>
-                {shut && <Text style={styles.sectionCount}>{section.count}</Text>}
-              </Pressable>
+                <Pressable
+                  style={styles.section}
+                  onPress={() => fold(section.name)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: !shut }}
+                >
+                  {section.priority === null ? (
+                    <WorkstreamBadge name={section.title} />
+                  ) : (
+                    <View style={styles.priorityBadge}>
+                      <Bars priority={section.priority} />
+                    </View>
+                  )}
+                  <Text style={[styles.sectionName, shut && { color: colours.text3 }]}>{section.title}</Text>
+                  {shut && <Text style={styles.sectionCount}>{section.count}</Text>}
+                </Pressable>
+              </View>
             )
           }}
           renderItem={({ item }) => (
@@ -411,7 +431,7 @@ const Row = ({
     {/* When, and under it how much it matters, as on the Mac. */}
     <View style={styles.rowEnd}>
       <Text style={styles.meta}>{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</Text>
-      <Bars priority={item.task.priority} listed />
+      {item.band === 'triage' ? <TriageMark /> : <Bars priority={item.task.priority} listed />}
     </View>
   </Pressable>
 )
@@ -430,7 +450,7 @@ const macTitle = (state: ReturnType<typeof useSyncState>): string => {
 /** Each band as the symbol of the tab it shows under. */
 const BAND_SYMBOL: Record<QueueItem['band'], SFSymbol> = {
   your_turn: 'hand.raised',
-  new: 'hand.raised',
+  triage: 'tray',
   running: 'hammer',
   waiting: 'clock',
   snoozed: 'moon',
@@ -438,6 +458,9 @@ const BAND_SYMBOL: Record<QueueItem['band'], SFSymbol> = {
 }
 
 const styles = StyleSheet.create({
+  part: { flexDirection: 'row', alignItems: 'baseline', gap: 6, paddingHorizontal: GUTTER, paddingTop: 18, paddingBottom: 2 },
+  partTitle: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', color: colours.text3 },
+  partCount: { fontSize: 12, fontWeight: '500', color: colours.text3 },
   rowLabel: { color: colours.pilotSoft, fontWeight: '500' },
   heading: { marginHorizontal: GUTTER },
   caption: { marginHorizontal: GUTTER, fontSize: 13, color: colours.text3 },

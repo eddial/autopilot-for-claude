@@ -63,7 +63,7 @@ export class Scout {
       const { service } = this.o
       const now = service.now().getTime()
       const waiting = service
-        .queue({ band: 'new' })
+        .queue({ band: 'triage' })
         .items.map((i) => i.task)
         .filter((t) => t.createdBy !== 'system' && t.workstream !== 'autopilot' && !service.jobRanAt(scoutJob(t.id)))
         .toSorted((a, b) => a.createdAt.localeCompare(b.createdAt))
@@ -98,7 +98,7 @@ export class Scout {
     const result = ScoutOutput.parse(typeof output === 'string' ? JSON.parse(output) : output)
     const { service } = this.o
     // Started, closed or answered meanwhile: the session or the owner already has it.
-    if (service.queue({ band: 'new' }).items.every((i) => i.task.id !== task.id)) return
+    if (service.queue({ band: 'triage' }).items.every((i) => i.task.id !== task.id)) return
     if (unplaced && workstreams.some((w) => w.name === result.workstream)) service.placeTask(task.id, result.workstream)
     service.systemUpdate(task.id, 'info', scoutBody(result), scoutLinks(result), 'scout')
   }

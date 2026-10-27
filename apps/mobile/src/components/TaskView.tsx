@@ -6,8 +6,10 @@ import {
   isArtifact,
   isPaste,
   pasteSize,
+  signalChannel,
   signalMark,
   signalName,
+  signalSender,
   createdText,
   eventText,
   linkKind,
@@ -92,7 +94,7 @@ export const TaskView = ({
   const ask = updates.find((u) => u.open && !answered.has(u.id)) ?? null
   // New, with questions from the first look: asked as the last entry, Before I start, which also
   // starts it; the first look then shows without them.
-  const questions = !ask && item.band === 'new' ? firstLookQuestions(updates) : []
+  const questions = !ask && item.band === 'triage' ? firstLookQuestions(updates) : []
   const asking = questions.length > 0
   const activity = updates
     .filter((u) => u !== ask)
@@ -341,10 +343,10 @@ const Signals = ({ signals }: { signals: TaskSignal[] }) => {
           accessibilityRole="link"
           accessibilityLabel={`${signalName(m.signal)}: ${m.title}`}
         >
-          <SignalHead signal={m.signal} url={m.url} channel={m.channel} />
+          <SignalHead signal={m.signal} url={m.url} channel={signalChannel(m)} />
           <Text style={styles.signalTitle}>{m.title}</Text>
           <Text style={type.meta}>
-            {m.sender} · {Number.isNaN(Date.parse(m.at)) ? m.at : ago(m.at)}
+            {[signalSender(m), Number.isNaN(Date.parse(m.at)) ? m.at : ago(m.at)].filter(Boolean).join(' · ')}
             {m.action === 'updated' ? ' · added' : ''}
           </Text>
         </Pressable>
@@ -446,7 +448,7 @@ const LinkRow = ({ taskId, link }: { taskId: string; link: QueueItem['task']['li
 
 const BAND_TONE: Record<QueueItem['band'], Tone> = {
   your_turn: 'pilot',
-  new: 'quiet',
+  triage: 'quiet',
   running: 'claude',
   waiting: 'paused',
   snoozed: 'paused',

@@ -81,7 +81,7 @@ describe('the phone against the Mac', () => {
     await sync.syncOnce()
     expect(sync.getState().status).toBe('offline')
     expect(sync.items().map((i) => [i.task.id, i.band])).toEqual([
-      ['NEW-2', 'new'],
+      ['NEW-2', 'triage'],
       [task.id, 'running'],
     ])
 

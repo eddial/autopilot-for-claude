@@ -107,7 +107,7 @@ describe('the Mac app window', () => {
 
   it('closes the open task when moving to a list without it', async () => {
     server.service.createTask(CreateTask.parse({ idempotencyKey: 'ui-create-2', title: 'Renew the office lease', start: false }), 'owner')
-    await tab('Triage').click()
+    await tab('Needs me').click()
     await page.getByRole('option', { name: /Renew the office lease/ }).click()
     const heading = page.getByRole('heading', { level: 2, name: 'Renew the office lease' })
     await expect.poll(() => heading.count()).toBe(1)
@@ -116,17 +116,17 @@ describe('the Mac app window', () => {
   }, 30_000)
 
   it('keeps what you were typing when the window restarts', async () => {
-    await tab('Triage').click()
+    await tab('Needs me').click()
     await page.getByRole('option', { name: /Renew the office lease/ }).click()
     await page.getByLabel('Reply to Autopilot').fill('Half an answer about the lease')
     await page.reload()
-    await tab('Triage').click()
+    await tab('Needs me').click()
     await page.getByRole('option', { name: /Renew the office lease/ }).click()
     await expect.poll(() => page.getByLabel('Reply to Autopilot').inputValue()).toBe('Half an answer about the lease')
   }, 30_000)
 
   it("changes a task's priority from its properties", async () => {
-    await tab('Triage').click()
+    await tab('Needs me').click()
     await page.getByRole('option', { name: /Renew the office lease/ }).click()
     const side = page.getByRole('complementary', { name: 'Properties' })
     await side.getByRole('button', { name: 'Normal' }).click()
@@ -169,7 +169,6 @@ describe('the Mac app window', () => {
   it('closes Settings with Escape and opens a task picked after', async () => {
     await page.keyboard.press('Escape')
     await expect.poll(() => page.getByRole('dialog', { name: 'Settings' }).count()).toBe(0)
-    // Urgent since the priority test: an urgent task skips Triage.
     await tab('Needs me').click()
     await page.getByRole('option', { name: /Renew the office lease/ }).click()
     await expect.poll(() => page.getByRole('heading', { level: 2, name: 'Renew the office lease' }).count()).toBe(1)
@@ -182,7 +181,7 @@ describe('the Mac app window', () => {
       // Narrow, an open task hides the list: back to it first.
       const back = page.getByRole('button', { name: 'Back to the list' }).first()
       if (await back.isVisible()) await back.click()
-      await tab('Triage').click()
+      await tab('Needs me').click()
       await page.getByRole('option', { name: /Check the narrow window/ }).click()
       await expect.poll(() => page.getByRole('heading', { level: 2, name: 'Check the narrow window' }).isVisible()).toBe(true)
     } finally {
@@ -192,7 +191,7 @@ describe('the Mac app window', () => {
 
   it('sends a file dropped on the reply with it, kept for the session', async () => {
     server.service.createTask(CreateTask.parse({ idempotencyKey: 'ui-create-file', title: 'Check the lease terms', start: false }), 'owner')
-    await tab('Triage').click()
+    await tab('Needs me').click()
     await page.getByRole('option', { name: /Check the lease terms/ }).click()
     const files = await page.evaluateHandle(() => {
       const data = new DataTransfer()

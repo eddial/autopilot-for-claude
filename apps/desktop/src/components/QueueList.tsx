@@ -7,7 +7,7 @@ import { useDraft } from '../drafts.ts'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
 import { ALL_OPEN, QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
-import { Banner, Bars, Button, Icon, WorkstreamMark, NavIcon, Pilot, SearchIcon, type NavIconName } from '../ui.tsx'
+import { Banner, Bars, Button, Icon, WorkstreamMark, NavIcon, Pilot, SearchIcon, TriageMark, type NavIconName } from '../ui.tsx'
 
 type Props = {
   tab: QueueView
@@ -74,7 +74,7 @@ const EmptyList = ({ tab }: { tab: QueueView | null }) => {
 /** Each band as the icon of the tab it shows under. */
 const BAND_ICON: Record<QueueItem['band'], NavIconName> = {
   your_turn: 'needs',
-  new: 'needs',
+  triage: 'inbox',
   running: 'running',
   waiting: 'waiting',
   snoozed: 'snoozed',
@@ -83,14 +83,13 @@ const BAND_ICON: Record<QueueItem['band'], NavIconName> = {
 
 const TAB_ICON: Record<QueueView, NavIconName> = {
   needs_me: 'needs',
-  triage: 'inbox',
   running: 'running',
   waiting: 'waiting',
   snoozed: 'snoozed',
   done: 'done',
 }
 
-/** The tabs in order: each status, then All. ⌘1 to ⌘7 pick them. */
+/** The tabs in order: each status, then All. ⌘1 to ⌘6 pick them. */
 const TABS = [...QUEUE_VIEWS.map((q) => ({ ...q, icon: TAB_ICON[q.id] })), { id: 'all' as const, ...ALL_OPEN, icon: 'all' as NavIconName }]
 
 /** `ws:customers from:slack pricing`: tokens narrow by workstream and source, the rest matches titles. */
@@ -106,7 +105,9 @@ const matches = (item: QueueItem, filter: string): boolean =>
     })
 
 type Entry =
-  { kind: 'group'; key: string; title: string; priority: number | null; count: number; folded: boolean } | { kind: 'item'; item: QueueItem }
+  | { kind: 'part'; title: string; count: number }
+  | { kind: 'group'; key: string; title: string; priority: number | null; count: number; folded: boolean }
+  | { kind: 'item'; item: QueueItem }
 
 const GROUPINGS: { by: GroupBy; label: string }[] = [
   { by: 'workstream', label: 'Group by workstream' },
@@ -153,6 +154,7 @@ export const QueueList = (props: Props) => {
         const shut = folded.has(section.key)
         const priority = groupBy === 'priority' ? (section.items[0]?.task.priority ?? null) : null
         return [
+          ...(section.part ? [{ kind: 'part' as const, ...section.part }] : []),
           { kind: 'group' as const, key: section.key, title: section.title, priority, count: section.items.length, folded: shut },
           ...(shut ? [] : section.items.map((item) => ({ kind: 'item' as const, item }))),
         ]
@@ -172,7 +174,7 @@ export const QueueList = (props: Props) => {
     (id: string) => (window.matchMedia('(max-width: 760px)').matches ? onOpen(id) : onSelect(id)),
     [onOpen, onSelect],
   )
-  // ⌘1 to ⌘7 a tab, ⌘F the search; ⌥1 to ⌥9 the first nine tasks as listed (outside a text box).
+  // ⌘1 to ⌘6 a tab, ⌘F the search; ⌥1 to ⌥9 the first nine tasks as listed (outside a text box).
   useEffect(() => {
     const keys = (e: KeyboardEvent) => {
       const n = /^Digit([1-9])$/.exec(e.code)?.[1]
@@ -202,10 +204,10 @@ export const QueueList = (props: Props) => {
   const virtual = useVirtualizer({
     count: entries.length,
     getScrollElement: () => rows.current,
-    estimateSize: (i) => (entries[i]?.kind === 'group' ? 40 : 70),
+    estimateSize: (i) => (entries[i]?.kind === 'item' ? 70 : 40),
     getItemKey: (i) => {
       const e = entries[i]
-      return e?.kind === 'item' ? e.item.task.id : `group-${e?.key ?? i}`
+      return e?.kind === 'item' ? e.item.task.id : e?.kind === 'group' ? `group-${e.key}` : `part-${e?.title ?? i}`
     },
     overscan: 10,
   })
@@ -317,7 +319,12 @@ export const QueueList = (props: Props) => {
                 // oxlint-disable-next-line react/forbid-dom-props -- placed by the virtualiser
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }}
               >
-                {entry.kind === 'group' ? (
+                {entry.kind === 'part' ? (
+                  <h2 className="list-part">
+                    {entry.title}
+                    <span className="list-part-count">{entry.count}</span>
+                  </h2>
+                ) : entry.kind === 'group' ? (
                   <Button kind="section" aria-expanded={!entry.folded} onClick={() => fold(entry.key)}>
                     {entry.priority === null ? (
                       <WorkstreamMark name={entry.title} />
@@ -430,9 +437,16 @@ const TaskRow = memo(
       {/* When, and under it how much it matters, as on the task's properties. */}
       <span className="row-end">
         <span className="age">{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</span>
-        <span title={PRIORITY_NAME[item.task.priority]}>
-          <Bars priority={item.task.priority} listed />
-        </span>
+        {/* In triage, that it waits to be triaged; its priority once it is under way. */}
+        {item.band === 'triage' ? (
+          <span title="Triage">
+            <TriageMark />
+          </span>
+        ) : (
+          <span title={PRIORITY_NAME[item.task.priority]}>
+            <Bars priority={item.task.priority} listed />
+          </span>
+        )}
       </span>
     </Button>
   ),
@@ -507,7 +521,7 @@ const Expanded = ({
           </>
         ) : (
           <div className="options">
-            {item.band === 'new' && (
+            {item.band === 'triage' && (
               <Button
                 kind="primary"
                 onClick={() => {

@@ -37,10 +37,11 @@ Tasks are grouped into bands by whose turn it is, then ordered inside each band.
 | Band | Enters when | Order inside |
 | --- | --- | --- |
 | **Your turn** | An open update needs you (decision, question, review, stuck); a session waits on a permission prompt; a health issue or routing proposal | Priority, then blocking a live session first, then longest wait. Unread items have a filled dot, seen ones a hollow dot |
-| **New** | A signal filed it, or you saved a task without starting it | Priority, then newest. Urgent ones go straight to Your turn and notify |
+| **Triage** | A signal filed it, or you saved a task without starting it | Priority, then newest. Urgent ones go straight to Your turn and notify |
 
-Your turn is the Needs me tab, each row saying what it wants (Needs your decision, Ready to
-review); New is the Triage tab beside it, what came in and is not started. Priority leads in both.
+Your turn and Triage show together as Needs me, in two parts: Your turn on top, each row saying
+what it wants (Needs your decision, Ready to review); then Triage, what came in and is not
+started, each row with the triage icon in place of its priority. Priority leads inside each part.
 | **Running** | A session is working on it | Latest activity, with one line of what it is doing |
 | **Waiting on others** | The session handed over to someone and left a watcher | Folded. When the watcher sees news, a workstream with autonomy 3 or more wakes the session; otherwise, and when it times out, the task returns to Your turn |
 | **Snoozed** | You snoozed it until a time | Returns to Your turn when due |
@@ -69,7 +70,7 @@ bottom. Each update has a kind, and the kind decides where the task goes.
 | `waiting` | Waiting on someone | Who and what it waits on | Waiting |
 | `done` | Finished | An outcome: a branch, a draft, a file. The session ends; you close the task, or reply for more | Your turn |
 | `info` | Update | Progress worth keeping; never notifies | unchanged |
-| `signal` | New message | A new source message on this task | New, if it asks you something |
+| `signal` | New message | A new source message on this task | Triage, if it asks you something |
 | `instruction` | You | Your instruction or answer | Running |
 
 A task has at most one open ask (`decision`, `question`, `review`, `blocked`, `done`). It closes when you
@@ -116,7 +117,7 @@ session in Claude Code shows the task's state only through the existing `/ticket
 Like Claude's start screen: the pilot, "What should I take on?", and the reply box holding a title,
 the brief (the session's first prompt) and pickers for workstream (suggested by routing), priority,
 machine and model. Send creates the task and starts its session at once; "Save without starting"
-puts it in New. Also from: a global shortcut over any app (selected text becomes the brief), the
+puts it in Triage. Also from: a global shortcut over any app (selected text becomes the brief), the
 share sheet on the Mac and iPhone, `tasks.create` over MCP, and `autopilot new` in a terminal.
 
 ### Set up

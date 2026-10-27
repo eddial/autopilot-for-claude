@@ -1,7 +1,17 @@
 import type { QueueItem, Update } from '@autopilot/contracts'
 import { describe, expect, it } from 'vitest'
 import { parseMarkdown } from '../src/markdown.ts'
-import { isArtifact, linkKind, linkSource, sectionsOf, signalMark, updateLabel, updateTone } from '../src/present.ts'
+import {
+  isArtifact,
+  linkKind,
+  linkSource,
+  sectionsOf,
+  signalChannel,
+  signalMark,
+  signalSender,
+  updateLabel,
+  updateTone,
+} from '../src/present.ts'
 
 const decision = (open: boolean): Update => ({
   id: 'u1',
@@ -52,6 +62,17 @@ describe('how updates read', () => {
     ]).toEqual(['slack', 'googleCalendar', 'linear', null])
   })
 
+  it("leaves out a signal's channel and sender where they only repeat its name", () => {
+    const linear = { signal: 'linear', channel: 'linear', sender: 'Linear' }
+    const slack = { signal: 'slack', channel: '#general', sender: 'Noah van Rijn' }
+    expect([signalChannel(linear), signalSender(linear), signalChannel(slack), signalSender(slack)]).toEqual([
+      null,
+      null,
+      '#general',
+      'Noah van Rijn',
+    ])
+  })
+
   it('lists what a session made to share as artifacts, apart from the rest', () => {
     expect(
       [
@@ -86,6 +107,18 @@ describe('sections of a list', () => {
     expect(read('priority')).toEqual([
       ['Urgent', 'AP-3', 'AP-4', 'AP-1'],
       ['Normal', 'AP-2'],
+    ])
+  })
+  it('puts what came in to triage under your turn in Needs me', () => {
+    const needs = [
+      { ...row('AP-1', 'sales', 3), band: 'your_turn' },
+      { ...row('AP-2', 'dev', 2), band: 'triage' },
+      { ...row('AP-3', 'sales', 2), band: 'triage' },
+    ] as QueueItem[]
+    expect(sectionsOf(needs, 'workstream').map((s) => [s.part?.title ?? null, s.title, ...s.items.map((i) => i.task.id)])).toEqual([
+      ['Your turn', 'sales', 'AP-1'],
+      ['Triage', 'dev', 'AP-2'],
+      [null, 'sales', 'AP-3'],
     ])
   })
 })

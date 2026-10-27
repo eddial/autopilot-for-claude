@@ -45,9 +45,9 @@ describe('tasks', () => {
   it('keeps a saved task in New without starting anything', () => {
     const s = setup()
     const task = create(s, { start: false })
-    expect(s.queue().items[0]?.band).toBe('new')
+    expect(s.queue().items[0]?.band).toBe('triage')
     expect(s.pendingOutbox()).toEqual([])
-    expect(task.state).toBe('new')
+    expect(task.state).toBe('triage')
   })
 })
 

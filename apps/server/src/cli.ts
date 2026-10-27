@@ -207,7 +207,9 @@ const main = async (argv: string[]): Promise<void> => {
       const [version, queue, signals] = await Promise.all([api.meta.version(), api.queue.list({}), api.signals.list()])
       const count = (band: string) => queue.items.filter((i) => i.band === band).length
       console.log(`Server API v${version.version} on ${paths.socket}`)
-      console.log(`Queue: ${count('your_turn')} your turn, ${count('new')} new, ${count('running')} running, ${count('waiting')} waiting`)
+      console.log(
+        `Queue: ${count('your_turn')} your turn, ${count('triage')} to triage, ${count('running')} running, ${count('waiting')} waiting`,
+      )
       for (const s of signals) {
         console.log(
           `Signal ${s.name}: ${s.health.state}${s.health.message ? ` (${s.health.message})` : ''} · last run ${s.lastRunAt ?? 'never'}`,

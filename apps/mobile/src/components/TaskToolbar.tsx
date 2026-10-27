@@ -51,7 +51,7 @@ export const TaskToolbar = ({
   const closed = item.band === 'done'
   // Before I start in the timeline starts it when the first look has questions: one Start, there.
   const detail = useDetail(task.id)
-  const asking = item.band === 'new' && firstLookQuestions(detail?.updates ?? []).length > 0
+  const asking = item.band === 'triage' && firstLookQuestions(detail?.updates ?? []).length > 0
   const running = session && session.state !== 'ended' ? session.remoteControlUrl : null
   const openSession = () => {
     if (running) return void Linking.openURL(running)
@@ -85,7 +85,7 @@ export const TaskToolbar = ({
             accessibilityLabel="Open session"
             onPress={openSession}
           />
-        ) : item.band === 'new' && !asking ? (
+        ) : item.band === 'triage' && !asking ? (
           <Stack.Toolbar.Button
             variant="prominent"
             tintColor={colours.text}

@@ -1,4 +1,5 @@
 import {
+  API_VERSION,
   applyEvent,
   applyToDetail,
   emptyQueue,
@@ -60,6 +61,10 @@ export type SyncOptions = {
   waitSeconds?: number
 }
 
+/** The cached queue, per API version: one cached under an older contract is not read, and a snapshot replaces it. */
+const QUEUE = `queue.v${API_VERSION}`
+const SYNCED = `lastSyncedAt.v${API_VERSION}`
+
 /**
  * The phone's copy of the queue: a cached snapshot kept current from the change feed, and an
  * outbox of commands applied to the screen at once and sent in order when a route answers.
@@ -116,10 +121,10 @@ export class Sync {
       return text ? (JSON.parse(text) as T) : fallback
     }
     this.set({
-      queue: read('queue', emptyQueue),
+      queue: read(QUEUE, emptyQueue),
       outbox: read('outbox', []),
       conflicts: read('conflicts', []),
-      lastSyncedAt: read('lastSyncedAt', null),
+      lastSyncedAt: read(SYNCED, null),
     })
     return true
   }
@@ -130,10 +135,10 @@ export class Sync {
       return text ? (JSON.parse(text) as T) : fallback
     }
     this.set({
-      queue: await read('queue', emptyQueue),
+      queue: await read(QUEUE, emptyQueue),
       outbox: await read('outbox', []),
       conflicts: await read('conflicts', []),
-      lastSyncedAt: await read('lastSyncedAt', null),
+      lastSyncedAt: await read(SYNCED, null),
     })
   }
 
@@ -150,8 +155,8 @@ export class Sync {
     this.saveTimer ??= setTimeout(() => {
       this.saveTimer = null
       void Promise.all([
-        this.o.storage.set('queue', JSON.stringify(this.state.queue)),
-        this.o.storage.set('lastSyncedAt', JSON.stringify(this.state.lastSyncedAt)),
+        this.o.storage.set(QUEUE, JSON.stringify(this.state.queue)),
+        this.o.storage.set(SYNCED, JSON.stringify(this.state.lastSyncedAt)),
       ]).catch(() => {})
     }, 1000)
   }
