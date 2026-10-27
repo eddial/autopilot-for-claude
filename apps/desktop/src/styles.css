@@ -1621,9 +1621,9 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* In the middle of the pane, as Claude's new chat; a little above, where the eye lands. */
-  justify-content: center;
-  padding: 32px 32px 12vh;
+  /* Where the middle of the pane is when the box is empty, as Claude's new chat, a little above
+     where the eye lands; held there, so a growing brief pushes only downwards. */
+  padding: max(32px, calc(44vh - 165px)) 32px 12vh;
 }
 
 .start h1 {
@@ -1649,6 +1649,10 @@ button {
 .start .composer textarea {
   margin-top: 8px;
   color: var(--text-2);
+  /* Grows with the brief, from four lines to half the window, then scrolls. */
+  field-sizing: content;
+  min-height: 4lh;
+  max-height: 50vh;
 }
 
 .below {
