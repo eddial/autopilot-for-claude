@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { DarkTheme, router, Stack, ThemeProvider } from 'expo-router'
+import { DarkTheme, Stack, ThemeProvider } from 'expo-router'
 import * as Notifications from 'expo-notifications'
 import { StatusBar } from 'expo-status-bar'
 import {
@@ -8,6 +8,7 @@ import {
   forgetPairing,
   loadConnection,
   registerBackgroundSync,
+  requestOpen,
   useItems,
   useSyncInstance,
   useSyncState,
@@ -38,7 +39,7 @@ export default function Root() {
     // A tapped notification opens its task.
     const tapped = Notifications.addNotificationResponseReceivedListener((response) => {
       const taskId = response.notification.request.content.data?.taskId
-      if (typeof taskId === 'string') router.push({ pathname: '/queue/[id]', params: { id: taskId } })
+      if (typeof taskId === 'string') requestOpen(taskId)
     })
     return () => tapped.remove()
   }, [])

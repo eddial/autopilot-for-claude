@@ -202,3 +202,24 @@ export const registerBackgroundSync = async (): Promise<void> => {
 Notifications.setNotificationHandler({
   handleNotification: () => Promise.resolve({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: true }),
 })
+
+// A task to open, from a tapped notification: the queue opens it beside the list when there is room
+// (the Duo open, in landscape) and on its own screen otherwise. It waits until the queue is there.
+let opening: string | null = null
+const openers = new Set<() => void>()
+const setOpening = (taskId: string | null) => {
+  opening = taskId
+  for (const listener of openers) listener()
+}
+export const requestOpen = (taskId: string): void => setOpening(taskId)
+/** The task asked for, and a way to say it is open. */
+export const useOpenRequest = (): [string | null, () => void] => [
+  useSyncExternalStore(
+    (listener) => {
+      openers.add(listener)
+      return () => openers.delete(listener)
+    },
+    () => opening,
+  ),
+  () => setOpening(null),
+]

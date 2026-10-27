@@ -28,6 +28,7 @@ import {
   serverName,
   unpair,
   useItems,
+  useOpenRequest,
   useSyncInstance,
   useSyncState,
 } from '../../../src/store.ts'
@@ -151,6 +152,23 @@ export default function QueueScreen() {
     if (split) setSelected(id)
     else router.push({ pathname: '/queue/[id]', params: { id, list: order.join(',') } })
   }
+  // A tapped notification: beside the list, on the tab that holds the task, when there is room;
+  // on its own screen otherwise. Before the queue has loaded, it waits for it.
+  const [wanted, opened] = useOpenRequest()
+  const loaded = items.length > 0
+  useEffect(() => {
+    if (!wanted || !loaded) return
+    opened()
+    if (!split) return void router.push({ pathname: '/queue/[id]', params: { id: wanted } })
+    const band = items.find((i) => i.task.id === wanted)?.band
+    const tab = VIEWS.find((v) => v.id !== 'done' && band && v.bands.includes(band))
+    setAll(!tab)
+    if (tab) setView(tab.id)
+    setFilter('')
+    setSelected(wanted)
+    // items is read once, when the request comes in.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [wanted, loaded, split])
   const selectedItem = split && selected ? (items.find((i) => i.task.id === selected) ?? doneItem(selected)) : undefined
   const at = selected ? order.indexOf(selected) : -1
   const stepTo = (to: string | undefined) => (to ? () => setSelected(to) : null)
