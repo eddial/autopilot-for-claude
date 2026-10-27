@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { memo, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   Alert,
   Animated,
@@ -109,7 +109,11 @@ export default function QueueScreen() {
   // Done is not kept on the phone: read from the Mac for its tab's count, again when a task leaves
   // the open ones, and when the tab is opened.
   const [done, setDone] = useState<QueueItem[] | null>(null)
-  const current = VIEWS.find((v) => v.id === view) ?? VIEWS[0]
+  // The tab bar answers at once; the list it shows follows a frame later, so the pill starts moving
+  // before the new list is built, and the list slides in already built.
+  const listView = useDeferredValue(view)
+  const listAll = useDeferredValue(all)
+  const current = VIEWS.find((v) => v.id === listView) ?? VIEWS[0]
   const stillOpen = items.filter((i) => i.band !== 'done').length
 
   useEffect(() => {
@@ -139,10 +143,10 @@ export default function QueueScreen() {
   // A section per workstream, in the order of its most pressing task, the inbox last; or Urgent to Low.
   const sections = useMemo(() => {
     const bands = current?.bands ?? []
-    const listed = all
+    const listed = listAll
       ? openItems.filter((i) => matches(i, filter))
-      : (view === 'done' ? (done ?? []) : items).filter((i) => bands.includes(i.band) && matches(i, filter))
-    return sectionsOf(listed, groupBy, !all && view === 'needs_me').map((s) => ({
+      : (listView === 'done' ? (done ?? []) : items).filter((i) => bands.includes(i.band) && matches(i, filter))
+    return sectionsOf(listed, groupBy, !listAll && listView === 'needs_me').map((s) => ({
       name: s.key,
       title: s.title,
       priority: groupBy === 'priority' ? (s.items[0]?.task.priority ?? null) : null,
@@ -150,7 +154,7 @@ export default function QueueScreen() {
       part: s.part ?? null,
       data: folded.has(s.key) ? [] : s.items,
     }))
-  }, [items, openItems, all, done, view, current, filter, folded, groupBy])
+  }, [items, openItems, listAll, done, listView, current, filter, folded, groupBy])
   const fold = (name: string) =>
     setFolded((f) => {
       const next = new Set(f)
@@ -190,8 +194,10 @@ export default function QueueScreen() {
     Animated.timing(slide, { toValue: width, duration: 220, useNativeDriver: true }).start(({ finished }) => {
       if (finished) setSelected(null)
     })
+  // Put back only for the next task: resetting as the slid-off one unmounts can reach the screen a
+  // frame before the unmount does, flashing it back in place.
   useLayoutEffect(() => {
-    slide.setValue(0)
+    if (selected) slide.setValue(0)
   }, [selected, slide])
   const swipeAway = useMemo(
     () =>
@@ -216,6 +222,10 @@ export default function QueueScreen() {
     // order is read when folding, not a reason to.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [split, selected])
+  // One callback for every row, so a row redraws only when its own task changes.
+  const openRef = useRef(open)
+  openRef.current = open
+  const openRow = useCallback((id: string) => openRef.current(id), [])
   const selectedItem = split && selected ? (items.find((i) => i.task.id === selected) ?? doneItem(selected)) : undefined
   const at = selected ? order.indexOf(selected) : -1
   const stepTo = (to: string | undefined) => (to ? () => setSelected(to) : null)
@@ -258,18 +268,19 @@ export default function QueueScreen() {
   )
   // Switching tabs slides the new list in from the side it lies on: nothing more.
   const [listShift] = useState(() => new Animated.Value(0))
-  const lastTab = useRef(shown)
+  const listShown: QueueView | 'all' = listAll ? 'all' : listView
+  const lastTab = useRef(listShown)
   const listWidth = split ? Math.min(420, width * 0.42) : width
   useLayoutEffect(() => {
     const from = tabOrder.indexOf(lastTab.current)
-    const to = tabOrder.indexOf(shown)
-    lastTab.current = shown
+    const to = tabOrder.indexOf(listShown)
+    lastTab.current = listShown
     if (from === to || from < 0) return
     listShift.setValue((to > from ? 1 : -1) * listWidth)
     Animated.timing(listShift, { toValue: 0, duration: 220, useNativeDriver: true }).start()
     // Only a change of tab slides the list.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [shown])
+  }, [listShown])
   const tabs = (
     <TabBar
       items={tabItems.map((v) => ({ id: v.id, title: v.title, symbol: v.symbol, count: v.id === 'all' ? openItems.length : counts[v.id] }))}
@@ -297,10 +308,10 @@ export default function QueueScreen() {
             ListHeaderComponent={
               <View style={{ paddingTop: split ? edgeSpace(TITLE_HEIGHT) : Math.max(headerHeight + 8, edgeSpace(TITLE_HEIGHT)), gap: 4 }}>
                 <Text style={[type.title, styles.heading]} numberOfLines={1}>
-                  {all ? 'All open' : current?.title}
+                  {listAll ? 'All open' : current?.title}
                 </Text>
                 <Text style={styles.caption} numberOfLines={1}>
-                  {all ? 'Every open task, across workstreams' : current?.about}
+                  {listAll ? 'Every open task, across workstreams' : current?.about}
                 </Text>
                 <StatusLine />
               </View>
@@ -316,7 +327,7 @@ export default function QueueScreen() {
                       : 'Nothing cached yet.'}
                 </Text>
               ) : (
-                <EmptyList view={all ? null : view} quiet={split && !selectedItem} />
+                <EmptyList view={listAll ? null : listView} quiet={split && !selectedItem} />
               )
             }
             renderSectionHeader={({ section }) => {
@@ -351,13 +362,16 @@ export default function QueueScreen() {
                 </View>
               )
             }}
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
             renderItem={({ item }) => (
               <Row
                 item={item}
                 selected={split && item.task.id === selected}
-                status={all}
+                status={listAll}
                 workstream={groupBy === 'priority'}
-                onPress={() => open(item.task.id)}
+                onOpen={openRow}
               />
             )}
           />
@@ -564,48 +578,50 @@ const BottomRow = ({ beside, children }: { beside: boolean; children: ReactNode 
 /** Room at the end of the list for the tabs floating over it, so the last row can scroll clear. */
 const BottomRoom = ({ beside }: { beside: boolean }) => <View style={{ height: useBottomRowGap(beside) + TABS_HEIGHT + 16 }} />
 
-const Row = ({
+const Row = memo(function Row({
   item,
   selected,
   status,
   workstream,
-  onPress,
+  onOpen,
 }: {
   item: QueueItem
   selected: boolean
   status: boolean
   /** Grouped by priority, where the workstreams mix: its workstream in its line. */
   workstream: boolean
-  onPress: () => void
-}) => (
-  <Pressable
-    style={[styles.row, selected && { backgroundColor: colours[shapes.row.selected] }]}
-    onPress={onPress}
-    accessibilityRole="button"
-  >
-    {/* Under All: where it stands, as its tab draws it; green only when it is your turn. */}
-    {status && (
-      <View style={styles.status}>
-        <SymbolView name={BAND_SYMBOL[item.band]} size={14} tintColor={item.band === 'your_turn' ? colours.pilot : colours.text3} />
+  onOpen: (id: string) => void
+}) {
+  return (
+    <Pressable
+      style={[styles.row, selected && { backgroundColor: colours[shapes.row.selected] }]}
+      onPress={() => onOpen(item.task.id)}
+      accessibilityRole="button"
+    >
+      {/* Under All: where it stands, as its tab draws it; green only when it is your turn. */}
+      {status && (
+        <View style={styles.status}>
+          <SymbolView name={BAND_SYMBOL[item.band]} size={14} tintColor={item.band === 'your_turn' ? colours.pilot : colours.text3} />
+        </View>
+      )}
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.title, item.unread && { fontWeight: '500' }]} numberOfLines={2}>
+          {item.task.title}
+        </Text>
+        <Text style={styles.meta} numberOfLines={1}>
+          {rowStatus(item) && <Text style={[styles.rowLabel, item.band === 'triage' && { color: colours.urgent }]}>{rowStatus(item)}</Text>}
+          {rowStatus(item) ? ' · ' : null}
+          {rowMeta(item, workstream)}
+        </Text>
       </View>
-    )}
-    <View style={{ flex: 1 }}>
-      <Text style={[styles.title, item.unread && { fontWeight: '500' }]} numberOfLines={2}>
-        {item.task.title}
-      </Text>
-      <Text style={styles.meta} numberOfLines={1}>
-        {rowStatus(item) && <Text style={[styles.rowLabel, item.band === 'triage' && { color: colours.urgent }]}>{rowStatus(item)}</Text>}
-        {rowStatus(item) ? ' · ' : null}
-        {rowMeta(item, workstream)}
-      </Text>
-    </View>
-    {/* When, and under it how much it matters, as on the Mac. */}
-    <View style={styles.rowEnd}>
-      <Text style={styles.meta}>{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</Text>
-      <Bars priority={item.task.priority} listed />
-    </View>
-  </Pressable>
-)
+      {/* When, and under it how much it matters, as on the Mac. */}
+      <View style={styles.rowEnd}>
+        <Text style={styles.meta}>{age(item.openAsk?.createdAt ?? item.task.updatedAt)}</Text>
+        <Bars priority={item.task.priority} listed />
+      </View>
+    </Pressable>
+  )
+})
 
 const ROUTE = { lan: 'on your home network', tailscale: 'over Tailscale' } as const
 

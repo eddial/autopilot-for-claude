@@ -1,5 +1,5 @@
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
-import { useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react'
+import { memo, useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode } from 'react'
 import {
   AccessibilityInfo,
   Animated,
@@ -205,62 +205,66 @@ const columnWidth = (table: { head: Inline[][]; rows: Inline[][][] }, c: number)
   return Math.min(220, Math.max(56, longest * 7.5 + 20))
 }
 
-export const Markdown = ({ text, onLink }: { text: string; onLink: (url: string) => void }) => (
-  <View style={styles.md}>
-    {parseMarkdown(text).map((b, i) =>
-      b.kind === 'rule' ? (
-        <View key={i} style={styles.mdRule} />
-      ) : b.kind === 'heading' ? (
-        <Text key={i} style={[type.body, styles.mdHeading]}>
-          <Inlines inlines={b.inlines} onLink={onLink} />
-        </Text>
-      ) : b.kind === 'table' ? (
-        // Columns sized to their longest cell so rows line up; a wide table scrolls sideways.
-        <ScrollView key={i} horizontal showsHorizontalScrollIndicator={false}>
-          <View>
-            {[b.head, ...b.rows].map((row, r) => (
-              <View key={r} style={[styles.mdRow, r === 0 && styles.mdHeadRow]}>
-                {row.map((cell, c) => (
-                  <Text
-                    key={c}
-                    style={[
-                      type.body,
-                      styles.mdCell,
-                      { width: columnWidth(b, c), textAlign: b.align[c] ?? 'left' },
-                      r === 0 && { color: colours.text2 },
-                    ]}
-                  >
-                    <Inlines inlines={cell} onLink={onLink} />
-                  </Text>
-                ))}
+/** Parsed once per text: typing in the composer redraws the page, not the parse. */
+export const Markdown = memo(function Markdown({ text, onLink }: { text: string; onLink: (url: string) => void }) {
+  const blocks = useMemo(() => parseMarkdown(text), [text])
+  return (
+    <View style={styles.md}>
+      {blocks.map((b, i) =>
+        b.kind === 'rule' ? (
+          <View key={i} style={styles.mdRule} />
+        ) : b.kind === 'heading' ? (
+          <Text key={i} style={[type.body, styles.mdHeading]}>
+            <Inlines inlines={b.inlines} onLink={onLink} />
+          </Text>
+        ) : b.kind === 'table' ? (
+          // Columns sized to their longest cell so rows line up; a wide table scrolls sideways.
+          <ScrollView key={i} horizontal showsHorizontalScrollIndicator={false}>
+            <View>
+              {[b.head, ...b.rows].map((row, r) => (
+                <View key={r} style={[styles.mdRow, r === 0 && styles.mdHeadRow]}>
+                  {row.map((cell, c) => (
+                    <Text
+                      key={c}
+                      style={[
+                        type.body,
+                        styles.mdCell,
+                        { width: columnWidth(b, c), textAlign: b.align[c] ?? 'left' },
+                        r === 0 && { color: colours.text2 },
+                      ]}
+                    >
+                      <Inlines inlines={cell} onLink={onLink} />
+                    </Text>
+                  ))}
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        ) : b.kind === 'list' ? (
+          <View key={i} style={styles.mdList}>
+            {b.items.map((item, j) => (
+              <View key={j} style={styles.mdItem}>
+                <Text style={[type.body, styles.mdMark]}>{b.ordered ? `${j + 1}.` : '•'}</Text>
+                <Text style={[type.body, styles.mdItemText]}>
+                  <Inlines inlines={item} onLink={onLink} />
+                </Text>
               </View>
             ))}
           </View>
-        </ScrollView>
-      ) : b.kind === 'list' ? (
-        <View key={i} style={styles.mdList}>
-          {b.items.map((item, j) => (
-            <View key={j} style={styles.mdItem}>
-              <Text style={[type.body, styles.mdMark]}>{b.ordered ? `${j + 1}.` : '•'}</Text>
-              <Text style={[type.body, styles.mdItemText]}>
-                <Inlines inlines={item} onLink={onLink} />
+        ) : (
+          <Text key={i} style={type.body}>
+            {b.lines.map((line, j) => (
+              <Text key={j}>
+                {j > 0 ? '\n' : ''}
+                <Inlines inlines={line} onLink={onLink} />
               </Text>
-            </View>
-          ))}
-        </View>
-      ) : (
-        <Text key={i} style={type.body}>
-          {b.lines.map((line, j) => (
-            <Text key={j}>
-              {j > 0 ? '\n' : ''}
-              <Inlines inlines={line} onLink={onLink} />
-            </Text>
-          ))}
-        </Text>
-      ),
-    )}
-  </View>
-)
+            ))}
+          </Text>
+        ),
+      )}
+    </View>
+  )
+})
 
 const KIND_SYMBOL: Record<LinkKind['icon'], SFSymbol> = {
   document: 'doc.text',
