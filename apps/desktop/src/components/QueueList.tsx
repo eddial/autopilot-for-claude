@@ -219,7 +219,7 @@ export const QueueList = (props: Props) => {
   // the open one leaves the tab (done, moved), the first one again. Narrow, the list stays the list.
   const first = order[0]
   useEffect(() => {
-    if (!showingTasks || !first || (selected && order.includes(selected))) return
+    if (!showingTasks || !first || (selected && (order.includes(selected) || selected === lingering))) return
     if (window.matchMedia('(min-width: 761px)').matches) onSelect(first)
     // When the tab's tasks or the open one change, not on every render.
     // oxlint-disable-next-line react-hooks/exhaustive-deps

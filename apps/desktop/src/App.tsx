@@ -173,8 +173,12 @@ export const App = () => {
     where.current = { tab, all, ids: inTab.map((i) => i.task.id) }
   }, [tab, all, inTab])
 
-  // Stable, so list rows that did not change skip rendering.
+  // Stable, so list rows that did not change skip rendering. A task opened for you (just created,
+  // from a notification) stays open in the tab you are on even when it belongs to another, as an
+  // answered one does, until you move on: the first of the tab took its place before.
   const openTask = useCallback((id: string) => {
+    const { tab: on, all: every, ids } = where.current
+    setStay({ id, tab: on, all: every, at: Math.max(0, ids.indexOf(id)) })
     setView({ kind: 'task' })
     setSelected(id)
     setShowingTask(true)

@@ -55,6 +55,9 @@ describe('the Mac app window', () => {
     // The tokens reached the page: the window is its own dark colour, not the browser's white.
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(31, 30, 29)')
 
+    // Something already in Needs me, which the window must not jump to once the new task runs.
+    server.service.createTask(CreateTask.parse({ idempotencyKey: 'ui-create-0', title: 'Book the team offsite', start: false }), 'owner')
+    await expect.poll(() => page.getByRole('option', { name: /Book the team offsite/ }).count()).toBe(1)
     await page.getByRole('button', { name: 'New task' }).click()
     await page.getByLabel('Title').fill('Decide on prompt caching for agent-service')
     await page.getByLabel('Brief').fill('Measure Opus first; do not touch prod.')
@@ -63,9 +66,11 @@ describe('the Mac app window', () => {
     await shot('new-task')
     await page.getByRole('button', { name: 'Create and start' }).click()
 
+    // The new task opens, though it runs and so belongs under Running, not Needs me.
+    const heading = page.getByRole('heading', { level: 2, name: 'Decide on prompt caching for agent-service' })
+    await expect.poll(() => heading.count()).toBe(1)
     const row = page.getByRole('option', { name: /Decide on prompt caching/ })
-    await expect.poll(() => row.count()).toBe(0)
-    const task = server.service.queue().items[0]?.task
+    const task = server.service.queue().items.find((i) => i.task.title.startsWith('Decide on prompt caching'))?.task
     if (!task) throw new Error('no task created')
 
     server.service.postUpdate(
