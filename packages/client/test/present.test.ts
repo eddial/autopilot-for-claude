@@ -113,21 +113,23 @@ describe('sections of a list', () => {
       ['Normal', 'AP-2'],
     ])
   })
-  it('puts what came in to triage under your turn in Needs me', () => {
+  it('puts what came in to triage under its own heading in Needs me', () => {
     const needs = [
       { ...row('AP-1', 'sales', 3), band: 'your_turn' },
       { ...row('AP-2', 'dev', 2), band: 'triage' },
       { ...row('AP-3', 'sales', 2), band: 'triage' },
     ] as QueueItem[]
     expect(parts(needs)).toEqual([
-      ['Your turn', 'sales', 'AP-1'],
+      [null, 'sales', 'AP-1'],
       ['Triage', 'dev', 'AP-2'],
       [null, 'sales', 'AP-3'],
     ])
-    // Answered, AP-4 runs but stays where it was, in Your turn, and the parts stay.
+    // Answered, AP-4 runs but stays where it was, with what waits on you.
     const answered = [needs[0], { ...row('AP-4', 'sales', 3), band: 'running' }, ...needs.slice(1)] as QueueItem[]
-    expect(parts(answered)[0]).toEqual(['Your turn', 'sales', 'AP-1', 'AP-4'])
-    // Everything open (All) is not cut into parts.
+    expect(parts(answered)[0]).toEqual([null, 'sales', 'AP-1', 'AP-4'])
+    // Nothing waits on you: Triage keeps its heading, and says so.
+    expect(sectionsOf(needs.slice(1), 'workstream', true)[0]?.part).toMatchObject({ title: 'Triage', alone: true })
+    // Everything open (All) has no headings.
     expect(sectionsOf(answered, 'workstream').every((s) => s.part === undefined)).toBe(true)
   })
 })

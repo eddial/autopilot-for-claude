@@ -105,7 +105,7 @@ const matches = (item: QueueItem, filter: string): boolean =>
     })
 
 type Entry =
-  | { kind: 'part'; title: string; count: number }
+  | { kind: 'part'; title: string; about: string; alone: boolean }
   | { kind: 'group'; key: string; title: string; priority: number | null; count: number; folded: boolean }
   | { kind: 'item'; item: QueueItem }
 
@@ -299,10 +299,10 @@ export const QueueList = (props: Props) => {
           )
         })}
       </nav>
-      <p className="tab-caption">
-        <span className="tab-caption-name">{all ? ALL_OPEN.title : QUEUE_VIEWS.find((q) => q.id === tab)?.title}</span>
-        {' · '}
-        {all ? ALL_OPEN.about : QUEUE_VIEWS.find((q) => q.id === tab)?.about}
+      {/* The tab's name and what it holds; Triage, under Needs me, has the same heading in the list. */}
+      <p className="list-heading">
+        <span className="list-heading-name">{all ? ALL_OPEN.title : QUEUE_VIEWS.find((q) => q.id === tab)?.title}</span>
+        <span className="list-heading-about">{all ? ALL_OPEN.about : QUEUE_VIEWS.find((q) => q.id === tab)?.about}</span>
       </p>
       {banner && <Banner>{banner}</Banner>}
       <div className="rows" ref={rows} role="listbox" aria-label="Tasks" tabIndex={0} onKeyDown={onKeyDown}>
@@ -321,10 +321,13 @@ export const QueueList = (props: Props) => {
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start}px)` }}
               >
                 {entry.kind === 'part' ? (
-                  <h2 className="list-part">
-                    {entry.title}
-                    <span className="list-part-count">{entry.count}</span>
-                  </h2>
+                  <>
+                    {entry.alone && <p className="list-nothing">Nothing waits on you right now.</p>}
+                    <h2 className="list-heading list-part">
+                      <span className="list-heading-name">{entry.title}</span>
+                      <span className="list-heading-about">{entry.about}</span>
+                    </h2>
+                  </>
                 ) : entry.kind === 'group' ? (
                   <Button kind="section" aria-expanded={!entry.folded} onClick={() => fold(entry.key)}>
                     {entry.priority === null ? (

@@ -53,16 +53,16 @@ The list is the navigation. The tabs along the top:
 
 ### What comes first
 
-Needs me comes in two parts:
+Needs me holds two things:
 
-- **Your turn**: work under way that waits on you. Each row says what it wants in green (Needs
-  your decision, Asked you, Ready to review, Stuck, Finished), then the question itself.
-- **Triage**: what came in and nobody has started, marked with the orange triage icon where
-  others show their priority. Start it, snooze it, or close it as Not for me. An urgent one skips
-  Triage and goes to Your turn.
+- First, work under way that waits on you. Each row says what it wants in green (Needs your
+  decision, Asked you, Ready to review, Stuck, Finished), then the question itself.
+- Under the **Triage** heading, what came in and nobody has started; each row says Triage in
+  orange. Start it, snooze it, or close it as Not for me. An urgent one skips Triage and goes to
+  the top.
 
-Priority leads inside each part: Urgent, then High, Normal and Low. At the same priority in Your
-turn, a task with a live session waiting on your answer comes first, then the one that has waited
+Priority leads in both: Urgent, then High, Normal and Low. At the same priority among what waits
+on you, a task with a live session waiting on your answer comes first, then the one that has waited
 longest; in Triage, the newest. Running shows the latest activity first.
 
 A task moves up only when something changed that needs you, never because it got old. The list

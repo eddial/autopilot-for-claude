@@ -390,16 +390,13 @@ export const PRIORITY_NAMES: Record<number, string> = { 1: 'Urgent', 2: 'High', 
 export type GroupBy = 'workstream' | 'priority'
 
 /**
- * A section of a list. Needs me holds two parts: what waits on your answer, then, below it, what
- * came in to triage. The first section of each part carries the part's name, for a heading above it.
+ * A section of a list. Needs me is what waits on you, then, under its own heading, what came in to
+ * triage; the first section of Triage carries that heading. Above it, `alone` says nothing waits on you.
  */
-export type QueueSection = { key: string; title: string; items: QueueItem[]; part?: { title: string; count: number } }
+export type QueueSection = { key: string; title: string; items: QueueItem[]; part?: { title: string; about: string; alone: boolean } }
 
-/** The parts of Needs me, in order. */
-const PARTS: { band: QueueItem['band']; title: string }[] = [
-  { band: 'your_turn', title: 'Your turn' },
-  { band: 'triage', title: 'Triage' },
-]
+/** The heading over what came in to triage, in Needs me. */
+export const TRIAGE_PART = { title: 'Triage', about: 'Came in, not started: start it, snooze it or let it go' }
 
 /** Workstreams in the order of their most pressing task (the queue comes sorted), the inbox last. */
 const workstreams = (items: QueueItem[]): string[] => {
@@ -412,23 +409,24 @@ const byWorkstream = (items: QueueItem[]): QueueItem[] =>
 
 /** A sorted list in sections, the same on the Mac and the iPhone; read top to bottom, it is the order Next steps through. */
 export const sectionsOf = (items: QueueItem[], by: GroupBy, parted = false): QueueSection[] => {
-  // Needs me (`parted`) in its two parts, once both have something in them.
-  if (!parted || !PARTS.every((p) => items.some((i) => i.band === p.band))) return sectionsIn(items, by)
-  // A task that just left (answered, so it runs) is kept where it was: in the part of the one before it.
-  const partOf = new Map<QueueItem, QueueItem['band']>()
-  let last = PARTS[0]?.band ?? 'your_turn'
+  // Needs me (`parted`): Triage under its heading whenever something waits there.
+  if (!parted || !items.some((i) => i.band === 'triage')) return sectionsIn(items, by)
+  // A task that just left (answered, so it runs) is kept where it was: with the one before it.
+  const triaged = new Set<QueueItem>()
+  let inTriage = false
   for (const item of items) {
-    if (PARTS.some((p) => p.band === item.band)) last = item.band
-    partOf.set(item, last)
+    if (item.band === 'your_turn' || item.band === 'triage') inTriage = item.band === 'triage'
+    if (inTriage) triaged.add(item)
   }
-  return PARTS.flatMap(({ band, title }) => {
-    const inPart = items.filter((i) => partOf.get(i) === band)
-    return sectionsIn(inPart, by).map((s, i) => ({
-      ...s,
-      key: `${band}:${s.key}`,
-      ...(i === 0 ? { part: { title, count: inPart.length } } : {}),
-    }))
-  })
+  const yours = sectionsIn(
+    items.filter((i) => !triaged.has(i)),
+    by,
+  ).map((s) => ({ ...s, key: `your_turn:${s.key}` }))
+  const triage = sectionsIn(
+    items.filter((i) => triaged.has(i)),
+    by,
+  ).map((s, i) => ({ ...s, key: `triage:${s.key}`, ...(i === 0 ? { part: { ...TRIAGE_PART, alone: yours.length === 0 } } : {}) }))
+  return [...yours, ...triage]
 }
 
 const sectionsIn = (items: QueueItem[], by: GroupBy): QueueSection[] =>

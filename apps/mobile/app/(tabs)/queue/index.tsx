@@ -40,7 +40,7 @@ const VIEWS: { id: QueueView; title: string; about: string; bands: Band[]; symbo
   {
     id: 'needs_me',
     title: 'Needs me',
-    about: 'Your answer, then what came in to triage',
+    about: 'Under way and waiting on you',
     bands: ['your_turn', 'triage'],
     symbol: 'hand.raised',
   },
@@ -235,10 +235,14 @@ export default function QueueScreen() {
             const shut = folded.has(section.name)
             return (
               <View>
+                {/* Triage, under Needs me: its name and what it holds, as the screen's title has. */}
+                {section.part?.alone && <Text style={styles.nothing}>Nothing waits on you right now.</Text>}
                 {section.part && (
                   <View style={styles.part}>
                     <Text style={styles.partTitle}>{section.part.title}</Text>
-                    <Text style={styles.partCount}>{section.part.count}</Text>
+                    <Text style={styles.partAbout} numberOfLines={2}>
+                      {section.part.about}
+                    </Text>
                   </View>
                 )}
                 <Pressable
@@ -446,9 +450,10 @@ const BAND_SYMBOL: Record<QueueItem['band'], SFSymbol> = {
 }
 
 const styles = StyleSheet.create({
-  part: { flexDirection: 'row', alignItems: 'baseline', gap: 6, paddingHorizontal: GUTTER, paddingTop: 18, paddingBottom: 2 },
-  partTitle: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', color: colours.text3 },
-  partCount: { fontSize: 12, fontWeight: '500', color: colours.text3 },
+  part: { gap: 2, paddingHorizontal: GUTTER, paddingTop: 22, paddingBottom: 2 },
+  partTitle: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', color: colours.text2 },
+  partAbout: { fontSize: 13, color: colours.text3 },
+  nothing: { paddingHorizontal: GUTTER, paddingTop: 12, fontSize: 14, color: colours.text3 },
   rowLabel: { color: colours.pilotSoft, fontWeight: '500' },
   heading: { marginHorizontal: GUTTER },
   caption: { marginHorizontal: GUTTER, fontSize: 13, color: colours.text3 },
