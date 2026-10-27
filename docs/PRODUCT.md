@@ -39,9 +39,8 @@ Tasks are grouped into bands by whose turn it is, then ordered inside each band.
 | **Your turn** | An open update needs you (decision, question, review, stuck); a session waits on a permission prompt; a health issue or routing proposal | Priority, then blocking a live session first, then longest wait. Unread items have a filled dot, seen ones a hollow dot |
 | **New** | A signal filed it, or you saved a task without starting it | Priority, then newest. Urgent ones go straight to Your turn and notify |
 
-Your turn and New show together as Needs me, in two parts: Your turn on top, what is under way
-and waits on you, each row saying what it wants (Needs your decision, Ready to review); then
-Triage, what came in and is not started. Priority leads inside each part.
+Your turn is the Needs me tab, each row saying what it wants (Needs your decision, Ready to
+review); New is the Triage tab beside it, what came in and is not started. Priority leads in both.
 | **Running** | A session is working on it | Latest activity, with one line of what it is doing |
 | **Waiting on others** | The session handed over to someone and left a watcher | Folded. When the watcher sees news, a workstream with autonomy 3 or more wakes the session; otherwise, and when it times out, the task returns to Your turn |
 | **Snoozed** | You snoozed it until a time | Returns to Your turn when due |

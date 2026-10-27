@@ -1,12 +1,13 @@
 import type { Band } from '@autopilot/contracts'
 
-export type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
+export type QueueView = 'needs_me' | 'triage' | 'running' | 'waiting' | 'snoozed' | 'done'
 
 /** What the pane beside the list shows: the selected task, or a new one. Settings float above. */
 export type View = { kind: 'task' } | { kind: 'new' }
 
 export const QUEUE_VIEWS: { id: QueueView; title: string; about: string; bands: Band[] }[] = [
-  { id: 'needs_me', title: 'Needs me', about: 'Waiting on your answer or a go-ahead', bands: ['your_turn', 'new'] },
+  { id: 'needs_me', title: 'Needs me', about: 'Under way and waiting on your answer', bands: ['your_turn'] },
+  { id: 'triage', title: 'Triage', about: 'Came in, not started: start it, snooze it or let it go', bands: ['new'] },
   { id: 'running', title: 'Running', about: 'A session is working on it', bands: ['running'] },
   { id: 'waiting', title: 'Waiting on others', about: "Someone else's move", bands: ['waiting'] },
   { id: 'snoozed', title: 'Snoozed', about: 'Put away until later', bands: ['snoozed'] },

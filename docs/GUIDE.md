@@ -44,7 +44,8 @@ The list is the navigation. The tabs along the top:
 
 | Tab | What is in it |
 | --- | --- |
-| **Needs me** | Waiting on your answer or a go-ahead: asks from sessions, and new tasks not started yet |
+| **Needs me** | Under way and waiting on you: a decision, a question, a review, a session that is stuck or finished |
+| **Triage** | Came in and nobody started it: what signals file, and what you saved for later. Start it, snooze it, or close it as Not for me |
 | **Running** | A session is working on it |
 | **Waiting on others** | Handed over to someone; a watcher checks for news and brings it back |
 | **Snoozed** | Put away until a time you chose |
@@ -53,16 +54,13 @@ The list is the navigation. The tabs along the top:
 
 ### What comes first
 
-Needs me comes in two parts:
+Each row in Needs me says what it wants in green (Needs your decision, Asked you, Ready to
+review, Stuck, Finished), then the question itself. An urgent new task skips Triage and lands
+here.
 
-- **Your turn**: work already under way that waits on you. Each row says what it wants in green
-  (Needs your decision, Asked you, Ready to review, Stuck, Finished), then the question itself.
-- **Triage**: what came in and nobody has started: a signal filed it, or you saved it for later.
-  Start it, snooze it, or close it as Not for me. An urgent one skips the line into Your turn.
-
-Inside each part priority leads: Urgent, then High, Normal and Low. At the same priority, a task
-with a live session waiting on your answer comes first, then the one that has waited longest; new
-tasks are newest first. Running shows the latest activity first.
+Priority leads in Needs me and Triage: Urgent, then High, Normal and Low. At the same priority in
+Needs me, a task with a live session waiting on your answer comes first, then the one that has
+waited longest; in Triage, the newest. Running shows the latest activity first.
 
 A task moves up only when something changed that needs you, never because it got old. The list
 never reorders under your cursor.
@@ -130,7 +128,7 @@ with Remote Control, so it never opens as archived.
 | --- | --- |
 | ⌘N, or ⌃⌥Space from any app | New task (text you have selected becomes the brief) |
 | ⌘F | Search |
-| ⌘1 to ⌘6 | The tabs, in order |
+| ⌘1 to ⌘7 | The tabs, in order |
 | ↑ ↓ (or j k in the list) | The previous or next task |
 | ⌥1 to ⌥9 | Pick one of the first nine tasks (hold ⌥ to see the numbers) |
 | Space | Open a row in place and answer it without opening the task |

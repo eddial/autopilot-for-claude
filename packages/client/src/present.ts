@@ -357,6 +357,8 @@ export const emptyWords = (view: string | null): { title: string; line: string }
   switch (view) {
     case 'needs_me':
       return { title: 'All clear', line: 'Nothing needs you. The pilot has the controls.' }
+    case 'triage':
+      return { title: 'Nothing to sort', line: 'Whatever signals file lands here first, for you to start, snooze or let go.' }
     case 'running':
       return { title: 'Engines idle', line: 'No session is working. Start one with New.' }
     case 'waiting':
@@ -376,17 +378,7 @@ export const PRIORITY_NAMES: Record<number, string> = { 1: 'Urgent', 2: 'High', 
 /** How a list is cut into sections: by workstream, or by priority with each workstream together inside. */
 export type GroupBy = 'workstream' | 'priority'
 
-/**
- * A section of a list. Needs me holds two parts, what waits on your answer and what came in to
- * triage; the first section of each part carries the part's name, for the heading above it.
- */
-export type QueueSection = { key: string; title: string; items: QueueItem[]; part?: { title: string; count: number } }
-
-/** The parts of Needs me, in order. */
-const PARTS: { band: QueueItem['band']; title: string }[] = [
-  { band: 'your_turn', title: 'Your turn' },
-  { band: 'new', title: 'Triage' },
-]
+export type QueueSection = { key: string; title: string; items: QueueItem[] }
 
 /** Workstreams in the order of their most pressing task (the queue comes sorted), the inbox last. */
 const workstreams = (items: QueueItem[]): string[] => {
@@ -398,21 +390,7 @@ const byWorkstream = (items: QueueItem[]): QueueItem[] =>
   workstreams(items).flatMap((name) => items.filter((i) => i.task.workstream === name))
 
 /** A sorted list in sections, the same on the Mac and the iPhone; read top to bottom, it is the order Next steps through. */
-export const sectionsOf = (items: QueueItem[], by: GroupBy): QueueSection[] => {
-  // Only where both parts are there, and nothing else is: Needs me, not All.
-  const parted = PARTS.every((p) => items.some((i) => i.band === p.band)) && items.every((i) => PARTS.some((p) => p.band === i.band))
-  if (!parted) return sectionsIn(items, by)
-  return PARTS.flatMap(({ band, title }) => {
-    const inPart = items.filter((i) => i.band === band)
-    return sectionsIn(inPart, by).map((s, i) => ({
-      ...s,
-      key: `${band}:${s.key}`,
-      ...(i === 0 ? { part: { title, count: inPart.length } } : {}),
-    }))
-  })
-}
-
-const sectionsIn = (items: QueueItem[], by: GroupBy): QueueSection[] =>
+export const sectionsOf = (items: QueueItem[], by: GroupBy): QueueSection[] =>
   by === 'workstream'
     ? workstreams(items).map((name) => ({ key: name, title: name, items: items.filter((i) => i.task.workstream === name) }))
     : [1, 2, 3, 4]
