@@ -173,6 +173,9 @@
                     "type": "null"
                   }
                 ]
+              },
+              "autofix": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -189,7 +192,8 @@
               "createdBy",
               "createdAt",
               "updatedAt",
-              "seenAt"
+              "seenAt",
+              "autofix"
             ],
             "additionalProperties": false
           },

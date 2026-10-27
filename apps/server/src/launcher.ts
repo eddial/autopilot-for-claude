@@ -158,7 +158,7 @@ export class Launcher {
           : item.kind === 'deliver_answer'
             ? this.deliver(item.payload.taskId, item.payload.updateId ?? '')
             : item.kind === 'autofix_pr'
-              ? this.autofix(item.payload.taskId, item.payload.url ?? '')
+              ? this.autofix(item.payload.taskId, item.payload.url ?? '', item.payload.stop === true)
               : this.end(item.payload.taskId)
       if (outcome === 'done') {
         service.finishOutbox(item.id)
@@ -423,18 +423,27 @@ export class Launcher {
   }
 
   /**
-   * Turns on Claude Code's Auto-fix for a pull request the session opened, once it is idle: a cloud
-   * session then watches its checks and reviews and pushes fixes, after this one ends too.
+   * Turns Claude Code's Auto-fix on for a pull request the session opened, or off (`stop`), once
+   * the session is idle: on, a cloud session watches its checks and reviews and pushes fixes, after
+   * this one ends too. A session that has ended is brought back for it, idle, as when you open it.
    */
-  private autofix(taskId: string, url: string): 'done' | 'defer' {
+  private autofix(taskId: string, url: string, stop: boolean): 'done' | 'defer' {
     const { service } = this.opts
     const live = this.live.get(taskId)
-    if (!live) return 'done'
-    if (service.getTask(taskId).session?.state !== 'idle') return 'defer'
-    live.pty.write(`/autofix-pr Keep ${url} green and answer its reviews. Never merge it.`)
+    const session = service.getTask(taskId).session
+    if (!live) {
+      if (!session) return 'done'
+      service.resumeTask({ idempotencyKey: `autofix-resume-${session.id}-${Date.now()}`, id: taskId })
+      return 'defer'
+    }
+    if (session?.state !== 'idle') return 'defer'
+    live.pty.write(stop ? '/autofix-pr stop' : `/autofix-pr Keep ${url} green and answer its reviews. Never merge it.`)
     live.pty.write('\r')
     service.setSession(live.sessionId, { state: 'working' })
-    service.systemEvent(taskId, `Turned on Auto-fix for ${url}: Claude watches its checks and reviews and pushes fixes`)
+    service.systemEvent(
+      taskId,
+      stop ? `Turned off Auto-fix for ${url}` : `Turned on Auto-fix for ${url}: Claude watches its checks and reviews and pushes fixes`,
+    )
     return 'done'
   }
 

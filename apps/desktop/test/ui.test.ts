@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { CreateTask, PostUpdate } from '@autopilot/contracts'
+import { AttachLink, CreateTask, PostUpdate } from '@autopilot/contracts'
 import { startTestServer, type TestServer } from '@autopilot/testkit'
 import { chromium, type Browser, type Page } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -166,6 +166,24 @@ describe('the Mac app window', () => {
     await shot('picture-large')
     await page.keyboard.press('Escape')
     await expect.poll(() => page.getByRole('dialog', { name: 'Screenshot: the new node' }).count()).toBe(0)
+  }, 30_000)
+
+  it('switches Auto-fix off for a task with a pull request', async () => {
+    const task = asking('Fix the webhook retry', 11)
+    server.service.attachLink(
+      AttachLink.parse({
+        idempotencyKey: 'ui-pr-00001',
+        taskId: task.id,
+        link: { url: 'https://github.com/acme/api/pull/42', title: 'PR #42' },
+      }),
+      'session',
+    )
+    await needsMe()
+    await page.getByRole('option', { name: /Fix the webhook retry/ }).click()
+    const side = page.getByRole('complementary', { name: 'Properties' })
+    await side.getByRole('button', { name: 'On', exact: true }).click()
+    await page.getByRole('menuitemradio', { name: 'Off' }).click()
+    await expect.poll(() => server.service.task(task.id).autofix).toBe(false)
   }, 30_000)
 
   it('closes the open task when moving to a list without it', async () => {

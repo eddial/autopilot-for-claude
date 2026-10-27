@@ -69,9 +69,9 @@ export type OutboxItem = {
   kind: OutboxKind
   /**
    * `resume`: the session to bring back, its conversation and all, instead of a new one.
-   * `url`: the pull request Auto-fix is turned on for.
+   * `url`: the pull request Auto-fix is turned on for, or off (`stop`).
    */
-  payload: { taskId: string; updateId?: string; resume?: string; url?: string }
+  payload: { taskId: string; updateId?: string; resume?: string; url?: string; stop?: boolean }
   attempts: number
 }
 
@@ -219,6 +219,7 @@ export class Service {
       createdAt: str(r.created_at),
       updatedAt: str(r.updated_at),
       seenAt: strOrNull(r.seen_at),
+      autofix: r.autofix !== 0,
     }
   }
 
@@ -410,7 +411,7 @@ export class Service {
     this.db
       .prepare(
         `update tasks set title = ?, brief = ?, workstream = ?, priority = ?, state = ?, snoozed_until = ?,
-         links = ?, session_id = ?, updated_at = ?, seen_at = ? where id = ?`,
+         links = ?, session_id = ?, updated_at = ?, seen_at = ?, autofix = ? where id = ?`,
       )
       .run(
         task.title,
@@ -423,6 +424,7 @@ export class Service {
         task.sessionId,
         task.updatedAt,
         task.seenAt,
+        task.autofix ? 1 : 0,
         task.id,
       )
     this.emit({ type: 'task.upserted', task })
@@ -519,10 +521,15 @@ export class Service {
       const task = this.task(input.id)
       if (input.workstream && input.workstream !== task.workstream) this.correct(task, 'workstream', task.workstream, input.workstream)
       if (input.priority && input.priority !== task.priority) this.correct(task, 'priority', String(task.priority), String(input.priority))
+      // Auto-fix switched: started or stopped on each pull request the task has, by its session.
+      if (input.autofix !== undefined && input.autofix !== task.autofix)
+        for (const link of task.links.filter((l) => isPullRequest(l.url)))
+          this.enqueue('autofix_pr', { taskId: task.id, url: link.url, ...(input.autofix ? {} : { stop: true }) })
       return this.touch(task, {
         title: input.title ?? task.title,
         workstream: input.workstream ?? task.workstream,
         priority: input.priority ?? task.priority,
+        autofix: input.autofix ?? task.autofix,
       })
     })
   }
@@ -762,7 +769,7 @@ export class Service {
       this.insertUpdate(task, { kind: 'event', body: `Linked ${input.link.title}`, author: by, attachments: [input.link] })
       // A pull request the session opened: Claude Code's Auto-fix keeps it green and answers its
       // reviews, so the session asks for it once it is idle.
-      if (by === 'session' && isPullRequest(input.link.url) && this.liveSession(task))
+      if (by === 'session' && task.autofix && isPullRequest(input.link.url) && this.liveSession(task))
         this.enqueue('autofix_pr', { taskId: task.id, url: input.link.url })
       return this.touch(task, { links: [...task.links, { ...input.link, at: this.iso() }] })
     })

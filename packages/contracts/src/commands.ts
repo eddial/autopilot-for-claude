@@ -27,6 +27,8 @@ export const EditTask = command({
   /** Moving a task to another workstream re-files it and teaches routing. */
   workstream: z.string().optional(),
   priority: Priority.optional(),
+  /** Auto-fix on its pull requests: on starts it for each one, off stops it. */
+  autofix: z.boolean().optional(),
 })
 
 export const TaskRef = command({ id: TaskId })

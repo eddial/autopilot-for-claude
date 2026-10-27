@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { AttachLink, CreateTask, PostUpdate, ReportSession } from '@autopilot/contracts'
+import { AttachLink, CreateTask, EditTask, PostUpdate, ReportSession } from '@autopilot/contracts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { openDatabase } from '../src/db.ts'
 import { Launcher, trustFolder, type Pty } from '../src/launcher.ts'
@@ -59,7 +59,7 @@ describe('starting Claude Code', () => {
     expect(detail.updates[0]?.body).toContain('Do you trust this folder?')
   })
 
-  it('turns on Auto-fix for a pull request the session links, once it is idle, and only once', async () => {
+  it('turns on Auto-fix for a pull request the session links, once it is idle and only once, and stops it when switched off', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'ap-autofix-'))
     const service = new Service({ db: openDatabase(':memory:') })
     const typed: string[] = []
@@ -89,6 +89,22 @@ describe('starting Claude Code', () => {
       '/autofix-pr Keep https://github.com/acme/api/pull/42 green and answer its reviews. Never merge it.',
     ])
     expect(service.getTask(task.id).updates.at(-1)).toMatchObject({ author: 'system', kind: 'event' })
+
+    // Switched off: stopped on that pull request, and a new one gets none.
+    report('idle', 3)
+    service.editTask(EditTask.parse({ idempotencyKey: 'fix-off-1', id: task.id, autofix: false }))
+    await launcher.drain()
+    report('idle', 4)
+    service.attachLink(
+      AttachLink.parse({
+        idempotencyKey: 'fix-link-3',
+        taskId: task.id,
+        link: { url: 'https://github.com/acme/api/pull/43', title: 'PR #43' },
+      }),
+      'session',
+    )
+    await launcher.drain()
+    expect(typed.filter((t) => t.startsWith('/autofix-pr')).slice(1)).toEqual(['/autofix-pr stop'])
   })
 
   it('keeps a finished session until the task closes, without holding a slot, and says so when a restart stranded a task', async () => {

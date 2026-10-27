@@ -14,7 +14,7 @@ export type Command =
   | { kind: 'resume'; taskId: string }
   | { kind: 'snooze'; taskId: string; until: string }
   | { kind: 'close'; taskId: string; outcome: 'done' | 'canceled' }
-  | { kind: 'edit'; taskId: string; workstream?: string; priority?: number }
+  | { kind: 'edit'; taskId: string; workstream?: string; priority?: number; autofix?: boolean }
 
 /** A command waiting to be sent. Its id is the idempotency key, so sending it twice applies it once. */
 export type Pending = { id: string; n: number; at: string; command: Command }
@@ -64,6 +64,7 @@ export const execute = async (api: Api, { id, command: c }: Pending): Promise<un
         id: c.taskId,
         ...(c.workstream ? { workstream: c.workstream } : {}),
         ...(c.priority ? { priority: c.priority } : {}),
+        ...(c.autofix === undefined ? {} : { autofix: c.autofix }),
       })
   }
 }
@@ -97,7 +98,11 @@ export const overlay = (queue: LiveQueue, outbox: Pending[], now: Date): LiveQue
         touch(c.taskId, { state: c.outcome })
         break
       case 'edit':
-        touch(c.taskId, { ...(c.workstream ? { workstream: c.workstream } : {}), ...(c.priority ? { priority: c.priority } : {}) })
+        touch(c.taskId, {
+          ...(c.workstream ? { workstream: c.workstream } : {}),
+          ...(c.priority ? { priority: c.priority } : {}),
+          ...(c.autofix === undefined ? {} : { autofix: c.autofix }),
+        })
         break
       case 'create': {
         const id = `${PENDING_PREFIX}${n}`
@@ -116,6 +121,7 @@ export const overlay = (queue: LiveQueue, outbox: Pending[], now: Date): LiveQue
           createdAt: at,
           updatedAt: at,
           seenAt: at,
+          autofix: true,
         }
         break
       }

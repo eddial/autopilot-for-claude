@@ -66,6 +66,7 @@ const item = (id: string, over: Partial<QueueItem> & { priority?: number; askAt?
       createdAt: updatedAt,
       updatedAt,
       seenAt: null,
+      autofix: true,
     },
     band: 'your_turn',
     openAsk: askAt

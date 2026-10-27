@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import {
   createdText,
   eventText,
+  linkKind,
   linkSource,
   nowText,
   nowTone,
@@ -769,6 +770,30 @@ const Properties = ({
             items={priorities}
           />
         </Prop>
+        {/* Claude Code's Auto-fix, once the session opened a pull request: on unless you turn it off. */}
+        {task.links.some((l) => linkKind(l).label === 'Pull request') && (
+          <Prop label="Auto-fix">
+            <Menu
+              trigger="prop"
+              chevron={false}
+              align="right"
+              label={
+                <span title="Claude watches the pull request's checks and reviews and pushes fixes">
+                  <Dot tone={task.autofix ? 'pilot' : 'quiet'} />
+                  {task.autofix ? 'On' : 'Off'}
+                </span>
+              }
+              items={[
+                {
+                  label: 'On: keep the PR green',
+                  checked: task.autofix,
+                  run: () => send({ kind: 'edit', taskId: task.id, autofix: true }),
+                },
+                { label: 'Off', checked: !task.autofix, run: () => send({ kind: 'edit', taskId: task.id, autofix: false }) },
+              ]}
+            />
+          </Prop>
+        )}
       </div>
 
       <div className="side-group">

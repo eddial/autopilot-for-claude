@@ -233,6 +233,9 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "autofix": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -249,7 +252,8 @@
                   "createdBy",
                   "createdAt",
                   "updatedAt",
-                  "seenAt"
+                  "seenAt",
+                  "autofix"
                 ],
                 "additionalProperties": false
               },
@@ -774,6 +778,9 @@
                             "type": "null"
                           }
                         ]
+                      },
+                      "autofix": {
+                        "type": "boolean"
                       }
                     },
                     "required": [
@@ -790,7 +797,8 @@
                       "createdBy",
                       "createdAt",
                       "updatedAt",
-                      "seenAt"
+                      "seenAt",
+                      "autofix"
                     ],
                     "additionalProperties": false
                   }
@@ -1756,6 +1764,9 @@
                   "type": "null"
                 }
               ]
+            },
+            "autofix": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -1772,7 +1783,8 @@
             "createdBy",
             "createdAt",
             "updatedAt",
-            "seenAt"
+            "seenAt",
+            "autofix"
           ],
           "additionalProperties": false
         },
@@ -2407,6 +2419,9 @@
             }
           ]
         },
+        "autofix": {
+          "type": "boolean"
+        },
         "matched": {
           "type": "boolean"
         }
@@ -2425,7 +2440,8 @@
         "createdBy",
         "createdAt",
         "updatedAt",
-        "seenAt"
+        "seenAt",
+        "autofix"
       ],
       "additionalProperties": false
     }
@@ -2463,6 +2479,9 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 4
+        },
+        "autofix": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -2632,6 +2651,9 @@
               "type": "null"
             }
           ]
+        },
+        "autofix": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -2648,7 +2670,8 @@
         "createdBy",
         "createdAt",
         "updatedAt",
-        "seenAt"
+        "seenAt",
+        "autofix"
       ],
       "additionalProperties": false
     }
@@ -2842,6 +2865,9 @@
               "type": "null"
             }
           ]
+        },
+        "autofix": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -2858,7 +2884,8 @@
         "createdBy",
         "createdAt",
         "updatedAt",
-        "seenAt"
+        "seenAt",
+        "autofix"
       ],
       "additionalProperties": false
     }
@@ -3052,6 +3079,9 @@
               "type": "null"
             }
           ]
+        },
+        "autofix": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -3068,7 +3098,8 @@
         "createdBy",
         "createdAt",
         "updatedAt",
-        "seenAt"
+        "seenAt",
+        "autofix"
       ],
       "additionalProperties": false
     }
@@ -3269,6 +3300,9 @@
               "type": "null"
             }
           ]
+        },
+        "autofix": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -3285,7 +3319,8 @@
         "createdBy",
         "createdAt",
         "updatedAt",
-        "seenAt"
+        "seenAt",
+        "autofix"
       ],
       "additionalProperties": false
     }
@@ -3517,6 +3552,9 @@
               "type": "null"
             }
           ]
+        },
+        "autofix": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -3533,7 +3571,8 @@
         "createdBy",
         "createdAt",
         "updatedAt",
-        "seenAt"
+        "seenAt",
+        "autofix"
       ],
       "additionalProperties": false
     }
@@ -3735,6 +3774,9 @@
               "type": "null"
             }
           ]
+        },
+        "autofix": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -3751,7 +3793,8 @@
         "createdBy",
         "createdAt",
         "updatedAt",
-        "seenAt"
+        "seenAt",
+        "autofix"
       ],
       "additionalProperties": false
     }
@@ -3945,6 +3988,9 @@
               "type": "null"
             }
           ]
+        },
+        "autofix": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -3961,7 +4007,8 @@
         "createdBy",
         "createdAt",
         "updatedAt",
-        "seenAt"
+        "seenAt",
+        "autofix"
       ],
       "additionalProperties": false
     }
@@ -4181,6 +4228,9 @@
                 "type": "null"
               }
             ]
+          },
+          "autofix": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -4197,7 +4247,8 @@
           "createdBy",
           "createdAt",
           "updatedAt",
-          "seenAt"
+          "seenAt",
+          "autofix"
         ],
         "additionalProperties": false
       }
@@ -5299,6 +5350,9 @@
               "type": "null"
             }
           ]
+        },
+        "autofix": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -5315,7 +5369,8 @@
         "createdBy",
         "createdAt",
         "updatedAt",
-        "seenAt"
+        "seenAt",
+        "autofix"
       ],
       "additionalProperties": false
     }

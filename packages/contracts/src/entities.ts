@@ -27,6 +27,8 @@ export const Task = z.object({
   updatedAt: Timestamp,
   /** When the owner last opened it; unread means a change after this. */
   seenAt: Timestamp.nullable(),
+  /** Claude Code's Auto-fix keeps the pull requests its session opens green; on unless switched off. */
+  autofix: z.boolean(),
 })
 export type Task = z.infer<typeof Task>
 

@@ -218,6 +218,10 @@ const MIGRATIONS: (string | ((db: DatabaseSync) => void))[] = [
   update applied set result = replace(replace(result, '"state":"new"', '"state":"triage"'), '"band":"new"', '"band":"triage"');
   `,
   (db) => void backfillMirrors(db),
+  `
+  -- Auto-fix on the pull requests a task's session opens, on unless switched off.
+  alter table tasks add column autofix integer not null default 1;
+  `,
 ]
 
 export const openDatabase = (file: string): DatabaseSync => {
