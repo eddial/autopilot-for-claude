@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem, Signal, Workstream } from '@autopilot/contracts'
-import { attentionKey, type GroupBy } from '@autopilot/client'
+import { attentionKey, emptyWords, type GroupBy } from '@autopilot/client'
 import { api, shell } from './api.ts'
 import { NewTask } from './components/NewTask.tsx'
 import { listOrder, QueueList } from './components/QueueList.tsx'
@@ -346,6 +346,9 @@ export const App = () => {
     if (selected && !tabItems(next, items, done, showAll).some((i) => i.task.id === selected)) setSelected(null)
   }
 
+  // An empty list beside New task: the pane says what the emptiness means, with the one pilot.
+  const clear = listed.length === 0 && (view.kind === 'new' || !current) ? emptyWords(all ? null : tab).title : undefined
+
   return (
     <div className={`app${showingTask ? ' showing-task' : ''}${held ? ` hold-${held}` : ''}`}>
       <QueueList
@@ -364,6 +367,7 @@ export const App = () => {
         width={listWidth}
         banner={banner}
         showingTasks={view.kind === 'task'}
+        quietEmpty={clear !== undefined}
         lingering={lingering?.id ?? null}
         place={
           at >= 0
@@ -380,12 +384,12 @@ export const App = () => {
       />
       <div className="grip" role="separator" aria-label="Resize list" aria-orientation="vertical" onPointerDown={startResize} />
       {view.kind === 'new' ? (
-        <NewTask workstreams={workstreams} onCreated={openTask} />
+        <NewTask workstreams={workstreams} onCreated={openTask} clear={clear} />
       ) : current ? (
         <TaskPane key={current.task.id} item={current} workstreams={workstreams} onClose={() => setShowingTask(false)} />
       ) : listed.length === 0 ? (
-        // Nothing in this list: the pane offers what you can do instead, a new task.
-        <NewTask workstreams={workstreams} onCreated={openTask} />
+        // Nothing in this list: the pane offers what you can do instead, a new task, and says why.
+        <NewTask workstreams={workstreams} onCreated={openTask} clear={clear} />
       ) : (
         <section className="pane task">
           <div className="task-head drag" />

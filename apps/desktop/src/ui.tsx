@@ -541,3 +541,15 @@ export const Markdown = ({ text, onLink }: { text: string; onLink: (url: string)
     )}
   </div>
 )
+
+/** The pilot flying past drifting clouds (still when motion is reduced): the list is clear. */
+export const FlyingPilot = () => (
+  <div className="sky" aria-hidden="true">
+    <span className="cloud one" />
+    <span className="cloud two" />
+    <span className="cloud three" />
+    <span className="flying">
+      <Pilot pixel={4} />
+    </span>
+  </div>
+)

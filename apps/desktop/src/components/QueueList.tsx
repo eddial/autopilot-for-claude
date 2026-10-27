@@ -7,12 +7,14 @@ import { useDraft } from '../drafts.ts'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
 import { ALL_OPEN, QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
-import { Banner, Bars, Button, Icon, WorkstreamMark, NavIcon, Pilot, SearchIcon, type NavIconName } from '../ui.tsx'
+import { Banner, Bars, Button, Icon, WorkstreamMark, NavIcon, FlyingPilot, SearchIcon, type NavIconName } from '../ui.tsx'
 
 type Props = {
   tab: QueueView
   /** Every open task, whatever its status: the current tab tapped again. */
   all: boolean
+  /** New task is beside an empty list and carries the pilot: the list says it in one line. */
+  quietEmpty: boolean
   /** A status, or every open task. */
   onTab: (tab: QueueView | 'all') => void
   /** How many tasks each tab holds; Done only once it has been read. */
@@ -52,19 +54,21 @@ const Arrow = ({ dir }: { dir: 'up' | 'down' }) => (
   </svg>
 )
 
-/** An empty list: the pilot flying past a few clouds, and a word about it. */
-const EmptyList = ({ tab }: { tab: QueueView | null }) => {
+/**
+ * An empty list: the pilot flying past a few clouds, and a word about it. `quiet` when New task is
+ * beside it, which then carries the pilot: one line here, so the window has one pilot, not two.
+ */
+const EmptyList = ({ tab, quiet }: { tab: QueueView | null; quiet: boolean }) => {
   const words = emptyWords(tab)
+  if (quiet)
+    return (
+      <div className="empty-quiet">
+        <span className="empty-quiet-title">{words.title}</span> · {words.line}
+      </div>
+    )
   return (
     <div className="empty-list">
-      <div className="sky" aria-hidden="true">
-        <span className="cloud one" />
-        <span className="cloud two" />
-        <span className="cloud three" />
-        <span className="flying">
-          <Pilot pixel={4} />
-        </span>
-      </div>
+      <FlyingPilot />
       <div className="empty-title">{words.title}</div>
       <div className="empty-line">{words.line}</div>
     </div>
@@ -127,6 +131,7 @@ export const QueueList = (props: Props) => {
   const {
     tab,
     all,
+    quietEmpty,
     onTab,
     counts,
     items,
@@ -309,7 +314,8 @@ export const QueueList = (props: Props) => {
       )}
       {banner && <Banner>{banner}</Banner>}
       <div className="rows" ref={rows} role="listbox" aria-label="Tasks" tabIndex={0} onKeyDown={onKeyDown}>
-        {visible.length === 0 && (filter ? <div className="empty">Nothing matches the search.</div> : <EmptyList tab={all ? null : tab} />)}
+        {visible.length === 0 &&
+          (filter ? <div className="empty">Nothing matches the search.</div> : <EmptyList tab={all ? null : tab} quiet={quietEmpty} />)}
         {/* oxlint-disable-next-line react/forbid-dom-props -- measured by the virtualiser */}
         <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
           {virtual.getVirtualItems().map((v) => {

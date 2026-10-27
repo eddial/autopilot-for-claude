@@ -2,11 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import type { Workstream } from '@autopilot/contracts'
 import { api, key } from '../api.ts'
 import { useDraft } from '../drafts.ts'
-import { Banner, Bars, Button, Icon, NavIcon, Pilot, Row, Spacer, WorkstreamMark } from '../ui.tsx'
+import { Banner, Bars, Button, FlyingPilot, Icon, NavIcon, Pilot, Row, Spacer, WorkstreamMark } from '../ui.tsx'
 import { AttachButton, FileChips, useNewFiles } from './Files.tsx'
 import { Menu } from './Menu.tsx'
 
-type Props = { workstreams: Workstream[]; onCreated: (id: string) => void }
+type Props = {
+  workstreams: Workstream[]
+  onCreated: (id: string) => void
+  /** Beside an empty list: what the emptiness means, said here with the flying pilot ("All clear"). */
+  clear?: string
+}
 
 /** The priorities as the task's own Priority property names them. */
 const PRIORITIES: Record<number, string> = { 1: 'Urgent', 2: 'High', 3: 'Normal', 4: 'Low' }
@@ -18,7 +23,7 @@ const AutoMark = () => (
   </span>
 )
 
-export const NewTask = ({ workstreams, onCreated }: Props) => {
+export const NewTask = ({ workstreams, onCreated, clear }: Props) => {
   // Only what needs doing: Autopilot writes the title from it.
   const [brief, setBrief] = useDraft('new:brief')
   const files = useNewFiles()
@@ -60,10 +65,17 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
     <section className="pane task" aria-label="New task">
       <div className="task-head drag" />
       <div className="start">
-        <Row gap={6}>
-          <Pilot pixel={3} />
-          <h1 className="serif">What’s next?</h1>
-        </Row>
+        {clear ? (
+          <>
+            <FlyingPilot />
+            <h1 className="serif">{clear}. What’s next?</h1>
+          </>
+        ) : (
+          <Row gap={6}>
+            <Pilot pixel={3} />
+            <h1 className="serif">What’s next?</h1>
+          </Row>
+        )}
         <form
           {...files.drop}
           className="composer"
@@ -76,7 +88,7 @@ export const NewTask = ({ workstreams, onCreated }: Props) => {
             ref={briefRef}
             aria-label="What needs doing"
             rows={5}
-            placeholder="What needs doing? Paste or drop files too."
+            placeholder="Describe it, or paste a file"
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
             onPaste={files.onPaste}

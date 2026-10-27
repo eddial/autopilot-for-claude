@@ -561,8 +561,8 @@ const Cloud = ({ top, width, seconds, delay, still }: { top: number; width: numb
 }
 
 /** An empty list, as on the Mac: the pilot drifting along past a few clouds, and a word about it. */
-export const EmptyList = ({ view }: { view: string | null }) => {
-  const words = emptyWords(view)
+/** The pilot flying through drifting clouds, bobbing unless motion is reduced: the queue is clear. */
+export const FlyingPilot = () => {
   const [still, setStill] = useState(false)
   const [bob] = useState(() => new Animated.Value(0))
   useEffect(() => {
@@ -580,25 +580,42 @@ export const EmptyList = ({ view }: { view: string | null }) => {
     return () => run.stop()
   }, [bob, still])
   return (
+    <View style={styles.sky} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Cloud top={18} width={44} seconds={9} delay={0} still={still} />
+      <Cloud top={52} width={28} seconds={6} delay={1500} still={still} />
+      <Cloud top={80} width={60} seconds={12} delay={3000} still={still} />
+      <Animated.View
+        style={[
+          styles.flying,
+          {
+            transform: [
+              { translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) },
+              { rotate: bob.interpolate({ inputRange: [0, 1], outputRange: ['-2deg', '2deg'] }) },
+            ],
+          },
+        ]}
+      >
+        <Pilot pixel={4} />
+      </Animated.View>
+    </View>
+  )
+}
+
+/**
+ * An empty tab: the flying pilot with what the emptiness means. `quiet` when New task is beside it
+ * (the split), which then carries the pilot: one line here, so the screen has one pilot, not two.
+ */
+export const EmptyList = ({ view, quiet = false }: { view: string | null; quiet?: boolean }) => {
+  const words = emptyWords(view)
+  if (quiet)
+    return (
+      <Text style={styles.emptyQuiet} numberOfLines={2}>
+        <Text style={{ color: colours.text2 }}>{words.title}</Text> · {words.line}
+      </Text>
+    )
+  return (
     <View style={styles.emptyList}>
-      <View style={styles.sky} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Cloud top={18} width={44} seconds={9} delay={0} still={still} />
-        <Cloud top={52} width={28} seconds={6} delay={1500} still={still} />
-        <Cloud top={80} width={60} seconds={12} delay={3000} still={still} />
-        <Animated.View
-          style={[
-            styles.flying,
-            {
-              transform: [
-                { translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) },
-                { rotate: bob.interpolate({ inputRange: [0, 1], outputRange: ['-2deg', '2deg'] }) },
-              ],
-            },
-          ]}
-        >
-          <Pilot pixel={4} />
-        </Animated.View>
-      </View>
+      <FlyingPilot />
       <Text style={styles.emptyTitle}>{words.title}</Text>
       <Text style={styles.emptyLine}>{words.line}</Text>
     </View>
@@ -676,6 +693,7 @@ const styles = StyleSheet.create({
   flying: { position: 'absolute', top: 26, left: 68 },
   emptyTitle: { fontFamily: fonts.serifNative, fontSize: 22, color: colours.text },
   emptyLine: { marginTop: 6, fontSize: 15, lineHeight: 21, textAlign: 'center', color: colours.text3, maxWidth: 300 },
+  emptyQuiet: { marginHorizontal: GUTTER, marginTop: 20, fontSize: 14, lineHeight: 20, color: colours.text3 },
   button: { paddingHorizontal: space[6], paddingVertical: 9, borderRadius: radius.md, alignSelf: 'flex-start' },
   buttonText: { fontSize: 15, color: colours.text },
   pilotRow: { flexDirection: 'row' },

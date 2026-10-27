@@ -33,7 +33,7 @@ import {
   useSyncState,
 } from '../../../src/store.ts'
 import { colours, shapes } from '@autopilot/design'
-import { rowStatus, sectionsOf, type GroupBy } from '@autopilot/client'
+import { emptyWords, rowStatus, sectionsOf, type GroupBy } from '@autopilot/client'
 import { Bars, EmptyList, Sides, WorkstreamBadge, COMPOSER_BAR, edgeSpace, GUTTER, shaped, type, useBottomGap } from '../../../src/ui.tsx'
 
 type QueueView = 'needs_me' | 'running' | 'waiting' | 'snoozed' | 'done'
@@ -242,7 +242,7 @@ export default function QueueScreen() {
                     : 'Nothing cached yet.'}
               </Text>
             ) : (
-              <EmptyList view={all ? null : view} />
+              <EmptyList view={all ? null : view} quiet={split && !selectedItem} />
             )
           }
           renderSectionHeader={({ section }) => {
@@ -377,7 +377,14 @@ export default function QueueScreen() {
             {selectedItem ? (
               <TaskView key={selectedItem.task.id} item={selectedItem} edges={['right']} onTop={toTop} />
             ) : (
-              <NewTask onDone={() => undefined} edges={['right']} autoFocus={false} />
+              <NewTask
+                onDone={() => undefined}
+                edges={['right']}
+                autoFocus={false}
+                clear={
+                  sections.length === 0 && !filter && !(view === 'done' && done === null) ? emptyWords(all ? null : view).title : undefined
+                }
+              />
             )}
           </View>
         </View>

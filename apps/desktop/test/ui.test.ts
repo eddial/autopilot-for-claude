@@ -55,6 +55,10 @@ describe('the Mac app window', () => {
     await expect.poll(() => page.getByRole('heading', { name: 'Needs me' }).isVisible()).toBe(true)
     // The tokens reached the page: the window is its own dark colour, not the browser's white.
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(31, 30, 29)')
+    // Nothing yet: New task beside the list says so, with the one flying pilot; the list says it in a line.
+    await expect.poll(() => page.getByRole('heading', { name: 'All clear. What’s next?' }).isVisible()).toBe(true)
+    expect(await page.locator('.flying').count()).toBe(1)
+    await shot('empty')
 
     // Something already in Needs me, which the window must not jump to once the new task runs.
     asking('Book the team offsite', 0)

@@ -7,7 +7,7 @@ import { useDraft } from '../drafts.ts'
 import { FileChips, useFiles } from '../files.tsx'
 import { useSyncInstance } from '../store.ts'
 import { colours } from '@autopilot/design'
-import { Chip, Composer, ComposerTool, Pilot, Sides, composerInput, GUTTER, type, KeyboardScreen } from '../ui.tsx'
+import { Chip, Composer, ComposerTool, FlyingPilot, Pilot, Sides, composerInput, GUTTER, type, KeyboardScreen } from '../ui.tsx'
 
 const PRIORITIES = [
   { value: 1, label: 'Urgent' },
@@ -30,7 +30,18 @@ const pickFrom = (title: string, options: string[], current: number, then: (inde
  * go with it. Works offline: it waits in the outbox and reaches the Mac later. A sheet of its own
  * on a phone; the empty side of the split.
  */
-export const NewTask = ({ onDone, edges, autoFocus = true }: { onDone: () => void; edges?: ('left' | 'right')[]; autoFocus?: boolean }) => {
+export const NewTask = ({
+  onDone,
+  edges,
+  autoFocus = true,
+  clear,
+}: {
+  onDone: () => void
+  edges?: ('left' | 'right')[]
+  autoFocus?: boolean
+  /** Beside an empty list: what the emptiness means, said here with the flying pilot ("All clear"). */
+  clear?: string
+}) => {
   const sync = useSyncInstance()
   const [text, setText] = useDraft('new:text')
   const [workstream, setWorkstream] = useState<string | null>(null)
@@ -88,8 +99,8 @@ export const NewTask = ({ onDone, edges, autoFocus = true }: { onDone: () => voi
     <Sides colour={colours.well} edges={edges}>
       <KeyboardScreen style={styles.screen}>
         <View style={styles.hello}>
-          <Pilot pixel={4} />
-          <Text style={type.heading}>What needs doing?</Text>
+          {clear ? <FlyingPilot /> : <Pilot pixel={4} />}
+          <Text style={[type.heading, { textAlign: 'center' }]}>{clear ? `${clear}. What’s next?` : 'What needs doing?'}</Text>
         </View>
         {/* The choices as pills over the box, left-aligned as Claude's are. */}
         <View style={styles.pills}>
@@ -125,7 +136,7 @@ export const NewTask = ({ onDone, edges, autoFocus = true }: { onDone: () => voi
         >
           <TextInput
             style={composerInput}
-            placeholder="What needs doing?"
+            placeholder="Describe it, or paste a file"
             placeholderTextColor={colours.text3}
             value={text}
             onChangeText={setText}

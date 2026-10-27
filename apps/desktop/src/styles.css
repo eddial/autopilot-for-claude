@@ -3050,6 +3050,21 @@ textarea.inline-reply {
   }
 }
 
+.empty-quiet {
+  padding: 18px 20px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+.empty-quiet-title {
+  color: var(--text-2);
+}
+
+.start .sky {
+  margin-bottom: 10px;
+}
+
 .empty-title {
   font-family: var(--serif);
   font-size: 20px;
