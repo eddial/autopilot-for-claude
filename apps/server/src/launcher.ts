@@ -157,7 +157,9 @@ export class Launcher {
           ? this.start(item.payload.taskId, item.payload.resume)
           : item.kind === 'deliver_answer'
             ? this.deliver(item.payload.taskId, item.payload.updateId ?? '')
-            : this.end(item.payload.taskId)
+            : item.kind === 'autofix_pr'
+              ? this.autofix(item.payload.taskId, item.payload.url ?? '')
+              : this.end(item.payload.taskId)
       if (outcome === 'done') {
         service.finishOutbox(item.id)
         if (item.kind !== 'start_session') log(`${item.kind.replace('_', ' ')} ${item.payload.taskId}`)
@@ -417,6 +419,22 @@ export class Launcher {
     const files = sent.length > 0 ? [`Attached:\n${sent.map((f) => `- ${f}`).join('\n')}`] : []
     live.pty.write(paste(`${from} on ${taskId}:\n\n${[answer.body, ...files].filter(Boolean).join('\n\n')}`))
     service.setSession(live.sessionId, { state: 'working' })
+    return 'done'
+  }
+
+  /**
+   * Turns on Claude Code's Auto-fix for a pull request the session opened, once it is idle: a cloud
+   * session then watches its checks and reviews and pushes fixes, after this one ends too.
+   */
+  private autofix(taskId: string, url: string): 'done' | 'defer' {
+    const { service } = this.opts
+    const live = this.live.get(taskId)
+    if (!live) return 'done'
+    if (service.getTask(taskId).session?.state !== 'idle') return 'defer'
+    live.pty.write(`/autofix-pr Keep ${url} green and answer its reviews. Never merge it.`)
+    live.pty.write('\r')
+    service.setSession(live.sessionId, { state: 'working' })
+    service.systemEvent(taskId, `Turned on Auto-fix for ${url}: Claude watches its checks and reviews and pushes fixes`)
     return 'done'
   }
 

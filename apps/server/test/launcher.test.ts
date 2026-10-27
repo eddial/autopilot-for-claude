@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { CreateTask, PostUpdate, ReportSession } from '@autopilot/contracts'
+import { AttachLink, CreateTask, PostUpdate, ReportSession } from '@autopilot/contracts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { openDatabase } from '../src/db.ts'
 import { Launcher, trustFolder, type Pty } from '../src/launcher.ts'
@@ -57,6 +57,38 @@ describe('starting Claude Code', () => {
     expect(detail.session?.state).toBe('ended')
     expect(detail.updates.map((u) => `${u.author}/${u.kind}`)).toEqual(['system/blocked'])
     expect(detail.updates[0]?.body).toContain('Do you trust this folder?')
+  })
+
+  it('turns on Auto-fix for a pull request the session links, once it is idle, and only once', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ap-autofix-'))
+    const service = new Service({ db: openDatabase(':memory:') })
+    const typed: string[] = []
+    const launcher = new Launcher({
+      service,
+      paths: resolvePaths({ AUTOPILOT_DATA: join(dir, 'data') }),
+      workstreams: () => [],
+      spawn: (): Pty => ({ pid: 1, write: (data) => void typed.push(data), kill: () => {}, onData: () => {}, onExit: () => {} }),
+      self: { node: process.execPath, script: 'autopilot.js' },
+    })
+    const task = service.createTask(CreateTask.parse({ idempotencyKey: 'fix-00001', title: 'Fix the retry bug' }))
+    await launcher.drain()
+    const report = (state: 'working' | 'idle', n: number) =>
+      service.reportSession(ReportSession.parse({ idempotencyKey: `fix-report-${n}`, taskId: task.id, state }))
+    report('working', 1)
+    const pr = { url: 'https://github.com/acme/api/pull/42', title: 'PR #42: retry the webhook' }
+    const attach = (n: number) =>
+      service.attachLink(AttachLink.parse({ idempotencyKey: `fix-link-${n}`, taskId: task.id, link: pr }), 'session')
+    attach(1)
+    attach(2)
+    // Still working: it waits for the session to be free.
+    await launcher.drain()
+    expect(typed.filter((t) => t.startsWith('/autofix-pr'))).toEqual([])
+    report('idle', 2)
+    await launcher.drain()
+    expect(typed.filter((t) => t.startsWith('/autofix-pr'))).toEqual([
+      '/autofix-pr Keep https://github.com/acme/api/pull/42 green and answer its reviews. Never merge it.',
+    ])
+    expect(service.getTask(task.id).updates.at(-1)).toMatchObject({ author: 'system', kind: 'event' })
   })
 
   it('keeps a finished session until the task closes, without holding a slot, and says so when a restart stranded a task', async () => {

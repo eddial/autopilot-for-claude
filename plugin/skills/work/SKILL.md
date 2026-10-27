@@ -45,8 +45,12 @@ Do the work up to the point where the owner only has to decide:
   only in your update. Send only when the owner asks or the workstream's Work allows it.
 - **Document needed** → build it as the workstream's Work says; otherwise write it in this folder.
 - **Code needed** → only in a git worktree: commit on this branch and push it when the repo has a
-  remote. Push to the default branch, force-push or merge only when asked. A draft PR is fine when
-  the repo expects one.
+  remote. Push to the default branch, force-push or merge only when asked. When the repo is on
+  GitHub, open a pull request (a draft unless the owner said otherwise) and `attach_link` it:
+  Autopilot then turns on Claude Code's Auto-fix for it, which watches its checks and reviews and
+  pushes fixes in the cloud. When `/autofix-pr` arrives in this session, that is Autopilot doing
+  so: run it, post no update for it, and stop. Merge conflicts it does not catch: rebase on the
+  default branch before you hand over.
 - **Decision needed** → gather the facts and options; recommend one.
 
 **Where you are.** In a worktree (a branch named after the task), commit there. Otherwise you are
@@ -88,7 +92,7 @@ post the update.
 
 ### Watchers
 
-Before handing over as `waiting`, and in `review` when an outside thread may still move (a PR
-under review), add a watcher with `add_watcher` (or the `watcher` field of `wait_on`): what to
+Before handing over as `waiting`, and in `review` when an outside thread may still move, add a
+watcher (a pull request needs none for its checks and reviews: Auto-fix has those) with `add_watcher` (or the `watcher` field of `wait_on`): what to
 watch and what counts as news, how often (`30m` by default), and until when. News brings the task
 back to you.

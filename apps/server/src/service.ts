@@ -57,15 +57,21 @@ export class DomainError extends Error {
   }
 }
 
+/** A pull request on GitHub, which Claude Code's Auto-fix can watch. */
+export const isPullRequest = (url: string): boolean => /^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/.test(url)
+
 /** Who is calling, from their token. */
 export type Principal = { tokenId: string; name: string; scope: Scope; taskId: string | null }
 
-export type OutboxKind = 'start_session' | 'deliver_answer' | 'end_session'
+export type OutboxKind = 'start_session' | 'deliver_answer' | 'end_session' | 'autofix_pr'
 export type OutboxItem = {
   id: number
   kind: OutboxKind
-  /** `resume`: the session to bring back, its conversation and all, instead of a new one. */
-  payload: { taskId: string; updateId?: string; resume?: string }
+  /**
+   * `resume`: the session to bring back, its conversation and all, instead of a new one.
+   * `url`: the pull request Auto-fix is turned on for.
+   */
+  payload: { taskId: string; updateId?: string; resume?: string; url?: string }
   attempts: number
 }
 
@@ -754,6 +760,10 @@ export class Service {
       const task = this.task(input.taskId)
       if (task.links.some((l) => l.url === input.link.url)) return task
       this.insertUpdate(task, { kind: 'event', body: `Linked ${input.link.title}`, author: by, attachments: [input.link] })
+      // A pull request the session opened: Claude Code's Auto-fix keeps it green and answers its
+      // reviews, so the session asks for it once it is idle.
+      if (by === 'session' && isPullRequest(input.link.url) && this.liveSession(task))
+        this.enqueue('autofix_pr', { taskId: task.id, url: input.link.url })
       return this.touch(task, { links: [...task.links, { ...input.link, at: this.iso() }] })
     })
   }
@@ -1212,6 +1222,13 @@ export class Service {
       if (task.state === 'done' || task.state === 'canceled') return
       this.insertUpdate(task, { kind: 'done', body, author: 'system' })
       this.close(this.task(task.id), 'done')
+    })
+  }
+
+  /** A line in the task's timeline about something Autopilot did, needing nothing from anyone. */
+  systemEvent(taskId: string, body: string): void {
+    this.transaction(() => {
+      this.insertUpdate(this.task(taskId), { kind: 'event', body, author: 'system' })
     })
   }
 

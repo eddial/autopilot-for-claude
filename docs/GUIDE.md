@@ -124,6 +124,11 @@ Each session runs in its own worktree, on a branch named after the task (`claude
 repository its workstream or brief points to. Sessions run in a separate background process, so
 restarting or updating Autopilot does not stop them, and their Remote Control links keep working.
 
+When a session opens a pull request on GitHub, Autopilot turns on Claude Code's **Auto-fix** for
+it (`/autofix-pr`): a cloud session watches its checks and reviews and pushes fixes, and it never
+merges. It needs the Claude GitHub App on the repository. The task's timeline says when Auto-fix
+went on.
+
 A session lives until its task closes. While it is idle, waiting on you, it takes up none of your
 parallel slots. If you open a session that has ended, Autopilot brings back the same conversation
 with Remote Control, so it never opens as archived.
