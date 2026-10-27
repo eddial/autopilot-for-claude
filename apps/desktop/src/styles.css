@@ -2880,11 +2880,8 @@ textarea.inline-reply {
   padding: 22px 20px 2px;
 }
 
-.list-nothing {
-  margin: 0;
-  padding: 12px 20px 0;
-  font-size: 13px;
-  color: var(--text-3);
+.list-part.first {
+  padding-top: 10px;
 }
 
 .row .meta .row-label.triage {

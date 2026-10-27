@@ -299,11 +299,14 @@ export const QueueList = (props: Props) => {
           )
         })}
       </nav>
-      {/* The tab's name and what it holds; Triage, under Needs me, has the same heading in the list. */}
-      <p className="list-heading">
-        <span className="list-heading-name">{all ? ALL_OPEN.title : QUEUE_VIEWS.find((q) => q.id === tab)?.title}</span>
-        <span className="list-heading-about">{all ? ALL_OPEN.about : QUEUE_VIEWS.find((q) => q.id === tab)?.about}</span>
-      </p>
+      {/* The tab's name and what it holds; Triage, under Needs me, has the same heading in the list.
+          Needs me with only Triage in it starts at Triage. */}
+      {entries[0]?.kind !== 'part' && (
+        <p className="list-heading">
+          <span className="list-heading-name">{all ? ALL_OPEN.title : QUEUE_VIEWS.find((q) => q.id === tab)?.title}</span>
+          <span className="list-heading-about">{all ? ALL_OPEN.about : QUEUE_VIEWS.find((q) => q.id === tab)?.about}</span>
+        </p>
+      )}
       {banner && <Banner>{banner}</Banner>}
       <div className="rows" ref={rows} role="listbox" aria-label="Tasks" tabIndex={0} onKeyDown={onKeyDown}>
         {visible.length === 0 && (filter ? <div className="empty">Nothing matches the search.</div> : <EmptyList tab={all ? null : tab} />)}
@@ -322,8 +325,7 @@ export const QueueList = (props: Props) => {
               >
                 {entry.kind === 'part' ? (
                   <>
-                    {entry.alone && <p className="list-nothing">Nothing waits on you right now.</p>}
-                    <h2 className="list-heading list-part">
+                    <h2 className={`list-heading list-part${entry.alone ? ' first' : ''}`}>
                       <span className="list-heading-name">{entry.title}</span>
                       <span className="list-heading-about">{entry.about}</span>
                     </h2>

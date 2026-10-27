@@ -230,7 +230,6 @@ export default function QueueScreen() {
             return (
               <View>
                 {/* Triage, under Needs me: its name and what it holds, as the screen's title has. */}
-                {section.part?.alone && <Text style={styles.nothing}>Nothing waits on you right now.</Text>}
                 {section.part && (
                   <View style={styles.part}>
                     <Text style={styles.partTitle}>{section.part.title}</Text>
@@ -447,7 +446,6 @@ const styles = StyleSheet.create({
   part: { gap: 2, paddingHorizontal: GUTTER, paddingTop: 22, paddingBottom: 2 },
   partTitle: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', color: colours.text2 },
   partAbout: { fontSize: 13, color: colours.text3 },
-  nothing: { paddingHorizontal: GUTTER, paddingTop: 12, fontSize: 14, color: colours.text3 },
   rowLabel: { color: colours.pilotSoft, fontWeight: '500' },
   heading: { marginHorizontal: GUTTER },
   caption: { marginHorizontal: GUTTER, fontSize: 13, color: colours.text3 },
