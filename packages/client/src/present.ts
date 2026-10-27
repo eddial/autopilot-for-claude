@@ -398,7 +398,7 @@ export type GroupBy = 'workstream' | 'priority'
 export type QueueSection = { key: string; title: string; items: QueueItem[]; part?: { title: string; about: string; alone: boolean } }
 
 /** The heading over what came in to triage, in Needs me. */
-export const TRIAGE_PART = { title: 'Triage', about: 'Came in, not started: start it, snooze it or let it go' }
+export const TRIAGE_PART = { title: 'Triage', about: 'Start it, snooze it, let it go' }
 
 /** Workstreams in the order of their most pressing task (the queue comes sorted), the inbox last. */
 const workstreams = (items: QueueItem[]): string[] => {

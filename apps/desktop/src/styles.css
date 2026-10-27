@@ -2868,6 +2868,7 @@ textarea.inline-reply {
 
 .list-heading-about {
   min-width: 0;
+  font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 12.5px;
