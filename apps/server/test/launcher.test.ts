@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -11,6 +12,45 @@ import { Service } from '../src/service.ts'
 afterEach(() => {
   vi.useRealTimers()
 })
+
+/** A launcher on a fake terminal: what it types, and a way to draw on its screen. */
+const autofixSession = async (key: string) => {
+  const dir = mkdtempSync(join(tmpdir(), 'ap-autofix-'))
+  const service = new Service({ db: openDatabase(':memory:') })
+  const typed: string[] = []
+  const terminal: { draw?: (data: string) => void } = {}
+  const launcher = new Launcher({
+    service,
+    paths: resolvePaths({ AUTOPILOT_DATA: join(dir, 'data') }),
+    workstreams: () => [],
+    spawn: (): Pty => ({
+      pid: 1,
+      write: (data) => void typed.push(data),
+      kill: () => {},
+      onData: (listener) => {
+        terminal.draw = listener
+      },
+      onExit: () => {},
+    }),
+    self: { node: process.execPath, script: 'autopilot.js' },
+  })
+  const task = service.createTask(CreateTask.parse({ idempotencyKey: `${key}-00001`, title: 'Fix the retry bug' }))
+  await launcher.drain()
+  const cwd = service.getTask(task.id).session?.cwd ?? ''
+  const report = (state: 'working' | 'idle', n: number) =>
+    service.reportSession(ReportSession.parse({ idempotencyKey: `${key}-report-${n}`, taskId: task.id, state }))
+  const attach = (n: number, pr = 42) =>
+    service.attachLink(
+      AttachLink.parse({
+        idempotencyKey: `${key}-link-${n}`,
+        taskId: task.id,
+        link: { url: `https://github.com/acme/api/pull/${pr}`, title: `PR #${pr}` },
+      }),
+      'session',
+    )
+  const draw = (data: string) => terminal.draw?.(data)
+  return { service, launcher, task, cwd, typed, report, attach, draw }
+}
 
 describe('starting Claude Code', () => {
   it('records the launcher’s folders as trusted and keeps the rest of Claude Code’s settings', () => {
@@ -60,24 +100,9 @@ describe('starting Claude Code', () => {
   })
 
   it('turns on Auto-fix for a pull request the session links, once it is idle and only once, and stops it when switched off', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'ap-autofix-'))
-    const service = new Service({ db: openDatabase(':memory:') })
-    const typed: string[] = []
-    const launcher = new Launcher({
-      service,
-      paths: resolvePaths({ AUTOPILOT_DATA: join(dir, 'data') }),
-      workstreams: () => [],
-      spawn: (): Pty => ({ pid: 1, write: (data) => void typed.push(data), kill: () => {}, onData: () => {}, onExit: () => {} }),
-      self: { node: process.execPath, script: 'autopilot.js' },
-    })
-    const task = service.createTask(CreateTask.parse({ idempotencyKey: 'fix-00001', title: 'Fix the retry bug' }))
-    await launcher.drain()
-    const report = (state: 'working' | 'idle', n: number) =>
-      service.reportSession(ReportSession.parse({ idempotencyKey: `fix-report-${n}`, taskId: task.id, state }))
+    const { service, launcher, task, cwd, typed, report, attach, draw } = await autofixSession('fix')
+    execFileSync('git', ['-C', cwd, 'remote', 'add', 'origin', 'git@github.com:acme/api.git'])
     report('working', 1)
-    const pr = { url: 'https://github.com/acme/api/pull/42', title: 'PR #42: retry the webhook' }
-    const attach = (n: number) =>
-      service.attachLink(AttachLink.parse({ idempotencyKey: `fix-link-${n}`, taskId: task.id, link: pr }), 'session')
     attach(1)
     attach(2)
     // Still working: it waits for the session to be free.
@@ -88,23 +113,46 @@ describe('starting Claude Code', () => {
     expect(typed.filter((t) => t.startsWith('/autofix-pr'))).toEqual([
       '/autofix-pr Keep https://github.com/acme/api/pull/42 green and answer its reviews. Never merge it.',
     ])
+    // It asks first, with nobody at the terminal: Continue. Answers wait meanwhile.
+    expect(service.getTask(task.id).session?.state).toBe('working')
+    const keys = typed.length
+    draw('\r\n Autofix PR\r\n Before you start\r\n ❯ 1. Continue  start monitoring this PR\r\n   2. Not now\r\n Esc to cancel')
+    await vi.waitFor(() => expect(typed.slice(keys)).toEqual(['\r']))
+    // Started: the session is free again, with no Stop hook to say so.
+    draw('\r\n ⎿  Spawned cloud autofix PR session on claude/fix (PR #42)\r\n')
+    await vi.waitFor(() => expect(service.getTask(task.id).session?.state).toBe('idle'))
     expect(service.getTask(task.id).updates.at(-1)).toMatchObject({ author: 'system', kind: 'event' })
+    expect(service.getTask(task.id).updates.at(-1)?.body).toContain('Turned on Auto-fix')
 
     // Switched off: stopped on that pull request, and a new one gets none.
     report('idle', 3)
     service.editTask(EditTask.parse({ idempotencyKey: 'fix-off-1', id: task.id, autofix: false }))
     await launcher.drain()
     report('idle', 4)
-    service.attachLink(
-      AttachLink.parse({
-        idempotencyKey: 'fix-link-3',
-        taskId: task.id,
-        link: { url: 'https://github.com/acme/api/pull/43', title: 'PR #43' },
-      }),
-      'session',
-    )
+    attach(3, 43)
     await launcher.drain()
     expect(typed.filter((t) => t.startsWith('/autofix-pr')).slice(1)).toEqual(['/autofix-pr stop'])
+  })
+
+  it('never leaves a session held by Auto-fix: skipped outside the pull request’s repository, and a failure closed and said', async () => {
+    const { service, launcher, task, cwd, typed, report, attach, draw } = await autofixSession('fail')
+    report('idle', 1)
+    // A checkout with no remote for acme/api: Auto-fix would fail there, so it is not typed.
+    attach(1)
+    await launcher.drain()
+    expect(typed.filter((t) => t.startsWith('/autofix-pr'))).toEqual([])
+    expect(service.getTask(task.id).session?.state).toBe('idle')
+    expect(service.getTask(task.id).updates.at(-1)?.body).toContain('no GitHub remote for acme/api')
+
+    // It fails anyway: the message is closed and goes on the task, and the session is free.
+    execFileSync('git', ['-C', cwd, 'remote', 'add', 'origin', 'https://github.com/acme/api.git'])
+    attach(2, 43)
+    await launcher.drain()
+    expect(typed.filter((t) => t.startsWith('/autofix-pr'))).toHaveLength(1)
+    draw("\r\n Autofix PR failed: can't start autofix —\r\n   Cloud agents need a moment.\r\n Esc/Enter to close")
+    await vi.waitFor(() => expect(service.getTask(task.id).session?.state).toBe('idle'))
+    expect(typed.at(-1)).toBe('\u001b')
+    expect(service.getTask(task.id).updates.at(-1)?.body).toContain('Auto-fix could not start for https://github.com/acme/api/pull/43')
   })
 
   it('keeps a finished session until the task closes, without holding a slot, and says so when a restart stranded a task', async () => {

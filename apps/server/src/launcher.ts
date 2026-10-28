@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Task, Workstream } from '@autopilot/contracts'
 import { checkoutFor, prepareWorkspace, type Checkouts } from './checkouts.ts'
-import { isGitCheckout } from './git.ts'
+import { hasGitHubRemote, isGitCheckout } from './git.ts'
 import type { Paths } from './paths.ts'
 import type { OutboxItem, Service } from './service.ts'
 import { Screen } from './screen.ts'
@@ -59,11 +59,28 @@ export type LauncherOptions = {
   log?: (message: string) => void
 }
 
-type Live = { pty: Pty; sessionId: string; screen: Screen; stuck: boolean }
+type Live = {
+  pty: Pty
+  sessionId: string
+  screen: Screen
+  stuck: boolean
+  /** Read after each redraw while a slash command Autopilot typed is on screen. */
+  onScreen?: () => void
+}
 
 /** Startup screens a session can stop at; nobody is at the terminal to answer them. */
 const STARTUP_PROMPT = /trust this folder|Enter to confirm|Bypass Permissions mode|Do you want to proceed/i
 const STUCK_AFTER_MS = 45_000
+
+/**
+ * What `/autofix-pr` draws. It runs no turn, so no Stop hook says the session is free again: the
+ * launcher reads the screen instead. It asks once before it starts (Auto-fix is the owner's
+ * setting, on by default, so the answer is Continue), and a failure waits for a key.
+ */
+const AUTOFIX_CONSENT = /Before you start[\s\S]*Continue/
+const AUTOFIX_STARTED = /Spawned cloud autofix[^\n]*/g
+const AUTOFIX_FAILED = /Autofix PR failed[\s\S]*?(?=Esc\/Enter to close|$)/g
+const AUTOFIX_SETTLE_MS = 60_000
 
 /**
  * Claude Code asks "Do you trust this folder?" in a folder it has not seen, and the session never
@@ -365,9 +382,13 @@ export class Launcher {
         if (url && url !== known) service.setSession(sessionId, { remoteControlUrl: url })
       }
     }
-    live.screen.write('', link)
+    const read = () => {
+      link()
+      live.onScreen?.()
+    }
+    live.screen.write('', read)
     pty.onData((data) => {
-      live.screen.write(data, link)
+      live.screen.write(data, read)
     })
     pty.onExit(({ exitCode }) => this.exited(taskId, sessionId, exitCode))
   }
@@ -446,6 +467,7 @@ export class Launcher {
    * Turns Claude Code's Auto-fix on for a pull request the session opened, or off (`stop`), once
    * the session is idle: on, a cloud session watches its checks and reviews and pushes fixes, after
    * this one ends too. A session that has ended is brought back for it, idle, as when you open it.
+   * Only from a checkout of the pull request's repository, which is where Auto-fix starts from.
    */
   private autofix(taskId: string, url: string, stop: boolean): 'done' | 'defer' {
     const { service } = this.opts
@@ -457,13 +479,52 @@ export class Launcher {
       return 'defer'
     }
     if (session?.state !== 'idle') return 'defer'
+    const repo = /github\.com\/([^/]+\/[^/]+)\/pull\//.exec(url)?.[1]
+    if (!stop && repo && !hasGitHubRemote(session.cwd, repo)) {
+      service.systemEvent(
+        taskId,
+        `Auto-fix is not on for ${url}: this session works in ${session.cwd}, which has no GitHub remote for ${repo}, and Auto-fix starts from there`,
+      )
+      return 'done'
+    }
+    const count = (re: RegExp) => (live.screen.text().match(re) ?? []).length
+    const before = { started: count(AUTOFIX_STARTED), failed: count(AUTOFIX_FAILED) }
+    // What is drawn last, without the empty rows below it.
+    const tailOf = () => live.screen.text().trimEnd().split('\n').slice(-20).join('\n')
+    let consented = false
+    // Free again once it has started or failed, or after a minute whatever it shows.
+    const settle = (event: string) => {
+      clearTimeout(timer)
+      live.onScreen = undefined
+      if (service.session(live.sessionId)?.state === 'working') service.setSession(live.sessionId, { state: 'idle', activity: null })
+      service.systemEvent(taskId, event)
+    }
+    const timer = setTimeout(() => {
+      const tail = tailOf()
+      if (/Esc(\/Enter)? to (cancel|close)/.test(tail)) live.pty.write('\u001b')
+      settle(
+        stop
+          ? `Turned off Auto-fix for ${url}`
+          : `Auto-fix for ${url} did not confirm within a minute. The screen showed:\n\n${tail.trim()}`,
+      )
+    }, AUTOFIX_SETTLE_MS)
+    timer.unref()
+    live.onScreen = () => {
+      if (!consented && AUTOFIX_CONSENT.test(tailOf())) {
+        consented = true
+        live.pty.write('\r')
+      } else if (count(AUTOFIX_FAILED) > before.failed) {
+        const reason = (live.screen.text().match(AUTOFIX_FAILED) ?? []).at(-1)?.replace(/\s+/g, ' ').trim()
+        live.pty.write('\u001b')
+        settle(`Auto-fix could not start for ${url}: ${reason}`)
+      } else if (count(AUTOFIX_STARTED) > before.started) {
+        settle(`Turned on Auto-fix for ${url}: Claude watches its checks and reviews and pushes fixes`)
+      }
+    }
     live.pty.write(stop ? '/autofix-pr stop' : `/autofix-pr Keep ${url} green and answer its reviews. Never merge it.`)
     live.pty.write('\r')
+    // Answers wait until it is done; typed into its dialog, they would be lost.
     service.setSession(live.sessionId, { state: 'working' })
-    service.systemEvent(
-      taskId,
-      stop ? `Turned off Auto-fix for ${url}` : `Turned on Auto-fix for ${url}: Claude watches its checks and reviews and pushes fixes`,
-    )
     return 'done'
   }
 
