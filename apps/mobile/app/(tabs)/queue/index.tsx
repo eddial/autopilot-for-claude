@@ -21,7 +21,7 @@ import { router, Stack } from 'expo-router'
 import { useHeaderHeight } from 'expo-router/react-navigation'
 import { StatusLine } from '../../../src/components/StatusLine.tsx'
 import { appearanceChoice, chooseAppearance } from '../../../src/theme.ts'
-import { linksMenu, TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
+import { BAND_SYMBOL, linksMenu, TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
 import { NewTask } from '../../../src/components/NewTask.tsx'
 import { age, rowMeta } from '../../../src/format.ts'
@@ -656,16 +656,6 @@ const macTitle = (state: ReturnType<typeof useSyncState>): string => {
     status === 'online' ? `Connected ${routeKind ? ROUTE[routeKind] : ''}`.trim() : status === 'connecting' ? 'Connecting…' : 'Out of reach'
   const synced = lastSyncedAt ? (age(lastSyncedAt) === 'now' ? 'synced just now' : `synced ${age(lastSyncedAt)} ago`) : 'not synced yet'
   return [serverName(), reached, synced, outbox.length > 0 ? `${outbox.length} waiting to send` : null].filter(Boolean).join(' · ')
-}
-
-/** Each band as the symbol of the tab it shows under. */
-const BAND_SYMBOL: Record<QueueItem['band'], SFSymbol> = {
-  your_turn: 'hand.raised',
-  triage: 'tray',
-  running: 'hammer',
-  waiting: 'clock',
-  snoozed: 'moon',
-  done: 'flag.checkered',
 }
 
 const styles = StyleSheet.create({

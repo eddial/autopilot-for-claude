@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { Alert, Linking, useWindowDimensions } from 'react-native'
+import { Alert, Linking } from 'react-native'
+import type { SFSymbol } from 'expo-symbols'
 import type { QueueItem } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
 import { firstLookQuestions, linkGroups, linkKind, linkSource } from '@autopilot/client'
@@ -21,6 +22,16 @@ const snoozeTimes = (): { label: string; until: Date }[] => {
     { label: 'Tomorrow morning', until: at(1, 9) },
     { label: 'Monday morning', until: at(monday, 9) },
   ].filter((t) => t.until > now)
+}
+
+/** Each band as the symbol of the tab it shows under. */
+export const BAND_SYMBOL: Record<QueueItem['band'], SFSymbol> = {
+  your_turn: 'hand.raised',
+  triage: 'tray',
+  running: 'hammer',
+  waiting: 'clock',
+  snoozed: 'moon',
+  done: 'flag.checkered',
 }
 
 const GROUP_ICONS = {
@@ -62,10 +73,12 @@ export const linksMenu = (links: QueueItem['task']['links'], hidden = false) => 
 
 /**
  * A task's actions as native bar items. At the top: the prominent action (Open session, or Start)
- * in ink as on the Mac, Mark done and Snooze each their own button, and ⋯ with back to the top of
- * the page and Not for me (and Snooze, on a short screen). The Duo's bar has room for no more: one
- * button more and iOS folds the arrows into an overflow ⋯ of its own. At the bottom, in a pushed screen: the way through the list, with the
- * Mac's thin arrows, after the links (the split puts both in its own bottom bar, beside search).
+ * in ink as on the Mac, then one status button, the task's band as its tab draws it, that marks it
+ * done, snoozes it or says not for me; ⋯ only in the split, for New task and back to the top (a
+ * pushed screen goes back to the top with a tap on its title). The Duo's bar is short: every button
+ * more and iOS folds the arrows into an overflow ⋯ of its own. At the bottom, in a pushed screen: the
+ * links and the way through the list, with the Mac's thin arrows (the split puts both in its own
+ * bottom bar, beside search).
  */
 export const TaskToolbar = ({
   item,
@@ -78,15 +91,12 @@ export const TaskToolbar = ({
   closeAfter: boolean
   /** Through the list the task was opened from, as Mail goes through messages: up and down. */
   step?: { previous: (() => void) | null; next: (() => void) | null }
-  /** Back to the top of the page: the brief, where the newest entry opens it at the bottom. */
+  /** Back to the top of the page, in the split, whose bar has no title to tap: the brief, where the newest entry opens it at the bottom. */
   onTop?: () => void
   /** New task, first in the bar: the Duo open upright, where the bottom row is the list's. */
   onNew?: () => void
 }) => {
   const sync = useSyncInstance()
-  // The Duo folded in landscape has one button fewer in its bar: Snooze goes into ⋯ there.
-  // Upright on the open Duo (onNew) the bar spans both halves: it keeps to the task's by folding too.
-  const short = useWindowDimensions().height < 500 || onNew !== undefined
   const opening = useRef(false)
   const { task, session } = item
   const closed = item.band === 'done'
@@ -143,22 +153,24 @@ export const TaskToolbar = ({
             onPress={() => void sync?.send({ kind: 'start', taskId: task.id })}
           />
         ) : null}
-        <Stack.Toolbar.Button icon="checkmark" accessibilityLabel="Mark done" hidden={closed} onPress={() => done('done')} />
-        <Stack.Toolbar.Menu icon="moon" accessibilityLabel="Snooze" title="Snooze" hidden={closed || short}>
-          {snoozes}
-        </Stack.Toolbar.Menu>
-        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More" title="More" hidden={closed && !onTop && !onNew}>
-          <Stack.Toolbar.Menu icon="moon" title="Snooze" hidden={closed || !short}>
+        {/* Where it stands, as the tab it shows under: one button for every way to put it away. */}
+        <Stack.Toolbar.Menu icon={BAND_SYMBOL[item.band]} accessibilityLabel="Status" title="Status" hidden={closed}>
+          <Stack.Toolbar.MenuAction icon="checkmark" onPress={() => done('done')}>
+            Mark done
+          </Stack.Toolbar.MenuAction>
+          <Stack.Toolbar.Menu icon="moon" title="Snooze">
             {snoozes}
           </Stack.Toolbar.Menu>
+          <Stack.Toolbar.MenuAction icon="xmark" destructive onPress={() => done('canceled')}>
+            Not for me
+          </Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
+        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More" title="More" hidden={!onTop && !onNew}>
           <Stack.Toolbar.MenuAction icon="square.and.pencil" hidden={!onNew} onPress={() => onNew?.()}>
             New task
           </Stack.Toolbar.MenuAction>
           <Stack.Toolbar.MenuAction icon="arrow.up.to.line" hidden={!onTop} onPress={() => onTop?.()}>
             Back to the top
-          </Stack.Toolbar.MenuAction>
-          <Stack.Toolbar.MenuAction icon="xmark" destructive hidden={closed} onPress={() => done('canceled')}>
-            Not for me
           </Stack.Toolbar.MenuAction>
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
