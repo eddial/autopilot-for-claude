@@ -589,7 +589,7 @@ const Actions = ({ item, session: withSession = true, start = true }: { item: Qu
     <div className="task-actions">
       {start && item.band === 'triage' && !live && (
         <Button kind="primary" className="with-icon" onClick={() => send({ kind: 'start', taskId: task.id })}>
-          <Icon name="play" />
+          <NavIcon name="running" size={14} />
           Start
         </Button>
       )}

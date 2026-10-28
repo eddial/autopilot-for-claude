@@ -101,7 +101,7 @@ export const TaskToolbar = ({
           <Stack.Toolbar.Button
             variant="prominent"
             tintColor={colours.text}
-            icon="play.fill"
+            icon="hammer.fill"
             accessibilityLabel="Start"
             onPress={() => void sync?.send({ kind: 'start', taskId: task.id })}
           />

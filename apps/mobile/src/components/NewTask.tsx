@@ -128,7 +128,7 @@ export const NewTask = ({
               <Chip
                 pill
                 label={start ? 'Start now' : 'Start later'}
-                icon={<SymbolView name={start ? 'play.fill' : 'pause'} size={12} tintColor={colours.text2} />}
+                icon={<SymbolView name={start ? 'hammer.fill' : 'pause'} size={12} tintColor={colours.text2} />}
                 onPress={() => setStart(!start)}
               />
             </>
