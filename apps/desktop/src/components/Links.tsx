@@ -104,8 +104,8 @@ export const LinkRow = ({ taskId, link }: { taskId: string; link: Link }) => {
   )
 }
 
-/** The task's links, or its artifacts: one quiet line naming their kinds, the rows once opened. */
-export const Linked = ({ taskId, links, noun }: { taskId: string; links: Link[]; noun: 'linked' | 'artifact' }) => {
+/** One group of the task's links: one quiet line naming their kinds, the rows once opened. */
+export const Linked = ({ taskId, links, noun }: { taskId: string; links: Link[]; noun: readonly [one: string, many: string] }) => {
   const [shown, setShown] = useState(false)
   if (links.length === 0) return null
   const kinds = [...new Set(links.map((l) => linkKind(l).label))]
@@ -113,7 +113,7 @@ export const Linked = ({ taskId, links, noun }: { taskId: string; links: Link[];
     <section className="linked">
       <Button kind="link" className="linked-toggle" aria-expanded={shown} onClick={() => setShown((s) => !s)}>
         <Chevron open={shown} />
-        {links.length} {noun === 'artifact' && links.length !== 1 ? 'artifacts' : noun} · {kinds.join(', ')}
+        {links.length} {links.length === 1 ? noun[0] : noun[1]} · {kinds.join(', ')}
       </Button>
       {shown && (
         <ul>

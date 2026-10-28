@@ -21,7 +21,7 @@ import { router, Stack } from 'expo-router'
 import { useHeaderHeight } from 'expo-router/react-navigation'
 import { StatusLine } from '../../../src/components/StatusLine.tsx'
 import { appearanceChoice, chooseAppearance } from '../../../src/theme.ts'
-import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
+import { linksMenu, TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
 import { NewTask } from '../../../src/components/NewTask.tsx'
 import { age, rowMeta } from '../../../src/format.ts'
@@ -426,6 +426,8 @@ export default function QueueScreen() {
           hidden={!selectedItem || narrow}
           onPress={() => setSelected(null)}
         />
+        {/* The open task's links by kind, where the Mac has its side column. */}
+        {linksMenu(selectedItem?.task.links ?? [], !selectedItem)}
         <Stack.Toolbar.Spacer />
         <Stack.Toolbar.Button
           icon="arrow.up"

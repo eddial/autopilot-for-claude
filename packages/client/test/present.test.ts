@@ -2,7 +2,7 @@ import type { QueueItem, Update } from '@autopilot/contracts'
 import { describe, expect, it } from 'vitest'
 import { parseMarkdown } from '../src/markdown.ts'
 import {
-  isArtifact,
+  linkGroup,
   isPaste,
   linkKind,
   linkSource,
@@ -81,7 +81,7 @@ describe('how updates read', () => {
     ])
   })
 
-  it('lists what a session made to share as artifacts, apart from the rest', () => {
+  it('groups links into artifacts, pull requests, issues, messages and the rest', () => {
     expect(
       [
         'file:///Users/b/plan.md',
@@ -89,8 +89,12 @@ describe('how updates read', () => {
         'https://docs.google.com/document/d/1',
         'https://github.com/a/b/pull/1',
         'https://linear.app/a/issue/A-1',
-      ].map((url) => isArtifact({ url, title: 'x' })),
-    ).toEqual([true, true, true, false, false])
+        'https://github.com/a/b/issues/2',
+        'https://lleverage.slack.com/archives/C1/p1',
+        'https://mail.google.com/mail/u/0/#inbox/1',
+        'https://github.com/a/b/tree/x',
+      ].map((url) => linkGroup({ url, title: 'x' })),
+    ).toEqual(['artifacts', 'artifacts', 'artifacts', 'pulls', 'issues', 'issues', 'messages', 'messages', 'linked'])
   })
 })
 

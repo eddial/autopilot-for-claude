@@ -3,7 +3,7 @@ import { Keyboard, LayoutAnimation, Linking, Pressable, ScrollView, StyleSheet, 
 import {
   filedBy,
   firstLookQuestions,
-  isArtifact,
+  linkGroups,
   isPaste,
   pasteSize,
   signalChannel,
@@ -302,9 +302,10 @@ export const TaskView = ({
               <Folded text={task.brief} onLink={open} />
             </View>
           ) : null}
-          <Linked taskId={task.id} links={task.links.filter(isArtifact)} noun="artifact" />
-          <Linked taskId={task.id} links={task.links.filter((l) => !isArtifact(l))} noun="linked" />
-          {/* As on the Mac: what the session made, what it points to, then where it came from. */}
+          {/* As on the Mac: what the session made, its pull requests, tickets and messages, the rest, then where it came from. */}
+          {linkGroups(task.links).map((g) => (
+            <Linked key={g.key} taskId={task.id} links={g.links} noun={[g.one, g.many]} />
+          ))}
           <Signals signals={detail?.signals ?? []} />
           <View style={styles.section}>
             <Text style={type.label}>Activity</Text>
@@ -430,8 +431,16 @@ const open = (url: string) => {
   if (!url.startsWith('file:')) void Linking.openURL(url)
 }
 
-/** What the task points to, or its artifacts: one quiet line naming the kinds; each link in its kind once opened. */
-const Linked = ({ taskId, links, noun }: { taskId: string; links: QueueItem['task']['links']; noun: 'linked' | 'artifact' }) => {
+/** One group of the task's links: one quiet line naming the kinds; each link in its kind once opened. */
+const Linked = ({
+  taskId,
+  links,
+  noun,
+}: {
+  taskId: string
+  links: QueueItem['task']['links']
+  noun: readonly [one: string, many: string]
+}) => {
   const [shown, setShown] = useState(false)
   if (links.length === 0) return null
   const kinds = [...new Set(links.map((l) => linkKind(l).label))]
@@ -439,7 +448,7 @@ const Linked = ({ taskId, links, noun }: { taskId: string; links: QueueItem['tas
     <View style={styles.section}>
       <Pressable onPress={() => setShown((s) => !s)} accessibilityRole="button" accessibilityState={{ expanded: shown }}>
         <Text style={type.meta}>
-          {shown ? '▾' : '▸'} {links.length} {noun === 'artifact' && links.length !== 1 ? 'artifacts' : noun} · {kinds.join(', ')}
+          {shown ? '▾' : '▸'} {links.length} {links.length === 1 ? noun[0] : noun[1]} · {kinds.join(', ')}
         </Text>
       </Pressable>
       {shown && [...links].reverse().map((l) => <LinkRow key={l.url} taskId={taskId} link={l} />)}

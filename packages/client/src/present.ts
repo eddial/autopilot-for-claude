@@ -222,10 +222,35 @@ const kindOf = ({ url, title }: { url: string; title: string }): LinkKind => {
 
 /**
  * What a session made to share, which both apps list as Artifacts apart from the rest: a file it
- * wrote, a Google Doc, Sheet or Slides, a Claude artifact. Pull requests, branches, drafts and sources stay Linked.
+ * wrote, a Google Doc, Sheet or Slides, a Claude artifact.
  */
-export const isArtifact = (link: { url: string; title: string }): boolean =>
+const isArtifact = (link: { url: string; title: string }): boolean =>
   link.url.startsWith('file:') || ['Google Doc', 'Google Sheet', 'Google Slides', 'Artifact'].includes(linkKind(link).label)
+
+/** The groups both apps list a task's links in, in this order; anything else is Linked. */
+export const LINK_GROUPS = [
+  { key: 'artifacts', heading: 'Artifacts', one: 'artifact', many: 'artifacts' },
+  { key: 'pulls', heading: 'Pull requests', one: 'pull request', many: 'pull requests' },
+  { key: 'issues', heading: 'Issues', one: 'issue', many: 'issues' },
+  { key: 'messages', heading: 'Messages', one: 'message', many: 'messages' },
+  { key: 'linked', heading: 'Linked', one: 'linked', many: 'linked' },
+] as const
+
+export type LinkGroup = (typeof LINK_GROUPS)[number]['key']
+
+/** Which group a link goes in: what the session made, its pull requests, tickets, Slack and email, the rest. */
+export const linkGroup = (link: { url: string; title: string }): LinkGroup => {
+  if (isArtifact(link)) return 'artifacts'
+  const { label } = linkKind(link)
+  if (label === 'Pull request') return 'pulls'
+  if (linkSource(link.url) === 'Linear' || /github\.com\/[^/]+\/[^/]+\/issues\/\d/.test(link.url)) return 'issues'
+  if (/^(Email|Slack)/.test(label)) return 'messages'
+  return 'linked'
+}
+
+/** A task's links by group, leaving out the groups with none; each keeps the links' order. */
+export const linkGroups = <L extends { url: string; title: string }>(links: L[]) =>
+  LINK_GROUPS.map((group) => ({ ...group, links: links.filter((l) => linkGroup(l) === group.key) })).filter((g) => g.links.length > 0)
 
 export const updateTone = (update: Update): EntryTone => {
   if (update.kind in ASKING) return update.open ? 'pilot' : 'quiet'

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Alert, Linking, useWindowDimensions } from 'react-native'
 import type { QueueItem } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
-import { firstLookQuestions } from '@autopilot/client'
+import { firstLookQuestions, linkGroups, linkKind, linkSource } from '@autopilot/client'
 import { useDetail, useSyncInstance } from '../store.ts'
 import { colours } from '@autopilot/design'
 
@@ -23,12 +23,49 @@ const snoozeTimes = (): { label: string; until: Date }[] => {
   ].filter((t) => t.until > now)
 }
 
+const GROUP_ICONS = {
+  artifacts: 'doc.text',
+  pulls: 'arrow.triangle.pull',
+  issues: 'checklist',
+  messages: 'bubble.left',
+  linked: 'link',
+} as const
+
+/**
+ * What the task points to, as one bar button the Mac's side column stands in for: a menu with a
+ * section per kind (artifacts, pull requests, issues, messages, the rest), newest first, each link
+ * opening where it lives. A file stays on the Mac: the page reads it. Hidden without links.
+ * A function, not a component: the bar only takes its own items as direct children.
+ */
+export const linksMenu = (links: QueueItem['task']['links'], hidden = false) => (
+  <Stack.Toolbar.Menu icon="link" accessibilityLabel="Links" title="Links" hidden={hidden || links.length === 0}>
+    {linkGroups(links).map((g) => (
+      <Stack.Toolbar.Menu key={g.key} inline title={g.heading}>
+        {[...g.links].reverse().map((l) => {
+          const file = l.url.startsWith('file:')
+          return (
+            <Stack.Toolbar.MenuAction
+              key={l.url}
+              icon={GROUP_ICONS[g.key]}
+              subtitle={[linkKind(l).label, l.subtitle ?? (file ? 'On your Mac' : linkSource(l.url))].filter(Boolean).join(' · ')}
+              disabled={file}
+              onPress={() => void Linking.openURL(l.url)}
+            >
+              {l.title.replace(/^(file|gmail|slack|github|linear|drive):\s*/i, '')}
+            </Stack.Toolbar.MenuAction>
+          )
+        })}
+      </Stack.Toolbar.Menu>
+    ))}
+  </Stack.Toolbar.Menu>
+)
+
 /**
  * A task's actions as native bar items. At the top: the prominent action (Open session, or Start)
  * in ink as on the Mac, Mark done and Snooze each their own button, and ⋯ with back to the top of
  * the page and Not for me (and Snooze, on a short screen). The Duo's bar has room for no more: one
  * button more and iOS folds the arrows into an overflow ⋯ of its own. At the bottom, in a pushed screen: the way through the list, with the
- * Mac's thin arrows (the split puts them in its own bottom bar, beside search).
+ * Mac's thin arrows, after the links (the split puts both in its own bottom bar, beside search).
  */
 export const TaskToolbar = ({
   item,
@@ -127,6 +164,7 @@ export const TaskToolbar = ({
       </Stack.Toolbar>
       {step && (
         <Stack.Toolbar placement="bottom">
+          {linksMenu(task.links)}
           <Stack.Toolbar.Spacer />
           <Stack.Toolbar.Button
             icon="arrow.up"

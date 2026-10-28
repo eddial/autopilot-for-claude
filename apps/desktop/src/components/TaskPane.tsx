@@ -16,7 +16,7 @@ import type { QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contr
 import {
   filedBy,
   firstLookQuestions,
-  isArtifact,
+  linkGroups,
   isPaste,
   pasteSize,
   signalChannel,
@@ -219,8 +219,9 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
                 </section>
               )}
               <div className="linked-inline">
-                <Linked taskId={task.id} links={task.links.filter(isArtifact)} noun="artifact" />
-                <Linked taskId={task.id} links={task.links.filter((l) => !isArtifact(l))} noun="linked" />
+                {linkGroups(task.links).map((g) => (
+                  <Linked key={g.key} taskId={task.id} links={g.links} noun={[g.one, g.many]} />
+                ))}
               </div>
               <section className="section">
                 <div className="section-label">Activity</div>
@@ -843,24 +844,14 @@ const Properties = ({
         )}
       </div>
 
-      {/* What the session made first, then what it points to, then where it came from; newest first in each. */}
-      {[
-        { heading: 'Artifacts', shown: 5, links: newestFirst(task.links.filter(isArtifact), (l) => l.at ?? linkedAt(l.url)) },
-        {
-          heading: 'Linked',
-          shown: 3,
-          links: newestFirst(
-            task.links.filter((l) => !isArtifact(l)),
-            (l) => l.at ?? linkedAt(l.url),
-          ),
-        },
-      ].map((group) => (
+      {/* What the session made first, then its pull requests, tickets and messages, the rest, then where it came from; newest first in each. */}
+      {linkGroups(task.links).map((group) => (
         <SideGroup
-          key={group.heading}
+          key={group.key}
           heading={group.heading}
-          shown={group.shown}
+          shown={group.key === 'artifacts' ? 5 : 3}
           list
-          rows={group.links.map((l) => (
+          rows={newestFirst(group.links, (l) => l.at ?? linkedAt(l.url)).map((l) => (
             <SideLink key={l.url} taskId={task.id} link={l} at={l.at ?? linkedAt(l.url)} />
           ))}
         />
