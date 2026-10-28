@@ -426,8 +426,9 @@ export default function QueueScreen() {
           hidden={!selectedItem || narrow}
           onPress={() => setSelected(null)}
         />
-        {/* The open task's links by kind, where the Mac has its side column. */}
-        {linksMenu(selectedItem?.task.links ?? [], !selectedItem)}
+        {/* The open task's links by kind, where the Mac has its side column; upright they are in the
+            bar across the top, as a row of their own here would take the list's room. */}
+        {linksMenu(selectedItem?.task.links ?? [], !selectedItem || upright)}
         <Stack.Toolbar.Spacer />
         <Stack.Toolbar.Button
           icon="arrow.up"
@@ -502,25 +503,29 @@ export default function QueueScreen() {
           >
             {list}
           </View>
-          <View style={{ flex: 1, overflow: 'hidden' }}>
-            <NewTask
-              onDone={() => undefined}
-              edges={['right']}
-              autoFocus={false}
-              clear={
-                !selectedItem && sections.length === 0 && !filter && !(view === 'done' && done === null)
-                  ? emptyWords(all ? null : view).title
-                  : undefined
-              }
-            />
-            {selectedItem && (
-              <Animated.View
-                style={[StyleSheet.absoluteFill, { backgroundColor: colours.well, transform: [{ translateX: slide }] }]}
-                {...swipeAway.panHandlers}
-              >
-                <TaskView key={selectedItem.task.id} item={selectedItem} edges={['right']} onTop={toTop} />
-              </Animated.View>
-            )}
+          {/* Upright the bar runs across the top of both halves: the task's half starts below it, so its
+              buttons never sit on the page. Beside a side bar it has the whole height. */}
+          <View style={{ flex: 1, paddingTop: upright ? headerHeight : 0 }}>
+            <View style={{ flex: 1, overflow: 'hidden' }}>
+              <NewTask
+                onDone={() => undefined}
+                edges={['right']}
+                autoFocus={false}
+                clear={
+                  !selectedItem && sections.length === 0 && !filter && !(view === 'done' && done === null)
+                    ? emptyWords(all ? null : view).title
+                    : undefined
+                }
+              />
+              {selectedItem && (
+                <Animated.View
+                  style={[StyleSheet.absoluteFill, { backgroundColor: colours.well, transform: [{ translateX: slide }] }]}
+                  {...swipeAway.panHandlers}
+                >
+                  <TaskView key={selectedItem.task.id} item={selectedItem} edges={['right']} onTop={toTop} />
+                </Animated.View>
+              )}
+            </View>
           </View>
         </View>
       ) : (

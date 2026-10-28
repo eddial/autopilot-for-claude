@@ -29,6 +29,8 @@ product, architecture, API and plan; `docs/decisions/` records why things are th
   `Sync` to the Keychain, SQLite, notifications and background sync. Check bundling with
   `npx expo export --platform ios` (Hermes rejects some syntax tsc accepts).
 - How to run it on a Mac: `docs/RUNNING.md`.
+- Before any UI change, read `AGENTS.md`: what the owner keeps correcting (buttons never on the
+  content, every Duo pose checked, no wasted room, plain motion).
 
 ## Commands
 

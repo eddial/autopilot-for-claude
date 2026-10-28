@@ -24,6 +24,9 @@ it, and test every pose before saying a screen is done. The rules themselves are
 
 ## Layout rules (all in `apps/mobile/src/ui.tsx`)
 
+- **Buttons never on the content.** Not floating over a page or list, not a row of their own at
+  the foot of a list. Upright on the open Duo the bar runs across the top and is see-through: the
+  task's half starts below it. What the owner kept correcting is in `AGENTS.md`; read it first.
 - **Only native bars.** Actions are `Stack.Toolbar` items (`placement` right/left/bottom),
   search is `Stack.SearchBar` + `Stack.Toolbar.SearchBarSlot`. Never draw a custom bar where the
   system bar goes. Toolbar items must be **direct children** of `Stack.Toolbar`: fragments and

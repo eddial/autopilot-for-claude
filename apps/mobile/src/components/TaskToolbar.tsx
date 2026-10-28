@@ -5,7 +5,7 @@ import type { QueueItem } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
 import { firstLookQuestions, linkGroups, linkKind, linkSource } from '@autopilot/client'
 import { useDetail, useSyncInstance } from '../store.ts'
-import { colours } from '@autopilot/design'
+import { colours, tones } from '@autopilot/design'
 
 const snoozeTimes = (): { label: string; until: Date }[] => {
   const now = new Date()
@@ -32,6 +32,16 @@ export const BAND_SYMBOL: Record<QueueItem['band'], SFSymbol> = {
   waiting: 'clock',
   snoozed: 'moon',
   done: 'flag.checkered',
+}
+
+/** Each band's colour, as the dot beside its name on the page; triage in the urgent orange of its mark. */
+const BAND_DOT: Record<QueueItem['band'], string> = {
+  your_turn: tones.pilot.dot,
+  triage: colours.urgent,
+  running: tones.claude.dot,
+  waiting: tones.paused.dot,
+  snoozed: tones.paused.dot,
+  done: tones.quiet.dot,
 }
 
 const GROUP_ICONS = {
@@ -153,8 +163,14 @@ export const TaskToolbar = ({
             onPress={() => void sync?.send({ kind: 'start', taskId: task.id })}
           />
         ) : null}
-        {/* Where it stands, as the tab it shows under: one button for every way to put it away. */}
-        <Stack.Toolbar.Menu icon={BAND_SYMBOL[item.band]} accessibilityLabel="Status" title="Status" hidden={closed}>
+        {/* Where it stands, as the dot in its colour beside the status on the page: one button for every way to put it away. */}
+        <Stack.Toolbar.Menu
+          icon="circle.inset.filled"
+          tintColor={BAND_DOT[item.band]}
+          accessibilityLabel="Status"
+          title="Status"
+          hidden={closed}
+        >
           <Stack.Toolbar.MenuAction icon="checkmark" onPress={() => done('done')}>
             Mark done
           </Stack.Toolbar.MenuAction>
@@ -165,6 +181,8 @@ export const TaskToolbar = ({
             Not for me
           </Stack.Toolbar.MenuAction>
         </Stack.Toolbar.Menu>
+        {/* Upright on the open Duo (onNew) the bottom bar is the list's: the links come up here. */}
+        {linksMenu(task.links, !onNew)}
         <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More" title="More" hidden={!onTop && !onNew}>
           <Stack.Toolbar.MenuAction icon="square.and.pencil" hidden={!onNew} onPress={() => onNew?.()}>
             New task
