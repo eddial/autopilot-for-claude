@@ -81,8 +81,13 @@ export const TaskView = ({
   const pinned = useRef(true)
   // Opening lands at the end at once; after that the page glides there with the entries' animation.
   const landed = useRef(false)
-  // Hidden until it has landed at its end, so the top never flashes before the jump.
+  // Hidden until it has landed at its end, so the top never flashes before the jump; shown after
+  // a moment whatever happens, so a page can never stay blank.
   const [shown, setShown] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setShown(true), 400)
+    return () => clearTimeout(timer)
+  }, [])
   // Where the title ends on the page, and whether it is out of sight (the bar then says it).
   const titleEnd = useRef(0)
   const titleOff = useRef(false)
@@ -255,9 +260,14 @@ export const TaskView = ({
             viewport.current = e.nativeEvent.layout.height
           }}
           onContentSizeChange={(_, height) => {
-            if (!pinned.current) return
+            // The first landing always happens: a scroll event iOS sends while laying out (its
+            // inset adjustment) must not leave the page hidden. After that, only when at the end.
+            if (landed.current && !pinned.current) return
             scroll.current?.scrollToEnd({ animated: landed.current })
-            if (!landed.current) requestAnimationFrame(() => setShown(true))
+            if (!landed.current) {
+              pinned.current = true
+              requestAnimationFrame(() => setShown(true))
+            }
             landed.current = true
             // Jumping to the end sends no scroll event: say where the title is from the sizes.
             showTitle(height - viewport.current)
