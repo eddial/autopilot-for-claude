@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { Decision, Detected, QueueItem, SetupStatus, SignalExample, Workstream } from '@autopilot/contracts'
 import { signalName } from '@autopilot/client'
-import { api, key } from '../api.ts'
+import { api, key, shell } from '../api.ts'
 import { Banner, Button, Dot, Icon, Meta, NavIcon, Pilot, Row, Spacer, type NavIconName } from '../ui.tsx'
 import { Devices } from './Devices.tsx'
+import { Menu } from './Menu.tsx'
 import { Sources } from './Sources.tsx'
 import { WorkstreamsEditor } from './Workstreams.tsx'
 
@@ -30,6 +31,39 @@ const Head = ({ title, onClose }: { title: string; onClose: () => void }) => (
 const STEPS = ['Get ready', 'Sources', 'Workstreams', 'Preview', 'Switch on']
 
 type SettingsTab = 'general' | 'sources' | 'workstreams' | 'devices'
+const APPEARANCE = { claude: 'Same as Claude', light: 'Light', dark: 'Dark' } as const
+
+/** Light or dark: as the Claude app is set, the default, or always one of them. */
+const AppearanceRow = () => {
+  const [choice, setChoice] = useState<keyof typeof APPEARANCE | null>(null)
+  useEffect(() => {
+    void shell?.appearance().then(setChoice)
+  }, [])
+  if (!shell || !choice) return null
+  return (
+    <div className="appearance-row">
+      <div className="settings-row-main">
+        <span className="settings-row-name">Appearance</span>
+        <Meta>Follows the Claude app unless you pick one</Meta>
+      </div>
+      <Spacer />
+      <Menu
+        trigger="prop"
+        align="right"
+        label={APPEARANCE[choice]}
+        items={(Object.keys(APPEARANCE) as (keyof typeof APPEARANCE)[]).map((id) => ({
+          label: APPEARANCE[id],
+          checked: id === choice,
+          run: () => {
+            setChoice(id)
+            void shell?.setAppearance(id)
+          },
+        }))}
+      />
+    </div>
+  )
+}
+
 const SETTINGS_TABS: { id: SettingsTab; label: string; icon: NavIconName }[] = [
   { id: 'general', label: 'General', icon: 'settings' },
   { id: 'sources', label: 'Sources', icon: 'signals' },
@@ -324,7 +358,12 @@ export const Setup = ({ items, workstreams, onWorkstreams, onOpen, onDone }: Pro
             <h2 className="settings-title">{SETTINGS_TABS.find((t) => t.id === settingsTab)?.label}</h2>
             {error && <Banner>{error}</Banner>}
 
-            {settingsTab === 'general' && checks}
+            {settingsTab === 'general' && (
+              <>
+                <AppearanceRow />
+                {checks}
+              </>
+            )}
 
             {settingsTab === 'sources' && (
               <>

@@ -3280,3 +3280,12 @@ textarea.inline-reply {
   background: var(--raised);
   color: var(--text);
 }
+
+.appearance-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0 18px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}

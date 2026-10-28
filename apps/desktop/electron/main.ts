@@ -117,15 +117,35 @@ const claudeTheme = (): 'light' | 'dark' | 'system' => {
 
 const background = () => (nativeTheme.shouldUseDarkColors ? colours.window : lightColours.window)
 
+/** Light or dark as chosen in Settings, General: as the Claude app is set (the default), or fixed. */
+export type Appearance = 'claude' | 'light' | 'dark'
+const appearanceFile = () => join(app.getPath('userData'), 'appearance.txt')
+const appearance = (): Appearance => {
+  try {
+    const set = readFileSync(appearanceFile(), 'utf8').trim()
+    return set === 'light' || set === 'dark' ? set : 'claude'
+  } catch {
+    return 'claude'
+  }
+}
+const themeFor = (choice: Appearance) => (choice === 'claude' ? claudeTheme() : choice)
+
 const followClaudeTheme = () => {
-  nativeTheme.themeSource = claudeTheme()
+  nativeTheme.themeSource = themeFor(appearance())
   // The window paints in its theme; this is the colour behind it while it loads or resizes.
   nativeTheme.on('updated', () => window?.setBackgroundColor(background()))
   watchFile(CLAUDE_CONFIG, { interval: 2000 }, () => {
-    const next = claudeTheme()
+    const next = themeFor(appearance())
     if (nativeTheme.themeSource !== next) nativeTheme.themeSource = next
   })
   app.on('will-quit', () => unwatchFile(CLAUDE_CONFIG))
+  ipcMain.handle('autopilot:appearance', () => appearance())
+  ipcMain.handle('autopilot:set-appearance', (_event, choice: unknown) => {
+    const next: Appearance = choice === 'light' || choice === 'dark' ? choice : 'claude'
+    writeFileSync(appearanceFile(), next)
+    nativeTheme.themeSource = themeFor(next)
+    return next
+  })
 }
 
 const createWindow = (): BrowserWindow => {

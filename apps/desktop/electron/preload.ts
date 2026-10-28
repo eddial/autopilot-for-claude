@@ -12,6 +12,9 @@ export type Shell = {
   /** Back to this Mac's own server. */
   connectLocal(): Promise<Mode>
   setBadge(count: number): void
+  /** Light or dark: as the Claude app is set, or fixed to one. */
+  appearance(): Promise<'claude' | 'light' | 'dark'>
+  setAppearance(choice: 'claude' | 'light' | 'dark'): Promise<'claude' | 'light' | 'dark'>
   openExternal(url: string): void
   /** Shows a local file in Finder. */
   reveal(url: string): void
@@ -30,6 +33,8 @@ const shell: Shell = {
   connectRemote: (invite) => ipcRenderer.invoke('autopilot:use-remote', invite) as Promise<Mode>,
   connectLocal: () => ipcRenderer.invoke('autopilot:use-local') as Promise<Mode>,
   setBadge: (count) => ipcRenderer.send('autopilot:badge', count),
+  appearance: () => ipcRenderer.invoke('autopilot:appearance') as Promise<'claude' | 'light' | 'dark'>,
+  setAppearance: (choice) => ipcRenderer.invoke('autopilot:set-appearance', choice) as Promise<'claude' | 'light' | 'dark'>,
   openExternal: (url) => ipcRenderer.send('autopilot:open', url),
   reveal: (url) => ipcRenderer.send('autopilot:reveal', url),
   onNavigate: (listener) => {

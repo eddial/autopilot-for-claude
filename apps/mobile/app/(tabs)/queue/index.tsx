@@ -20,6 +20,7 @@ import { SymbolView, type SFSymbol } from 'expo-symbols'
 import { router, Stack } from 'expo-router'
 import { useHeaderHeight } from 'expo-router/react-navigation'
 import { StatusLine } from '../../../src/components/StatusLine.tsx'
+import { appearanceChoice, chooseAppearance } from '../../../src/theme.ts'
 import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
 import { NewTask } from '../../../src/components/NewTask.tsx'
@@ -454,6 +455,21 @@ export default function QueueScreen() {
         // how it is reached, and a way to unpair. Syncing runs by itself.
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Menu icon="gearshape" accessibilityLabel="Settings" title={macTitle(syncState)}>
+            <Stack.Toolbar.Menu inline title="Appearance">
+              <Stack.Toolbar.MenuAction
+                icon="circle.lefthalf.filled"
+                isOn={appearanceChoice === 'system'}
+                onPress={() => chooseAppearance('system')}
+              >
+                Same as iPhone
+              </Stack.Toolbar.MenuAction>
+              <Stack.Toolbar.MenuAction icon="sun.max" isOn={appearanceChoice === 'light'} onPress={() => chooseAppearance('light')}>
+                Light
+              </Stack.Toolbar.MenuAction>
+              <Stack.Toolbar.MenuAction icon="moon" isOn={appearanceChoice === 'dark'} onPress={() => chooseAppearance('dark')}>
+                Dark
+              </Stack.Toolbar.MenuAction>
+            </Stack.Toolbar.Menu>
             <Stack.Toolbar.Menu inline title="Group the list">
               <Stack.Toolbar.MenuAction icon="square.stack" isOn={groupBy === 'workstream'} onPress={() => chooseGroupBy('workstream')}>
                 By workstream
