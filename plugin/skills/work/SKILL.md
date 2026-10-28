@@ -99,4 +99,6 @@ watcher (a linked pull request has one already, and Auto-fix sees to its checks 
 watch and what counts as news, how often (`30m` by default), and until when. News brings the task
 back to you. Look once yourself before you hand over: what you would wait for may already be there
 (the email came in, the reply is posted), and then it is not a wait.
-A watcher reads with the tools the owner's signals use unless you give it its own.
+A watcher reads with the tools the owner's signals use unless you give it its own. Give it the
+tools to open what is new, not only to list it: a long email thread is too big to read whole, so
+it needs the single-message read too. Autopilot adds a connector's companion read tools itself.

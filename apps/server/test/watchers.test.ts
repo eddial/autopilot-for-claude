@@ -8,7 +8,7 @@ import { openDatabase } from '../src/db.ts'
 import { resolvePaths } from '../src/paths.ts'
 import { Service } from '../src/service.ts'
 import type { RunClaude } from '../src/signals.ts'
-import { Watchers } from '../src/watchers.ts'
+import { Watchers, withReadCompanions } from '../src/watchers.ts'
 
 const PROMPTS = join(import.meta.dirname, '..', '..', '..', 'prompts')
 
@@ -154,5 +154,14 @@ describe('watchers', () => {
     service.waitOn(WaitOn.parse({ idempotencyKey: 'wait-blind', id: task.id, on: 'Joris', watcher: { what: 'PR #7 review' } }), 'session')
     await watchers.tick()
     expect(used).toEqual([['Bash(gh pr view:*)']])
+  })
+
+  it('can open what is new in a thread it was only given the tools to list', () => {
+    expect(withReadCompanions(['mcp__claude_ai_Gmail__get_thread', 'Bash(gh pr view:*)'])).toEqual([
+      'mcp__claude_ai_Gmail__get_thread',
+      'Bash(gh pr view:*)',
+      'mcp__claude_ai_Gmail__search_threads',
+      'mcp__claude_ai_Gmail__get_message',
+    ])
   })
 })

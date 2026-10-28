@@ -31,6 +31,28 @@ export type WatchersOptions = {
   log?: (message: string) => void
 }
 
+/**
+ * Read tools that belong together, by their name after the connector's `mcp__<server>__`. A
+ * watcher given one of them gets the rest from the same connector: one that can list a thread but
+ * not open what is new in it sees that something moved and cannot say what. A long email thread
+ * outgrows `get_thread`, and only `get_message` reads its newest mail.
+ */
+const READ_TOGETHER = [
+  ['search_threads', 'get_thread', 'get_message'],
+  ['slack_read_thread', 'slack_read_channel'],
+  ['get_issue', 'list_comments'],
+]
+
+/** The tools given, with the rest of each connector read set one of them belongs to. */
+export const withReadCompanions = (tools: string[]): string[] => {
+  const added = tools.flatMap((tool) => {
+    const [, server, name] = /^(mcp__.+?__)(.+)$/.exec(tool) ?? []
+    if (!server || !name) return []
+    return (READ_TOGETHER.find((set) => set.includes(name)) ?? []).map((n) => `${server}${n}`)
+  })
+  return [...new Set([...tools, ...added])]
+}
+
 /** A source's name on its chip: what kind of place it is, numbered when there are several. */
 const sourceTitle = (url: string, n: number | null): string => {
   const host = new URL(url).hostname
@@ -90,12 +112,13 @@ export class Watchers {
   /**
    * The tools a watcher reads with: its own, plus those of the signal that filed the task; with
    * neither (a task you made, a watcher set without tools), every tool the signals read with.
+   * Either way with the read tools that come with them (`withReadCompanions`).
    */
   private tools(own: string[], signal: string | null): string[] {
     const signals = readSignals(this.o.paths.home)
     const fromSignal = signal ? (signals.find((s) => s.name === signal)?.tools ?? []) : []
     const chosen = [...own, ...fromSignal]
-    return [...new Set(chosen.length > 0 ? chosen : signals.flatMap((s) => s.tools))]
+    return withReadCompanions(chosen.length > 0 ? chosen : signals.flatMap((s) => s.tools))
   }
 
   async check(id: string): Promise<void> {
@@ -155,6 +178,7 @@ export class Watchers {
       [
         '# Task',
         'Read-only: look at the current state of what is watched with your tools. Create, change, send and comment on nothing.',
+        'A thread too long to read whole: list it without bodies, then read only the messages that are new since the previous fingerprint, one at a time.',
         `Previous fingerprint: ${fingerprint ?? 'none (first run)'}`,
         ...(known.length > 0 ? [`The task's latest updates (what is already known):\n\n${known.join('\n')}`] : []),
         'Return:',
