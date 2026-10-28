@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem, Signal, Workstream } from '@autopilot/contracts'
-import { attentionKey, emptyWords, type GroupBy } from '@autopilot/client'
+import { emptyWords, worthNotifying, type GroupBy } from '@autopilot/client'
 import { api, shell } from './api.ts'
 import { NewTask } from './components/NewTask.tsx'
 import { listOrder, QueueList } from './components/QueueList.tsx'
@@ -53,30 +53,33 @@ const stored = (name: string, fallback: number): number => {
 }
 
 /**
- * Notifies once for each new thing that comes to your turn, and keeps the menu bar count. Once
- * per ask, not per arrival: answering one takes its task out of your turn for a moment, and the
- * same ask flickering back before the server's word arrives is nothing new.
+ * Keeps the menu bar count, and notifies for what is news (see `worthNotifying`): a task back from
+ * waiting or a snooze, or a new one a signal filed. Not for the task open in the window while the
+ * window is in front: you are looking at it.
  */
-const useAttention = (items: QueueItem[], open: (id: string) => void) => {
-  const seen = useRef<Set<string> | null>(null)
+const useAttention = (items: QueueItem[], open: (id: string) => void, showing: string | null) => {
+  const before = useRef<Map<string, QueueItem['band']> | null>(null)
   const { connection } = useStore()
   useEffect(() => {
-    const yours = items.filter((i) => i.band === 'your_turn')
-    shell?.setBadge(yours.length)
+    shell?.setBadge(items.filter((i) => i.band === 'your_turn').length)
     if (connection !== 'live') return
-    if (seen.current && 'Notification' in window && Notification.permission === 'granted') {
-      for (const item of yours) {
-        if (seen.current.has(attentionKey(item))) continue
-        const notice = new Notification(item.task.title, { body: item.openAsk?.body.slice(0, 180) ?? 'Your turn', silent: false })
+    if (before.current && 'Notification' in window && Notification.permission === 'granted') {
+      for (const item of items) {
+        if (!worthNotifying(before.current, item)) continue
+        if (item.task.id === showing && document.hasFocus()) continue
+        const notice = new Notification(item.task.title, { body: item.openAsk?.body.slice(0, 180) ?? updateBodyFor(item), silent: false })
         notice.addEventListener('click', () => open(item.task.id))
       }
     }
-    seen.current = new Set([...(seen.current ?? []), ...yours.map(attentionKey)])
-  }, [items, connection, open])
+    before.current = new Map(items.map((i) => [i.task.id, i.band]))
+  }, [items, connection, open, showing])
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') void Notification.requestPermission()
   }, [])
 }
+
+/** What a notification says when there is no open ask to quote. */
+const updateBodyFor = (item: QueueItem): string => (item.band === 'triage' ? 'New in Triage' : 'Back with you')
 
 /** The tasks a tab shows, or every open one. Done is not in the live queue; it is read when shown. */
 const tabItems = (tab: QueueView, items: QueueItem[], done: QueueItem[], all = false) => {
@@ -182,7 +185,7 @@ export const App = () => {
     setSelected(id)
     setView((v) => (v.kind === 'task' ? v : { kind: 'task' }))
   }, [])
-  useAttention(items, openTask)
+  useAttention(items, openTask, view.kind === 'task' ? selected : null)
 
   // Back and forward through where you have been (a tab, a task, New), as a browser: the mouse's
   // side buttons, or ⌘[ and ⌘].

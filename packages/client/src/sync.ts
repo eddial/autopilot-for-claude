@@ -12,7 +12,7 @@ import {
 import { isDefinedError, ORPCError } from '@orpc/client'
 import { execute, overlay, PENDING_PREFIX, type Command, type Conflict, type Pending } from './commands.ts'
 import { Link, Offline, timeoutSignal, type Api, type Connection, type PinnedFetch } from './connection.ts'
-import { attentionKey } from './present.ts'
+import { worthNotifying } from './present.ts'
 
 /** Key-value storage that survives the app being closed: expo-sqlite's kv-store on the phone. */
 export type Storage = {
@@ -59,8 +59,15 @@ export type SyncOptions = {
   now?: () => Date
   /** Idempotency keys. No default: Hermes has no global crypto, so the phone passes expo-crypto's. */
   newKey: () => string
-  /** Tasks that came to the owner's turn since the last sync, for a local notification. */
+  /**
+   * Tasks worth a local notification (see `worthNotifying`): told a moment after they change, and
+   * only those still unread then (not opened on the Mac meanwhile) and not open here (`isOpen`).
+   */
   onYourTurn?: (items: QueueItem[]) => void
+  /** Whether the owner has this task in front of them on this device right now. */
+  isOpen?: (taskId: string) => boolean
+  /** How long to wait before telling, for the Mac to mark a task it has open as seen. */
+  noticeDelayMs?: number
   /** How long a catch-up holds the call open when nothing is new. */
   waitSeconds?: number
 }
@@ -74,7 +81,7 @@ const SYNCED = `lastSyncedAt.v${API_VERSION}`
  * outbox of commands applied to the screen at once and sent in order when a route answers.
  */
 export class Sync {
-  private readonly o: Required<Omit<SyncOptions, 'onYourTurn'>> & Pick<SyncOptions, 'onYourTurn'>
+  private readonly o: Required<Omit<SyncOptions, 'onYourTurn' | 'isOpen'>> & Pick<SyncOptions, 'onYourTurn' | 'isOpen'>
   private readonly link: Link
   private state: SyncState = {
     status: 'connecting',
@@ -92,8 +99,6 @@ export class Sync {
   private failures = 0
   /** Conversations being fetched, with the feed changes that arrived meanwhile (see `detail`). */
   private readonly fetching = new Map<string, Change[]>()
-  /** Every ask that has been in your turn here: notified once, however often it comes and goes. */
-  private readonly noticed = new Set<string>()
   private readonly listeners = new Set<() => void>()
   private running = false
   /** Each start gets a number; a loop from before a stop ends instead of running beside the new one. */
@@ -102,7 +107,7 @@ export class Sync {
   private flushing: Promise<void> | null = null
 
   constructor(options: SyncOptions) {
-    this.o = { now: () => new Date(), waitSeconds: 20, ...options }
+    this.o = { now: () => new Date(), waitSeconds: 20, noticeDelayMs: 4000, ...options }
     this.link = new Link(options.connection, options.pinned)
   }
 
@@ -258,7 +263,7 @@ export class Sync {
   }
 
   private async catchUp(waitSeconds: number): Promise<void> {
-    for (const item of this.items()) if (item.band === 'your_turn') this.noticed.add(attentionKey(item))
+    const before = new Map(this.items().map((i) => [i.task.id, i.band] as const))
     // Never synced: start from a snapshot; afterwards only the changes since.
     const first = this.state.lastSyncedAt === null
     let queue = this.state.queue
@@ -285,8 +290,17 @@ export class Sync {
     }
     this.set({ queue, details })
     if (!first && this.o.onYourTurn) {
-      const fresh = this.items().filter((i) => i.band === 'your_turn' && !this.noticed.has(attentionKey(i)))
-      if (fresh.length > 0) this.o.onYourTurn(fresh)
+      const ids = this.items()
+        .filter((i) => worthNotifying(before, i))
+        .map((i) => i.task.id)
+      if (ids.length > 0) {
+        const tell = () => {
+          const still = this.items().filter((i) => ids.includes(i.task.id) && i.unread && !this.o.isOpen?.(i.task.id))
+          if (still.length > 0) this.o.onYourTurn?.(still)
+        }
+        if (this.o.noticeDelayMs > 0) setTimeout(tell, this.o.noticeDelayMs)
+        else tell()
+      }
     }
   }
 

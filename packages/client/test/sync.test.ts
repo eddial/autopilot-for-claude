@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
-import { AnswerUpdate, CreateTask, PostUpdate } from '@autopilot/contracts'
+import { AnswerUpdate, CreateTask, FileItem, PostUpdate, WaitOn } from '@autopilot/contracts'
 import { keys, localInvite, startTestServer, type TestServer, type TestServerOptions } from '@autopilot/testkit'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { pair, type Connection } from '../src/connection.ts'
@@ -57,7 +57,62 @@ describe('the phone against the Mac', () => {
     handle.service.postUpdate(PostUpdate.parse({ idempotencyKey: key(), taskId: task.id, kind: 'question', body: 'Opus only?' }), 'session')
     await polling
     expect(sync.items().map((i) => [i.task.title, i.band])).toEqual([['Decide on caching', 'your_turn']])
-    expect(turns).toEqual(['Decide on caching'])
+    // A session handing over while you work with it is no news.
+    expect(turns).toEqual([])
+  }, 30_000)
+
+  it('notifies for a task back from waiting and a new one a signal filed, not one open here or seen on the Mac', async () => {
+    const { handle, invite } = await setup()
+    const connection = await pair(invite, { name: 'Test iPhone', kind: 'iphone' }, pinned, key())
+    const turns: string[] = []
+    let open: string | null = null
+    const sync = new Sync({
+      newKey: randomUUID,
+      connection,
+      pinned,
+      storage: memoryStorage(),
+      noticeDelayMs: 0,
+      isOpen: (id) => id === open,
+      onYourTurn: (items) => turns.push(...items.map((i) => i.task.title)),
+    })
+    const s = handle.service
+    const waiting = (title: string) => {
+      const task = s.createTask(CreateTask.parse({ idempotencyKey: key(), title, start: false }))
+      s.waitOn(WaitOn.parse({ idempotencyKey: key(), id: task.id, on: 'Joris', watcher: { what: 'PR #7' } }), 'session')
+      return task
+    }
+    const back = waiting('Ship the retry fix')
+    const watched = waiting('Ship the cache fix')
+    await sync.syncOnce()
+
+    // News on what it waited for brings each back to you; one is open on this phone.
+    open = watched.id
+    for (const task of [back, watched])
+      s.watcherNews(s.watcherRuns().find((r) => r.task.id === task.id)?.watcher.id ?? '', {
+        body: 'Joris approved.',
+        attachments: [],
+        wake: false,
+      })
+    s.fileItem(
+      FileItem.parse({
+        idempotencyKey: key(),
+        item: {
+          signal: 'slack',
+          url: 'https://acme.slack.com/archives/C1/p1',
+          sender: 'Alex',
+          channel: '#eng',
+          at: '2026-10-25T09:00:00Z',
+          title: 'Answer Alex on caching',
+          summary: 'Alex asks.',
+        },
+        action: 'create',
+        reason: 'asks you',
+        searches: ['caching'],
+        gated: false,
+      }),
+    )
+    await sync.syncOnce()
+    expect(turns.toSorted()).toEqual(['Answer Alex on caching', 'Ship the retry fix'])
   }, 30_000)
 
   it('keeps commands while the Mac is away, sends them once it is back, and reports an answer given on the Mac', async () => {

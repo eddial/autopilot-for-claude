@@ -35,8 +35,20 @@ const notify = (items: QueueItem[]) => {
   }
 }
 
+/** The task on screen, while the app is in front: no notification for what you are looking at. */
+let viewing: string | null = null
+export const useViewing = (taskId: string) => {
+  useEffect(() => {
+    viewing = taskId
+    return () => {
+      if (viewing === taskId) viewing = null
+    }
+  }, [taskId])
+}
+const isOpen = (taskId: string) => viewing === taskId && AppState.currentState === 'active'
+
 const create = (connection: Connection): Sync =>
-  new Sync({ connection, pinned: pinnedFetch, storage, newKey: randomUUID, onYourTurn: notify })
+  new Sync({ connection, pinned: pinnedFetch, storage, newKey: randomUUID, onYourTurn: notify, isOpen })
 
 let current: { sync: Sync; connection: Connection } | null = null
 const listeners = new Set<() => void>()

@@ -28,7 +28,7 @@ import { SymbolView } from 'expo-symbols'
 import { age, ago, BAND_TITLE } from '../format.ts'
 import { useDraft } from '../drafts.ts'
 import { FileChips, useFiles } from '../files.tsx'
-import { useDetail, useSyncInstance, useSyncState } from '../store.ts'
+import { useDetail, useViewing, useSyncInstance, useSyncState } from '../store.ts'
 import { isPicture, Shots } from './Shots.tsx'
 import { colours, radius, tones, type Tone } from '@autopilot/design'
 import {
@@ -72,6 +72,7 @@ export const TaskView = ({
   const { task, openAsk } = item
   // From the phone's own copy, kept current by the feed; the ask from the queue until it has one.
   const detail = useDetail(task.id)
+  useViewing(task.id)
   const [text, setText] = useDraft(`${task.id}:composer`)
   // The page opens at its end, the newest entry above the reply, and follows new entries while
   // you are there; scrolled up, it stays put.

@@ -367,6 +367,18 @@ export const pasteSize = (text: string): string => {
  * without one. Both apps notify once per key, so an answered ask that flickers back into your
  * turn before the server's word arrives is not news.
  */
+/**
+ * Whether a change is worth a notification, given each task's band before it: a task that comes
+ * back to you from waiting on others or from a snooze, or a new one a signal filed. Answers to your
+ * own asks, sessions handing over while you watch and tasks you made yourself are not.
+ */
+export const worthNotifying = (before: ReadonlyMap<string, QueueItem['band']>, item: QueueItem): boolean => {
+  if (item.band !== 'your_turn' && item.band !== 'triage') return false
+  const was = before.get(item.task.id)
+  if (was === undefined) return item.task.source.signal !== null
+  return was === 'waiting' || was === 'snoozed'
+}
+
 export const attentionKey = (item: QueueItem): string => item.openAsk?.id ?? `task:${item.task.id}`
 
 /** What an empty list says, by tab (null: every open task), the same on both apps. */

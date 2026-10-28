@@ -165,6 +165,10 @@ with Remote Control, so it never opens as archived.
 The iPhone app shows the same queue and works offline: answers, replies and new tasks made while
 your Mac is out of reach wait on the phone and send when it is back.
 
+Notifications, on the Mac and the iPhone, are for news only: a task back from waiting on someone
+or from a snooze, and a new task a signal filed. A session handing over is not news, and nothing is
+announced for a task you have open on the Mac or in front of you on the phone.
+
 ### Pairing
 
 The phone reaches your Mac over [Tailscale](https://tailscale.com), at home and away, with no
