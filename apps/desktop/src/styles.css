@@ -714,6 +714,23 @@ button {
   margin: 4px 8px 2px;
 }
 
+.side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.side-head .menu-prop {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.side-head .prop-button > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .side-heading {
   padding: 4px 8px 6px;
   font-size: 13px;

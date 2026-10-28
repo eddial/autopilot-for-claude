@@ -186,7 +186,7 @@ describe('the Mac app window', () => {
     await needsMe()
     await page.getByRole('option', { name: /Fix the webhook retry/ }).click()
     const side = page.getByRole('complementary', { name: 'Properties' })
-    await side.getByRole('button', { name: 'On', exact: true }).click()
+    await side.getByRole('button', { name: 'Auto-fix on' }).click()
     await page.getByRole('menuitemradio', { name: 'Off' }).click()
     await expect.poll(() => server.service.task(task.id).autofix).toBe(false)
   }, 30_000)

@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import {
   createdText,
   eventText,
-  linkKind,
   linkSource,
   nowText,
   nowTone,
@@ -771,30 +770,6 @@ const Properties = ({
             items={priorities}
           />
         </Prop>
-        {/* Claude Code's Auto-fix, once the session opened a pull request: on unless you turn it off. */}
-        {task.links.some((l) => linkKind(l).label === 'Pull request') && (
-          <Prop label="Auto-fix">
-            <Menu
-              trigger="prop"
-              chevron={false}
-              align="right"
-              label={
-                <span title="Claude watches the pull request's checks and reviews and pushes fixes">
-                  <Dot tone={task.autofix ? 'pilot' : 'quiet'} />
-                  {task.autofix ? 'On' : 'Off'}
-                </span>
-              }
-              items={[
-                {
-                  label: 'On: keep the PR green',
-                  checked: task.autofix,
-                  run: () => send({ kind: 'edit', taskId: task.id, autofix: true }),
-                },
-                { label: 'Off', checked: !task.autofix, run: () => send({ kind: 'edit', taskId: task.id, autofix: false }) },
-              ]}
-            />
-          </Prop>
-        )}
       </div>
 
       <div className="side-group">
@@ -851,6 +826,7 @@ const Properties = ({
           heading={group.heading}
           shown={group.key === 'artifacts' ? 5 : 3}
           list
+          action={group.key === 'pulls' ? <Autofix task={task} /> : null}
           rows={newestFirst(group.links, (l) => l.at ?? linkedAt(l.url)).map((l) => (
             <SideLink key={l.url} taskId={task.id} link={l} at={l.at ?? linkedAt(l.url)} />
           ))}
@@ -875,13 +851,29 @@ const newestFirst = <T,>(list: T[], at: (item: T) => string | null): T[] =>
     .map((x) => x.item)
 
 /** A card in the properties column: its first rows, and the rest a click away. */
-const SideGroup = ({ heading, rows, shown, list = false }: { heading: string; rows: ReactNode[]; shown: number; list?: boolean }) => {
+const SideGroup = ({
+  heading,
+  rows,
+  shown,
+  list = false,
+  action = null,
+}: {
+  heading: string
+  rows: ReactNode[]
+  shown: number
+  list?: boolean
+  /** A switch beside the heading for the whole card, as Auto-fix on the pull requests. */
+  action?: ReactNode
+}) => {
   const [all, setAll] = useState(false)
   if (rows.length === 0) return null
   const visible = all ? rows : rows.slice(0, shown)
   return (
     <div className="side-group">
-      <span className="side-heading">{heading}</span>
+      <div className="side-head">
+        <span className="side-heading">{heading}</span>
+        {action}
+      </div>
       {list ? <ul className="side-links">{visible}</ul> : visible}
       {rows.length > shown && (
         <Button kind="link" className="side-more" onClick={() => setAll((a) => !a)}>
@@ -891,6 +883,25 @@ const SideGroup = ({ heading, rows, shown, list = false }: { heading: string; ro
     </div>
   )
 }
+
+/** Claude Code's Auto-fix on the pull requests the task's session opens: on unless you turn it off. */
+const Autofix = ({ task }: { task: QueueItem['task'] }) => (
+  <Menu
+    trigger="prop"
+    chevron={false}
+    align="right"
+    label={
+      <span title="Claude watches the pull requests' checks and reviews and pushes fixes">
+        <Dot tone={task.autofix ? 'pilot' : 'quiet'} />
+        {task.autofix ? 'Auto-fix on' : 'Auto-fix off'}
+      </span>
+    }
+    items={[
+      { label: 'On: keep the PRs green', checked: task.autofix, run: () => send({ kind: 'edit', taskId: task.id, autofix: true }) },
+      { label: 'Off', checked: !task.autofix, run: () => send({ kind: 'edit', taskId: task.id, autofix: false }) },
+    ]}
+  />
+)
 
 /** A message a signal filed or added: where, from whom, when; opens the message. */
 const SignalRow = ({ mention }: { mention: TaskSignal }) => {
