@@ -78,7 +78,8 @@ describe('the Mac app window', () => {
 
     // The new task opens, though it runs and so belongs under Running, not Needs me.
     const heading = page.getByRole('heading', { level: 2, name: 'Decide on prompt caching for agent-service' })
-    await expect.poll(() => heading.count()).toBe(1)
+    // Creating goes through the server and back: under a full test run that takes longer than a second.
+    await expect.poll(() => heading.count(), { timeout: 5000 }).toBe(1)
     const row = page.getByRole('option', { name: /Decide on prompt caching/ })
     const task = server.service.queue().items.find((i) => i.task.title.startsWith('Decide on prompt caching'))?.task
     if (!task) throw new Error('no task created')

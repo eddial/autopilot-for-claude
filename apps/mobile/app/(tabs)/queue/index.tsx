@@ -404,7 +404,11 @@ export default function QueueScreen() {
           autoCapitalize="none"
           hideWhenScrolling={false}
           // A button that opens into the field, as Claude's search: no long bar across the bottom.
-          placement="integratedButton"
+          // Upright on the open Duo it sits in the bar across the top; in every other pose, where the
+          // bar runs down the side, it goes to the side bar's foot (the slot below), so the list
+          // keeps the whole height.
+          placement={narrow ? 'integratedButton' : 'automatic'}
+          allowToolbarIntegration={!narrow}
           onChangeText={(e) => setFilter(e.nativeEvent.text)}
           onCancelButtonPress={() => setFilter('')}
         />
@@ -412,7 +416,8 @@ export default function QueueScreen() {
       {/* With a task open beside the list: close it, and step through the list with the Mac's thin
           arrows. With none: search, and New (in the split the empty side is New task already). */}
       <Stack.Toolbar placement="bottom">
-        {/* Search is a button in the bar at the top, in every pose: never a second one down here. */}
+        {/* Search at the foot of the side bar, where the bar runs down the side; upright it is at the top instead. */}
+        <Stack.Toolbar.SearchBarSlot hidden={narrow || Boolean(selectedItem)} />
         {/* With a task open beside the list: New task in its place, as Claude's new chat beside its chats. */}
         <Stack.Toolbar.Button
           icon="square.and.pencil"
