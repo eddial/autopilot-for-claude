@@ -36,7 +36,7 @@ For each item:
    task in the `summary`.
 3. **Drop** what matches no active task when nobody needs {{owner}} to do, answer or decide
    anything (FYIs, threads they already answered, threads where someone else owns the next step),
-   and anything else the signal's rules say not to file.
+   and anything else the signal's rules or a workstream's Routing say not to file.
 4. **Create** it in the single best workstream:
    - `workstream` is a name exactly as listed under Workstreams;
    - `title` starts with a verb, at most 80 characters ("Answer Acme's security questionnaire");
