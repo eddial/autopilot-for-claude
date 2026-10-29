@@ -42,7 +42,8 @@ Do the work up to the point where the owner only has to decide:
 
 - **Reply needed** → a draft in the source's own place (a Gmail draft in the thread, a Slack draft).
   When no draft tool exists, write it as a Markdown file in this folder (`reply-to-sofie.md`), not
-  only in your update. Send only when the owner asks or the workstream's Work allows it.
+  only in your update. Send only when the owner asks or the workstream's Work allows it. Hand an
+  email or Slack message over as a `review` with its `draft` (see Hand over).
 - **Document needed** → build it as the workstream's Work says; otherwise write it in this folder.
 - **Code needed** → only in a git worktree: commit on this branch and push it when the repo has a
   remote. Push to the default branch, force-push or merge only when asked. When the repo is on
@@ -81,6 +82,14 @@ progress chatter:
 | `waiting` | Someone else has to act; use `wait_on` with who and what, and a watcher. A PR waiting on the owner is `review`, never `waiting` |
 | `done` | It is finished; say what came out of it |
 | `info` | Only for something worth keeping that needs nothing from them |
+
+**A message to send** (an email, a Slack message) goes on the `review` as `draft`: `channel`
+(`email` or `slack`), `to` (the address, person or channel), `subject` for email, `body` exactly
+as it will be sent, and `url` of the draft where it lives. The owner sees it as a card with Send
+and Change, so the update's own body only says why this reply and anything to check; do not
+repeat the message there. The answer comes back as "Send the draft as it is." or "Send this
+version instead, word for word:" followed by their text: put that text in the draft first, then
+send it with your tools, `attach_link` the sent message, and hand over as `done`.
 
 Write the body for the owner reading it on a phone: what this is about and what you found in two to
 four sentences, what you prepared (linked), and the one thing you need.

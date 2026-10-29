@@ -366,6 +366,43 @@
                           "additionalProperties": false
                         }
                       },
+                      "draft": {
+                        "type": "object",
+                        "properties": {
+                          "channel": {
+                            "type": "string",
+                            "enum": [
+                              "email",
+                              "slack"
+                            ]
+                          },
+                          "to": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "subject": {
+                            "type": "string",
+                            "maxLength": 500
+                          },
+                          "body": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 20000,
+                            "description": "The message as it will be sent"
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          }
+                        },
+                        "required": [
+                          "channel",
+                          "to",
+                          "body"
+                        ],
+                        "additionalProperties": false
+                      },
                       "author": {
                         "type": "string",
                         "enum": [
@@ -958,6 +995,43 @@
                           "additionalProperties": false
                         }
                       },
+                      "draft": {
+                        "type": "object",
+                        "properties": {
+                          "channel": {
+                            "type": "string",
+                            "enum": [
+                              "email",
+                              "slack"
+                            ]
+                          },
+                          "to": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "subject": {
+                            "type": "string",
+                            "maxLength": 500
+                          },
+                          "body": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 20000,
+                            "description": "The message as it will be sent"
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          }
+                        },
+                        "required": [
+                          "channel",
+                          "to",
+                          "body"
+                        ],
+                        "additionalProperties": false
+                      },
                       "author": {
                         "type": "string",
                         "enum": [
@@ -1126,6 +1200,43 @@
                           ],
                           "additionalProperties": false
                         }
+                      },
+                      "draft": {
+                        "type": "object",
+                        "properties": {
+                          "channel": {
+                            "type": "string",
+                            "enum": [
+                              "email",
+                              "slack"
+                            ]
+                          },
+                          "to": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "subject": {
+                            "type": "string",
+                            "maxLength": 500
+                          },
+                          "body": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 20000,
+                            "description": "The message as it will be sent"
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          }
+                        },
+                        "required": [
+                          "channel",
+                          "to",
+                          "body"
+                        ],
+                        "additionalProperties": false
                       },
                       "author": {
                         "type": "string",
@@ -1900,6 +2011,43 @@
                   ],
                   "additionalProperties": false
                 }
+              },
+              "draft": {
+                "type": "object",
+                "properties": {
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "slack"
+                    ]
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "subject": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20000,
+                    "description": "The message as it will be sent"
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri"
+                  }
+                },
+                "required": [
+                  "channel",
+                  "to",
+                  "body"
+                ],
+                "additionalProperties": false
               },
               "author": {
                 "type": "string",
@@ -4387,6 +4535,42 @@
               "title"
             ]
           }
+        },
+        "draft": {
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string",
+              "enum": [
+                "email",
+                "slack"
+              ]
+            },
+            "to": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "subject": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "body": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20000,
+              "description": "The message as it will be sent"
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "channel",
+            "to",
+            "body"
+          ]
         }
       },
       "required": [
@@ -4490,6 +4674,43 @@
             ],
             "additionalProperties": false
           }
+        },
+        "draft": {
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string",
+              "enum": [
+                "email",
+                "slack"
+              ]
+            },
+            "to": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "subject": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "body": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20000,
+              "description": "The message as it will be sent"
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "channel",
+            "to",
+            "body"
+          ],
+          "additionalProperties": false
         },
         "author": {
           "type": "string",
@@ -4700,6 +4921,43 @@
             "additionalProperties": false
           }
         },
+        "draft": {
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string",
+              "enum": [
+                "email",
+                "slack"
+              ]
+            },
+            "to": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "subject": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "body": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20000,
+              "description": "The message as it will be sent"
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "channel",
+            "to",
+            "body"
+          ],
+          "additionalProperties": false
+        },
         "author": {
           "type": "string",
           "enum": [
@@ -4906,6 +5164,43 @@
             ],
             "additionalProperties": false
           }
+        },
+        "draft": {
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string",
+              "enum": [
+                "email",
+                "slack"
+              ]
+            },
+            "to": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "subject": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "body": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20000,
+              "description": "The message as it will be sent"
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "channel",
+            "to",
+            "body"
+          ],
+          "additionalProperties": false
         },
         "author": {
           "type": "string",

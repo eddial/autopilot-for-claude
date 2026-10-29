@@ -11,18 +11,21 @@ import {
   signalName,
   signalSender,
   createdText,
+  draftHeading,
+  draftMark,
   eventText,
   linkKind,
   linkSource,
   nowText,
   nowTone,
   pendingText,
+  sendDraftText,
   shortDate,
   updateAuthor,
   updateLabel,
   withoutQuestions,
 } from '@autopilot/client'
-import type { QueueItem, TaskSignal, Update } from '@autopilot/contracts'
+import type { Draft, QueueItem, TaskSignal, Update } from '@autopilot/contracts'
 import * as Haptics from 'expo-haptics'
 import { SymbolView } from 'expo-symbols'
 import { age, ago, BAND_TITLE } from '../format.ts'
@@ -162,6 +165,7 @@ export const TaskView = ({
           // The newest shows in full; older long ones fold.
           folds={u !== newest || ask !== null || asking}
         >
+          {u.draft && <DraftCard draft={u.draft} />}
           <Links update={u} />
         </Entry>
       ),
@@ -177,6 +181,9 @@ export const TaskView = ({
     // Where it stands now: what waits on you, as the last entry with its answers, or the Now line.
     ask ? (
       <Entry key={ask.id} label={updateLabel(ask)} by={null} at={age(ask.createdAt)} who={ask.author} body={ask.body} card>
+        {ask.draft && (
+          <DraftCard draft={ask.draft} onSend={(words) => void send({ kind: 'answer', taskId: task.id, updateId: ask.id, text: words })} />
+        )}
         <Links update={ask} />
         {ask.kind === 'done' && (
           <View style={styles.row}>
@@ -638,6 +645,56 @@ const Pasted = ({ text }: { text: string }) => {
   )
 }
 
+/**
+ * A message ready to go out: who it goes to and its words exactly as they will be sent. While it
+ * waits on you, Send sends it as it is; Change opens its words to edit, and Send then sends yours.
+ */
+const DraftCard = ({ draft, onSend }: { draft: Draft; onSend?: (text: string) => void }) => {
+  const [edited, setEdited] = useState<string | null>(null)
+  return (
+    <View style={styles.draft} accessibilityLabel={draftHeading(draft)}>
+      <Pressable style={styles.draftHead} disabled={!draft.url} onPress={() => draft.url && open(draft.url)}>
+        <SourceMark mark={draftMark(draft)} size={13} />
+        <Text style={[type.meta, styles.draftTo]} numberOfLines={1}>
+          {draftHeading(draft)}
+        </Text>
+      </Pressable>
+      {draft.subject ? <Text style={[type.body, styles.draftSubject]}>{draft.subject}</Text> : null}
+      {edited === null || !onSend ? (
+        <Text style={type.body} selectable>
+          {draft.body}
+        </Text>
+      ) : (
+        <TextInput
+          style={[type.body, styles.draftEdit]}
+          accessibilityLabel="The draft's words"
+          multiline
+          autoFocus
+          value={edited}
+          onChangeText={setEdited}
+        />
+      )}
+      {onSend && (
+        <View style={styles.row}>
+          <Button
+            kind="primary"
+            label={edited === null ? 'Send' : 'Send this version'}
+            onPress={() => {
+              Keyboard.dismiss()
+              onSend(sendDraftText(draft, edited ?? undefined))
+            }}
+          />
+          <Button
+            kind="option"
+            label={edited === null ? 'Change' : 'Cancel'}
+            onPress={() => setEdited(edited === null ? draft.body : null)}
+          />
+        </View>
+      )}
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colours.well },
   page: { paddingHorizontal: GUTTER, paddingTop: 20, gap: 24, paddingBottom: 32 },
@@ -662,6 +719,24 @@ const styles = StyleSheet.create({
   more: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
   moreText: { fontSize: 13, fontWeight: '500', color: colours.text2 },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  draft: {
+    gap: 8,
+    padding: 12,
+    borderRadius: radius.md,
+    backgroundColor: colours.well,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colours.border,
+  },
+  draftHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  draftTo: { flex: 1 },
+  draftSubject: { fontWeight: '600', color: colours.text },
+  draftEdit: {
+    padding: 8,
+    borderRadius: radius.sm,
+    backgroundColor: colours.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colours.borderStrong,
+  },
   status: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   // A plain box, as on the Mac: the avatar on the rail says who asks.
   ask: { ...shaped('ask'), gap: 8, padding: 14 },

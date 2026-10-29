@@ -69,7 +69,7 @@ bottom. Each update has a kind, and the kind decides where the task goes.
 | --- | --- | --- | --- |
 | `decision` | Needs your decision | Options the session can act on; one tap answers | Your turn |
 | `question` | Asked you | An open question, answered in words | Your turn |
-| `review` | Ready to review | A draft, document or pull request to read | Your turn |
+| `review` | Ready to review | A draft, document or pull request to read. An email or Slack message to send comes as a draft card with its recipient and exact words: Send sends it as it is, Change edits the words first | Your turn |
 | `blocked` | Stuck | A permission prompt, a missing tool, a failure | Your turn, first |
 | `waiting` | Waiting on someone | Who and what it waits on | Waiting |
 | `done` | Finished | An outcome: a branch, a draft, a file. The session ends; you close the task, or reply for more | Your turn |

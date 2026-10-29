@@ -173,6 +173,28 @@ describe('the Mac app window', () => {
     await expect.poll(() => page.getByRole('dialog', { name: 'Screenshot: the new node' }).count()).toBe(0)
   }, 30_000)
 
+  it('sends a draft changed on its card, the changed words in its place', async () => {
+    const task = asking('Answer Sofie on the dates', 12)
+    server.service.postUpdate(
+      PostUpdate.parse({
+        idempotencyKey: 'ui-draft-1',
+        taskId: task.id,
+        kind: 'review',
+        body: 'Kept it to what engineering said.',
+        draft: { channel: 'email', to: 'sofie@acme.com', subject: 'SSO dates', body: 'End of November.' },
+      }),
+      'session',
+    )
+    await needsMe()
+    await page.getByRole('option', { name: /Answer Sofie on the dates/ }).click()
+    await page.getByRole('button', { name: 'Change' }).click()
+    await page.getByLabel("The draft's words").fill('Mid November.')
+    await page.getByRole('button', { name: 'Send this version' }).click()
+    await expect
+      .poll(() => server.service.getTask(task.id).updates.findLast((u) => u.kind === 'instruction')?.body)
+      .toBe('Send this version instead, word for word:\n\nMid November.')
+  }, 30_000)
+
   it('switches Auto-fix off for a task with a pull request', async () => {
     const task = asking('Fix the webhook retry', 11)
     server.service.attachLink(

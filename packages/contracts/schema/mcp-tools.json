@@ -192,7 +192,7 @@
   },
   {
     "name": "post_update",
-    "description": "Post an update on your task: decision (with options), question, review, blocked, waiting, done or info. Asks put the task on the owner’s turn.",
+    "description": "Post an update on your task: decision (with options), question, review, blocked, waiting, done or info. Asks put the task on the owner’s turn. An email or Slack message ready to send goes on a review as `draft`: the owner sends it as it is or changed from the timeline.",
     "scopes": [
       "session",
       "watcher"
@@ -281,6 +281,42 @@
               "title"
             ]
           }
+        },
+        "draft": {
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string",
+              "enum": [
+                "email",
+                "slack"
+              ]
+            },
+            "to": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "subject": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "body": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20000,
+              "description": "The message as it will be sent"
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "channel",
+            "to",
+            "body"
+          ]
         }
       },
       "required": [

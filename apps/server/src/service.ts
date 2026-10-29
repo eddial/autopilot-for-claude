@@ -22,6 +22,7 @@ import {
   type EditTask,
   type FileItem,
   type Instruct,
+  type Draft,
   type Link,
   type MatchItems,
   type NewFile,
@@ -238,6 +239,7 @@ export class Service {
       options: parse<Update['options']>(r.options),
       waitingOn: strOrNull(r.waiting_on),
       attachments: parse<Link[]>(r.attachments),
+      ...(r.draft ? { draft: parse<Draft>(r.draft) } : {}),
       author: str(r.author) as Author,
       answers: strOrNull(r.answers),
       open: Number(r.open) === 1,
@@ -870,6 +872,7 @@ export class Service {
       waitingOn?: string | null
       attachments?: Link[]
       answers?: string | null
+      draft?: Draft
     },
   ): Update {
     const ask = isAsk(u.kind)
@@ -877,8 +880,8 @@ export class Service {
     const id = newId()
     this.db
       .prepare(
-        `insert into updates (id, task_id, kind, body, options, waiting_on, attachments, author, answers, open, created_at)
-         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `insert into updates (id, task_id, kind, body, options, waiting_on, attachments, author, answers, open, created_at, draft)
+         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -892,6 +895,7 @@ export class Service {
         u.answers ?? null,
         ask ? 1 : 0,
         this.iso(),
+        u.draft ? json(u.draft) : null,
       )
     const update = this.update(id)
     this.emit({ type: 'update.added', update })
@@ -909,6 +913,7 @@ export class Service {
         options: input.options,
         waitingOn: input.waitingOn ?? null,
         attachments: input.attachments,
+        ...(input.draft ? { draft: input.draft } : {}),
       })
       const state: Task['state'] = input.kind === 'waiting' ? 'waiting' : task.state === 'triage' ? 'triage' : 'running'
       this.touch(task, { state })

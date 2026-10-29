@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { DecisionOption } from './entities.ts'
+import { DecisionOption, Draft } from './entities.ts'
 import { Autonomy, Scope, SessionState, UpdateKind } from './enums.ts'
 import { Duration, Id, IdempotencyKey, Link, Priority, TaskId, Timestamp } from './primitives.ts'
 
@@ -70,13 +70,17 @@ export const PostUpdateFields = {
   options: z.array(DecisionOption).max(6).default([]),
   waitingOn: z.string().max(200).optional(),
   attachments: z.array(Link).default([]),
+  /** On a review: the email or Slack message ready to send, shown with Send and Change. */
+  draft: Draft.optional(),
 }
 
-export const decisionHasOptions = <S extends z.ZodType<{ kind: string; options: unknown[] }>>(schema: S): S =>
-  schema.refine((u) => (u.kind === 'decision') === u.options.length > 0, {
-    message: 'A decision needs options, and only a decision has them',
-    path: ['options'],
-  })
+export const decisionHasOptions = <S extends z.ZodType<{ kind: string; options: unknown[]; draft?: unknown }>>(schema: S): S =>
+  schema
+    .refine((u) => (u.kind === 'decision') === u.options.length > 0, {
+      message: 'A decision needs options, and only a decision has them',
+      path: ['options'],
+    })
+    .refine((u) => u.draft === undefined || u.kind === 'review', { message: 'A draft goes on a review', path: ['draft'] })
 
 export const PostUpdate = decisionHasOptions(command(PostUpdateFields))
 

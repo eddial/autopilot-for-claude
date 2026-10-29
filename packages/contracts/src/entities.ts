@@ -37,6 +37,21 @@ export const DecisionOption = z.object({
   label: z.string().min(1).max(60),
 })
 
+/**
+ * A message ready to go out, on a `review`: the owner reads it in the timeline and sends it as it
+ * is or changed. The session sends it with its own tools once told to.
+ */
+export const Draft = z.object({
+  channel: z.enum(['email', 'slack']),
+  /** Who it goes to: an address, a person or a channel ("sofie@acme.com", "#eng", "Alex"). */
+  to: z.string().min(1).max(500),
+  subject: z.string().max(500).optional(),
+  body: z.string().min(1).max(20_000).describe('The message as it will be sent'),
+  /** The draft where it lives: the Gmail draft, the Slack thread. */
+  url: z.url().optional(),
+})
+export type Draft = z.infer<typeof Draft>
+
 export const Update = z.object({
   id: Id,
   taskId: TaskId,
@@ -47,6 +62,8 @@ export const Update = z.object({
   /** Only for `waiting`: who or what the task waits on. */
   waitingOn: z.string().nullable(),
   attachments: z.array(Link),
+  /** Only on a `review`: the message it asks the owner to send. */
+  draft: Draft.optional(),
   author: Author,
   /** For `instruction`: the ask it answers. */
   answers: Id.nullable(),

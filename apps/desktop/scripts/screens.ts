@@ -109,6 +109,24 @@ task('Summarise the customer interviews from last week', 'customers', '', true)
 task('Upgrade the Node runtime to 24 in the worker images', 'engineering', '', true)
 const waiting = task('Get the signed DPA back from Globex', 'customers', '', true)
 service.waitOn({ idempotencyKey: key(), id: waiting.id, on: 'Globex legal' }, 'session')
+const sofie = task('Answer Sofie on the SSO dates', 'customers', '', true, 2)
+service.postUpdate(
+  {
+    idempotencyKey: key(),
+    taskId: sofie.id,
+    kind: 'review',
+    body: 'Sofie asks when SSO reaches her team. Engineering says the end of November, so I kept it to that and offered a call.',
+    options: [],
+    attachments: [],
+    draft: {
+      channel: 'email',
+      to: 'sofie@globex.com',
+      subject: 'Re: SSO for the Globex team',
+      body: 'Hi Sofie,\n\nSSO reaches your team by the end of November. Happy to walk your IT lead through the setup on a short call that week.\n\nBest,\nBadr',
+    },
+  },
+  'session',
+)
 // Joris only acknowledged: the review is still his to do, so it is FYI.
 const told = task('Get the checkout redesign reviewed', 'engineering', '', true)
 service.waitOn(
@@ -151,6 +169,10 @@ await shot('01-needs-me')
 await page.getByRole('option', { name: /checkout redesign/ }).click()
 await page.getByRole('button', { name: 'Back to waiting' }).waitFor()
 await shot('01b-fyi')
+
+await page.getByRole('option', { name: /Sofie on the SSO/ }).click()
+await page.getByRole('button', { name: 'Change' }).waitFor()
+await shot('01c-draft')
 
 await page.getByRole('option', { name: /Hetzner/ }).click()
 await page.keyboard.press('Space')

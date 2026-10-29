@@ -234,6 +234,10 @@ const MIGRATIONS: (string | ((db: DatabaseSync) => void))[] = [
   -- A task created from a brief alone carries its first line until Autopilot names it.
   alter table tasks add column named integer not null default 1;
   `,
+  `
+  -- A review's message ready to send (email or Slack), as JSON.
+  alter table updates add column draft text;
+  `,
 ]
 
 export const openDatabase = (file: string): DatabaseSync => {

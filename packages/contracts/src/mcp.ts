@@ -62,7 +62,7 @@ export const mcpTools: readonly McpTool[] = [
   {
     name: 'post_update',
     description:
-      'Post an update on your task: decision (with options), question, review, blocked, waiting, done or info. Asks put the task on the owner’s turn.',
+      'Post an update on your task: decision (with options), question, review, blocked, waiting, done or info. Asks put the task on the owner’s turn. An email or Slack message ready to send goes on a review as `draft`: the owner sends it as it is or changed from the timeline.',
     procedure: ['updates', 'post'],
     input: decisionHasOptions(z.object(PostUpdateFields)),
   },

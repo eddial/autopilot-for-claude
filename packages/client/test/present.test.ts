@@ -7,6 +7,7 @@ import {
   linkKind,
   linkSource,
   sectionsOf,
+  sendDraftText,
   signalChannel,
   signalMark,
   signalSender,
@@ -30,6 +31,13 @@ const decision = (open: boolean): Update => ({
 })
 
 describe('how updates read', () => {
+  it('tells the session to send a draft as it is, or the changed words in its place', () => {
+    const draft = { channel: 'slack', to: '#eng', body: 'Shipping Friday.' } as const
+    expect(sendDraftText(draft)).toBe('Send the draft as it is.')
+    expect(sendDraftText(draft, ' Shipping Friday. ')).toBe('Send the draft as it is.')
+    expect(sendDraftText(draft, 'Shipping Monday.')).toBe('Send this version instead, word for word:\n\nShipping Monday.')
+  })
+
   it('shows an open ask as a call to act, and an answered one as history', () => {
     expect([updateLabel(decision(true)), updateTone(decision(true))]).toEqual(['Needs your decision', 'pilot'])
     expect([updateLabel(decision(false)), updateTone(decision(false))]).toEqual(['Asked for a decision', 'quiet'])

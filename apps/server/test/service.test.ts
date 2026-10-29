@@ -66,6 +66,15 @@ describe('updates', () => {
     expect(detail.updates.filter((u) => u.open).map((u) => u.id)).toEqual([decision.id])
   })
 
+  it("keeps a review's draft for the owner to send, and refuses one on anything else", () => {
+    const s = setup()
+    const task = create(s)
+    const draft = { channel: 'email', to: 'sofie@acme.com', subject: 'SSO dates', body: 'Hi Sofie,\n\nEnd of November.' }
+    post(s, task.id, { kind: 'review', body: 'Reply to Sofie on the dates.', draft })
+    expect(s.getTask(task.id).updates.at(-1)?.draft).toEqual(draft)
+    expect(() => post(s, task.id, { kind: 'question', body: 'Send?', draft })).toThrow(/A draft goes on a review/)
+  })
+
   it('delivers an answer into a live session, and starts one when there is none', () => {
     const s = setup()
     const task = create(s)
@@ -233,10 +242,12 @@ describe('filing', () => {
     const file = join(mkdtempSync(join(tmpdir(), 'autopilot-')), 'db.sqlite')
     const db = openDatabase(file)
     create(new Service({ db }), { start: false })
-    // Back to before the step that fills in Auto-fix (and the one after it, which it then runs again).
-    db.exec(`update changes set payload = json_remove(payload, '$.task.autofix'); alter table tasks drop column named`)
+    // Back to before the step that fills in Auto-fix (and the ones after it, which it then runs again).
+    db.exec(
+      `update changes set payload = json_remove(payload, '$.task.autofix'); alter table tasks drop column named; alter table updates drop column draft`,
+    )
     const version = (db.prepare('pragma user_version').get() as { user_version: number }).user_version
-    db.exec(`pragma user_version = ${version - 2}`)
+    db.exec(`pragma user_version = ${version - 3}`)
     db.close()
     const changes = new Service({ db: openDatabase(file) }).changesSince(0, 100).changes
     expect(changes.filter((c) => c.type === 'task.upserted')).not.toEqual([])

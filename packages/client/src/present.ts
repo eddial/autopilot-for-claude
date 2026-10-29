@@ -1,4 +1,4 @@
-import type { Band, QueueItem, Task, Update } from '@autopilot/contracts'
+import type { Band, Draft, QueueItem, Task, Update } from '@autopilot/contracts'
 import type { SyncState } from './sync.ts'
 import { MARKS, type Mark } from '@autopilot/design'
 
@@ -252,6 +252,20 @@ export const linkGroup = (link: { url: string; title: string }): LinkGroup => {
 /** A task's links by group, leaving out the groups with none; each keeps the links' order. */
 export const linkGroups = <L extends { url: string; title: string }>(links: L[]) =>
   LINK_GROUPS.map((group) => ({ ...group, links: links.filter((l) => linkGroup(l) === group.key) })).filter((g) => g.links.length > 0)
+
+/** A draft's heading on its card: "Email to sofie@acme.com", "Slack to #eng". */
+export const draftHeading = (draft: Draft): string => `${draft.channel === 'email' ? 'Email' : 'Slack'} to ${draft.to}`
+
+export const draftMark = (draft: Draft): Mark => (draft.channel === 'email' ? 'gmail' : 'slack')
+
+/**
+ * What Send on a draft tells the session: send it as it is, or, changed on the card, this text
+ * word for word in its place.
+ */
+export const sendDraftText = (draft: Draft, edited?: string): string =>
+  edited === undefined || edited.trim() === draft.body.trim()
+    ? 'Send the draft as it is.'
+    : `Send this version instead, word for word:\n\n${edited.trim()}`
 
 export const updateTone = (update: Update): EntryTone => {
   if (update.kind === 'fyi') return update.open ? 'paused' : 'quiet'

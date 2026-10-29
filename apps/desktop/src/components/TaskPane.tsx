@@ -1,17 +1,20 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import {
   createdText,
+  draftHeading,
+  draftMark,
   eventText,
   linkSource,
   nowText,
   nowTone,
   pendingText,
+  sendDraftText,
   shortDate,
   updateAuthor,
   updateTone,
   type Pending,
 } from '@autopilot/client'
-import type { QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contracts'
+import type { Draft, QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contracts'
 import {
   filedBy,
   firstLookQuestions,
@@ -380,6 +383,7 @@ const AskCard = ({ update }: { update: Update }) => {
         {updateLabel(update)} · {age(update.createdAt)}
       </div>
       <Body text={update.body} />
+      {update.draft && <DraftCard draft={update.draft} onSend={(words) => answer({ text: words })} />}
       <Attachments taskId={update.taskId} links={update.attachments} />
       {update.kind === 'done' && (
         <div className="options">
@@ -448,8 +452,58 @@ const Entry = ({ update, latest }: { update: Update; latest: boolean }) => {
         {by ? ` · ${by}` : ''} · {age(update.createdAt)}
       </div>
       {update.author === 'owner' && isPaste(update.body) ? <Pasted text={update.body} /> : <Body text={update.body} full={latest} />}
+      {update.draft && <DraftCard draft={update.draft} />}
       <Attachments taskId={update.taskId} links={update.attachments} />
     </li>
+  )
+}
+
+/**
+ * A message ready to go out: who it goes to and its words exactly as they will be sent. While it
+ * waits on you, Send sends it as it is; Change opens its words to edit, and Send then sends yours.
+ */
+const DraftCard = ({ draft, onSend }: { draft: Draft; onSend?: (text: string) => void }) => {
+  const [edited, setEdited] = useState<string | null>(null)
+  return (
+    <div className="draft" aria-label={draftHeading(draft)}>
+      <div className="draft-head">
+        <SourceMark mark={draftMark(draft)} size={14} />
+        <span className="draft-to">{draftHeading(draft)}</span>
+        {draft.url && (
+          <Button kind="quiet" onClick={() => open(draft.url ?? '')}>
+            Open
+          </Button>
+        )}
+      </div>
+      {draft.subject && <div className="draft-subject">{draft.subject}</div>}
+      {edited === null || !onSend ? (
+        <div className="draft-body">{draft.body}</div>
+      ) : (
+        <textarea
+          className="draft-body draft-edit"
+          aria-label="The draft's words"
+          rows={Math.min(18, edited.split('\n').length + 1)}
+          value={edited}
+          onChange={(e) => setEdited(e.target.value)}
+        />
+      )}
+      {onSend && (
+        <div className="options">
+          <Button kind="primary" onClick={() => onSend(sendDraftText(draft, edited ?? undefined))}>
+            {edited === null ? 'Send' : 'Send this version'}
+          </Button>
+          {edited === null ? (
+            <Button kind="secondary" onClick={() => setEdited(draft.body)}>
+              Change
+            </Button>
+          ) : (
+            <Button kind="secondary" onClick={() => setEdited(null)}>
+              Cancel
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 

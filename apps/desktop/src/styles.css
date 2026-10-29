@@ -1294,6 +1294,56 @@ button {
   background: var(--shape-ask-fill);
 }
 
+.draft {
+  margin: 10px 0 4px;
+  padding: 12px 14px;
+  border-radius: var(--shape-card-radius);
+  border: 0.5px solid var(--shape-card-edge);
+  background: var(--well);
+}
+
+.draft-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.draft-to {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draft-subject {
+  margin-top: 8px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Exactly as it will be sent: its own line breaks, no markdown. */
+.draft-body {
+  margin-top: 8px;
+  white-space: pre-wrap;
+  color: var(--text-body);
+  line-height: 1.5;
+}
+
+textarea.draft-edit {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 0.5px solid var(--border-strong);
+  background: var(--surface);
+}
+
 .ask-card textarea.inline-reply {
   resize: none;
 }
