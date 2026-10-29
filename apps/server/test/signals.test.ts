@@ -235,11 +235,11 @@ describe('digest signals', () => {
   })
 })
 
-const fakeClaude = (dir: string, initTools: string[]) => {
+const fakeClaude = (dir: string, initTools: string[], result: object = { structured_output: { items: [] } }) => {
   const file = join(dir, 'claude')
   const events = [
     { type: 'system', subtype: 'init', tools: initTools },
-    { type: 'result', is_error: false, structured_output: { items: [] } },
+    { type: 'result', is_error: false, ...result },
   ]
   // Like Claude Code, it refuses a schema that names its draft.
   const refuse = `case "$*" in *'"$schema"'*) echo 'Error: --json-schema is not a valid JSON Schema' >&2; exit 1;; esac`
@@ -268,5 +268,11 @@ describe('claudeHeadless', () => {
     const run = claudeHeadless(fakeClaude(dir, []), () => Promise.resolve(waited++))
     await expect(run('prompt', options(dir))).rejects.toThrow('Tools not available')
     expect(waited).toBe(1)
+  })
+
+  it('fails with what Claude said when it ends without the structured result', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ap-cl-'))
+    const run = claudeHeadless(fakeClaude(dir, ['mcp__claude_ai_Slack__read'], { result: 'Bash was denied.' }), () => Promise.resolve())
+    await expect(run('prompt', options(dir))).rejects.toThrow('claude returned no result: Bash was denied.')
   })
 })

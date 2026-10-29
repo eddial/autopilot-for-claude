@@ -4,6 +4,9 @@ This is an unattended run: nobody reads or answers questions. Fetch the window's
 signal's tools, decide for each one, and return them all. You do not file anything yourself: the
 engine applies your decisions. One item is one thread or conversation: all its messages together.
 
+Run each command the signal's tools allow on its own, exactly as allowed: no `cd`, loops, `&&`,
+`;` or pipes around it, since a command that does not match an allowed pattern is denied.
+
 For each item:
 
 1. **Gate.** Drop only on who sent it: senders the signal's rules say do not matter, mail sent by a

@@ -150,7 +150,14 @@ export const claudeHeadless =
     const out = results.findLast((e) => e.structured_output !== undefined) ?? results.at(-1)
     if (!out) throw new Error('claude: no result event')
     if (out.is_error === true) throw new Error(`claude: ${String(out.result ?? out.subtype)}`)
-    return out.structured_output ?? out.result
+    if (out.structured_output !== undefined) return out.structured_output
+    // A run that ends in prose (a denied tool it would not work around) says why in that prose.
+    const text = String(out.result ?? '')
+    try {
+      return JSON.parse(text)
+    } catch {
+      throw new Error(`claude returned no result: ${text.slice(0, 400)}`)
+    }
   }
 
 const DURATION = /^(\d+)([mhd])$/
