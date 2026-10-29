@@ -37,15 +37,17 @@ Tasks are grouped into bands by whose turn it is, then ordered inside each band.
 | Band | Enters when | Order inside |
 | --- | --- | --- |
 | **Your turn** | An open update needs you (decision, question, review, stuck); a session waits on a permission prompt; a health issue or routing proposal | Priority, then blocking a live session first, then longest wait. Unread items have a filled dot, seen ones a hollow dot |
+| **FYI** | A watcher saw news that leaves the next move with them: a thanks, an acknowledgement, "I'll look on Monday" | Newest first. Never notifies. The task still waits and its watchers keep watching; Back to waiting (or a reply) takes it out |
 | **Triage** | A signal filed it, or you saved a task without starting it | Priority, then newest. Urgent ones go straight to Your turn and notify |
 
-Your turn and Triage show together as Needs me: what waits on you first, each row saying what it
-wants in green (Needs your decision, Ready to review); then, under a Triage heading that stays
-even when nothing waits on you, what came in and is not started, each row saying Triage in orange.
+Your turn, FYI and Triage show together as Needs me: what waits on you first, each row saying what
+it wants in green (Needs your decision, Ready to review); then, under an FYI heading, news on what
+others still have; then, under a Triage heading that stays even when nothing waits on you, what
+came in and is not started, each row saying Triage in orange.
 Priority leads in both. Every tab opens with its name and a line on what it holds, no counts:
 those are on the tabs.
 | **Running** | A session is working on it | Latest activity, with one line of what it is doing |
-| **Waiting on others** | The session handed over to someone and left a watcher | Folded. When the watcher sees news, a workstream with autonomy 3 or more wakes the session; otherwise, and when it times out, the task returns to Your turn |
+| **Waiting on others** | The session handed over to someone and left a watcher | Folded. When the watcher sees news that leaves the move with them, it goes to FYI. Other news wakes the session in a workstream with autonomy 3 or more; otherwise, and when it times out, the task returns to Your turn. Back to waiting sends a task in Your turn or FYI back here, waiting on whoever it waited on |
 | **Snoozed** | You snoozed it until a time | Returns to Your turn when due |
 | **Done** | You closed it, or the mirrored team ticket closed | Out of the queue, searchable |
 
@@ -72,6 +74,7 @@ bottom. Each update has a kind, and the kind decides where the task goes.
 | `waiting` | Waiting on someone | Who and what it waits on | Waiting |
 | `done` | Finished | An outcome: a branch, a draft, a file. The session ends; you close the task, or reply for more | Your turn |
 | `info` | Update | Progress worth keeping; never notifies | unchanged |
+| `fyi` | FYI | A watcher's news while the ball stays with others; open until you send the task back to waiting | FYI |
 | `signal` | New message | A new source message on this task | Triage, if it asks you something |
 | `instruction` | You | Your instruction or answer | Running |
 

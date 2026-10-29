@@ -637,7 +637,13 @@ export class Service {
     return this.idempotent(input.idempotencyKey, 'tasks.wait', () => {
       const task = this.task(input.id)
       this.assertOpen(task)
-      this.insertUpdate(task, { kind: 'waiting', body: `Waiting on ${input.on}`, waitingOn: input.on, author })
+      // Whatever waited on the owner is dealt with: seen, or still with the others.
+      this.closeAsks(task.id)
+      const before = this.sql(
+        "select waiting_on from updates where task_id = ? and kind = 'waiting' and waiting_on is not null order by created_at desc limit 1",
+      ).get(task.id) as Row | undefined
+      const on = input.on ?? strOrNull(before?.waiting_on) ?? 'others'
+      this.insertUpdate(task, { kind: 'waiting', body: input.on ? `Waiting on ${on}` : `Back to waiting on ${on}`, waitingOn: on, author })
       if (input.watcher) this.insertWatcher(task.id, input.watcher)
       return this.touch(task, { state: 'waiting' })
     })
@@ -1018,10 +1024,17 @@ export class Service {
    */
   watcherNews(
     id: string,
-    news: { body: string; attachments: Link[]; wake: boolean; pr?: 'merged' | 'closed' | 'ready' | 'stuck' | '' },
+    news: { body: string; attachments: Link[]; wake: boolean; theirs?: boolean; pr?: 'merged' | 'closed' | 'ready' | 'stuck' | '' },
   ): Update {
     return this.transaction(() => {
       const task = this.task(this.watcherTask(id))
+      // The next move is still theirs (a thanks, an "I'll look Monday"): the owner is told, the
+      // task keeps waiting and its watchers keep watching.
+      if (news.theirs && !news.pr) {
+        const update = this.insertUpdate(task, { kind: 'fyi', body: news.body, author: 'watcher', attachments: news.attachments })
+        this.touch(task, {})
+        return update
+      }
       // Merged: that pull request is done with. The last one the task waited on closes it.
       if (news.pr === 'merged') {
         this.sql('delete from watchers where id = ?').run(id)

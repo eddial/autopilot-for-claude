@@ -67,6 +67,7 @@ const open = (url: string) => {
 
 const BAND_TONE: Record<QueueItem['band'], Tone> = {
   your_turn: 'pilot',
+  fyi: 'paused',
   triage: 'quiet',
   running: 'claude',
   waiting: 'paused',
@@ -579,7 +580,8 @@ const useOpenSession = (session: QueueItem['session']) => {
 
 /**
  * What you can do with the task: Start (unless Before I start in the timeline starts it), the
- * session, Snooze and Mark done; Not for me behind the ⋯, being rarer.
+ * session, Back to waiting when the ball is still with others, Snooze and Mark done; Not for me
+ * behind the ⋯, being rarer.
  */
 const Actions = ({ item, session: withSession = true, start = true }: { item: QueueItem; session?: boolean; start?: boolean }) => {
   const { task, session } = item
@@ -604,6 +606,12 @@ const Actions = ({ item, session: withSession = true, start = true }: { item: Qu
             <Menu className="split-arrow" label={<span className="sr-only">Other ways to open the session</span>} items={choices} />
           )}
         </div>
+      )}
+      {(item.band === 'your_turn' || item.band === 'fyi') && (
+        <Button kind="tool" className="with-icon" onClick={() => send({ kind: 'wait', taskId: task.id })}>
+          <NavIcon name="waiting" size={14} />
+          Back to waiting
+        </Button>
       )}
       <Menu
         className="with-icon"

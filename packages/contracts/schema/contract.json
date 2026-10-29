@@ -43,6 +43,7 @@
           "type": "string",
           "enum": [
             "your_turn",
+            "fyi",
             "triage",
             "running",
             "waiting",
@@ -261,6 +262,7 @@
                 "type": "string",
                 "enum": [
                   "your_turn",
+                  "fyi",
                   "triage",
                   "running",
                   "waiting",
@@ -295,7 +297,8 @@
                           "info",
                           "signal",
                           "instruction",
-                          "event"
+                          "event",
+                          "fyi"
                         ]
                       },
                       "body": {
@@ -886,7 +889,8 @@
                           "info",
                           "signal",
                           "instruction",
-                          "event"
+                          "event",
+                          "fyi"
                         ]
                       },
                       "body": {
@@ -1054,7 +1058,8 @@
                           "info",
                           "signal",
                           "instruction",
-                          "event"
+                          "event",
+                          "fyi"
                         ]
                       },
                       "body": {
@@ -1792,6 +1797,7 @@
           "type": "string",
           "enum": [
             "your_turn",
+            "fyi",
             "triage",
             "running",
             "waiting",
@@ -1826,7 +1832,8 @@
                   "info",
                   "signal",
                   "instruction",
-                  "event"
+                  "event",
+                  "fyi"
                 ]
               },
               "body": {
@@ -3415,8 +3422,7 @@
       },
       "required": [
         "idempotencyKey",
-        "id",
-        "on"
+        "id"
       ]
     },
     "output": {
@@ -4416,7 +4422,8 @@
             "info",
             "signal",
             "instruction",
-            "event"
+            "event",
+            "fyi"
           ]
         },
         "body": {
@@ -4624,7 +4631,8 @@
             "info",
             "signal",
             "instruction",
-            "event"
+            "event",
+            "fyi"
           ]
         },
         "body": {
@@ -4830,7 +4838,8 @@
             "info",
             "signal",
             "instruction",
-            "event"
+            "event",
+            "fyi"
           ]
         },
         "body": {

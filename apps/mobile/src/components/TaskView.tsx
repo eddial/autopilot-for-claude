@@ -504,6 +504,7 @@ const LinkRow = ({ taskId, link }: { taskId: string; link: QueueItem['task']['li
 
 const BAND_TONE: Record<QueueItem['band'], Tone> = {
   your_turn: 'pilot',
+  fyi: 'paused',
   triage: 'quiet',
   running: 'claude',
   waiting: 'paused',

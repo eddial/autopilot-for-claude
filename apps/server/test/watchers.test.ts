@@ -29,7 +29,7 @@ const setup = (autonomy: number) => {
   mkdirSync(paths.home, { recursive: true })
   let clock = Date.parse('2026-10-25T10:00:00Z')
   const service = new Service({ db: openDatabase(':memory:'), now: () => new Date(clock) })
-  const replies: { fingerprint: string; changed: boolean; summary: string; pr?: string }[] = []
+  const replies: { fingerprint: string; changed: boolean; summary: string; pr?: string; theirs?: boolean }[] = []
   let calls = 0
   const runClaude: RunClaude = () => {
     calls++
@@ -69,6 +69,30 @@ describe('watchers', () => {
     expect(detail.updates.at(-1)).toMatchObject({ author: 'watcher', kind: 'info', body: 'PR #7 review: Joris approved.' })
     expect(detail.band).toBe('running')
     expect(service.pendingOutbox().map((o) => o.kind)).toEqual(['start_session'])
+  })
+
+  it('files news that leaves the move with them as FYI, keeps watching, and goes back to waiting once seen', async () => {
+    const { service, watchers, task, replies, calls, advance } = setup(3)
+    replies.push({ fingerprint: 'r0', changed: false, summary: '' })
+    await watchers.tick()
+    advance(30)
+    replies.push({ fingerprint: 'r1', changed: true, summary: 'Joris says he will review on Monday.', theirs: true })
+    await watchers.tick()
+    // Not your turn and no session woken, whatever the autonomy: only told.
+    expect(service.getTask(task.id)).toMatchObject({
+      band: 'fyi',
+      updates: expect.arrayContaining([expect.objectContaining({ kind: 'fyi', open: true })]),
+    })
+    expect(service.pendingOutbox()).toEqual([])
+    advance(30)
+    await watchers.tick()
+    expect(calls()).toBe(3)
+
+    service.waitOn(WaitOn.parse({ idempotencyKey: 'wait-0002', id: task.id }), 'owner')
+    const back = service.getTask(task.id)
+    expect(back.band).toBe('waiting')
+    expect(back.updates.at(-1)).toMatchObject({ kind: 'waiting', body: 'Back to waiting on Joris to review' })
+    expect(back.updates.some((u) => u.open)).toBe(false)
   })
 
   it('reports on the first run when what it watches for is already there', async () => {

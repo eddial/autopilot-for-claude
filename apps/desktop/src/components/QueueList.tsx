@@ -74,6 +74,8 @@ const EmptyList = ({ tab, quiet }: { tab: QueueView | null; quiet: boolean }) =>
 /** Each band as the icon of the tab it shows under. */
 const BAND_ICON: Record<QueueItem['band'], NavIconName> = {
   your_turn: 'needs',
+  // Still with them: news on what the task waits on.
+  fyi: 'waiting',
   triage: 'inbox',
   running: 'running',
   waiting: 'waiting',

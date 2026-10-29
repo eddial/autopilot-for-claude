@@ -288,7 +288,8 @@
                 "info",
                 "signal",
                 "instruction",
-                "event"
+                "event",
+                "fyi"
               ]
             },
             "body": {
@@ -456,7 +457,8 @@
                 "info",
                 "signal",
                 "instruction",
-                "event"
+                "event",
+                "fyi"
               ]
             },
             "body": {

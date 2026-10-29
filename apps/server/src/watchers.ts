@@ -16,6 +16,8 @@ export const WatcherOutput = z.object({
   fingerprint: z.string(),
   changed: z.boolean(),
   summary: z.string(),
+  /** The next move is still theirs: what changed only acknowledges or reports progress. */
+  theirs: z.boolean().default(false),
   sources: z.array(z.string()),
   pr: PullRequestNews,
 })
@@ -49,7 +51,7 @@ const sourceTitle = (url: string, n: number | null): string => {
 
 /**
  * Checks what a waiting task depends on (a thread, a PR, a reply) every `every` until `until`.
- * Watchers run while the task waits on others or on the owner's review; while a session works on
+ * Watchers run while the task waits on others (an FYI included) or on the owner's review; while a session works on
  * it, it sees for itself.
  */
 export class Watchers {
@@ -73,7 +75,7 @@ export class Watchers {
           continue
         }
         const reviewing = band === 'your_turn' && service.getTask(task.id).updates.some((u) => u.open && u.kind === 'review')
-        if (band !== 'waiting' && !reviewing) continue
+        if (band !== 'waiting' && band !== 'fyi' && !reviewing) continue
         const last = watcher.lastCheckedAt ? Date.parse(watcher.lastCheckedAt) : 0
         if (now - last < durationMs(watcher.every)) continue
         await this.check(watcher.id).catch((error: unknown) => {
@@ -142,7 +144,13 @@ export class Watchers {
       // A pull request stuck where Auto-fix does not reach goes to its session whatever the
       // autonomy: that is the session's work, not a question for the owner.
       const wake = result.pr === 'stuck' || (result.pr === '' && autonomy >= 3)
-      service.watcherNews(id, { body: wake ? `${watcher.what}: ${result.summary}` : result.summary, attachments, wake, pr: result.pr })
+      service.watcherNews(id, {
+        body: wake && !result.theirs ? `${watcher.what}: ${result.summary}` : result.summary,
+        attachments,
+        wake,
+        theirs: result.theirs,
+        pr: result.pr,
+      })
     }
     service.watcherChecked(id, result.fingerprint)
   }
@@ -161,6 +169,7 @@ export class Watchers {
         '- fingerprint: a short, stable record of the latest activity by people (ids, timestamps, counts, open/closed/merged) for the next run to compare against. Leave out values that move on their own: CI or mergeable state still computing, view counts, relative times',
         '- changed: true when what is watched for happened since the previous fingerprint (a reply, an email that arrived, a new commit or review, a status or decision). On the first run there is no previous fingerprint: true only when what is watched for is already there and the latest updates above do not mention it yet, else false',
         '- summary: when changed, one to three plain sentences for the owner: who did what, and when; say what it means for the task if that is clear. Names, not ids: no channel, user or message ids or timestamps. Else ""',
+        "- theirs: when changed, true when the next move is still the other side's: they only acknowledged, thanked, said when they will get to it, or reported progress without asking the owner anything or delivering what was waited for. false when they asked the owner something, decided, delivered, or declined",
         '- sources: the URLs of what changed',
         [
           '- pr: when what is watched is a pull request, where it stands now, else "". Claude Code Auto-fix already fixes failing checks and answers review comments on it, so do not report those as stuck.',

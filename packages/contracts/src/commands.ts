@@ -48,7 +48,8 @@ export const WatcherSpec = z.object({
   tools: z.array(z.string()).optional(),
 })
 
-export const WaitOn = command({ id: TaskId, on: z.string().min(1).max(200), watcher: WatcherSpec.optional() })
+/** Without `on` (the owner sending a task back): waiting on whoever it waited on before. */
+export const WaitOn = command({ id: TaskId, on: z.string().min(1).max(200).optional(), watcher: WatcherSpec.optional() })
 
 export const CloseTask = command({ id: TaskId, outcome: z.enum(['done', 'canceled']) })
 
@@ -59,8 +60,8 @@ export const BulkTasks = command({
   workstream: z.string().optional(),
 })
 
-/** Kinds a session or watcher may post; `instruction` comes only from answering, `signal` only from filing, `event` only from Autopilot. */
-export const PostableKind = UpdateKind.exclude(['instruction', 'signal', 'event'])
+/** Kinds a session or watcher may post; `instruction` comes only from answering, `signal` only from filing, `event` and `fyi` only from Autopilot. */
+export const PostableKind = UpdateKind.exclude(['instruction', 'signal', 'event', 'fyi'])
 
 export const PostUpdateFields = {
   taskId: TaskId,

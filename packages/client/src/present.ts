@@ -1,4 +1,4 @@
-import type { QueueItem, Task, Update } from '@autopilot/contracts'
+import type { Band, QueueItem, Task, Update } from '@autopilot/contracts'
 import type { SyncState } from './sync.ts'
 import { MARKS, type Mark } from '@autopilot/design'
 
@@ -16,6 +16,7 @@ const ASKING: Partial<Record<Update['kind'], string>> = {
   review: 'Ready to review',
   blocked: 'Stuck',
   done: 'Finished',
+  fyi: 'FYI',
 }
 
 /** The same asks once answered: history, not a call to act. */
@@ -253,6 +254,7 @@ export const linkGroups = <L extends { url: string; title: string }>(links: L[])
   LINK_GROUPS.map((group) => ({ ...group, links: links.filter((l) => linkGroup(l) === group.key) })).filter((g) => g.links.length > 0)
 
 export const updateTone = (update: Update): EntryTone => {
+  if (update.kind === 'fyi') return update.open ? 'paused' : 'quiet'
   if (update.kind in ASKING) return update.open ? 'pilot' : 'quiet'
   if (update.kind === 'waiting') return 'paused'
   return 'quiet'
@@ -263,6 +265,8 @@ export const nowText = (item: QueueItem): string => {
   switch (item.band) {
     case 'your_turn':
       return 'Waiting on you'
+    case 'fyi':
+      return 'Still waiting on others'
     case 'triage':
       return 'Not started'
     case 'running':
@@ -299,7 +303,7 @@ export const nowTone = (item: QueueItem): EntryTone =>
     ? 'pilot'
     : item.band === 'running'
       ? 'claude'
-      : item.band === 'waiting' || item.band === 'snoozed'
+      : item.band === 'waiting' || item.band === 'fyi' || item.band === 'snoozed'
         ? 'paused'
         : 'quiet'
 
@@ -401,7 +405,7 @@ export const worthNotifying = (before: ReadonlyMap<string, QueueItem['band']>, i
   if (item.band !== 'your_turn' && item.band !== 'triage') return false
   const was = before.get(item.task.id)
   if (was === undefined) return item.task.source.signal !== null
-  return was === 'waiting' || was === 'snoozed'
+  return was === 'waiting' || was === 'fyi' || was === 'snoozed'
 }
 
 export const attentionKey = (item: QueueItem): string => item.openAsk?.id ?? `task:${item.task.id}`
@@ -431,13 +435,24 @@ export const PRIORITY_NAMES: Record<number, string> = { 1: 'Urgent', 2: 'High', 
 export type GroupBy = 'workstream' | 'priority'
 
 /**
- * A section of a list. Needs me is what waits on you, then, under its own heading, what came in to
- * triage; the first section of Triage carries that heading. Above it, `alone` says nothing waits on you.
+ * A section of a list. Needs me is what waits on you, then, each under its own heading, news while
+ * others still have the ball (FYI) and what came in to triage; the first section of each part
+ * carries its heading. `alone` says nothing comes before it.
  */
 export type QueueSection = { key: string; title: string; items: QueueItem[]; part?: { title: string; about: string; alone: boolean } }
 
 /** The heading over what came in to triage, in Needs me. */
 export const TRIAGE_PART = { title: 'Triage', about: 'Start it, snooze it, let it go' }
+
+/** The heading over news on what others are still doing, in Needs me. */
+export const FYI_PART = { title: 'FYI', about: 'Still with them: read it, send it back to waiting' }
+
+/** Needs me's parts in order; what waits on you has no heading of its own. */
+const PARTS = [
+  { band: 'your_turn', part: null },
+  { band: 'fyi', part: FYI_PART },
+  { band: 'triage', part: TRIAGE_PART },
+] as const
 
 /** Workstreams in the order of their most pressing task (the queue comes sorted), the inbox last. */
 const workstreams = (items: QueueItem[]): string[] => {
@@ -450,24 +465,26 @@ const byWorkstream = (items: QueueItem[]): QueueItem[] =>
 
 /** A sorted list in sections, the same on the Mac and the iPhone; read top to bottom, it is the order Next steps through. */
 export const sectionsOf = (items: QueueItem[], by: GroupBy, parted = false): QueueSection[] => {
-  // Needs me (`parted`): Triage under its heading whenever something waits there.
-  if (!parted || !items.some((i) => i.band === 'triage')) return sectionsIn(items, by)
+  // Needs me (`parted`): FYI and Triage under their headings whenever something is there.
+  if (!parted || !items.some((i) => i.band === 'fyi' || i.band === 'triage')) return sectionsIn(items, by)
   // A task that just left (answered, so it runs) is kept where it was: with the one before it.
-  const triaged = new Set<QueueItem>()
-  let inTriage = false
+  const partOf = new Map<QueueItem, Band>()
+  let current: Band = 'your_turn'
   for (const item of items) {
-    if (item.band === 'your_turn' || item.band === 'triage') inTriage = item.band === 'triage'
-    if (inTriage) triaged.add(item)
+    if (PARTS.some((p) => p.band === item.band)) current = item.band
+    partOf.set(item, current)
   }
-  const yours = sectionsIn(
-    items.filter((i) => !triaged.has(i)),
-    by,
-  ).map((s) => ({ ...s, key: `your_turn:${s.key}` }))
-  const triage = sectionsIn(
-    items.filter((i) => triaged.has(i)),
-    by,
-  ).map((s, i) => ({ ...s, key: `triage:${s.key}`, ...(i === 0 ? { part: { ...TRIAGE_PART, alone: yours.length === 0 } } : {}) }))
-  return [...yours, ...triage]
+  const sections: QueueSection[] = []
+  for (const { band, part } of PARTS) {
+    const alone = sections.length === 0
+    sections.push(
+      ...sectionsIn(
+        items.filter((i) => partOf.get(i) === band),
+        by,
+      ).map((s, i) => ({ ...s, key: `${band}:${s.key}`, ...(part && i === 0 ? { part: { ...part, alone } } : {}) })),
+    )
+  }
+  return sections
 }
 
 const sectionsIn = (items: QueueItem[], by: GroupBy): QueueSection[] =>

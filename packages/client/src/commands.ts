@@ -14,6 +14,8 @@ export type Command =
   /** Brings back an ended session with Remote Control, to open it; where the task stands is unchanged. */
   | { kind: 'resume'; taskId: string }
   | { kind: 'snooze'; taskId: string; until: string }
+  /** Back to waiting on whoever it waited on: the ball is still theirs, the watchers keep watching. */
+  | { kind: 'wait'; taskId: string }
   | { kind: 'close'; taskId: string; outcome: 'done' | 'canceled' }
   | { kind: 'edit'; taskId: string; workstream?: string; priority?: number; autofix?: boolean }
 
@@ -61,6 +63,8 @@ export const execute = async (api: Api, { id, command: c }: Pending) => {
       return api.tasks.resume({ idempotencyKey, id: c.taskId })
     case 'snooze':
       return api.tasks.snooze({ idempotencyKey, id: c.taskId, until: c.until })
+    case 'wait':
+      return api.tasks.wait({ idempotencyKey, id: c.taskId })
     case 'close':
       return api.tasks.close({ idempotencyKey, id: c.taskId, outcome: c.outcome })
     case 'edit':
@@ -98,6 +102,10 @@ export const overlay = (queue: LiveQueue, outbox: Pending[], now: Date): LiveQue
         break
       case 'snooze':
         touch(c.taskId, { state: 'snoozed', snoozedUntil: c.until })
+        break
+      case 'wait':
+        delete asks[c.taskId]
+        touch(c.taskId, { state: 'waiting', snoozedUntil: null })
         break
       case 'close':
         touch(c.taskId, { state: c.outcome })

@@ -15,6 +15,7 @@
           "type": "string",
           "enum": [
             "your_turn",
+            "fyi",
             "triage",
             "running",
             "waiting",
@@ -437,8 +438,7 @@
         }
       },
       "required": [
-        "id",
-        "on"
+        "id"
       ]
     }
   },

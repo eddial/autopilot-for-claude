@@ -109,6 +109,24 @@ task('Summarise the customer interviews from last week', 'customers', '', true)
 task('Upgrade the Node runtime to 24 in the worker images', 'engineering', '', true)
 const waiting = task('Get the signed DPA back from Globex', 'customers', '', true)
 service.waitOn({ idempotencyKey: key(), id: waiting.id, on: 'Globex legal' }, 'session')
+// Joris only acknowledged: the review is still his to do, so it is FYI.
+const told = task('Get the checkout redesign reviewed', 'engineering', '', true)
+service.waitOn(
+  {
+    idempotencyKey: key(),
+    id: told.id,
+    on: 'Joris to review',
+    watcher: { what: 'PR #214 review', every: '30m', until: new Date(Date.now() + 86_400_000).toISOString(), tools: [] },
+  },
+  'session',
+)
+const toldWatcher = service.watcherRuns().find((r) => r.task.id === told.id)?.watcher.id ?? ''
+service.watcherNews(toldWatcher, {
+  body: 'Joris thanked you and says he will review it on Monday morning.',
+  attachments: [{ url: 'https://github.com/acme/shop/pull/214', title: 'GitHub' }],
+  wake: false,
+  theirs: true,
+})
 const snoozed = task('Renew the office lease', 'operations')
 service.snoozeTask({ idempotencyKey: key(), id: snoozed.id, until: new Date(Date.now() + 3 * 86_400_000).toISOString() })
 const done = task('Rotate the Stripe webhook secret', 'engineering', '', true)
@@ -129,6 +147,10 @@ await page.getByRole('heading', { name: 'Needs me' }).waitFor()
 await page.getByRole('option', { name: /prompt caching/ }).click()
 await page.getByRole('button', { name: 'Opus only' }).waitFor()
 await shot('01-needs-me')
+
+await page.getByRole('option', { name: /checkout redesign/ }).click()
+await page.getByRole('button', { name: 'Back to waiting' }).waitFor()
+await shot('01b-fyi')
 
 await page.getByRole('option', { name: /Hetzner/ }).click()
 await page.keyboard.press('Space')

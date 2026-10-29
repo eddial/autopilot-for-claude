@@ -27,6 +27,7 @@ const snoozeTimes = (): { label: string; until: Date }[] => {
 /** Each band as the symbol of the tab it shows under. */
 export const BAND_SYMBOL: Record<QueueItem['band'], SFSymbol> = {
   your_turn: 'hand.raised',
+  fyi: 'info.circle',
   triage: 'tray',
   running: 'hammer',
   waiting: 'clock',
@@ -37,6 +38,7 @@ export const BAND_SYMBOL: Record<QueueItem['band'], SFSymbol> = {
 /** Each band's colour, as the dot beside its name on the page; triage in the urgent orange of its mark. */
 const BAND_DOT: Record<QueueItem['band'], string> = {
   your_turn: tones.pilot.dot,
+  fyi: tones.paused.dot,
   triage: colours.urgent,
   running: tones.claude.dot,
   waiting: tones.paused.dot,
@@ -173,6 +175,14 @@ export const TaskToolbar = ({
         >
           <Stack.Toolbar.MenuAction icon="checkmark" onPress={() => done('done')}>
             Mark done
+          </Stack.Toolbar.MenuAction>
+          {/* The ball is still theirs: an FYI seen, or news that asks nothing of you. */}
+          <Stack.Toolbar.MenuAction
+            icon="clock"
+            hidden={item.band !== 'your_turn' && item.band !== 'fyi'}
+            onPress={() => void sync?.send({ kind: 'wait', taskId: task.id })}
+          >
+            Back to waiting
           </Stack.Toolbar.MenuAction>
           <Stack.Toolbar.Menu icon="moon" title="Snooze">
             {snoozes}

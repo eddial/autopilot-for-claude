@@ -47,7 +47,7 @@ const VIEWS: { id: QueueView; title: string; about: string; bands: Band[]; symbo
     id: 'needs_me',
     title: 'Needs me',
     about: 'Under way and waiting on you',
-    bands: ['your_turn', 'triage'],
+    bands: ['your_turn', 'fyi', 'triage'],
     symbol: 'hand.raised',
   },
   { id: 'running', title: 'Running', about: 'A session is working on it', bands: ['running'], symbol: 'hammer' },
@@ -234,7 +234,7 @@ export default function QueueScreen() {
   // A phone has no hover: once online, fetch the conversations at the top of the queue in the
   // background, so opening them needs no request.
   const top = items
-    .filter((i) => i.band === 'your_turn' || i.band === 'triage')
+    .filter((i) => i.band === 'your_turn' || i.band === 'fyi' || i.band === 'triage')
     .slice(0, 15)
     .map((i) => i.task.id)
     .join(',')

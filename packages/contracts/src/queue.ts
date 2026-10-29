@@ -30,6 +30,8 @@ export const effectOf = (kind: UpdateKind): UpdateEffect => {
       return 'new_if_asks'
     case 'info':
     case 'event':
+    // Still waiting on others: only told, the task stays where it is.
+    case 'fyi':
       return 'unchanged'
   }
 }
@@ -45,7 +47,9 @@ export const bandOf = ({ task, openAsk, session }: BandInput, now: Date): Band =
   if (task.state === 'snoozed' && task.snoozedUntil !== null && Date.parse(task.snoozedUntil) > now.getTime()) {
     return 'snoozed'
   }
-  if (openAsk !== null || session?.state === 'waiting_permission') return 'your_turn'
+  if (session?.state === 'waiting_permission') return 'your_turn'
+  if (openAsk?.kind === 'fyi') return 'fyi'
+  if (openAsk !== null) return 'your_turn'
   // A snooze that has run out comes back as your turn.
   if (task.state === 'snoozed') return 'your_turn'
   if (task.state === 'running') return 'running'
@@ -53,7 +57,7 @@ export const bandOf = ({ task, openAsk, session }: BandInput, now: Date): Band =
   return task.priority === 1 ? 'your_turn' : 'triage'
 }
 
-const BAND_ORDER: Record<Band, number> = { your_turn: 0, triage: 1, running: 2, waiting: 3, snoozed: 4, done: 5 }
+const BAND_ORDER: Record<Band, number> = { your_turn: 0, fyi: 1, triage: 2, running: 3, waiting: 4, snoozed: 5, done: 6 }
 
 const time = (iso: string | null | undefined): number => (iso ? Date.parse(iso) : 0)
 
@@ -75,6 +79,9 @@ export const compareQueue = (a: QueueItem, b: QueueItem): number => {
   switch (a.band) {
     case 'your_turn':
       order = Number(blocksLiveSession(b)) - Number(blocksLiveSession(a)) || waitingSince(a) - waitingSince(b)
+      break
+    case 'fyi':
+      order = time(b.openAsk?.createdAt) - time(a.openAsk?.createdAt)
       break
     case 'triage':
       order = time(b.task.createdAt) - time(a.task.createdAt)

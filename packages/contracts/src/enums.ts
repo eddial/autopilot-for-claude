@@ -5,19 +5,35 @@ import { z } from 'zod'
  * see docs/PRODUCT.md, "A task is a list of updates". An `event` is a line in the
  * timeline that moves nothing: a link attached, a watcher started or stopped.
  */
-export const UpdateKind = z.enum(['decision', 'question', 'review', 'blocked', 'waiting', 'done', 'info', 'signal', 'instruction', 'event'])
+export const UpdateKind = z.enum([
+  'decision',
+  'question',
+  'review',
+  'blocked',
+  'waiting',
+  'done',
+  'info',
+  'signal',
+  'instruction',
+  'event',
+  'fyi',
+])
 export type UpdateKind = z.infer<typeof UpdateKind>
 
 /** The kinds that put a task on your turn. A task has at most one open ask. */
-/** What waits on the owner. `done` too: the session has finished, and the owner closes the task. */
-export const ASK_KINDS = ['decision', 'question', 'review', 'blocked', 'done'] as const satisfies readonly UpdateKind[]
+/**
+ * What waits on the owner. `done` too: the session has finished, and the owner closes the task.
+ * And `fyi`: news while the ball stays with others (a reply that only acknowledges), open until
+ * the owner has seen it and sends the task back to waiting.
+ */
+export const ASK_KINDS = ['decision', 'question', 'review', 'blocked', 'done', 'fyi'] as const satisfies readonly UpdateKind[]
 export type AskKind = (typeof ASK_KINDS)[number]
 
 export const TaskState = z.enum(['triage', 'running', 'waiting', 'snoozed', 'done', 'canceled'])
 export type TaskState = z.infer<typeof TaskState>
 
 /** Where a task shows in the queue. Derived, never stored. */
-export const Band = z.enum(['your_turn', 'triage', 'running', 'waiting', 'snoozed', 'done'])
+export const Band = z.enum(['your_turn', 'fyi', 'triage', 'running', 'waiting', 'snoozed', 'done'])
 export type Band = z.infer<typeof Band>
 
 /**

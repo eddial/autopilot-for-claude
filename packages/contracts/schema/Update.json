@@ -24,7 +24,8 @@
         "info",
         "signal",
         "instruction",
-        "event"
+        "event",
+        "fyi"
       ]
     },
     "body": {

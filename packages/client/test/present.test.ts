@@ -141,6 +141,9 @@ describe('sections of a list', () => {
     expect(parts(answered)[0]).toEqual([null, 'sales', 'AP-1', 'AP-4'])
     // Nothing waits on you: Triage keeps its heading, and says so.
     expect(sectionsOf(needs.slice(1), 'workstream', true)[0]?.part).toMatchObject({ title: 'Triage', alone: true })
+    // News while others still have the ball sits between them, under FYI.
+    const told = [needs[0], { ...row('AP-5', 'dev', 3), band: 'fyi' }, ...needs.slice(1)] as QueueItem[]
+    expect(parts(told).map((p) => p[0])).toEqual([null, 'FYI', 'Triage', null])
     // Everything open (All) has no headings.
     expect(sectionsOf(answered, 'workstream').every((s) => s.part === undefined)).toBe(true)
   })

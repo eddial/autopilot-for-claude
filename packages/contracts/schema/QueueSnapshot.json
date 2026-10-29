@@ -201,6 +201,7 @@
             "type": "string",
             "enum": [
               "your_turn",
+              "fyi",
               "triage",
               "running",
               "waiting",
@@ -235,7 +236,8 @@
                       "info",
                       "signal",
                       "instruction",
-                      "event"
+                      "event",
+                      "fyi"
                     ]
                   },
                   "body": {
