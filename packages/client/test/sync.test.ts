@@ -173,6 +173,23 @@ describe('the phone against the Mac', () => {
     expect(sync.cachedDetail(task.id)?.updates.map((u) => `${u.kind}:${String(u.open)}`)).toEqual(['question:false', 'instruction:false'])
   }, 30_000)
 
+  it('keeps a sent message in the conversation before the feed brings it back', async () => {
+    const { handle, invite } = await setup()
+    const connection = await pair(invite, { name: 'Test iPhone', kind: 'iphone' }, pinned, key())
+    const sync = new Sync({ newKey: randomUUID, connection, pinned, storage: memoryStorage() })
+    const task = handle.service.createTask(CreateTask.parse({ idempotencyKey: key(), title: 'Pick a colour', start: false }))
+    await sync.syncOnce()
+    await sync.detail(task.id)
+
+    await sync.send({ kind: 'instruct', taskId: task.id, body: 'Blue, please' })
+    await sync.flush()
+    // Out of the outbox and on the page, though no catch-up has run since.
+    expect(sync.getState().outbox).toEqual([])
+    expect(sync.cachedDetail(task.id)?.updates.map((u) => u.body)).toEqual(['Blue, please'])
+    await sync.syncOnce()
+    expect(sync.cachedDetail(task.id)?.updates.map((u) => u.body)).toEqual(['Blue, please'])
+  }, 30_000)
+
   it('keeps what the feed brought while a conversation was being fetched', async () => {
     const { handle, invite } = await setup()
     // The server answers the fetch at once, but the answer reaches the phone only when released.

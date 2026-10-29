@@ -27,7 +27,7 @@ export type Pending = { id: string; n: number; at: string; command: Command }
 export type Conflict = { id: string; command: Command; reason: 'already_answered' | 'task_closed' | 'rejected'; message: string }
 
 /** Sends one command, with its id as the idempotency key, so sending it twice applies it once. */
-export const execute = async (api: Api, { id, command: c }: Pending): Promise<unknown> => {
+export const execute = async (api: Api, { id, command: c }: Pending) => {
   const idempotencyKey = id
   switch (c.kind) {
     case 'answer':

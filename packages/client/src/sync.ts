@@ -208,7 +208,7 @@ export class Sync {
       const next = this.state.outbox[0]
       if (!next) return
       try {
-        await execute(this.link.api, next)
+        this.landed(next, await execute(this.link.api, next))
       } catch (error) {
         // The network failed, or the server did: keep it and try again next round.
         if (!(error instanceof ORPCError) || error.status >= 500) throw error
@@ -223,6 +223,23 @@ export class Sync {
       this.set({ outbox: this.state.outbox.filter((p) => p.id !== next.id) })
       await this.save()
     }
+  }
+
+  /**
+   * A command the Mac has taken: its effect and, for words, the Mac's copy of them go on the screen
+   * at once, so the message never leaves the conversation between the outbox and the feed. The
+   * feed brings the same later and replaces them.
+   */
+  private landed(pending: Pending, result: Awaited<ReturnType<typeof execute>>): void {
+    const { command } = pending
+    if (command.kind === 'create') return
+    const queue = overlay(this.state.queue, [pending], this.o.now())
+    const kept = this.state.details[command.taskId]
+    if (!kept || !(command.kind === 'answer' || command.kind === 'instruct') || !('author' in result)) return this.set({ queue })
+    let detail = applyToDetail(kept, { type: 'update.added', seq: queue.seq, at: result.createdAt, update: result })
+    if (command.kind === 'answer')
+      detail = { ...detail, updates: detail.updates.map((u) => (u.id === command.updateId ? { ...u, open: false } : u)) }
+    this.set({ queue, details: { ...this.state.details, [command.taskId]: detail } })
   }
 
   dismissConflict(id: string): void {
@@ -266,27 +283,35 @@ export class Sync {
     const before = new Map(this.items().map((i) => [i.task.id, i.band] as const))
     // Never synced: start from a snapshot; afterwards only the changes since.
     const first = this.state.lastSyncedAt === null
-    let queue = this.state.queue
-    let details = this.state.details
-    if (first) {
-      queue = applyEvent(queue, { type: 'snapshot', snapshot: await this.link.api.queue.list({}) })
-    } else {
-      for (let wait = waitSeconds; ; wait = 0) {
-        const page = await this.link.api.changes.since({ after: queue.seq, wait }, { signal: timeoutSignal((wait + 15) * 1000) })
+    let snapshot = first ? await this.link.api.queue.list({}) : null
+    let wiped = false
+    const changes: Change[] = []
+    if (!first) {
+      for (let after = this.state.queue.seq, wait = waitSeconds; ; wait = 0) {
+        const page = await this.link.api.changes.since({ after, wait }, { signal: timeoutSignal((wait + 15) * 1000) })
         // The Mac's history starts again lower than ours (its queue was wiped): start over from it.
-        if (page.latest < queue.seq) {
-          queue = applyEvent(queue, { type: 'snapshot', snapshot: await this.link.api.queue.list({}) })
-          details = {}
+        if (page.latest < after) {
+          snapshot = await this.link.api.queue.list({})
+          wiped = true
           break
         }
         for (const change of page.changes) {
-          queue = applyEvent(queue, change)
+          changes.push(change)
+          after = change.seq
           for (const missed of this.fetching.values()) missed.push(change)
-          if (Object.keys(details).length > 0)
-            details = Object.fromEntries(Object.entries(details).map(([id, d]) => [id, applyToDetail(d, change)]))
         }
         if (!page.more) break
       }
+    }
+    // Applied to the state as it is now, not as it was when the poll began: what a command
+    // brought back while it waited (see `landed`) stays.
+    let { queue, details } = this.state
+    if (snapshot) queue = applyEvent(queue, { type: 'snapshot', snapshot })
+    if (wiped) details = {}
+    for (const change of wiped ? [] : changes) {
+      queue = applyEvent(queue, change)
+      if (Object.keys(details).length > 0)
+        details = Object.fromEntries(Object.entries(details).map(([id, d]) => [id, applyToDetail(d, change)]))
     }
     this.set({ queue, details })
     if (!first && this.o.onYourTurn) {
