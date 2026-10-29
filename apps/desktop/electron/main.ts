@@ -13,7 +13,7 @@ import { readOwnerToken } from '@autopilot/server/owner'
 import { resolvePaths } from '@autopilot/server/paths'
 import { RPCHandler } from '@orpc/server/message-port'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, nativeTheme, safeStorage, shell, Tray } from 'electron'
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeImage, nativeTheme, safeStorage, shell, Tray } from 'electron'
 import { proxyRouter } from './proxy.ts'
 import { pilotTemplate } from './pilot.ts'
 import type { Mode } from './preload.ts'
@@ -29,7 +29,8 @@ const paths = resolvePaths()
  * from the checkout and Node it was packaged from, written into its package.json.
  */
 const packaged = ((): { checkout?: string; node?: string } => {
-  if (!app.isPackaged) return {}
+  // Not app.isPackaged: Electron judges that by the executable's name, and ours is still Electron,
+  // so a packaged app read as unpacked and fell back to a bare `node` Finder's PATH has not got.
   try {
     return (
       (JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')) as { autopilot?: { checkout?: string; node?: string } })
@@ -78,26 +79,36 @@ const reachable = async (): Promise<Client | null> => {
 
 /**
  * The server normally runs as a launchd agent (`autopilot service install`). When it is not
- * running, start it for as long as it lives, with the Node on PATH (Node 24).
+ * running, start it for as long as it lives, with the Node 24 the app was packaged with.
  */
 const ensureServer = async (): Promise<Client> => {
-  const running = await reachable()
-  if (running) return running
+  // At login the app can open before launchd has the server listening: give it a moment first.
+  for (let i = 0; i < 25; i++) {
+    const running = await reachable()
+    if (running) return running
+    await sleep(200)
+  }
   mkdirSync(paths.logs, { recursive: true })
   const log = openSync(join(paths.logs, 'server.log'), 'a')
   const { ELECTRON_RUN_AS_NODE: _electron, ...env } = process.env
-  const child = spawn(process.env.AUTOPILOT_NODE ?? packaged.node ?? 'node', [SERVER_BIN, 'serve'], {
-    detached: true,
-    stdio: ['ignore', log, log],
-    env,
+  const node = process.env.AUTOPILOT_NODE ?? packaged.node ?? 'node'
+  const spawned: { error: Error | null } = { error: null }
+  const child = spawn(node, [SERVER_BIN, 'serve'], { detached: true, stdio: ['ignore', log, log], env })
+  // A Node that is not there is an error event, not a throw: without a listener it took the app down.
+  child.on('error', (error) => {
+    spawned.error = error
   })
   child.unref()
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 50 && !spawned.error; i++) {
     await sleep(200)
     const client = await reachable()
     if (client) return client
   }
-  throw new Error(`The Autopilot server did not start; see ${join(paths.logs, 'server.log')}`)
+  throw new Error(
+    spawned.error
+      ? `Could not start the Autopilot server with ${node}: ${spawned.error.message}`
+      : `The Autopilot server did not start; see ${join(paths.logs, 'server.log')}`,
+  )
 }
 
 /**
@@ -291,5 +302,6 @@ app
   })
   .catch((error: unknown) => {
     console.error(error)
+    dialog.showErrorBox('Autopilot could not start', error instanceof Error ? error.message : String(error))
     app.quit()
   })
