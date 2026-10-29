@@ -3,7 +3,7 @@ import { Alert, Linking } from 'react-native'
 import type { SFSymbol } from 'expo-symbols'
 import type { QueueItem } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
-import { firstLookQuestions, linkGroups, linkKind, linkSource } from '@autopilot/client'
+import { firstLookQuestions, linkGroups, linkKind, linkSource, PRIORITY_NAMES } from '@autopilot/client'
 import { useDetail, useSyncInstance } from '../store.ts'
 import { colours, tones } from '@autopilot/design'
 
@@ -190,6 +190,18 @@ export const TaskToolbar = ({
           <Stack.Toolbar.MenuAction icon="xmark" destructive onPress={() => done('canceled')}>
             Not for me
           </Stack.Toolbar.MenuAction>
+          {/* Not where it stands but how much it matters: its own entry, the current one ticked. */}
+          <Stack.Toolbar.Menu icon="cellularbars" title="Priority">
+            {Object.entries(PRIORITY_NAMES).map(([value, name]) => (
+              <Stack.Toolbar.MenuAction
+                key={value}
+                isOn={task.priority === Number(value)}
+                onPress={() => void sync?.send({ kind: 'edit', taskId: task.id, priority: Number(value) })}
+              >
+                {name}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
         </Stack.Toolbar.Menu>
         {/* Upright on the open Duo (onNew) the bottom bar is the list's: the links come up here. */}
         {linksMenu(task.links, !onNew)}
