@@ -79,6 +79,9 @@ const TAB_ICON: Record<QueueView, NavIconName> = {
 /** The tabs in order, one per status. ⌘1 to ⌘5 pick them. */
 const TABS = QUEUE_VIEWS.map((q) => ({ ...q, icon: TAB_ICON[q.id] }))
 
+/** A swipe across the list from its first event: how far it went, and how fast its momentum ran. */
+const fresh = () => ({ dx: 0, dy: 0, moved: false, quiet: 0, peak: 0, floor: Infinity })
+
 /** `ws:customers from:slack pricing`: tokens narrow by workstream and source, the rest matches titles. */
 const matches = (item: QueueItem, filter: string): boolean =>
   filter
@@ -192,14 +195,24 @@ export const QueueList = (props: Props) => {
 
   // A two-finger swipe sideways across the list moves one tab along, as on the phone: fingers to
   // the left for the next. The trackpad sends it as wheel events, momentum included after the
-  // fingers lift, so one gesture moves one tab and it ends once the events stop.
-  const swipe = useRef({ dx: 0, dy: 0, moved: false, quiet: 0 })
+  // fingers lift, so one gesture moves one tab and it ends once the events stop. A swipe made while
+  // the last one's momentum still runs counts as a new one: the momentum only slows down, so once it
+  // has slowed to half its peak, events speeding up again are the fingers back on the trackpad.
+  // Waiting for the events to stop ignored that swipe, and the next, until a pause (a click) let
+  // the momentum run out.
+  const swipe = useRef(fresh())
   const slideFrom = useRef(0)
   const onWheel = (event: React.WheelEvent) => {
     if (event.ctrlKey || (event.target as HTMLElement).closest('input, textarea')) return
-    const s = swipe.current
+    let s = swipe.current
     window.clearTimeout(s.quiet)
-    s.quiet = window.setTimeout(() => (swipe.current = { dx: 0, dy: 0, moved: false, quiet: 0 }), 160)
+    const speed = Math.abs(event.deltaX)
+    if (s.moved) {
+      s.peak = Math.max(s.peak, speed)
+      if (s.floor < Infinity && speed > Math.max(2 * s.floor, s.floor + 4)) s = swipe.current = fresh()
+      else if (speed <= s.peak / 2) s.floor = Math.min(s.floor, speed)
+    }
+    s.quiet = window.setTimeout(() => (swipe.current = fresh()), 160)
     s.dx += event.deltaX
     s.dy += event.deltaY
     if (s.moved || Math.abs(s.dx) < 60 || Math.abs(s.dx) < 2.5 * Math.abs(s.dy)) return

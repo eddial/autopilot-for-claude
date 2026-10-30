@@ -242,6 +242,15 @@ describe('the Mac app window', () => {
     await tab('Running').click()
   }, 30_000)
 
+  it("takes a second swipe made while the first one's momentum still runs", async () => {
+    await tab('Running').click()
+    await page.getByRole('listbox', { name: 'Tasks' }).hover()
+    // One swipe, its momentum slowing down, then the fingers again: no pause between them.
+    for (const dx of [40, 40, 30, 15, 8, 4, 2, 5, 15, 30, 30]) await page.mouse.wheel(dx, 0)
+    await expect.poll(() => page.getByRole('heading', { name: 'Snoozed' }).isVisible()).toBe(true)
+    await tab('Running').click()
+  }, 30_000)
+
   it('walks into set-up the first time', async () => {
     await page.getByRole('button', { name: 'Settings' }).click()
     await expect.poll(() => page.getByRole('heading', { name: "Hi, I'm your pilot." }).isVisible()).toBe(true)
