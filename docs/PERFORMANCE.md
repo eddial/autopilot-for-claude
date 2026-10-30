@@ -45,5 +45,10 @@ run's summary.
 Budgets only go down. When something gets faster, lower its budget in the same change. A change
 that needs a higher budget needs a different design.
 
+The budgets are for the owner's Mac. CI's runner is slower (the cold start takes about three times
+as long there), so CI sets `PERF_SLOWDOWN=1.5`, which stretches the timed budgets by half; counts
+and sizes are checked as they are. The table shows the budget after stretching. Never raise the
+slowdown to make a change pass: it describes the machine, not the change.
+
 `PERF_DEBUG=1 pnpm perf` also prints where the first load spends its time (page loaded, feed
 subscribed, snapshot in).

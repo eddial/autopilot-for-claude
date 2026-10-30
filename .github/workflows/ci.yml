@@ -61,3 +61,5 @@ jobs:
       - run: pnpm perf
         env:
           IOS_BUNDLE_DIR: ${{ runner.temp }}/ios-bundle
+          # The runner is slower than the Mac the budgets are for (docs/PERFORMANCE.md).
+          PERF_SLOWDOWN: '1.5'

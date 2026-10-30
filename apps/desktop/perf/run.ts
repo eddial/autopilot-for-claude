@@ -256,9 +256,15 @@ if (iosBundle) {
 
 // ── the verdict ──
 
+// The budgets are for the owner's Mac. A slower machine (CI's runner is about three times slower
+// on the cold start) says how much slower with PERF_SLOWDOWN, which stretches the timings only:
+// counts and sizes stay as they are.
+const slowdown = Number(process.env.PERF_SLOWDOWN ?? 1)
+const timed = (name: string) => !/\.(count|gzipKB|MB)$/.test(name)
 const rows = Object.entries(budgets)
   .filter(([name]) => !name.startsWith('$'))
-  .map(([name, budget]) => {
+  .map(([name, base]) => {
+    const budget = timed(name) ? base * slowdown : base
     const value = results[name]
     const ok = value === undefined || value <= budget
     return { name, value, budget, ok }
