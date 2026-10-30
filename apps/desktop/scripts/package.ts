@@ -116,5 +116,14 @@ if (process.argv.includes('--install')) {
   const target = join(homedir(), 'Applications', 'Autopilot.app')
   if (existsSync(target)) rmSync(target, { recursive: true })
   run('ditto', OUT, target)
+  // The Dock keeps the icon of the app it saw at this path and draws the new one black until it
+  // looks again: tell Launch Services the app changed and have the Dock draw its icons afresh.
+  run('touch', target)
+  run('/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister', '-f', target)
+  try {
+    run('killall', 'Dock')
+  } catch {
+    // No Dock (a headless Mac): nothing to redraw.
+  }
   console.log(`installed ${target}`)
 }
