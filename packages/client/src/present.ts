@@ -1,4 +1,5 @@
-import type { Band, Draft, QueueItem, Task, Update } from '@autopilot/contracts'
+import { titleFromBrief, type Band, type Draft, type QueueItem, type Task, type Update } from '@autopilot/contracts'
+import type { Conflict } from './commands.ts'
 import type { SyncState } from './sync.ts'
 import { MARKS, type Mark } from '@autopilot/design'
 
@@ -514,30 +515,76 @@ const changes = (n: number) => (n === 1 ? '1 change' : `${n} changes`)
 export type SyncLight = 'live' | 'trying' | 'off' | 'problem'
 
 /**
+ * What the status line can do when tapped: try the Mac now, open the task a refused change was
+ * for (its conversation says why and what to do), or let go of a refused change that has no task
+ * to open (a new task, or one that has left the queue).
+ */
+export type SyncAction = { kind: 'retry' } | { kind: 'open'; taskId: string } | { kind: 'dismiss'; conflictId: string }
+
+const WHAT: Record<Conflict['command']['kind'], string> = {
+  answer: 'Your answer',
+  instruct: 'Your message',
+  create: 'A new task',
+  start: 'Starting',
+  resume: 'Resuming',
+  snooze: 'Snoozing',
+  wait: 'Moving back to waiting',
+  close: 'Closing',
+  edit: 'Your edit',
+}
+
+const why = (c: Conflict): string =>
+  c.reason === 'already_answered'
+    ? 'answered on the Mac before this arrived'
+    : c.reason === 'task_closed'
+      ? 'the task was closed meanwhile'
+      : c.message
+
+/** The oldest refused change, named: what it was, on which task, and why it was refused. */
+const refusal = (c: Conflict, tasks: Record<string, Task>): { detail: string; action: SyncAction } => {
+  const taskId = 'taskId' in c.command ? c.command.taskId : null
+  const task = taskId ? tasks[taskId] : undefined
+  const on =
+    c.command.kind === 'create'
+      ? ` "${c.command.title ?? titleFromBrief(c.command.brief)}"`
+      : taskId
+        ? ` on ${taskId}${task ? ` ${task.title}` : ''}`
+        : ''
+  return {
+    detail: `${WHAT[c.command.kind]}${on}: ${why(c)}`,
+    action: task ? { kind: 'open', taskId: task.id } : { kind: 'dismiss', conflictId: c.id },
+  }
+}
+
+/**
  * Where syncing with the Mac stands, as a light and a line or two, or null when all is well and
- * there is nothing to say. `retryIn` counts down to the next try while offline.
+ * there is nothing to say. `retryIn` counts down to the next try while offline. A refused change
+ * names its task, and the line opens it (or, with no task to open, lets the change go).
  */
 export const syncStatus = (
-  state: Pick<SyncState, 'status' | 'lastSyncedAt' | 'trying' | 'nextTryAt' | 'outbox' | 'conflicts'>,
+  state: Pick<SyncState, 'status' | 'lastSyncedAt' | 'trying' | 'nextTryAt' | 'outbox' | 'conflicts' | 'queue'>,
   mac: string,
   now: Date,
-): { light: SyncLight; title: string; detail: string | null; retry: boolean } | null => {
+): { light: SyncLight; title: string; detail: string | null; action: SyncAction | null } | null => {
   const kept = state.outbox.length > 0 ? `${changes(state.outbox.length)} kept here, sent when it's back` : null
-  if (state.conflicts.length > 0)
-    return { light: 'problem', title: `${changes(state.conflicts.length)} not applied`, detail: 'Open the task to see why', retry: false }
+  const [first] = state.conflicts
+  if (first) {
+    const { detail, action } = refusal(first, state.queue.tasks)
+    return { light: 'problem', title: `${changes(state.conflicts.length)} not applied`, detail, action }
+  }
   if (state.status === 'offline') {
     const synced = state.lastSyncedAt ? `synced ${relativeAgo(state.lastSyncedAt, now)}` : 'not synced yet'
-    if (state.trying) return { light: 'trying', title: 'Reconnecting…', detail: kept ?? `Reaching ${mac} · ${synced}`, retry: false }
+    if (state.trying) return { light: 'trying', title: 'Reconnecting…', detail: kept ?? `Reaching ${mac} · ${synced}`, action: null }
     const seconds = state.nextTryAt ? Math.max(1, Math.ceil((Date.parse(state.nextTryAt) - now.getTime()) / 1000)) : null
     return {
       light: 'off',
       title: 'Offline',
       detail: kept ?? [`Can't reach ${mac}`, synced, seconds ? `retrying in ${seconds}s` : null].filter(Boolean).join(' · '),
-      retry: true,
+      action: { kind: 'retry' },
     }
   }
-  if (state.status === 'connecting') return { light: 'trying', title: `Connecting to ${mac}…`, detail: null, retry: false }
-  if (state.outbox.length > 0) return { light: 'trying', title: `Sending ${changes(state.outbox.length)}…`, detail: null, retry: false }
+  if (state.status === 'connecting') return { light: 'trying', title: `Connecting to ${mac}…`, detail: null, action: null }
+  if (state.outbox.length > 0) return { light: 'trying', title: `Sending ${changes(state.outbox.length)}…`, detail: null, action: null }
   return null
 }
 

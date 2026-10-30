@@ -314,7 +314,7 @@ export default function QueueScreen() {
                 <Text style={styles.caption} numberOfLines={1}>
                   {listAll ? 'Every open task, across workstreams' : current?.about}
                 </Text>
-                <StatusLine />
+                <StatusLine onOpen={open} />
               </View>
             }
 

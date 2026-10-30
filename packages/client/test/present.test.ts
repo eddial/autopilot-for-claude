@@ -1,4 +1,4 @@
-import type { QueueItem, Update } from '@autopilot/contracts'
+import { emptyQueue, type QueueItem, type Task, type Update } from '@autopilot/contracts'
 import { describe, expect, it } from 'vitest'
 import { parseMarkdown } from '../src/markdown.ts'
 import {
@@ -205,14 +205,62 @@ describe('markdown', () => {
       nextTryAt: null,
       outbox: [],
       conflicts: [],
+      queue: emptyQueue,
     }
     expect(syncStatus(base, 'Mac', now)).toBeNull()
     expect(syncStatus({ ...base, status: 'offline', nextTryAt: '2026-10-27T12:00:12Z' }, 'Mac', now)).toMatchObject({
       light: 'off',
       title: 'Offline',
       detail: "Can't reach Mac · synced 3m ago · retrying in 12s",
-      retry: true,
+      action: { kind: 'retry' },
     })
     expect(syncStatus({ ...base, status: 'offline', trying: true }, 'Mac', now)).toMatchObject({ light: 'trying', title: 'Reconnecting…' })
+  })
+
+  it('names the task a refused change was for, and opens it; with no task to open, lets it go', () => {
+    const now = new Date('2026-10-27T12:00:00Z')
+    const task = { id: 'AP-7', title: 'Reply to Sofie' } as Task
+    const base = {
+      status: 'online' as const,
+      lastSyncedAt: null,
+      trying: false,
+      nextTryAt: null,
+      outbox: [],
+      queue: { ...emptyQueue, tasks: { 'AP-7': task } },
+    }
+    const answer = {
+      id: 'c1',
+      command: { kind: 'answer', taskId: 'AP-7', updateId: 'u1', text: 'Yes' },
+      reason: 'already_answered',
+      message: '',
+    } as const
+    expect(syncStatus({ ...base, conflicts: [answer] }, 'Mac', now)).toEqual({
+      light: 'problem',
+      title: '1 change not applied',
+      detail: 'Your answer on AP-7 Reply to Sofie: answered on the Mac before this arrived',
+      action: { kind: 'open', taskId: 'AP-7' },
+    })
+    const closed = {
+      id: 'c2',
+      command: { kind: 'snooze', taskId: 'AP-3', until: '2026-10-28T08:00:00Z' },
+      reason: 'task_closed',
+      message: '',
+    } as const
+    expect(syncStatus({ ...base, conflicts: [closed, answer] }, 'Mac', now)).toEqual({
+      light: 'problem',
+      title: '2 changes not applied',
+      detail: 'Snoozing on AP-3: the task was closed meanwhile',
+      action: { kind: 'dismiss', conflictId: 'c2' },
+    })
+    const created = {
+      id: 'c3',
+      command: { kind: 'create', brief: 'Book the venue', start: false },
+      reason: 'rejected',
+      message: 'Unknown workstream',
+    } as const
+    expect(syncStatus({ ...base, conflicts: [created] }, 'Mac', now)).toMatchObject({
+      detail: 'A new task "Book the venue": Unknown workstream',
+      action: { kind: 'dismiss', conflictId: 'c3' },
+    })
   })
 })
