@@ -361,6 +361,8 @@ button {
 .rows {
   flex: 1;
   overflow-y: auto;
+  /* A tab's list slides in sideways without a scroll bar. */
+  overflow-x: hidden;
   padding-bottom: 24px;
 }
 

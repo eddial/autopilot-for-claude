@@ -253,6 +253,16 @@ describe('the Mac app window', () => {
     await expect.poll(() => page.getByRole('heading', { name: 'Running' }).isVisible()).toBe(true)
   }, 30_000)
 
+  it('moves one tab along with a two-finger swipe across the list', async () => {
+    await tab('Running').click()
+    await page.getByRole('listbox', { name: 'Tasks' }).hover()
+    // Fingers to the left: the next tab, as on the phone.
+    await page.mouse.wheel(120, 0)
+    await expect.poll(() => page.getByRole('heading', { name: 'Waiting on others' }).isVisible()).toBe(true)
+    await shot('swipe-tabs')
+    await tab('Running').click()
+  }, 30_000)
+
   it('walks into set-up the first time', async () => {
     await page.getByRole('button', { name: 'Settings' }).click()
     await expect.poll(() => page.getByRole('heading', { name: "Hi, I'm your pilot." }).isVisible()).toBe(true)
