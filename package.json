@@ -19,7 +19,9 @@
     "perf": "pnpm --filter @autopilot/desktop perf",
     "format": "prettier --write --log-level warn \"**/*.{ts,tsx,js,mjs,cjs,json,css,yml,yaml}\"",
     "tokens": "pnpm --filter @autopilot/design tokens",
-    "screens": "pnpm --filter @autopilot/desktop screens"
+    "screens": "pnpm --filter @autopilot/desktop screens",
+    "ship": "node scripts/ship.ts",
+    "sim": "node scripts/ship.ts sim"
   },
   "devDependencies": {
     "@types/node": "catalog:",

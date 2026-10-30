@@ -28,7 +28,9 @@ product, architecture, API and plan; `docs/decisions/` records why things are th
   native bars), a Swift module in `modules/pinned-fetch` for pinned TLS, `src/store.ts` wiring
   `Sync` to the Keychain, SQLite, notifications and background sync. Check bundling with
   `npx expo export --platform ios` (Hermes rejects some syntax tsc accepts).
-- How to run it on a Mac: `docs/RUNNING.md`.
+- How to run it on a Mac: `docs/RUNNING.md`. Getting a change onto the owner's Mac and iPhone, and
+  running the app in the simulator: `docs/SHIPPING.md` (`pnpm ship`, `pnpm sim`). Pushing to main
+  ships it by itself; do not restart the server or reinstall an app by hand.
 - Before any UI change, read `AGENTS.md`: what the owner keeps correcting (buttons never on the
   content, every Duo pose checked, no wasted room, plain motion).
 
@@ -45,6 +47,8 @@ pnpm perf         # performance budgets (server and window)
 pnpm tokens       # regenerate apps/desktop/src/tokens.css after changing the design tokens
 pnpm screens      # screenshots of every Mac screen on a realistic queue, into screens/
 pnpm autopilot    # the CLI (serve, new, ls, show, answer, signal, status, mcp)
+pnpm ship         # put main on this Mac and the iPhone (the agent does it after each push)
+pnpm sim          # this checkout's app in the iPhone Duo simulator; sim pair, sim unpair
 ```
 
 CI runs the same and fails when the generated schema is stale or the contract breaks installed

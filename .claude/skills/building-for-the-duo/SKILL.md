@@ -55,14 +55,9 @@ it, and test every pose before saying a screen is done. The rules themselves are
 
 ## Testing every pose
 
-Build and run in the Duo simulator (`4275DFCA-...` is "iPhone Duo"):
-
-```sh
-cd apps/mobile/ios && LANG=en_US.UTF-8 xcodebuild -workspace Autopilot.xcworkspace -scheme Autopilot \
-  -configuration Release -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone Duo' \
-  -derivedDataPath build CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build
-xcrun simctl install booted build/Build/Products/Release-iphonesimulator/Autopilot.app
-```
+Build and run in the Duo simulator: `pnpm sim` builds this checkout's app, boots "iPhone Duo"
+and launches it (`docs/SHIPPING.md`; it runs `xcodebuild` with `LANG=en_US.UTF-8`, which
+`pod install` needs).
 
 (`pod install` needs `LANG=en_US.UTF-8`; `npx expo export --platform ios` checks Hermes bundling.)
 
@@ -75,8 +70,8 @@ xcrun simctl install booted build/Build/Products/Release-iphonesimulator/Autopil
 - **Keyboard**: the simulator hides the on-screen keyboard (hardware keyboard). Use the simulator
   tool's `set_keyboard show`, then focus a field.
 - **Pair a simulator with the running server** for real data, and unpair it afterwards:
-  `xcrun simctl openurl booted "$(pnpm -s autopilot devices pair --link)"`, then
-  `pnpm autopilot devices` and `pnpm autopilot devices remove <id>` (the simulator is "iPhone Duo").
+  `pnpm sim pair`, then `pnpm sim unpair`. These use the owner's token: a session's own
+  `AUTOPILOT_TOKEN` is refused for pairing. Look at the owner's real queue, change nothing in it.
 - **Screenshots lag a beat** behind taps: take a second one before judging.
 - **Coordinates are points of the lit screen**: outer 466x678, inner 951x669 (landscape).
 
@@ -97,12 +92,6 @@ and the composer just above the keyboard.
 
 ## Shipping to the device
 
-```sh
-xcodebuild ... -configuration Release -destination 'id=<device udid>' -derivedDataPath build-device \
-  -allowProvisioningUpdates DEVELOPMENT_TEAM=<team> CODE_SIGN_STYLE=Automatic build
-xcrun devicectl device install app --device <udid> build-device/Build/Products/Release-iphoneos/Autopilot.app
-```
-
-A free personal team cannot sign push: empty `ios/Autopilot/Autopilot.entitlements` to `<dict/>`
-for local builds. The first launch needs the developer trusted on the phone (Settings, General,
-VPN & Device Management).
+Push to main: the `autopilot.ship` agent builds the phone app and installs it when the phone can be
+reached (`docs/SHIPPING.md`). `pnpm ship phone` does it now. The first launch needs the developer
+trusted on the phone (Settings, General, VPN & Device Management).

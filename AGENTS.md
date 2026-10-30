@@ -67,4 +67,6 @@ against it before calling it done. How to build and test the phone is in
 - Look at the result on the simulator or in the window before saying it is done. Truncation,
   doubled labels and misaligned corners were all visible in a screenshot.
 - Never push when `pnpm check` failed: test its exit code before `git push`, never chain them.
-- Never restart the server or reinstall the Mac app without a yes for that time.
+- Never restart the server or reinstall the Mac app by hand: pushing to main ships them (and the
+  iPhone app) through the `autopilot.ship` agent (`docs/SHIPPING.md`). Check its log before saying
+  a change is live.

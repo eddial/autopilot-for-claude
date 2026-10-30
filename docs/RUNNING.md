@@ -106,7 +106,8 @@ npx expo run:ios --device     # builds with Xcode and installs on the phone
 ```
 
 With the paid developer account, `eas build --profile production` and `eas submit` put it on
-TestFlight instead.
+TestFlight instead. Once it runs, `docs/SHIPPING.md` keeps it current: each push to main rebuilds
+the phone app when the phone is connected.
 
 Pair it: on the Mac, Settings → Devices → Pair a device, which walks through it. The phone reaches
 the Mac over Tailscale only, at home and away: install Tailscale on both (free), sign in with the
