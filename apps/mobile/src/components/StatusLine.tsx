@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native'
-import { syncStatus, type SyncLight } from '@autopilot/client'
+import { syncStatus, type SyncAction, type SyncLight } from '@autopilot/client'
 import { colours } from '@autopilot/design'
 import { serverName, useSyncInstance, useSyncState } from '../store.ts'
 
@@ -19,12 +19,15 @@ const LIGHT: Record<SyncLight, string> = {
   problem: colours.clay,
 }
 
+const ACTION: Record<SyncAction['kind'], string> = { retry: 'Try now', open: 'Open', dismiss: 'Dismiss' }
+
 /**
  * Where syncing with your Mac stands, as a light and a line: silent while live, a pulsing amber
  * light while it reaches for the Mac, a dark one with a countdown when it can't (tap to try now),
- * and a green "Back online" for a moment when it returns.
+ * a clay one naming a change the Mac refused (tap to open its task), and a green "Back online" for
+ * a moment when it returns.
  */
-export const StatusLine = () => {
+export const StatusLine = ({ onOpen }: { onOpen: (taskId: string) => void }) => {
   const sync = useSyncInstance()
   const state = useSyncState()
   // The countdown ticks once a second, only while there is one.
@@ -42,15 +45,22 @@ export const StatusLine = () => {
   }, [state.status])
 
   const status =
-    syncStatus(state, serverName(), now) ?? (back ? { light: 'live' as const, title: 'Back online', detail: null, retry: false } : null)
+    syncStatus(state, serverName(), now) ?? (back ? { light: 'live' as const, title: 'Back online', detail: null, action: null } : null)
   if (!status) return null
+  const { action } = status
+  const press = () => {
+    if (action?.kind === 'retry') sync?.kick()
+    else if (action?.kind === 'open') onOpen(action.taskId)
+    else if (action?.kind === 'dismiss') sync?.dismissConflict(action.conflictId)
+  }
+  const label = action ? ACTION[action.kind] : null
   return (
     <Pressable
       style={styles.row}
-      disabled={!status.retry}
-      onPress={() => sync?.kick()}
-      accessibilityRole={status.retry ? 'button' : 'text'}
-      accessibilityLabel={[status.title, status.detail, status.retry ? 'Tap to try now' : null].filter(Boolean).join('. ')}
+      disabled={!action}
+      onPress={press}
+      accessibilityRole={action ? 'button' : 'text'}
+      accessibilityLabel={[status.title, status.detail, label ? `Tap to ${label.toLowerCase()}` : null].filter(Boolean).join('. ')}
     >
       <Light light={status.light} />
       <View style={styles.words}>
@@ -59,7 +69,7 @@ export const StatusLine = () => {
         </Text>
         {status.detail && <Text style={styles.detail}>{status.detail}</Text>}
       </View>
-      {status.retry && <Text style={styles.action}>Try now</Text>}
+      {label && <Text style={styles.action}>{label}</Text>}
     </Pressable>
   )
 }
