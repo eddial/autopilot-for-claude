@@ -371,14 +371,17 @@ const GLASS = isLiquidGlassAvailable()
 export const Glass = ({
   style,
   interactive = false,
+  tint,
   children,
 }: {
   style: StyleProp<ViewStyle>
   interactive?: boolean
+  /** A colour the glass takes on, for a lighter or darker pane than the system's. */
+  tint?: string
   children: ReactNode
 }) =>
   GLASS ? (
-    <GlassView style={[style, styles.glass]} isInteractive={interactive}>
+    <GlassView style={[style, styles.glass]} isInteractive={interactive} tintColor={tint}>
       {children}
     </GlassView>
   ) : (

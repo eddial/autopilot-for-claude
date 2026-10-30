@@ -4,6 +4,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router'
 import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
 import { doneItem, requestOpen, useItems } from '../../../src/store.ts'
+import { colourScheme } from '../../../src/theme.ts'
 import { Glass } from '../../../src/ui.tsx'
 import { colours } from '@autopilot/design'
 
@@ -15,6 +16,8 @@ const go = (to: string | undefined) => (to ? () => router.setParams({ id: to }) 
  * our own to its text and centres it: it takes the bar's width instead, left as the system's was.
  * It shows only once the page's own title has scrolled under the bar, and comes in with it, in a
  * glass pill as the New task choices are: bare, it ran over the timeline showing through the bar.
+ * In light mode it is tinted with the page's surface, so it reads as light as the cards rather than
+ * a grey band; dark mode keeps the system's glass.
  */
 const TapTitle = ({ title, shown, onPress }: { title: string; shown: boolean; onPress: () => void }) => {
   const { width } = useWindowDimensions()
@@ -32,7 +35,16 @@ const TapTitle = ({ title, shown, onPress }: { title: string; shown: boolean; on
       style={{ width: width - 114, alignItems: 'flex-start' }}
     >
       <Animated.View style={{ maxWidth: '100%', opacity }}>
-        <Glass style={{ height: 36, borderRadius: 18, paddingHorizontal: 14, justifyContent: 'center', backgroundColor: colours.button }}>
+        <Glass
+          tint={colourScheme === 'light' ? colours.surface : undefined}
+          style={{
+            height: 36,
+            borderRadius: 18,
+            paddingHorizontal: 14,
+            justifyContent: 'center',
+            backgroundColor: colourScheme === 'light' ? colours.surface : colours.button,
+          }}
+        >
           <Text numberOfLines={1} style={{ fontSize: 17, fontWeight: '600', color: colours.text }}>
             {title}
           </Text>
