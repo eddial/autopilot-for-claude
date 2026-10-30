@@ -80,7 +80,9 @@ export const TaskView = ({
   // The page opens at its end, the newest entry above the reply, and follows new entries while
   // you are there; scrolled up, it stays put.
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null)
-  useEffect(() => onTop?.(() => scroll.current?.scrollTo({ y: 0, animated: true })), [onTop])
+  // The top is above zero by what the bar covers, where the page runs under a see-through bar.
+  const insetTop = useRef(0)
+  useEffect(() => onTop?.(() => scroll.current?.scrollTo({ y: -insetTop.current, animated: true })), [onTop])
   const pinned = useRef(true)
   // Opening lands at the end at once; after that the page glides there with the entries' animation.
   const landed = useRef(false)
@@ -261,6 +263,7 @@ export const TaskView = ({
           scrollEventThrottle={100}
           onScroll={({ nativeEvent: e }) => {
             pinned.current = e.contentSize.height - e.contentOffset.y - e.layoutMeasurement.height < 24
+            insetTop.current = e.contentInset.top
             showTitle(e.contentOffset.y + e.contentInset.top)
           }}
           onLayout={(e) => {
