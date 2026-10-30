@@ -62,6 +62,7 @@ export const TaskView = ({
   onTitleOff,
   edges,
   onTop,
+  top,
 }: {
   item: QueueItem
   onTitleOff?: (off: boolean) => void
@@ -69,6 +70,11 @@ export const TaskView = ({
   onTop?: (toTop: () => void) => void
   /** The screen edges it touches; in the split, only the right. */
   edges?: ('left' | 'right')[]
+  /**
+   * Where the page starts, counted from the screen's top edge. Given, iOS adds nothing for the bar:
+   * folded, the bar is on the side, and the room it would keep above the page was empty.
+   */
+  top?: number
 }) => {
   const sync = useSyncInstance()
   const { conflicts, outbox } = useSyncState()
@@ -257,8 +263,8 @@ export const TaskView = ({
         <ScrollView
           ref={scroll}
           style={{ opacity: shown ? 1 : 0 }}
-          contentContainerStyle={styles.page}
-          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={[styles.page, top === undefined ? null : { paddingTop: top }]}
+          contentInsetAdjustmentBehavior={top === undefined ? 'automatic' : 'never'}
           keyboardDismissMode="interactive"
           scrollEventThrottle={100}
           onScroll={({ nativeEvent: e }) => {

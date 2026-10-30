@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Animated, Pressable, Text, useWindowDimensions, View } from 'react-native'
 import { router, Stack, useLocalSearchParams } from 'expo-router'
+import { useHeaderHeight } from 'expo-router/react-navigation'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
 import { doneItem, requestOpen, useItems } from '../../../src/store.ts'
 import { colourScheme } from '../../../src/theme.ts'
-import { Glass } from '../../../src/ui.tsx'
+import { edgeSpace, Glass } from '../../../src/ui.tsx'
 import { colours } from '@autopilot/design'
+
+/** The page's first line (the task's id): what edgeSpace centres on the camera's line. */
+const FIRST_LINE = 16
 
 /** A way to another task in the same screen, or none at the end of the list. */
 const go = (to: string | undefined) => (to ? () => router.setParams({ id: to }) : null)
@@ -75,6 +80,13 @@ export default function TaskScreen() {
   }, [])
   // Whether the page's own title is out of sight; the page says so once it has landed at its end.
   const [titleOff, setTitleOff] = useState(false)
+  // Beside the Duo's side bar (folded, or a split-view half) the page starts level with the camera,
+  // as the list does: iOS still counts a bar's height across the top there, which left the page's top
+  // empty. Where the bar does run across the top, the page starts below it.
+  const headerHeight = useHeaderHeight()
+  const insets = useSafeAreaInsets()
+  const sideBar = Math.max(insets.left, insets.right) > 40
+  const top = sideBar ? edgeSpace(FIRST_LINE) : headerHeight + 8
   if (!item) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colours.well }}>
@@ -103,7 +115,7 @@ export default function TaskScreen() {
         <TapTitle title={item.task.title} shown={titleOff} onPress={() => pageTop.current?.()} />
       </Stack.Title>
       <TaskToolbar item={item} closeAfter step={step} />
-      <TaskView key={item.task.id} item={item} onTop={toTop} onTitleOff={setTitleOff} />
+      <TaskView key={item.task.id} item={item} top={top} onTop={toTop} onTitleOff={setTitleOff} />
     </>
   )
 }
