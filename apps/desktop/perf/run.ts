@@ -173,15 +173,23 @@ for (const i of [2, 4, 6, 8, 10]) {
 }
 results['window.openTask'] = openTimes.toSorted((a, b) => a - b)[2] ?? 0
 
-// Rows waiting on a decision; answering one takes it off the list.
+// Rows waiting on a decision; answering one takes it off the list. Found by task, not by place:
+// the answered task stays where it was until the server confirms, then the rows below move up.
 const answerTimes: number[] = []
 for (let k = 0; k < 3; k++) {
-  const i = await page.evaluate(() =>
-    [...document.querySelectorAll('[role="option"]')].findIndex((r) => r.textContent?.includes('Needs your decision')),
+  const id = await page.evaluate(
+    () =>
+      [...document.querySelectorAll<HTMLElement>('[role="option"]')].find((r) => r.textContent?.includes('Needs your decision'))?.dataset
+        .task,
   )
-  if (i < 0) throw new Error('no decision on screen')
-  await hover(i)
-  await interaction(page, row(i), `${opened(i)} && !!document.querySelector('.timeline .options .btn')`)
+  if (!id) throw new Error('no decision on screen')
+  const target = `document.querySelector('[role="option"][data-task="${id}"]')`
+  await page.hover(`[role="option"][data-task="${id}"]`).then(() => page.waitForTimeout(150))
+  await interaction(
+    page,
+    target,
+    `document.querySelector('.task h2')?.textContent === ${target}?.querySelector('.title')?.textContent && document.querySelectorAll('.timeline .msg').length >= 5 && !!document.querySelector('.timeline .options .btn')`,
+  )
   answerTimes.push(
     await interaction(page, `document.querySelector('.timeline .options .btn')`, `!document.querySelector('.timeline .options .btn')`),
   )
@@ -195,15 +203,17 @@ for (const [view, title] of [
   ['Running', 'Running'],
   ['Needs me', 'Needs me'],
 ] as const) {
+  // A tab says its name in its label, with its count after it ("Needs me, 12").
   const index = await page.evaluate(
-    (v) => [...document.querySelectorAll('.tabs .tab')].findIndex((b) => b.getAttribute('title') === v),
+    (v) => [...document.querySelectorAll('.tabs .tab')].findIndex((b) => (b.getAttribute('aria-label') ?? '').split(',')[0] === v),
     view,
   )
+  if (index < 0) throw new Error(`no ${view} tab`)
   switchTimes.push(
     await interaction(
       page,
       `document.querySelectorAll('.tabs .tab')[${index}]`,
-      `document.querySelector('.list h1')?.textContent === '${title}'`,
+      `document.querySelector('.list-heading-name')?.textContent === '${title}'`,
     ),
   )
 }
