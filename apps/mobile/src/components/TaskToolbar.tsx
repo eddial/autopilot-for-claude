@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 import { Alert, Linking } from 'react-native'
-import type { SFSymbol } from 'expo-symbols'
 import type { QueueItem } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
 import { firstLookQuestions, linkGroups, linkKind, linkSource, PRIORITY_NAMES } from '@autopilot/client'
@@ -22,17 +21,6 @@ const snoozeTimes = (): { label: string; until: Date }[] => {
     { label: 'Tomorrow morning', until: at(1, 9) },
     { label: 'Monday morning', until: at(monday, 9) },
   ].filter((t) => t.until > now)
-}
-
-/** Each band as the symbol of the tab it shows under. */
-export const BAND_SYMBOL: Record<QueueItem['band'], SFSymbol> = {
-  your_turn: 'hand.raised',
-  fyi: 'info.circle',
-  triage: 'tray',
-  running: 'hammer',
-  waiting: 'clock',
-  snoozed: 'moon',
-  done: 'flag.checkered',
 }
 
 /** Each band's colour, as the dot beside its name on the page; triage in the urgent orange of its mark. */

@@ -81,7 +81,7 @@ in the same commit, looked at in the Mac window and in the simulator before it l
 From the top:
 
 1. **Status tabs**, one row of five, each an icon and a count. The tab you are on also says its
-   name. Tapping it again shows every open task ("All open"), and once more goes back.
+   name.
 
    | Tab               | Mac (`NavIcon`) | iPhone (SF Symbol) |
    | ----------------- | --------------- | ------------------ |

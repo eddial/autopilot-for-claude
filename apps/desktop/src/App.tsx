@@ -81,9 +81,8 @@ const useAttention = (items: QueueItem[], open: (id: string) => void, showing: s
 /** What a notification says when there is no open ask to quote. */
 const updateBodyFor = (item: QueueItem): string => (item.band === 'triage' ? 'New in Triage' : 'Back with you')
 
-/** The tasks a tab shows, or every open one. Done is not in the live queue; it is read when shown. */
-const tabItems = (tab: QueueView, items: QueueItem[], done: QueueItem[], all = false) => {
-  if (all) return items.filter((i) => i.band !== 'done')
+/** The tasks a tab shows. Done is not in the live queue; it is read when shown. */
+const tabItems = (tab: QueueView, items: QueueItem[], done: QueueItem[]) => {
   const q = QUEUE_VIEWS.find((v) => v.id === tab)
   return q ? (q.id === 'done' ? done : items).filter((i) => q.bands.includes(i.band)) : []
 }
@@ -92,7 +91,6 @@ export const App = () => {
   const items = useQueueItems()
   const { connection, error, queue } = useStore()
   const [tab, setTab] = useState<QueueView>('needs_me')
-  const [all, setAll] = useState(false)
   const [view, setView] = useState<View>({ kind: 'task' })
   // Settings and set-up float above the window, as Claude's do; Escape or a click beside closes them.
   const [settings, setSettings] = useState(false)
@@ -104,7 +102,7 @@ export const App = () => {
   }, [settings])
   const [selected, setSelected] = useState<string | null>(null)
   // Where the open task sat in its tab when it was picked, to keep it there once it leaves.
-  const [stay, setStay] = useState<{ id: string; tab: QueueView; all: boolean; at: number } | null>(null)
+  const [stay, setStay] = useState<{ id: string; tab: QueueView; at: number } | null>(null)
   const [showingTask, setShowingTask] = useState(false)
   const [listWidth, setListWidth] = useState(() => stored('listWidth', 420))
   const [groupBy, setGroupBy] = useState<GroupBy>(() => {
@@ -170,7 +168,7 @@ export const App = () => {
   }, [connection])
 
   // What the tab lists without the task kept in place.
-  const inTab = useMemo(() => tabItems(tab, items, done, all), [tab, items, done, all])
+  const inTab = useMemo(() => tabItems(tab, items, done), [tab, items, done])
 
   // Stable, so list rows that did not change skip rendering. A task opened for you (just created,
   // from a notification) stays open in the tab you are on even when it belongs to another, as an
@@ -189,20 +187,20 @@ export const App = () => {
 
   // Back and forward through where you have been (a tab, a task, New), as a browser: the mouse's
   // side buttons, or ⌘[ and ⌘].
-  type Place = { tab: QueueView; all: boolean; selected: string | null; kind: View['kind'] }
-  const here: Place = { tab, all, selected, kind: view.kind }
+  type Place = { tab: QueueView; selected: string | null; kind: View['kind'] }
+  const here: Place = { tab, selected, kind: view.kind }
   const trail = useRef({ past: [] as Place[], future: [] as Place[], last: here, moving: false })
   useEffect(() => {
     const t = trail.current
-    const now = { tab, all, selected, kind: view.kind }
-    const same = t.last.tab === now.tab && t.last.all === now.all && t.last.selected === now.selected && t.last.kind === now.kind
+    const now = { tab, selected, kind: view.kind }
+    const same = t.last.tab === now.tab && t.last.selected === now.selected && t.last.kind === now.kind
     if (t.moving) t.moving = false
     else if (!same) {
       t.past = [...t.past.slice(-99), t.last]
       t.future = []
     }
     t.last = now
-  }, [tab, all, selected, view.kind])
+  }, [tab, selected, view.kind])
   const travel = useCallback((delta: -1 | 1) => {
     const t = trail.current
     const to = delta < 0 ? t.past.at(-1) : t.future.at(-1)
@@ -216,7 +214,6 @@ export const App = () => {
     }
     t.moving = true
     setTab(to.tab)
-    setAll(to.all)
     setSelected(to.selected)
     setView({ kind: to.kind })
     setShowingTask(to.kind !== 'task' || to.selected !== null)
@@ -251,11 +248,10 @@ export const App = () => {
   // The open task's place in the tab you see it in, however it got there (picked, opened for you,
   // back and forward, or kept open as you changed tab). Set while rendering, not after: the list
   // would otherwise open its first task in the task's place before the place is known.
-  if (selected && !(stay?.id === selected && stay.tab === tab && stay.all === all)) {
+  if (selected && !(stay?.id === selected && stay.tab === tab)) {
     setStay({
       id: selected,
       tab,
-      all,
       at: Math.max(
         0,
         inTab.findIndex((i) => i.task.id === selected),
@@ -264,8 +260,7 @@ export const App = () => {
   }
   // The open task stays where it was in its tab after it leaves it (you answered, so it runs), so
   // you see your reply land; it goes when you move on or change tab.
-  const lingering =
-    stay && stay.id === selected && stay.tab === tab && stay.all === all && !inTab.some((i) => i.task.id === stay.id) ? stay : null
+  const lingering = stay && stay.id === selected && stay.tab === tab && !inTab.some((i) => i.task.id === stay.id) ? stay : null
   const listed = useMemo(() => {
     const item = lingering ? [...items, ...done].find((i) => i.task.id === lingering.id) : undefined
     if (!lingering || !item) return inTab
@@ -274,7 +269,7 @@ export const App = () => {
 
   // Next and previous in the list as it reads: ↓ and ↑ (← and → too, with ⌘ from an empty box),
   // or the arrows under the list. In a box you are writing in, the arrows move the cursor as usual.
-  const ordered = useMemo(() => listOrder(listed, groupBy, !all && tab === 'needs_me'), [listed, groupBy, all, tab])
+  const ordered = useMemo(() => listOrder(listed, groupBy, tab === 'needs_me'), [listed, groupBy, tab])
   const at = ordered.findIndex((i) => i.task.id === selected)
   const nextItem = at >= 0 ? (ordered[at + 1] ?? null) : null
   const step = useCallback(
@@ -301,11 +296,11 @@ export const App = () => {
     return () => window.removeEventListener('keydown', keys)
   }, [step])
   const counts = useMemo(() => {
-    const counted: Partial<Record<QueueView | 'all', number>> = { all: tabItems(tab, items, done, true).length }
+    const counted: Partial<Record<QueueView, number>> = {}
     for (const q of QUEUE_VIEWS) if (q.id !== 'done') counted[q.id] = tabItems(q.id, items, done).length
     if (doneRead) counted.done = done.length
     return counted
-  }, [tab, items, done, doneRead])
+  }, [items, done, doneRead])
 
   const current = [...items, ...done].find((i) => i.task.id === selected) ?? null
   const banner = connection === 'offline' ? `Not connected to the Autopilot server${error ? `: ${error}` : ''}. Retrying…` : null
@@ -338,25 +333,20 @@ export const App = () => {
 
   // Another tab leaves no task open from the last one. Only here: a task opened for you (just
   // created, from a notification) stays open wherever it is.
-  const switchTab = (picked: QueueView | 'all') => {
-    // All is every open task across workstreams; it keeps the status tab you came from.
-    const showAll = picked === 'all'
-    const next = showAll ? tab : picked
-    setAll(showAll)
+  const switchTab = (next: QueueView) => {
     setTab(next)
     setView({ kind: 'task' })
     setShowingTask(false)
-    if (selected && !tabItems(next, items, done, showAll).some((i) => i.task.id === selected)) setSelected(null)
+    if (selected && !tabItems(next, items, done).some((i) => i.task.id === selected)) setSelected(null)
   }
 
   // An empty list beside New task: the pane says what the emptiness means, with the one pilot.
-  const clear = listed.length === 0 && (view.kind === 'new' || !current) ? emptyWords(all ? null : tab).title : undefined
+  const clear = listed.length === 0 && (view.kind === 'new' || !current) ? emptyWords(tab).title : undefined
 
   return (
     <div className={`app${showingTask ? ' showing-task' : ''}${held ? ` hold-${held}` : ''}`}>
       <QueueList
         tab={tab}
-        all={all}
         onTab={switchTab}
         counts={counts}
         groupBy={groupBy}
@@ -377,7 +367,7 @@ export const App = () => {
             ? {
                 at: at + 1,
                 total: ordered.length,
-                list: all ? 'All open' : (QUEUE_VIEWS.find((q) => q.id === tab)?.title ?? ''),
+                list: QUEUE_VIEWS.find((q) => q.id === tab)?.title ?? '',
                 hasPrevious: at > 0,
                 hasNext: nextItem !== null,
                 move: step,

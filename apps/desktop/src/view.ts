@@ -13,9 +13,6 @@ export const QUEUE_VIEWS: { id: QueueView; title: string; about: string; bands: 
   { id: 'done', title: 'Done', about: 'Closed, newest first', bands: ['done'] },
 ]
 
-/** Every open task, as a tab after the statuses. */
-export const ALL_OPEN = { title: 'All open', about: 'Every open task, across workstreams' }
-
 export const BAND_TITLE: Record<Band, string> = {
   your_turn: 'Your turn',
   fyi: 'FYI',

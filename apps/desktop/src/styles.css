@@ -437,21 +437,6 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-.row.with-status {
-  grid-template-columns: 14px minmax(0, 1fr) auto;
-}
-
-.row-status {
-  display: flex;
-  height: 20px;
-  align-items: center;
-  color: var(--text-3);
-}
-
-.row-status.your_turn {
-  color: var(--pilot);
-}
-
 /* Answered and gone from this tab, kept in its place until you move on. */
 .row.left {
   opacity: 0.55;
