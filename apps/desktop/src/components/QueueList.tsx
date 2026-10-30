@@ -6,19 +6,16 @@ import { Menu } from './Menu.tsx'
 import { useDraft } from '../drafts.ts'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
-import { ALL_OPEN, QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
+import { QUEUE_VIEWS, type QueueView, type View } from '../view.ts'
 import { Banner, Bars, Button, Icon, WorkstreamMark, NavIcon, FlyingPilot, Tumbleweed, SearchIcon, type NavIconName } from '../ui.tsx'
 
 type Props = {
   tab: QueueView
-  /** Every open task, whatever its status: the current tab tapped again. */
-  all: boolean
   /** New task is beside an empty list and carries the pilot: the list says it in one line. */
   quietEmpty: boolean
-  /** A status, or every open task. */
-  onTab: (tab: QueueView | 'all') => void
+  onTab: (tab: QueueView) => void
   /** How many tasks each tab holds; Done only once it has been read. */
-  counts: Partial<Record<QueueView | 'all', number>>
+  counts: Partial<Record<QueueView, number>>
   items: QueueItem[]
   /** How the list is cut into sections. */
   groupBy: GroupBy
@@ -58,7 +55,7 @@ const Arrow = ({ dir }: { dir: 'up' | 'down' }) => (
  * An empty list: the pilot flying past a few clouds, and a word about it. `quiet` when New task is
  * beside it, which then carries the pilot: one line here, so the window has one pilot, not two.
  */
-const EmptyList = ({ tab, quiet }: { tab: QueueView | null; quiet: boolean }) => {
+const EmptyList = ({ tab, quiet }: { tab: QueueView; quiet: boolean }) => {
   const words = emptyWords(tab)
   // Beside New task, which says it in words: a tumbleweed rolls across the empty list, and that is all.
   if (quiet) return <Tumbleweed />
@@ -71,18 +68,6 @@ const EmptyList = ({ tab, quiet }: { tab: QueueView | null; quiet: boolean }) =>
   )
 }
 
-/** Each band as the icon of the tab it shows under. */
-const BAND_ICON: Record<QueueItem['band'], NavIconName> = {
-  your_turn: 'needs',
-  // Still with them: news on what the task waits on.
-  fyi: 'waiting',
-  triage: 'inbox',
-  running: 'running',
-  waiting: 'waiting',
-  snoozed: 'snoozed',
-  done: 'done',
-}
-
 const TAB_ICON: Record<QueueView, NavIconName> = {
   needs_me: 'needs',
   running: 'running',
@@ -91,8 +76,8 @@ const TAB_ICON: Record<QueueView, NavIconName> = {
   done: 'done',
 }
 
-/** The tabs in order: each status, then All. ⌘1 to ⌘6 pick them. */
-const TABS = [...QUEUE_VIEWS.map((q) => ({ ...q, icon: TAB_ICON[q.id] })), { id: 'all' as const, ...ALL_OPEN, icon: 'all' as NavIconName }]
+/** The tabs in order, one per status. ⌘1 to ⌘5 pick them. */
+const TABS = QUEUE_VIEWS.map((q) => ({ ...q, icon: TAB_ICON[q.id] }))
 
 /** `ws:customers from:slack pricing`: tokens narrow by workstream and source, the rest matches titles. */
 const matches = (item: QueueItem, filter: string): boolean =>
@@ -128,7 +113,6 @@ export const listOrder = (items: QueueItem[], by: GroupBy, parted: boolean): Que
 export const QueueList = (props: Props) => {
   const {
     tab,
-    all,
     quietEmpty,
     onTab,
     counts,
@@ -149,12 +133,12 @@ export const QueueList = (props: Props) => {
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [folded, setFolded] = useState<Set<string>>(new Set())
-  const title = all ? 'All open' : (QUEUE_VIEWS.find((q) => q.id === tab)?.title ?? '')
+  const title = QUEUE_VIEWS.find((q) => q.id === tab)?.title ?? ''
   const visible = useMemo(() => items.filter((i) => matches(i, filter)), [items, filter])
   // Sections in the order of their most pressing task (the queue comes sorted), the inbox last; or Urgent to Low.
   const entries = useMemo(
     (): Entry[] =>
-      sectionsOf(visible, groupBy, !all && tab === 'needs_me').flatMap((section) => {
+      sectionsOf(visible, groupBy, tab === 'needs_me').flatMap((section) => {
         const shut = folded.has(section.key)
         const priority = groupBy === 'priority' ? (section.items[0]?.task.priority ?? null) : null
         return [
@@ -163,7 +147,7 @@ export const QueueList = (props: Props) => {
           ...(shut ? [] : section.items.map((item) => ({ kind: 'item' as const, item }))),
         ]
       }),
-    [visible, groupBy, folded, all, tab],
+    [visible, groupBy, folded, tab],
   )
   const fold = (workstream: string) =>
     setFolded((f) => {
@@ -211,7 +195,6 @@ export const QueueList = (props: Props) => {
   // fingers lift, so one gesture moves one tab and it ends once the events stop.
   const swipe = useRef({ dx: 0, dy: 0, moved: false, quiet: 0 })
   const slideFrom = useRef(0)
-  const shown: QueueView | 'all' = all ? 'all' : tab
   const onWheel = (event: React.WheelEvent) => {
     if (event.ctrlKey || (event.target as HTMLElement).closest('input, textarea')) return
     const s = swipe.current
@@ -221,7 +204,7 @@ export const QueueList = (props: Props) => {
     s.dy += event.deltaY
     if (s.moved || Math.abs(s.dx) < 60 || Math.abs(s.dx) < 2.5 * Math.abs(s.dy)) return
     s.moved = true
-    const to = TABS[TABS.findIndex((t) => t.id === shown) + (s.dx > 0 ? 1 : -1)]
+    const to = TABS[TABS.findIndex((t) => t.id === tab) + (s.dx > 0 ? 1 : -1)]
     if (!to) return
     slideFrom.current = s.dx > 0 ? 1 : -1
     onTab(to.id)
@@ -237,7 +220,7 @@ export const QueueList = (props: Props) => {
         duration: 220,
         easing: 'cubic-bezier(0.2, 0, 0, 1)',
       })
-  }, [shown])
+  }, [tab])
   const virtual = useVirtualizer({
     count: entries.length,
     getScrollElement: () => rows.current,
@@ -314,10 +297,10 @@ export const QueueList = (props: Props) => {
           <kbd className="hint hint-cmd">⌘N</kbd>
         </Button>
       </div>
-      {/* Every tab the same: its icon and how many; the one you are on named under them. All last. */}
+      {/* Every tab the same: its icon and how many; the one you are on named under them. */}
       <nav className="tabs" aria-label="Queue">
         {TABS.map((q, i) => {
-          const on = q.id === 'all' ? all : !all && tab === q.id
+          const on = tab === q.id
           const count = counts[q.id]
           return (
             <Button
@@ -339,14 +322,14 @@ export const QueueList = (props: Props) => {
           Needs me with only Triage in it starts at Triage. */}
       {entries[0]?.kind !== 'part' && (
         <p className="list-heading">
-          <span className="list-heading-name">{all ? ALL_OPEN.title : QUEUE_VIEWS.find((q) => q.id === tab)?.title}</span>
-          <span className="list-heading-about">{all ? ALL_OPEN.about : QUEUE_VIEWS.find((q) => q.id === tab)?.about}</span>
+          <span className="list-heading-name">{QUEUE_VIEWS.find((q) => q.id === tab)?.title}</span>
+          <span className="list-heading-about">{QUEUE_VIEWS.find((q) => q.id === tab)?.about}</span>
         </p>
       )}
       {banner && <Banner>{banner}</Banner>}
       <div className="rows" ref={rows} role="listbox" aria-label="Tasks" tabIndex={0} onKeyDown={onKeyDown}>
         {visible.length === 0 &&
-          (filter ? <div className="empty">Nothing matches the search.</div> : <EmptyList tab={all ? null : tab} quiet={quietEmpty} />)}
+          (filter ? <div className="empty">Nothing matches the search.</div> : <EmptyList tab={tab} quiet={quietEmpty} />)}
         {/* oxlint-disable-next-line react/forbid-dom-props -- measured by the virtualiser */}
         <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
           {virtual.getVirtualItems().map((v) => {
@@ -387,7 +370,6 @@ export const QueueList = (props: Props) => {
                     selected={selected === entry.item.task.id}
                     left={lingering === entry.item.task.id}
                     hint={order.indexOf(entry.item.task.id) < 9 ? order.indexOf(entry.item.task.id) + 1 : undefined}
-                    status={all}
                     workstream={groupBy === 'priority'}
                     onSelect={pick}
                     onOpen={onOpen}
@@ -427,8 +409,6 @@ type RowProps = {
   selected: boolean
   /** Its number while ⌥ is held: ⌥1 to ⌥9 pick the first nine. */
   hint?: number | undefined
-  /** Under All, where the statuses mix: its status as its tab's icon. */
-  status?: boolean
   /** Grouped by priority, where the workstreams mix: its workstream in its line. */
   workstream?: boolean
   /** It has left this tab (you answered it) and stays, faded, until you move on. */
@@ -455,10 +435,10 @@ const PRIORITY_NAME: Record<number, string> = { 1: 'Urgent', 2: 'High priority',
 
 /** Rerenders only when what it shows changed: the store keeps unchanged tasks and asks as the same objects. */
 const TaskRow = memo(
-  ({ item, selected, left = false, hint, status = false, workstream = false, onSelect, onOpen }: RowProps) => (
+  ({ item, selected, left = false, hint, workstream = false, onSelect, onOpen }: RowProps) => (
     <Button
       kind="row"
-      className={[item.unread ? null : 'read', left ? 'left' : null, status ? 'with-status' : null].filter(Boolean).join(' ') || undefined}
+      className={[item.unread ? null : 'read', left ? 'left' : null].filter(Boolean).join(' ') || undefined}
       role="option"
       data-task={item.task.id}
       aria-selected={selected}
@@ -467,12 +447,6 @@ const TaskRow = memo(
       onDoubleClick={() => onOpen(item.task.id)}
     >
       {hint !== undefined && <kbd className="hint hint-alt row-hint">⌥{hint}</kbd>}
-      {/* Under All: where it stands, as its tab draws it; green only when it is your turn. */}
-      {status && (
-        <span className={`row-status ${item.band}`} aria-hidden="true">
-          <NavIcon name={BAND_ICON[item.band]} size={14} />
-        </span>
-      )}
       <div className="text">
         <div className="title">{item.task.title}</div>
         <RowMeta item={item} workstream={workstream} />
@@ -490,7 +464,6 @@ const TaskRow = memo(
     a.selected === b.selected &&
     a.left === b.left &&
     a.hint === b.hint &&
-    a.status === b.status &&
     a.workstream === b.workstream &&
     a.item.task === b.item.task &&
     a.item.openAsk === b.item.openAsk &&

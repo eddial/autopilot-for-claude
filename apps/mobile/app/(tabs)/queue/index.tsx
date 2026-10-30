@@ -21,7 +21,7 @@ import { router, Stack } from 'expo-router'
 import { useHeaderHeight } from 'expo-router/react-navigation'
 import { StatusLine } from '../../../src/components/StatusLine.tsx'
 import { appearanceChoice, chooseAppearance } from '../../../src/theme.ts'
-import { BAND_SYMBOL, linksMenu, TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
+import { linksMenu, TaskToolbar } from '../../../src/components/TaskToolbar.tsx'
 import { TaskView } from '../../../src/components/TaskView.tsx'
 import { NewTask } from '../../../src/components/NewTask.tsx'
 import { age, rowMeta } from '../../../src/format.ts'
@@ -91,8 +91,6 @@ export default function QueueScreen() {
   const upright = height > width
   const narrow = split && upright
   const [view, setView] = useState<QueueView>('needs_me')
-  // Every open task: the current tab tapped again, as on the Mac.
-  const [all, setAll] = useState(false)
   // The page starts under the bar where iOS draws one across the top: the title's line is counted from the screen's edge.
   const headerHeight = useHeaderHeight()
   const [selected, setSelected] = useState<string | null>(null)
@@ -113,7 +111,6 @@ export default function QueueScreen() {
   // The tab bar answers at once; the list it shows follows a frame later, so the pill starts moving
   // before the new list is built, and the list slides in already built.
   const listView = useDeferredValue(view)
-  const listAll = useDeferredValue(all)
   const current = VIEWS.find((v) => v.id === listView) ?? VIEWS[0]
   const stillOpen = items.filter((i) => i.band !== 'done').length
 
@@ -129,25 +126,18 @@ export default function QueueScreen() {
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [view, sync, stillOpen])
 
-  const openItems = useMemo(() => items.filter((i) => i.band !== 'done'), [items])
   const counts = useMemo(
     () =>
       Object.fromEntries(VIEWS.map((v) => [v.id, v.id === 'done' ? done?.length : items.filter((i) => v.bands.includes(i.band)).length])),
     [items, done],
   )
-  // All is every open task across workstreams; it keeps the status tab you came from.
-  const pick = (id: QueueView | 'all') => {
-    setAll(id === 'all')
-    if (id !== 'all') setView(id)
-  }
+  const pick = (id: QueueView) => setView(id)
 
   // A section per workstream, in the order of its most pressing task, the inbox last; or Urgent to Low.
   const sections = useMemo(() => {
     const bands = current?.bands ?? []
-    const listed = listAll
-      ? openItems.filter((i) => matches(i, filter))
-      : (listView === 'done' ? (done ?? []) : items).filter((i) => bands.includes(i.band) && matches(i, filter))
-    return sectionsOf(listed, groupBy, !listAll && listView === 'needs_me').map((s) => ({
+    const listed = (listView === 'done' ? (done ?? []) : items).filter((i) => bands.includes(i.band) && matches(i, filter))
+    return sectionsOf(listed, groupBy, listView === 'needs_me').map((s) => ({
       name: s.key,
       title: s.title,
       priority: groupBy === 'priority' ? (s.items[0]?.task.priority ?? null) : null,
@@ -155,7 +145,7 @@ export default function QueueScreen() {
       part: s.part ?? null,
       data: folded.has(s.key) ? [] : s.items,
     }))
-  }, [items, openItems, listAll, done, listView, current, filter, folded, groupBy])
+  }, [items, done, listView, current, filter, folded, groupBy])
   const fold = (name: string) =>
     setFolded((f) => {
       const next = new Set(f)
@@ -179,7 +169,6 @@ export default function QueueScreen() {
     if (!split) return void router.push({ pathname: '/queue/[id]', params: { id: wanted } })
     const band = items.find((i) => i.task.id === wanted)?.band
     const tab = VIEWS.find((v) => v.id !== 'done' && band && v.bands.includes(band))
-    setAll(!tab)
     if (tab) setView(tab.id)
     setFilter('')
     setSelected(wanted)
@@ -242,9 +231,8 @@ export default function QueueScreen() {
     if (status === 'online' && top) void sync?.prefetch(top.split(','))
   }, [sync, status, top])
 
-  const tabItems = [...VIEWS, { id: 'all' as const, title: 'All open', symbol: 'square.3.layers.3d' as SFSymbol }]
-  const tabOrder: (QueueView | 'all')[] = tabItems.map((v) => v.id)
-  const shown: QueueView | 'all' = all ? 'all' : view
+  const tabOrder: QueueView[] = VIEWS.map((v) => v.id)
+  const shown = view
   // A sideways swipe across the list moves one tab along, as paging through them: left for the next.
   const pickRef = useRef(pick)
   pickRef.current = pick
@@ -269,7 +257,7 @@ export default function QueueScreen() {
   )
   // Switching tabs slides the new list in from the side it lies on: nothing more.
   const [listShift] = useState(() => new Animated.Value(0))
-  const listShown: QueueView | 'all' = listAll ? 'all' : listView
+  const listShown = listView
   const lastTab = useRef(listShown)
   const listWidth = split ? Math.min(420, width * 0.42) : width
   useLayoutEffect(() => {
@@ -284,10 +272,10 @@ export default function QueueScreen() {
   }, [listShown])
   const tabs = (
     <TabBar
-      items={tabItems.map((v) => ({ id: v.id, title: v.title, symbol: v.symbol, count: v.id === 'all' ? openItems.length : counts[v.id] }))}
+      items={VIEWS.map((v) => ({ id: v.id, title: v.title, symbol: v.symbol, count: counts[v.id] }))}
       selected={shown}
       narrow={narrow}
-      onPick={(id) => pick(id as QueueView | 'all')}
+      onPick={(id) => pick(id as QueueView)}
     />
   )
 
@@ -309,10 +297,10 @@ export default function QueueScreen() {
             ListHeaderComponent={
               <View style={{ paddingTop: split ? edgeSpace(TITLE_HEIGHT) : Math.max(headerHeight + 8, edgeSpace(TITLE_HEIGHT)), gap: 4 }}>
                 <Text style={[type.title, styles.heading]} numberOfLines={1}>
-                  {listAll ? 'All open' : current?.title}
+                  {current?.title}
                 </Text>
                 <Text style={styles.caption} numberOfLines={1}>
-                  {listAll ? 'Every open task, across workstreams' : current?.about}
+                  {current?.about}
                 </Text>
                 <StatusLine onOpen={open} />
               </View>
@@ -328,7 +316,7 @@ export default function QueueScreen() {
                       : 'Nothing cached yet.'}
                 </Text>
               ) : (
-                <EmptyList view={listAll ? null : listView} quiet={split && !selectedItem} />
+                <EmptyList view={listView} quiet={split && !selectedItem} />
               )
             }
             renderSectionHeader={({ section }) => {
@@ -369,13 +357,7 @@ export default function QueueScreen() {
             maxToRenderPerBatch={10}
             windowSize={7}
             renderItem={({ item }) => (
-              <Row
-                item={item}
-                selected={split && item.task.id === selected}
-                status={listAll}
-                workstream={groupBy === 'priority'}
-                onOpen={openRow}
-              />
+              <Row item={item} selected={split && item.task.id === selected} workstream={groupBy === 'priority'} onOpen={openRow} />
             )}
           />
         </Animated.View>
@@ -513,7 +495,7 @@ export default function QueueScreen() {
                 autoFocus={false}
                 clear={
                   !selectedItem && sections.length === 0 && !filter && !(view === 'done' && done === null)
-                    ? emptyWords(all ? null : view).title
+                    ? emptyWords(view).title
                     : undefined
                 }
               />
@@ -538,7 +520,7 @@ export default function QueueScreen() {
 type Tab = { id: string; title: string; symbol: SFSymbol; count: number | undefined }
 
 /**
- * The tabs: each status and All, a symbol and a count, on Liquid Glass where iOS has it. The chosen
+ * The tabs: each status, a symbol and a count, on Liquid Glass where iOS has it. The chosen
  * one is marked by a lifted pill that slides to it, so switching (a tap, or a swipe across the list)
  * reads as one movement. In the narrow column only the chosen tab says its count, and is wider.
  */
@@ -610,13 +592,11 @@ const BottomRoom = ({ beside }: { beside: boolean }) => <View style={{ height: u
 const Row = memo(function Row({
   item,
   selected,
-  status,
   workstream,
   onOpen,
 }: {
   item: QueueItem
   selected: boolean
-  status: boolean
   /** Grouped by priority, where the workstreams mix: its workstream in its line. */
   workstream: boolean
   onOpen: (id: string) => void
@@ -627,12 +607,6 @@ const Row = memo(function Row({
       onPress={() => onOpen(item.task.id)}
       accessibilityRole="button"
     >
-      {/* Under All: where it stands, as its tab draws it; green only when it is your turn. */}
-      {status && (
-        <View style={styles.status}>
-          <SymbolView name={BAND_SYMBOL[item.band]} size={14} tintColor={item.band === 'your_turn' ? colours.pilot : colours.text3} />
-        </View>
-      )}
       <View style={{ flex: 1 }}>
         <Text style={[styles.title, item.unread && { fontWeight: '500' }]} numberOfLines={2}>
           {item.task.title}
@@ -725,7 +699,6 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     ...shaped('row'),
   },
-  status: { width: 16, height: 22, alignItems: 'center', justifyContent: 'center' },
   rowEnd: { alignItems: 'flex-end', gap: 8 },
   title: { fontSize: 16, lineHeight: 22, color: colours.text },
   meta: { marginTop: 3, fontSize: 13, color: colours.text3 },

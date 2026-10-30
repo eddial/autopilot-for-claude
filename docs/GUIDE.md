@@ -153,7 +153,7 @@ with Remote Control, so it never opens as archived.
 | --- | --- |
 | ⌘N, or ⌃⌥Space from any app | New task (text you have selected becomes the brief) |
 | ⌘F | Search |
-| ⌘1 to ⌘6 | The tabs, in order |
+| ⌘1 to ⌘5 | The tabs, in order |
 | ↑ ↓ (or j k in the list) | The previous or next task |
 | ⌥1 to ⌥9 | Pick one of the first nine tasks (hold ⌥ to see the numbers) |
 | Space | Open a row in place and answer it without opening the task |

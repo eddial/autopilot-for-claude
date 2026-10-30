@@ -130,18 +130,6 @@ describe('the Mac app window', () => {
     expect(await page.getByRole('option', { name: /Pick the venue/, selected: true }).count()).toBe(1)
   }, 30_000)
 
-  it('keeps it open too when it was opened under another tab and is still there', async () => {
-    asking('Pick the photographer', 9)
-    await tab('All open').click()
-    await page.getByRole('option', { name: /Pick the photographer/ }).click()
-    await needsMe()
-    await page.getByLabel('Reply to Autopilot').fill('The one from last year')
-    await page.keyboard.press('Meta+Enter')
-    await expect.poll(() => page.locator('.entry').filter({ hasText: 'The one from last year' }).count()).toBeGreaterThan(0)
-    // Still listed where it was, and still the one open.
-    expect(await page.getByRole('option', { name: /Pick the photographer/, selected: true }).count()).toBe(1)
-  }, 30_000)
-
   it('shows the pictures an update attaches, and opens one large', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'ap-shot-'))
     // The smallest PNG there is: one transparent pixel.
@@ -242,15 +230,6 @@ describe('the Mac app window', () => {
     await page.getByRole('menuitem', { name: 'Urgent' }).click()
     const task = server.service.queue().items.find((i) => i.task.title === 'Renew the office lease')?.task.id ?? ''
     await expect.poll(() => server.service.getTask(task).task.priority).toBe(1)
-  }, 30_000)
-
-  it('shows every open task across workstreams under All', async () => {
-    await tab('Running').click()
-    await expect.poll(() => page.getByRole('heading', { name: 'Running' }).isVisible()).toBe(true)
-    await tab('All open').click()
-    await expect.poll(() => page.getByRole('option', { name: /Renew the office lease/ }).count()).toBe(1)
-    await tab('Running').click()
-    await expect.poll(() => page.getByRole('heading', { name: 'Running' }).isVisible()).toBe(true)
   }, 30_000)
 
   it('moves one tab along with a two-finger swipe across the list', async () => {
