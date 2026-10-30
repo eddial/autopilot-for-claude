@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { QueueItem } from '@autopilot/contracts'
 import { emptyWords, rowStatus, sectionsOf, type GroupBy } from '@autopilot/client'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -205,6 +205,39 @@ export const QueueList = (props: Props) => {
     return () => window.removeEventListener('keydown', keys)
   }, [order, onTab, onSelect])
   const rows = useRef<HTMLDivElement>(null)
+
+  // A two-finger swipe sideways across the list moves one tab along, as on the phone: fingers to
+  // the left for the next. The trackpad sends it as wheel events, momentum included after the
+  // fingers lift, so one gesture moves one tab and it ends once the events stop.
+  const swipe = useRef({ dx: 0, dy: 0, moved: false, quiet: 0 })
+  const slideFrom = useRef(0)
+  const shown: QueueView | 'all' = all ? 'all' : tab
+  const onWheel = (event: React.WheelEvent) => {
+    if (event.ctrlKey || (event.target as HTMLElement).closest('input, textarea')) return
+    const s = swipe.current
+    window.clearTimeout(s.quiet)
+    s.quiet = window.setTimeout(() => (swipe.current = { dx: 0, dy: 0, moved: false, quiet: 0 }), 160)
+    s.dx += event.deltaX
+    s.dy += event.deltaY
+    if (s.moved || Math.abs(s.dx) < 60 || Math.abs(s.dx) < 2.5 * Math.abs(s.dy)) return
+    s.moved = true
+    const to = TABS[TABS.findIndex((t) => t.id === shown) + (s.dx > 0 ? 1 : -1)]
+    if (!to) return
+    slideFrom.current = s.dx > 0 ? 1 : -1
+    onTab(to.id)
+  }
+  // The new tab's list slides in from the side it lies on, and lands: nothing more.
+  useLayoutEffect(() => {
+    const from = slideFrom.current
+    slideFrom.current = 0
+    const list = rows.current
+    if (!from || !list || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    for (const child of list.children)
+      child.animate([{ transform: `translateX(${from * list.clientWidth}px)` }, { transform: 'none' }], {
+        duration: 220,
+        easing: 'cubic-bezier(0.2, 0, 0, 1)',
+      })
+  }, [shown])
   const virtual = useVirtualizer({
     count: entries.length,
     getScrollElement: () => rows.current,
@@ -253,7 +286,7 @@ export const QueueList = (props: Props) => {
 
   return (
     // oxlint-disable-next-line react/forbid-dom-props -- the width the person dragged it to
-    <section className="pane list" style={{ width }} aria-label={title}>
+    <section className="pane list" style={{ width }} aria-label={title} onWheel={onWheel}>
       <div className="titlebar drag" />
       <h1 className="hidden-heading">{title}</h1>
       <div className="search-row">
