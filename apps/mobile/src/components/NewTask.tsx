@@ -143,6 +143,7 @@ export const NewTask = ({
             multiline
             autoFocus={autoFocus}
             accessibilityLabel="Task"
+            {...files.input}
           />
         </Composer>
       </KeyboardScreen>

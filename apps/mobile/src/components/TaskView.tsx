@@ -374,6 +374,7 @@ export const TaskView = ({
               onChangeText={setText}
               multiline
               accessibilityLabel="Reply to Autopilot"
+              {...files.input}
             />
           </Composer>
         </View>
