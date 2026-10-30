@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ActionSheetIOS, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { Link } from '@autopilot/contracts'
 import { randomUUID } from 'expo-crypto'
@@ -7,6 +7,7 @@ import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
 import { SymbolView } from 'expo-symbols'
 import { colours, radius } from '@autopilot/design'
+import PasteFiles from '../modules/paste-files/src/index.ts'
 import { useSyncInstance } from './store.ts'
 
 /** A file on its way into a reply: uploading, kept on the Mac, or refused. For a new task, its bytes. */
@@ -67,6 +68,20 @@ export const useFiles = (taskId: string | null) => {
     }
   }
 
+  // Paste in the box itself: images and files come in through the native module, to the box that
+  // has the keyboard (with the Duo open, two can be on screen).
+  const focused = useRef(false)
+  const latest = useRef(add)
+  useEffect(() => {
+    latest.current = add
+  })
+  useEffect(() => {
+    const subscription = PasteFiles?.addListener('onPasteFiles', (pasted) => {
+      if (focused.current) latest.current(pasted.files)
+    })
+    return () => subscription?.remove()
+  }, [])
+
   /** An image copied anywhere, pasted in as a PNG. */
   const paste = () =>
     void Clipboard.getImageAsync({ format: 'png' }).then((image) => {
@@ -111,6 +126,15 @@ export const useFiles = (taskId: string | null) => {
     busy: files.some((f) => !f.link && !f.failed),
     pick,
     paste,
+    /** For the text box: pasting files into it adds them. */
+    input: {
+      onFocus: () => {
+        focused.current = true
+      },
+      onBlur: () => {
+        focused.current = false
+      },
+    },
     remove: (key: string) => setFiles((all) => all.filter((f) => f.key !== key)),
     clear: () => setFiles([]),
   }

@@ -305,6 +305,24 @@ describe('the Mac app window', () => {
     expect(readFileSync(fileURLToPath(sent()?.attachments[0]?.url ?? ''), 'utf8')).toBe('lease terms')
   }, 30_000)
 
+  it('sends a file pasted into an answer with it', async () => {
+    asking('Check the signed lease', 9)
+    await needsMe()
+    await page.getByRole('option', { name: /Check the signed lease/ }).click()
+    const box = page.getByLabel('Needs you').getByRole('textbox', { name: 'Reply to Autopilot' })
+    await box.focus()
+    await box.evaluate((el) => {
+      const data = new DataTransfer()
+      data.items.add(new File(['signed'], 'signed.pdf', { type: 'application/pdf' }))
+      el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }))
+    })
+    await expect.poll(() => page.locator('.file-chip').textContent()).toContain('1 KB')
+    await page.keyboard.press('Enter')
+    const task = server.service.queue().items.find((i) => i.task.title === 'Check the signed lease')?.task.id ?? ''
+    const sent = () => server.service.getTask(task).updates.findLast((u) => u.kind === 'instruction')
+    await expect.poll(() => sent()?.attachments.map((a) => a.title)).toEqual(['signed.pdf'])
+  }, 30_000)
+
   it('stays on a task after answering it, and moves on when asked', async () => {
     asking('Pick a venue', 1)
     asking('Pick a caterer', 2)
