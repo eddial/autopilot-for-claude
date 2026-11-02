@@ -43,6 +43,33 @@ export type RunClaude = (
   options: { tools: string[]; model: string; schema: object; mcpConfig: string; cwd: string; label?: string },
 ) => Promise<unknown>
 
+/** How Claude Code says the Mac's login is gone: expired and not refreshed, or never there. */
+const SIGNED_OUT =
+  /Failed to authenticate|OAuth (session|token) (has )?expired|could not be refreshed|Not logged in|Please run \/login|Invalid API key/i
+
+/**
+ * Every headless run also checks the Mac's Claude login. Signed out, every session, signal and
+ * watcher fails, and each says so in its own way ("connector not connected?" among them), so one
+ * task names the cause. It closes on the next run that works.
+ */
+export const watchLogin =
+  (run: RunClaude, service: Pick<Service, 'openHealth' | 'closeHealth'>): RunClaude =>
+  async (prompt, options) => {
+    try {
+      const output = await run(prompt, options)
+      service.closeHealth('claude-login', 'Claude Code is signed in again.')
+      return output
+    } catch (error) {
+      if (SIGNED_OUT.test(error instanceof Error ? error.message : String(error)))
+        service.openHealth(
+          'claude-login',
+          'Sign in to Claude Code again',
+          'Claude Code on this Mac is signed out, so no session, signal or watcher can run. Run `claude auth login` in a terminal. Signals catch up on the missed time by themselves; restart any task that failed meanwhile.',
+        )
+      throw error
+    }
+  }
+
 /** Subagents and wake-ups would end the run in several results and lose the structured output. */
 const NEVER = ['Agent', 'Task', 'ScheduleWakeup', 'CronCreate', 'Monitor', 'Workflow', 'RemoteTrigger', 'SendMessage']
 

@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { openDatabase } from '../src/db.ts'
 import { resolvePaths } from '../src/paths.ts'
 import { Service } from '../src/service.ts'
-import { claudeHeadless, Signals, type RunClaude, type SignalOutput } from '../src/signals.ts'
+import { claudeHeadless, Signals, watchLogin, type RunClaude, type SignalOutput } from '../src/signals.ts'
 
 const PROMPTS = join(import.meta.dirname, '..', '..', '..', 'prompts')
 
@@ -274,5 +274,26 @@ describe('claudeHeadless', () => {
     const dir = mkdtempSync(join(tmpdir(), 'ap-cl-'))
     const run = claudeHeadless(fakeClaude(dir, ['mcp__claude_ai_Slack__read'], { result: 'Bash was denied.' }), () => Promise.resolve())
     await expect(run('prompt', options(dir))).rejects.toThrow('claude returned no result: Bash was denied.')
+  })
+})
+
+describe('watchLogin', () => {
+  it('opens one sign-in task while Claude Code is signed out, and closes it on the next run that works', async () => {
+    const service = new Service({ db: openDatabase(':memory:'), now: () => new Date('2026-11-02T10:00:00Z') })
+    let error: Error | null = new Error('claude: Failed to authenticate: OAuth session expired and could not be refreshed')
+    const run = watchLogin(() => (error ? Promise.reject(error) : Promise.resolve({ items: [] })), service)
+    const asked = { tools: [], model: 'haiku', schema: {}, mcpConfig: '', cwd: '' }
+    await expect(run('a', asked)).rejects.toThrow('Failed to authenticate')
+    await expect(run('b', asked)).rejects.toThrow('Failed to authenticate')
+    const reported = service.queue({ workstream: 'autopilot' }).items
+    expect(reported.map((i) => [i.task.title, i.band])).toEqual([['Sign in to Claude Code again', 'your_turn']])
+
+    error = new Error('Slack unreachable')
+    await expect(run('c', asked)).rejects.toThrow('Slack unreachable')
+    expect(service.getTask(reported[0]?.task.id ?? '').band).toBe('your_turn')
+
+    error = null
+    await run('d', asked)
+    expect(service.getTask(reported[0]?.task.id ?? '').band).toBe('done')
   })
 })
