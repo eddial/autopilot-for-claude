@@ -61,6 +61,10 @@ in the task's own folder, which is a git repository too: commit what you made th
 handover (`git add -A && git commit -m "review: draft for Sofie"`), so the owner can see what
 changed since they last looked.
 
+**Long commands in the background.** Installs, builds, full test runs and anything else that may
+take more than a couple of minutes run with `run_in_background`. A command that never returns
+holds the session, and every answer the owner sends waits behind it.
+
 **Link everything you make** with `attach_link` the moment it exists:
 drafts, sent mail, Slack messages, PRs, branches, and every file you write (`file:///…`, the full
 path). The owner reads files in place from the task, so keep them readable: Markdown for prose,

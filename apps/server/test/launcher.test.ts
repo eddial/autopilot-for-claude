@@ -2,10 +2,10 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { AttachLink, CreateTask, EditTask, PostUpdate, ReportSession } from '@autopilot/contracts'
+import { AttachLink, CreateTask, EditTask, Instruct, PostUpdate, ReportSession } from '@autopilot/contracts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { openDatabase } from '../src/db.ts'
-import { Launcher, trustFolder, type Pty } from '../src/launcher.ts'
+import { HELD_AFTER_MS, Launcher, STALL_AFTER_MS, trustFolder, type Pty } from '../src/launcher.ts'
 import { resolvePaths } from '../src/paths.ts'
 import { Service } from '../src/service.ts'
 
@@ -14,9 +14,9 @@ afterEach(() => {
 })
 
 /** A launcher on a fake terminal: what it types, and a way to draw on its screen. */
-const autofixSession = async (key: string) => {
+const autofixSession = async (key: string, now?: () => Date) => {
   const dir = mkdtempSync(join(tmpdir(), 'ap-autofix-'))
-  const service = new Service({ db: openDatabase(':memory:') })
+  const service = new Service({ db: openDatabase(':memory:'), ...(now ? { now } : {}) })
   const typed: string[] = []
   const terminal: { draw?: (data: string) => void } = {}
   const launcher = new Launcher({
@@ -209,5 +209,66 @@ describe('starting Claude Code', () => {
     expect(service.getTask(finished.id).band).toBe('running')
     new Launcher(options).reconcile()
     expect(service.getTask(finished.id).band).toBe('your_turn')
+  })
+})
+
+const titles = (service: Service) => service.queue().items.map((i) => i.task.title)
+
+describe('a session that stops reporting in', () => {
+  it('frees a session whose turn died on an expired login, says so on the task and once for all, and clears it after a finished turn', async () => {
+    const { service, task, report, draw } = await autofixSession('login')
+    report('working', 1)
+    draw('\r\n ⎿  Login expired · Please run /login\r\n')
+    await vi.waitFor(() => expect(service.getTask(task.id).session?.state).toBe('idle'))
+    const last = service.getTask(task.id).updates.at(-1)
+    expect(`${last?.author}/${last?.kind}`).toBe('system/blocked')
+    expect(last?.body).toContain('Login expired')
+    expect(titles(service)).toContain('Claude Code needs a fresh login')
+
+    // The same mark still on screen is not news.
+    report('working', 2)
+    draw('\r\n Reading the task\r\n')
+    await new Promise((r) => setTimeout(r, 50))
+    expect(service.getTask(task.id).session?.state).toBe('working')
+
+    report('idle', 3)
+    expect(titles(service)).not.toContain('Claude Code needs a fresh login')
+  })
+
+  it('frees a session whose turn was stopped from the keyboard, without asking anything', async () => {
+    const { service, task, report, draw } = await autofixSession('interrupt')
+    report('working', 1)
+    draw('\r\n ⎿  Interrupted · What should Claude do instead?\r\n')
+    await vi.waitFor(() => expect(service.getTask(task.id).session?.state).toBe('idle'))
+    const last = service.getTask(task.id).updates.at(-1)
+    expect(`${last?.author}/${last?.kind}`).toBe('system/event')
+  })
+
+  it('says a silent working session is stuck once per silence, and sooner when an answer waits for it', async () => {
+    let at = Date.parse('2026-11-02T08:00:00Z')
+    const { service, launcher, task, report, draw } = await autofixSession('stall', () => new Date(at))
+    const blocked = () => service.getTask(task.id).updates.filter((u) => u.kind === 'blocked')
+    report('working', 1)
+    draw('\r\n ⏺ Bash(git worktree add ../pr-2)\r\n')
+    await new Promise((r) => setTimeout(r, 50))
+
+    at += STALL_AFTER_MS - 60_000
+    launcher.checkStalls()
+    expect(blocked()).toHaveLength(0)
+    at += 120_000
+    launcher.checkStalls()
+    launcher.checkStalls()
+    expect(blocked()).toHaveLength(1)
+    expect(blocked()[0]?.body).toContain('31 minutes')
+    expect(blocked()[0]?.body).toContain('git worktree add')
+
+    // It reports in, then goes quiet with the owner's answer waiting: said again, after 15 minutes.
+    report('working', 2)
+    service.instruct(Instruct.parse({ idempotencyKey: 'stall-instr-1', taskId: task.id, body: 'carry on' }))
+    await launcher.drain()
+    at += HELD_AFTER_MS + 60_000
+    launcher.checkStalls()
+    expect(blocked()).toHaveLength(2)
+    expect(blocked()[1]?.body).toContain('Your message is waiting until it is free.')
   })
 })
