@@ -20,7 +20,7 @@ import { ensureDataDir, ensureOwnerToken } from './owner.ts'
 import type { Paths } from './paths.ts'
 import { DomainError, Service } from './service.ts'
 import { KEEP_AFTER_CLOSE_MS, sweepFiles } from './files.ts'
-import { claudeHeadless, Signals, type RunClaude } from './signals.ts'
+import { claudeHeadless, Signals, watchLogin, type RunClaude } from './signals.ts'
 import { Routing } from './routing.ts'
 import { Scout } from './scout.ts'
 import { installService } from './service-install.ts'
@@ -127,7 +127,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   await launcher.attach()
   launcher.reconcile()
 
-  const runClaude = options.runClaude ?? claudeHeadless(options.claude ?? 'claude', undefined, log)
+  const runClaude = watchLogin(options.runClaude ?? claudeHeadless(options.claude ?? 'claude', undefined, log), service)
   const prompts = join(ROOT, 'prompts')
   const owner = options.owner ?? 'the owner'
   const signals = new Signals({ service, paths, workstreams, runClaude, prompts, owner, self: options.self, log })
