@@ -214,6 +214,7 @@ export const createRouter = ({
         }),
       ),
       edit: guarded.tasks.edit.handler(({ input }) => service.editTask(input)),
+      rename: guarded.tasks.rename.handler(({ input }) => service.renameTask(input)),
       start: guarded.tasks.start.handler(({ input }) => service.startTask(input)),
       resume: guarded.tasks.resume.handler(({ input }) => service.resumeTask(input)),
       snooze: guarded.tasks.snooze.handler(({ input }) => service.snoozeTask(input)),

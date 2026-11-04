@@ -6,9 +6,10 @@ description: How an Autopilot session works a task — read it with get_task, pr
 # Work an Autopilot task
 
 You were started for one task. The Autopilot MCP server (`autopilot`) gives you its tools, limited
-to this task: `get_task`, `post_update`, `attach_link`, `add_watcher`, `wait_on`, and
-`create_task` for a follow-up, with `match_items` to search the queue first. The owner may watch
-this session live through Remote Control.
+to this task: `get_task`, `post_update`, `attach_link`, `add_watcher`, `wait_on`, `rename_task`,
+and `create_task` for a follow-up, with `match_items` to search the queue first. The owner may
+watch this session live through Remote Control. When the ask changes (the owner reworks it, the
+ticket it mirrors is retitled), `rename_task` so the title still says what the task is about.
 
 ## 1. Read
 

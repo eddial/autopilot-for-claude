@@ -9,6 +9,7 @@ import {
   FileItem,
   MatchItems,
   PostUpdateFields,
+  RenameTask,
   SnoozeTask,
   TaskRef,
   WaitOn,
@@ -71,6 +72,12 @@ export const mcpTools: readonly McpTool[] = [
     description: 'Attach a link to your task: a branch, pull request, draft or file you created.',
     procedure: ['links', 'attach'],
     input: noKey(AttachLink),
+  },
+  {
+    name: 'rename_task',
+    description: 'Rename your task when its title no longer says what it is about, for example after the owner reworked the ask.',
+    procedure: ['tasks', 'rename'],
+    input: noKey(RenameTask),
   },
   {
     name: 'add_watcher',

@@ -39,6 +39,9 @@ export const EditTask = command({
 
 export const TaskRef = command({ id: TaskId })
 
+/** A new title for a task: the owner's correction, or its session's when the work turned out to be something else. */
+export const RenameTask = command({ id: TaskId, title: z.string().trim().min(1).max(120) })
+
 export const SnoozeTask = command({ id: TaskId, until: Timestamp })
 
 export const WatcherSpec = z.object({

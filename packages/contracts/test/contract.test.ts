@@ -72,6 +72,7 @@ describe('MCP tools', () => {
       'create_task',
       'post_update',
       'attach_link',
+      'rename_task',
       'add_watcher',
       'wait_on',
       'match_items',

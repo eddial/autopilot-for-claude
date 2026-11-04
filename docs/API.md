@@ -34,6 +34,7 @@ Every command takes an `idempotencyKey` and is authorised by scope.
 | --- | --- | --- |
 | `tasks.create { title, brief, workstream?, priority?, links?, start, sourceUrl?, ticket? }` | `owner`, `create`, `session` | Creates a task; `start: true` starts its session with `brief` as the first prompt. Workstream and priority default from routing. When an open task has the same `sourceUrl` or mirrors the same `ticket { id, closed }`, it creates nothing: the brief becomes a `signal` update on that task, which comes back with `matched: true` |
 | `tasks.edit { id, title?, workstream?, priority? }` | `owner` | Changing the workstream re-files it (and teaches routing) |
+| `tasks.rename { id, title }` | `owner`, `session` (own task) | A title someone chose: Autopilot's naming no longer replaces it |
 | `tasks.start { id }` | `owner` | Triage → Running |
 | `tasks.snooze { id, until }` | `owner` | |
 | `tasks.wait { id, on, watcher? }` | `owner`, `session` (own) | |
@@ -83,7 +84,7 @@ scopes and input schema, is generated into `packages/contracts/schema/mcp-tools.
 | `list_workstreams` | `owner`, `read`, `create`, `signal` |
 | `create_task` | `owner`, `create`, `session` |
 | `post_update` | `session` (own task), `watcher` |
-| `attach_link`, `add_watcher`, `wait_on` | `owner`, `session` (own task) |
+| `attach_link`, `rename_task`, `add_watcher`, `wait_on` | `owner`, `session` (own task) |
 | `answer_update`, `start_task`, `snooze_task`, `close_task` | `owner` |
 | `match_items` | `signal`, `session` |
 | `file_item` | `signal` |

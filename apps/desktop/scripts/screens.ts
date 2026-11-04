@@ -166,6 +166,11 @@ await page.getByRole('option', { name: /prompt caching/ }).click()
 await page.getByRole('button', { name: 'Opus only' }).waitFor()
 await shot('01-needs-me')
 
+await page.locator('.task-title h2').click()
+await page.getByRole('textbox', { name: 'Task title' }).waitFor()
+await shot('01a-rename')
+await page.keyboard.press('Escape')
+
 await page.getByRole('option', { name: /checkout redesign/ }).click()
 await page.getByRole('button', { name: 'Back to waiting' }).waitFor()
 await shot('01b-fyi')
