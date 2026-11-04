@@ -56,6 +56,17 @@ export const WaitOn = command({ id: TaskId, on: z.string().min(1).max(200).optio
 
 export const CloseTask = command({ id: TaskId, outcome: z.enum(['done', 'canceled']) })
 
+/** The views a task can be moved to by hand, whatever it stands at now, closed included. */
+export const MoveTarget = z.enum(['needs_me', 'running', 'waiting', 'done'])
+export type MoveTarget = z.infer<typeof MoveTarget>
+
+/**
+ * The owner's override: puts a task in another view when no update would. Needs me: back on the
+ * owner's turn (Triage when it never started). Running: a session works on it. Waiting: on whoever
+ * it last waited on. Done: closed.
+ */
+export const MoveTask = command({ id: TaskId, to: MoveTarget })
+
 export const BulkTasks = command({
   ids: z.array(TaskId).min(1).max(200),
   action: z.enum(['start', 'dismiss', 'snooze', 'move']),

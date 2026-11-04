@@ -1,4 +1,4 @@
-import { titleFromBrief, type Link, type LiveQueue, type Task } from '@autopilot/contracts'
+import { titleFromBrief, type Link, type LiveQueue, type MoveTarget, type Task } from '@autopilot/contracts'
 import type { Api } from './connection.ts'
 
 /** Tasks created while offline show under this prefix until the server numbers them. */
@@ -17,6 +17,8 @@ export type Command =
   /** Back to waiting on whoever it waited on: the ball is still theirs, the watchers keep watching. */
   | { kind: 'wait'; taskId: string }
   | { kind: 'close'; taskId: string; outcome: 'done' | 'canceled' }
+  /** The owner's override: another view by hand, a closed task too. */
+  | { kind: 'move'; taskId: string; to: MoveTarget }
   | { kind: 'edit'; taskId: string; title?: string; workstream?: string; priority?: number; autofix?: boolean }
 
 /** A file pasted or picked into a new task, kept as its bytes until the task is created. */
@@ -67,6 +69,8 @@ export const execute = async (api: Api, { id, command: c }: Pending) => {
       return api.tasks.wait({ idempotencyKey, id: c.taskId })
     case 'close':
       return api.tasks.close({ idempotencyKey, id: c.taskId, outcome: c.outcome })
+    case 'move':
+      return api.tasks.move({ idempotencyKey, id: c.taskId, to: c.to })
     case 'edit':
       return api.tasks.edit({
         idempotencyKey,
@@ -111,6 +115,21 @@ export const overlay = (queue: LiveQueue, outbox: Pending[], now: Date): LiveQue
       case 'close':
         touch(c.taskId, { state: c.outcome })
         break
+      case 'move': {
+        // As the server moves it (Service.moveTask): Needs me is a snooze that ends now, or Triage
+        // when it never started.
+        const started = Boolean(tasks[c.taskId]?.sessionId)
+        if (c.to !== 'done') delete asks[c.taskId]
+        touch(
+          c.taskId,
+          c.to === 'needs_me'
+            ? started
+              ? { state: 'snoozed', snoozedUntil: at }
+              : { state: 'triage', snoozedUntil: null }
+            : { state: c.to, snoozedUntil: null },
+        )
+        break
+      }
       case 'edit':
         touch(c.taskId, {
           ...(c.title ? { title: c.title } : {}),

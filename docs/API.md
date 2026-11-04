@@ -39,6 +39,7 @@ Every command takes an `idempotencyKey` and is authorised by scope.
 | `tasks.snooze { id, until }` | `owner` | |
 | `tasks.wait { id, on, watcher? }` | `owner`, `session` (own) | |
 | `tasks.close { id, outcome: done \| canceled }` | `owner` | Ends the session, cleans up the worktree unless it holds unpushed work |
+| `tasks.move { id, to: needs_me \| running \| waiting \| done }` | `owner` | The override: puts a task in another view by hand, a closed one too. Running starts a session when none is live; Needs me is your turn (Triage if it never started) |
 | `tasks.bulk { ids, action }` | `owner` | start, dismiss, move, snooze |
 | `updates.post { taskId, kind, body, options?, waitingOn?, attachments? }` | `session` (own), `watcher`, `signal` (`signal` kind only) | Opening an ask closes any previous open ask |
 | `updates.answer { updateId, option? , text? }` | `owner` | Records an `instruction`, delivers it into the live session (or starts one), task → Running |

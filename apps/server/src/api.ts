@@ -220,6 +220,7 @@ export const createRouter = ({
       snooze: guarded.tasks.snooze.handler(({ input }) => service.snoozeTask(input)),
       wait: guarded.tasks.wait.handler(({ input, context }) => service.waitOn(input, authorOf(context.principal))),
       close: guarded.tasks.close.handler(({ input }) => service.closeTask(input)),
+      move: guarded.tasks.move.handler(({ input }) => service.moveTask(input)),
       markSeen: guarded.tasks.markSeen.handler(({ input }) => service.markSeen(input)),
       bulk: guarded.tasks.bulk.handler(({ input }) => service.bulk(input)),
     },
