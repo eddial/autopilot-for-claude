@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Alert, Linking } from 'react-native'
-import type { QueueItem } from '@autopilot/contracts'
+import type { Band, MoveTarget, QueueItem } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
 import { firstLookQuestions, linkGroups, linkKind, linkSource, PRIORITY_NAMES } from '@autopilot/client'
 import { useDetail, useSyncInstance } from '../store.ts'
@@ -33,6 +33,13 @@ const BAND_DOT: Record<QueueItem['band'], string> = {
   snoozed: tones.paused.dot,
   done: tones.quiet.dot,
 }
+
+/** The views a task can be moved to by hand, as the Mac's ⋯ offers them, and the bands each shows. */
+const MOVES: { to: MoveTarget; label: string; icon: 'hand.raised' | 'hammer' | 'clock'; bands: Band[] }[] = [
+  { to: 'needs_me', label: 'Needs me', icon: 'hand.raised', bands: ['your_turn', 'fyi', 'triage'] },
+  { to: 'running', label: 'Running', icon: 'hammer', bands: ['running'] },
+  { to: 'waiting', label: 'Waiting on others', icon: 'clock', bands: ['waiting'] },
+]
 
 const GROUP_ICONS = {
   artifacts: 'doc.text',
@@ -74,7 +81,7 @@ export const linksMenu = (links: QueueItem['task']['links'], hidden = false) => 
 /**
  * A task's actions as native bar items. At the top: the prominent action (Open session, or Start)
  * in ink as on the Mac, then one status button, the task's band as its tab draws it, that marks it
- * done, snoozes it or says not for me; ⋯ only in the split, for New task and back to the top (a
+ * done, snoozes it, moves it to another view by hand or says not for me (closed: reopens it); ⋯ only in the split, for New task and back to the top (a
  * pushed screen goes back to the top with a tap on its title). The Duo's bar is short: every button
  * more and iOS folds the arrows into an overflow ⋯ of its own. At the bottom, in a pushed screen: the
  * links and the way through the list, with the Mac's thin arrows (the split puts both in its own
@@ -166,14 +173,8 @@ export const TaskToolbar = ({
           />
         ) : null}
         {/* Where it stands, as the dot in its colour beside the status on the page: one button for every way to put it away. */}
-        <Stack.Toolbar.Menu
-          icon="circle.inset.filled"
-          tintColor={BAND_DOT[item.band]}
-          accessibilityLabel="Status"
-          title="Status"
-          hidden={closed}
-        >
-          <Stack.Toolbar.MenuAction icon="checkmark" onPress={() => done('done')}>
+        <Stack.Toolbar.Menu icon="circle.inset.filled" tintColor={BAND_DOT[item.band]} accessibilityLabel="Status" title="Status">
+          <Stack.Toolbar.MenuAction icon="checkmark" hidden={closed} onPress={() => done('done')}>
             Mark done
           </Stack.Toolbar.MenuAction>
           {/* The ball is still theirs: an FYI seen, or news that asks nothing of you. */}
@@ -184,10 +185,23 @@ export const TaskToolbar = ({
           >
             Back to waiting
           </Stack.Toolbar.MenuAction>
-          <Stack.Toolbar.Menu icon="moon" title="Snooze">
+          <Stack.Toolbar.Menu icon="moon" title="Snooze" hidden={closed}>
             {snoozes}
           </Stack.Toolbar.Menu>
-          <Stack.Toolbar.MenuAction icon="xmark" destructive onPress={() => done('canceled')}>
+          {/* The override: another view by hand when no update would put it there; closed, Reopen. */}
+          <Stack.Toolbar.Menu icon="arrow.uturn.backward" title={closed ? 'Reopen' : 'Move to'}>
+            {MOVES.map((m) => (
+              <Stack.Toolbar.MenuAction
+                key={m.to}
+                icon={m.icon}
+                hidden={m.bands.includes(item.band)}
+                onPress={() => void sync?.send({ kind: 'move', taskId: task.id, to: m.to })}
+              >
+                {m.label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.MenuAction icon="xmark" destructive hidden={closed} onPress={() => done('canceled')}>
             Not for me
           </Stack.Toolbar.MenuAction>
           {/* Not where it stands but how much it matters: its own entry, the current one ticked. */}

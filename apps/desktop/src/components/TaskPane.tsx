@@ -14,7 +14,7 @@ import {
   updateTone,
   type Pending,
 } from '@autopilot/client'
-import type { Draft, QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contracts'
+import type { Band, Draft, MoveTarget, QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contracts'
 import {
   filedBy,
   firstLookQuestions,
@@ -47,6 +47,7 @@ import {
   Markdown,
   Meta,
   NavIcon,
+  type NavIconName,
   SourceMark,
   TriageMark,
   Spacer,
@@ -632,15 +633,45 @@ const useOpenSession = (session: QueueItem['session']) => {
   return { preferred, choices }
 }
 
+/** The views a task can be moved to by hand, and the bands each shows. */
+const MOVES: { to: MoveTarget; label: string; icon: NavIconName; bands: Band[] }[] = [
+  { to: 'needs_me', label: 'Needs me', icon: 'needs', bands: ['your_turn', 'fyi', 'triage'] },
+  { to: 'running', label: 'Running', icon: 'running', bands: ['running'] },
+  { to: 'waiting', label: 'Waiting on others', icon: 'waiting', bands: ['waiting'] },
+]
+
+/** Every view but the one it is in, to move it there by hand. */
+const moves = (item: QueueItem, prefix: string): MenuItem[] =>
+  MOVES.filter((m) => !m.bands.includes(item.band)).map((m) => ({
+    label: `${prefix}${m.label}`,
+    icon: <NavIcon name={m.icon} size={14} />,
+    run: () => send({ kind: 'move', taskId: item.task.id, to: m.to }),
+  }))
+
 /**
  * What you can do with the task: Start (unless Before I start in the timeline starts it), the
- * session, Back to waiting when the ball is still with others, Snooze and Mark done; Not for me
- * behind the ⋯, being rarer.
+ * session, Back to waiting when the ball is still with others, Snooze and Mark done; moving it to
+ * another view by hand and Not for me behind the ⋯, being rarer. Closed, only Reopen.
  */
 const Actions = ({ item, session: withSession = true, start = true }: { item: QueueItem; session?: boolean; start?: boolean }) => {
   const { task, session } = item
   const live = session && session.state !== 'ended' ? session : null
   const { preferred, choices } = useOpenSession(session)
+  if (item.band === 'done')
+    return (
+      <div className="task-actions">
+        <Menu
+          className="with-icon"
+          label={
+            <>
+              <NavIcon name="again" size={14} />
+              Reopen
+            </>
+          }
+          items={moves(item, '')}
+        />
+      </div>
+    )
   return (
     <div className="task-actions">
       {start && item.band === 'triage' && !live && (
@@ -685,20 +716,23 @@ const Actions = ({ item, session: withSession = true, start = true }: { item: Qu
         <Icon name="done" />
         Mark done
       </Button>
-      {item.band === 'triage' && (
-        <Menu
-          className="icon-only"
-          chevron={false}
-          align="right"
-          label={
-            <>
-              <NavIcon name="ellipsis" />
-              <span className="sr-only">More</span>
-            </>
-          }
-          items={[{ label: 'Not for me', run: () => send({ kind: 'close', taskId: task.id, outcome: 'canceled' }) }]}
-        />
-      )}
+      <Menu
+        className="icon-only"
+        chevron={false}
+        align="right"
+        label={
+          <>
+            <NavIcon name="ellipsis" />
+            <span className="sr-only">More</span>
+          </>
+        }
+        items={[
+          ...moves(item, 'Move to '),
+          ...(item.band === 'triage'
+            ? [{ label: 'Not for me', run: () => send({ kind: 'close', taskId: task.id, outcome: 'canceled' }) }]
+            : []),
+        ]}
+      />
     </div>
   )
 }
@@ -773,7 +807,6 @@ const Properties = ({
   // Links from before they carried a time: when the activity says it was linked.
   const linkedAt = (url: string) => updates.find((u) => u.attachments.some((a) => a.url === url))?.createdAt ?? null
   const { task, session } = item
-  const closed = item.band === 'done'
   const streams: MenuItem[] = [...new Set([...workstreams.map((w) => w.name).filter((n) => n !== 'autopilot'), 'inbox'])]
     .filter((name) => name !== task.workstream)
     .map((name) => ({
@@ -791,11 +824,9 @@ const Properties = ({
   const { preferred, choices } = useOpenSession(session)
   return (
     <aside className="task-side" aria-label="Properties">
-      {!closed && (
-        <div className="side-actions">
-          <Actions item={item} start={!(item.band === 'triage' && firstLookQuestions(updates).length > 0)} />
-        </div>
-      )}
+      <div className="side-actions">
+        <Actions item={item} start={!(item.band === 'triage' && firstLookQuestions(updates).length > 0)} />
+      </div>
       <div className="side-group">
         {/* Where it stands, said once; what you can do about it is in the buttons above. */}
         <Prop label="Status">

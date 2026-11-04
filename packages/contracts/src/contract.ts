@@ -9,6 +9,7 @@ import {
   PreviewLink,
   BulkTasks,
   CloseTask,
+  MoveTask,
   CreateTask,
   CreateToken,
   DecideRouting,
@@ -176,6 +177,8 @@ export const contract = {
       .input(WaitOn)
       .output(Task),
     close: base.meta({ scopes: OWNER }).input(CloseTask).output(Task),
+    /** Moves a task to another view by hand, a closed one too: the override when no update would. */
+    move: base.meta({ scopes: OWNER }).input(MoveTask).output(Task),
     markSeen: base.meta({ scopes: OWNER }).input(TaskRef).output(Task),
     bulk: base.meta({ scopes: OWNER }).input(BulkTasks).output(z.array(Task)),
   },

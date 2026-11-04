@@ -530,6 +530,7 @@ const WHAT: Record<Conflict['command']['kind'], string> = {
   snooze: 'Snoozing',
   wait: 'Moving back to waiting',
   close: 'Closing',
+  move: 'Moving it',
   edit: 'Your edit',
 }
 

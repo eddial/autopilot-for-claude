@@ -55,6 +55,43 @@ describe('tasks', () => {
   })
 })
 
+const move = (s: Service, id: string, to: 'needs_me' | 'running' | 'waiting' | 'done') => s.moveTask({ idempotencyKey: key(), id, to })
+
+describe('moving by hand', () => {
+  it('reopens a done task into the view picked, and says so in its timeline', () => {
+    const s = setup()
+    const task = create(s)
+    s.finishOutbox(s.pendingOutbox()[0]?.id ?? 0)
+    liveSession(s, task.id)
+    post(s, task.id, { kind: 'waiting', body: 'Waiting on Sofie', waitingOn: 'Sofie' })
+    s.closeTask({ idempotencyKey: key(), id: task.id, outcome: 'done' })
+    s.finishOutbox(s.pendingOutbox()[0]?.id ?? 0)
+
+    move(s, task.id, 'waiting')
+    expect(s.getTask(task.id).band).toBe('waiting')
+    expect(s.getTask(task.id).updates.at(-1)).toMatchObject({ kind: 'waiting', waitingOn: 'Sofie' })
+    expect(s.getTask(task.id).updates.some((u) => u.body === 'Reopened to Waiting on others by hand')).toBe(true)
+
+    move(s, task.id, 'needs_me')
+    expect(s.getTask(task.id).band).toBe('your_turn')
+    move(s, task.id, 'done')
+    expect(s.getTask(task.id).band).toBe('done')
+  })
+
+  it('starts a session when a task without a live one is moved to Running, and leaves it in place when it is already there', () => {
+    const s = setup()
+    const task = create(s, { start: false })
+    s.closeTask({ idempotencyKey: key(), id: task.id, outcome: 'canceled' })
+    s.finishOutbox(s.pendingOutbox()[0]?.id ?? 0)
+    move(s, task.id, 'running')
+    expect(s.getTask(task.id).band).toBe('running')
+    expect(s.pendingOutbox().map((o) => o.kind)).toEqual(['start_session'])
+    const before = s.getTask(task.id).updates.length
+    move(s, task.id, 'running')
+    expect(s.getTask(task.id).updates).toHaveLength(before)
+  })
+})
+
 describe('updates', () => {
   it('puts a task on your turn with one open ask at a time', () => {
     const s = setup()

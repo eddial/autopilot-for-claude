@@ -12,6 +12,9 @@ import {
   type BulkTasks,
   type Change,
   type CloseTask,
+  type MoveTask,
+  type MoveTarget,
+  type Band,
   type CreateTask,
   type CreateToken,
   type CreatedTask,
@@ -106,6 +109,15 @@ type Row = Record<string, SQLInputValue>
 type NewChange = Change extends infer C ? (C extends Change ? Omit<C, 'seq' | 'at'> : never) : never
 
 const json = (value: unknown) => JSON.stringify(value)
+
+/** What each view a task can be moved to is called in its timeline, and the bands it shows. */
+const MOVE_TITLE: Record<MoveTarget, string> = { needs_me: 'Needs me', running: 'Running', waiting: 'Waiting on others', done: 'Done' }
+const MOVE_BANDS: Record<MoveTarget, readonly Band[]> = {
+  needs_me: ['your_turn', 'fyi', 'triage'],
+  running: ['running'],
+  waiting: ['waiting'],
+  done: ['done'],
+}
 const parse = <T>(text: unknown): T => JSON.parse(String(text)) as T
 const str = (v: unknown): string => String(v)
 const strOrNull = (v: unknown): string | null => (v === null || v === undefined ? null : String(v))
@@ -671,15 +683,53 @@ export class Service {
     return this.idempotent(input.idempotencyKey, 'tasks.wait', () => {
       const task = this.task(input.id)
       this.assertOpen(task)
-      // Whatever waited on the owner is dealt with: seen, or still with the others.
-      this.closeAsks(task.id)
-      const before = this.sql(
-        "select waiting_on from updates where task_id = ? and kind = 'waiting' and waiting_on is not null order by created_at desc limit 1",
-      ).get(task.id) as Row | undefined
-      const on = input.on ?? strOrNull(before?.waiting_on) ?? 'others'
-      this.insertUpdate(task, { kind: 'waiting', body: input.on ? `Waiting on ${on}` : `Back to waiting on ${on}`, waitingOn: on, author })
       if (input.watcher) this.insertWatcher(task.id, input.watcher)
-      return this.touch(task, { state: 'waiting' })
+      return this.wait(task, input.on ?? null, author)
+    })
+  }
+
+  private wait(task: Task, on: string | null, author: Author): Task {
+    // Whatever waited on the owner is dealt with: seen, or still with the others.
+    this.closeAsks(task.id)
+    const before = this.sql(
+      "select waiting_on from updates where task_id = ? and kind = 'waiting' and waiting_on is not null order by created_at desc limit 1",
+    ).get(task.id) as Row | undefined
+    const who = on ?? strOrNull(before?.waiting_on) ?? 'others'
+    this.insertUpdate(task, { kind: 'waiting', body: on ? `Waiting on ${who}` : `Back to waiting on ${who}`, waitingOn: who, author })
+    return this.touch(task, { state: 'waiting', snoozedUntil: null })
+  }
+
+  /**
+   * The owner's override, for when no update puts the task where it belongs: a closed task opens
+   * again, a waiting one comes back. The timeline says it was moved by hand. Watchers a close ended
+   * stay ended.
+   */
+  moveTask(input: In<typeof MoveTask>): Task {
+    return this.idempotent(input.idempotencyKey, 'tasks.move', () => {
+      const task = this.task(input.id)
+      if (input.to === 'done') return this.close(task, 'done')
+      const closed = task.state === 'done' || task.state === 'canceled'
+      if (MOVE_BANDS[input.to].includes(this.item(task).band)) return task
+      this.insertUpdate(task, {
+        kind: 'event',
+        body: `${closed ? 'Reopened' : 'Moved'} to ${MOVE_TITLE[input.to]} by hand`,
+        author: 'owner',
+      })
+      switch (input.to) {
+        case 'running': {
+          this.closeAsks(task.id)
+          const running = this.touch(task, { state: 'running', snoozedUntil: null })
+          if (!this.liveSession(running)) this.enqueue('start_session', { taskId: task.id })
+          return running
+        }
+        case 'waiting':
+          return this.wait(task, null, 'owner')
+        case 'needs_me':
+          this.closeAsks(task.id)
+          // Never started: back to Triage, to start. Otherwise a snooze that ends now, which the
+          // queue rules already put on your turn, without an ask nobody asked.
+          return this.touch(task, task.sessionId ? { state: 'snoozed', snoozedUntil: this.iso() } : { state: 'triage', snoozedUntil: null })
+      }
     })
   }
 
