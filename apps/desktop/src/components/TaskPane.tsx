@@ -144,10 +144,10 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
 
   const body = usePinnedToEnd()
   // From how it began to where it stands now, read downwards like a conversation; the newest
-  // one shows in full.
+  // one shows in full. With an ask waiting, the ask is the newest, so the entry above it folds.
   const entries = [
     <Marker key="created" who={task.createdBy} label={createdText(task)} at={shortDate(task.createdAt)} />,
-    ...activity.map((u, i) => <Entry key={u.id} update={u} latest={i === activity.length - 1 && pending.length === 0} />),
+    ...activity.map((u, i) => <Entry key={u.id} update={u} latest={i === activity.length - 1 && pending.length === 0 && !ask} />),
     ...pending.map((p) => <PendingEntry key={p.id} pending={p} options={updates.flatMap((u) => u.options)} />),
     // Where it stands now: what waits on you, with its answer, or the line saying how it stands
     // and the box for what you write next, after the newest entry.
@@ -359,7 +359,7 @@ const BeforeStart = ({ taskId, updates }: { taskId: string; updates: Update[] })
   )
 }
 
-/** The one thing waiting on the owner, with its answers. */
+/** The one thing waiting on the owner, with its answers. It is the newest message, so it shows in full. */
 const AskCard = ({ update }: { update: Update }) => {
   const [text, setText] = useDraft(`${update.taskId}:${update.id}`)
   const files = useFiles(update.taskId)
@@ -383,7 +383,7 @@ const AskCard = ({ update }: { update: Update }) => {
       <div className="ask-head">
         {updateLabel(update)} · {age(update.createdAt)}
       </div>
-      <Body text={update.body} />
+      <Body text={update.body} full />
       {update.draft && <DraftCard draft={update.draft} onSend={(words) => answer({ text: words })} />}
       <Attachments taskId={update.taskId} links={update.attachments} />
       {update.kind === 'done' && (
