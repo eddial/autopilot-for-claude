@@ -6006,6 +6006,10 @@
                   ],
                   "additionalProperties": false
                 }
+              },
+              "brief": {
+                "default": "",
+                "type": "string"
               }
             },
             "required": [
@@ -6014,7 +6018,8 @@
               "workstream",
               "state",
               "sourceUrl",
-              "links"
+              "links",
+              "brief"
             ],
             "additionalProperties": false
           }

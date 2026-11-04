@@ -15,6 +15,11 @@ export type PullRequestNews = z.infer<typeof PullRequestNews>
 export const WatcherOutput = z.object({
   fingerprint: z.string(),
   changed: z.boolean(),
+  /**
+   * What changed is about what this task waits on. A DM or channel carries other topics too, and
+   * several tasks can watch the same place: news about something else is not this task's news.
+   */
+  about: z.boolean().default(true),
   summary: z.string(),
   /** The next move is still theirs: what changed only acknowledges or reports progress. */
   theirs: z.boolean().default(false),
@@ -118,13 +123,12 @@ export class Watchers {
     }
     service.closeHealth('watchers-blind', 'Watchers can read again.')
     // A first run also says whether what it watches for is already there: what was set to wait for
-    // an email can be set after the email came in. The task's latest updates say what is known.
-    const known = fingerprint
-      ? []
-      : service
-          .getTask(task.id)
-          .updates.slice(-6)
-          .map((u) => `- ${u.author} (${u.kind}): ${u.body.slice(0, 400)}`)
+    // an email can be set after the email came in. The task's latest updates say what is known, on
+    // every run, so news a signal or another watcher already posted is not posted again.
+    const known = service
+      .getTask(task.id)
+      .updates.slice(-6)
+      .map((u) => `- ${u.author} (${u.kind}): ${u.body.slice(0, 400)}`)
     const output = await this.o.runClaude(this.prompt(task.id, task.title, task.brief, watcher.what, fingerprint, known), {
       tools,
       model: this.o.model,
@@ -133,7 +137,7 @@ export class Watchers {
       cwd: this.o.paths.home,
     })
     const result = WatcherOutput.parse(typeof output === 'string' ? JSON.parse(output) : output)
-    if (result.changed) {
+    if (result.changed && result.about) {
       const autonomy = this.o.workstreams().find((w) => w.name === task.workstream)?.autonomy ?? 2
       const attachments: Link[] = result.sources
         .filter((url) => URL.canParse(url))
@@ -167,7 +171,8 @@ export class Watchers {
         ...(known.length > 0 ? [`The task's latest updates (what is already known):\n\n${known.join('\n')}`] : []),
         'Return:',
         '- fingerprint: a short, stable record of the latest activity by people (ids, timestamps, counts, open/closed/merged) for the next run to compare against. Leave out values that move on their own: CI or mergeable state still computing, view counts, relative times',
-        '- changed: true when what is watched for happened since the previous fingerprint (a reply, an email that arrived, a new commit or review, a status or decision). On the first run there is no previous fingerprint: true only when what is watched for is already there and the latest updates above do not mention it yet, else false',
+        '- changed: true when what is watched for happened since the previous fingerprint (a reply, an email that arrived, a new commit or review, a status or decision) and the latest updates above do not already say it. On the first run there is no previous fingerprint: true only when what is watched for is already there and the latest updates above do not mention it yet, else false',
+        "- about: when changed, true only when what changed is about this task's ask (its title and brief). A DM or channel carries other topics too: a message there about something else (another project, another ask, small talk) is false, even from the person watched for. Else true",
         '- summary: when changed, one to three plain sentences for the owner: who did what, and when; say what it means for the task if that is clear. Names, not ids: no channel, user or message ids or timestamps. Else ""',
         "- theirs: when changed, true when the next move is still the other side's: they only acknowledged, thanked, said when they will get to it, or reported progress without asking the owner anything or delivering what was waited for. false when they asked the owner something, decided, delivered, or declined",
         '- sources: the URLs of what changed',

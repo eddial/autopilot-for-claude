@@ -9,7 +9,7 @@ import { lastCronMatch } from './cron.ts'
 import { scoutJob } from './scout.ts'
 import { readSignals, type SignalFile } from './home.ts'
 import type { Paths } from './paths.ts'
-import { DomainError, type Service } from './service.ts'
+import { DomainError, briefStart, type Service } from './service.ts'
 
 /** What a signal run returns: every item it looked at, with the decision for each. */
 /** What a sweep returns: the workstreams it sees in the sources. */
@@ -609,7 +609,9 @@ export class Signals {
     const active = this.o.service
       .queue()
       .items.map(
-        (i) => `- ${i.task.id} · ${i.band} · ${i.task.workstream} · ${i.task.title}${i.task.source.url ? ` · ${i.task.source.url}` : ''}`,
+        (i) =>
+          `- ${i.task.id} · ${i.band} · ${i.task.workstream} · ${i.task.title}${i.task.source.url ? ` · ${i.task.source.url}` : ''}` +
+          (briefStart(i.task.brief) ? `\n  Asks: ${briefStart(i.task.brief).slice(0, 160)}` : ''),
       )
       .join('\n')
     return [

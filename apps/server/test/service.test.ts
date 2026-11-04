@@ -142,6 +142,30 @@ describe('filing', () => {
     expect(s.matchItems({ queries: [item.url] }).tasks.map((t) => t.id)).toEqual([first.taskId])
   })
 
+  it('files a new ask in a DM a task was filed from as its own task, and shows what each match asks', () => {
+    const s = setup()
+    const dm = { ...item, url: 'https://example.slack.com/archives/D06EJ29FGGK', channel: 'DM with Lennard' }
+    const file = (title: string) =>
+      s.fileItem(
+        FileItem.parse({
+          idempotencyKey: key(),
+          item: { ...dm, title, summary: `Lennard asks: ${title}.` },
+          action: 'create',
+          workstream: 'engineering',
+          reason: 'a new ask',
+          searches: ['Lennard'],
+          gated: false,
+        }),
+      )
+    const pricing = file('Map cost per customer')
+    const billing = file('Publish the billing page')
+    expect(billing.action).toBe('created')
+    expect(billing.taskId).not.toBe(pricing.taskId)
+    expect(s.matchItems({ queries: [dm.url] }).tasks.map((t) => t.brief)).toEqual(
+      expect.arrayContaining(['Lennard asks: Map cost per customer.']),
+    )
+  })
+
   it('mirrors a team ticket once and closes the mirror when the ticket closes', () => {
     const s = setup()
     const ticket = (over: Record<string, unknown>, closed: boolean) =>

@@ -67,6 +67,23 @@ export const isPullRequest = (url: string): boolean => /^https:\/\/github\.com\/
 export const pullRequestWatch = (url: string): string =>
   `Pull request ${url}: merged or closed, approved with checks green (ready to merge), or stuck where Auto-fix does not reach`
 
+/**
+ * A whole Slack DM, group DM or channel rather than one thread in it: many asks pass through one,
+ * so a task filed from it does not own everything said there later.
+ */
+export const isConversation = (url: string): boolean =>
+  /^https:\/\/[^/]+\.slack\.com\/archives\/[A-Z0-9]+\/?(\?.*)?$/.test(url) || url.startsWith('slack:')
+
+/** What a task asks, short enough to judge a match by: its brief up to the source lines. */
+export const briefStart = (brief: string): string => {
+  const text =
+    brief
+      .split(/\n\nFrom: |\n\nSource: /)[0]
+      ?.replace(/\s+/g, ' ')
+      .trim() ?? ''
+  return text.length > 300 ? `${text.slice(0, 299)}…` : text
+}
+
 /** Who is calling, from their token. */
 export type Principal = { tokenId: string; name: string; scope: Scope; taskId: string | null }
 
@@ -1138,6 +1155,7 @@ export class Service {
         state: t.state,
         sourceUrl: t.source.url,
         links: t.links,
+        brief: briefStart(t.brief),
       })),
     }
   }
@@ -1180,7 +1198,12 @@ export class Service {
       let action = input.action
       let taskId = input.taskId ?? null
       // Never file the same thread or team ticket twice: an active task with it becomes an update.
-      const existing = item.ticket ? this.openWithSource(item.ticket.id, null) : this.openWithSource(null, item.url)
+      // A whole DM or channel is not one thread: a new ask in it may well be a task of its own.
+      const existing = item.ticket
+        ? this.openWithSource(item.ticket.id, null)
+        : isConversation(item.url)
+          ? null
+          : this.openWithSource(null, item.url)
       if (existing && (action === 'create' || item.ticket)) {
         action = action === 'drop' && !item.ticket?.closed ? 'drop' : 'update'
         taskId = existing.id

@@ -115,6 +115,8 @@ export const MatchedTask = z.object({
   state: Task.shape.state,
   sourceUrl: z.string().nullable(),
   links: Task.shape.links,
+  /** The start of its brief: what the task asks, so a signal can tell whether an item moves it. */
+  brief: z.string().default(''),
 })
 
 export const VersionInfo = z.object({ version: z.int(), oldestClient: z.int() })
