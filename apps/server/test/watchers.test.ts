@@ -29,7 +29,7 @@ const setup = (autonomy: number) => {
   mkdirSync(paths.home, { recursive: true })
   let clock = Date.parse('2026-10-25T10:00:00Z')
   const service = new Service({ db: openDatabase(':memory:'), now: () => new Date(clock) })
-  const replies: { fingerprint: string; changed: boolean; summary: string; pr?: string; theirs?: boolean }[] = []
+  const replies: { fingerprint: string; changed: boolean; summary: string; pr?: string; theirs?: boolean; about?: boolean }[] = []
   let calls = 0
   const runClaude: RunClaude = () => {
     calls++
@@ -93,6 +93,19 @@ describe('watchers', () => {
     expect(back.band).toBe('waiting')
     expect(back.updates.at(-1)).toMatchObject({ kind: 'waiting', body: 'Back to waiting on Joris to review' })
     expect(back.updates.some((u) => u.open)).toBe(false)
+  })
+
+  it('posts nothing when what changed is about something else, and moves its fingerprint on', async () => {
+    const { service, watchers, task, replies, advance } = setup(3)
+    replies.push({ fingerprint: 'r0', changed: false, summary: '' })
+    await watchers.tick()
+    const before = service.getTask(task.id).updates.length
+    advance(30)
+    replies.push({ fingerprint: 'r1', changed: true, about: false, summary: 'Joris asked about lunch.' })
+    await watchers.tick()
+    expect(service.getTask(task.id).updates).toHaveLength(before)
+    expect(service.watcherRuns()[0]?.fingerprint).toBe('r1')
+    expect(service.pendingOutbox()).toEqual([])
   })
 
   it('reports on the first run when what it watches for is already there', async () => {
