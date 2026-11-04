@@ -121,6 +121,18 @@ export const TaskToolbar = ({
     void sync?.send({ kind: 'close', taskId: task.id, outcome })
     if (closeAfter && router.canGoBack()) router.back()
   }
+  /** The system's own text prompt, filled with the current title. */
+  const rename = () =>
+    Alert.prompt(
+      'Rename task',
+      undefined,
+      (text) => {
+        const title = text.trim().slice(0, 120)
+        if (title && title !== task.title) void sync?.send({ kind: 'edit', taskId: task.id, title })
+      },
+      'plain-text',
+      task.title,
+    )
   const snoozes = snoozeTimes().map((t) => (
     <Stack.Toolbar.MenuAction
       key={t.label}
@@ -190,6 +202,9 @@ export const TaskToolbar = ({
               </Stack.Toolbar.MenuAction>
             ))}
           </Stack.Toolbar.Menu>
+          <Stack.Toolbar.MenuAction icon="pencil" onPress={rename}>
+            Rename
+          </Stack.Toolbar.MenuAction>
         </Stack.Toolbar.Menu>
         {/* Upright on the open Duo (onNew) the bottom bar is the list's: the links come up here. */}
         {linksMenu(task.links, !onNew)}

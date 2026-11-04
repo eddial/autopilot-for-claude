@@ -20,6 +20,7 @@ import {
   type DecideRouting,
   type Decision,
   type EditTask,
+  type RenameTask,
   type FileItem,
   type Instruct,
   type Draft,
@@ -507,12 +508,17 @@ export class Service {
     return row?.named === 0
   }
 
+  /** A title someone chose: Autopilot's naming no longer replaces it. */
+  private markNamed(taskId: string): void {
+    this.sql('update tasks set named = 1 where id = ?').run(taskId)
+  }
+
   /** Autopilot's title for a task created from a brief alone; the owner renaming it meanwhile wins. */
   nameTask(taskId: string, title: string): Task {
     return this.transaction(() => {
       const task = this.task(taskId)
       if (!this.needsName(taskId)) return task
-      this.sql('update tasks set named = 1 where id = ?').run(taskId)
+      this.markNamed(taskId)
       const named = title.trim().slice(0, 120)
       return named ? this.touch(task, { title: named }) : task
     })
@@ -586,6 +592,7 @@ export class Service {
   editTask(input: In<typeof EditTask>): Task {
     return this.idempotent(input.idempotencyKey, 'tasks.edit', () => {
       const task = this.task(input.id)
+      if (input.title !== undefined) this.markNamed(task.id)
       if (input.workstream && input.workstream !== task.workstream) this.correct(task, 'workstream', task.workstream, input.workstream)
       if (input.priority && input.priority !== task.priority) this.correct(task, 'priority', String(task.priority), String(input.priority))
       // Auto-fix switched: started or stopped on each pull request the task has, by its session.
@@ -598,6 +605,14 @@ export class Service {
         priority: input.priority ?? task.priority,
         autofix: input.autofix ?? task.autofix,
       })
+    })
+  }
+
+  renameTask(input: In<typeof RenameTask>): Task {
+    return this.idempotent(input.idempotencyKey, 'tasks.rename', () => {
+      const task = this.task(input.id)
+      this.markNamed(task.id)
+      return input.title === task.title ? task : this.touch(task, { title: input.title })
     })
   }
 

@@ -17,7 +17,7 @@ export type Command =
   /** Back to waiting on whoever it waited on: the ball is still theirs, the watchers keep watching. */
   | { kind: 'wait'; taskId: string }
   | { kind: 'close'; taskId: string; outcome: 'done' | 'canceled' }
-  | { kind: 'edit'; taskId: string; workstream?: string; priority?: number; autofix?: boolean }
+  | { kind: 'edit'; taskId: string; title?: string; workstream?: string; priority?: number; autofix?: boolean }
 
 /** A file pasted or picked into a new task, kept as its bytes until the task is created. */
 export type NewFileData = { name: string; type: string; data: string }
@@ -71,6 +71,7 @@ export const execute = async (api: Api, { id, command: c }: Pending) => {
       return api.tasks.edit({
         idempotencyKey,
         id: c.taskId,
+        ...(c.title ? { title: c.title } : {}),
         ...(c.workstream ? { workstream: c.workstream } : {}),
         ...(c.priority ? { priority: c.priority } : {}),
         ...(c.autofix === undefined ? {} : { autofix: c.autofix }),
@@ -112,6 +113,7 @@ export const overlay = (queue: LiveQueue, outbox: Pending[], now: Date): LiveQue
         break
       case 'edit':
         touch(c.taskId, {
+          ...(c.title ? { title: c.title } : {}),
           ...(c.workstream ? { workstream: c.workstream } : {}),
           ...(c.priority ? { priority: c.priority } : {}),
           ...(c.autofix === undefined ? {} : { autofix: c.autofix }),

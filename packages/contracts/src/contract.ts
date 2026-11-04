@@ -13,6 +13,7 @@ import {
   CreateToken,
   DecideRouting,
   EditTask,
+  RenameTask,
   FileItem,
   ImportSignal,
   InstallService,
@@ -162,6 +163,10 @@ export const contract = {
       .input(CreateTask)
       .output(CreatedTask),
     edit: base.meta({ scopes: OWNER }).input(EditTask).output(Task),
+    rename: base
+      .meta({ scopes: ['owner', 'session'], ownTask: true })
+      .input(RenameTask)
+      .output(Task),
     start: base.meta({ scopes: OWNER }).input(TaskRef).output(Task),
     /** Brings back the task's last session, the same conversation, with Remote Control: to open it from anywhere. */
     resume: base.meta({ scopes: OWNER }).input(TaskRef).output(Task),

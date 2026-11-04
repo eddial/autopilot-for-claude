@@ -377,6 +377,34 @@
     }
   },
   {
+    "name": "rename_task",
+    "description": "Rename your task when its title no longer says what it is about, for example after the owner reworked the ask.",
+    "scopes": [
+      "owner",
+      "session"
+    ],
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*-\\d+$",
+          "description": "Task identifier, e.g. AP-212"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ]
+    }
+  },
+  {
     "name": "add_watcher",
     "description": "Watch what your task waits on (a reply, a review); news brings the task back.",
     "scopes": [

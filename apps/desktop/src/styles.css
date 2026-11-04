@@ -595,10 +595,27 @@ button {
   padding: 0 56px 0 24px;
 }
 
-.task-title h2 {
+.task-title h2,
+.task-title .title-input {
   margin: 0;
   font-size: 26px;
   line-height: 1.25;
+}
+
+.task-title .title-rename {
+  cursor: text;
+}
+
+/* Renaming: the title in place, the same face and size, so nothing moves. */
+.task-title .title-input {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font-weight: inherit;
 }
 
 .task-head .session {

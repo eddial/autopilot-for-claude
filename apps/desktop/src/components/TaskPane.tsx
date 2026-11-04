@@ -200,7 +200,7 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
           <div className="timeline">
             <div className="task-main">
               <header className="task-title">
-                <h2 className="serif">{task.title}</h2>
+                <Title key={task.id} taskId={task.id} title={task.title} />
                 {/* Narrow, the properties sit here; wide, in the column on the right (styles.css). */}
                 <div className="props">
                   <span className="prop-text">
@@ -993,3 +993,35 @@ const SignalRow = ({ mention }: { mention: TaskSignal }) => {
 }
 
 const PRIORITY: Record<number, string> = { 1: 'Urgent', 2: 'High', 3: 'Normal', 4: 'Low' }
+
+/** The task's title; a click opens it to rename. Enter or leaving the field keeps it, Escape puts it back. */
+const Title = ({ taskId, title }: { taskId: string; title: string }) => {
+  const [editing, setEditing] = useState<string | null>(null)
+  const finish = (keep: boolean) => {
+    const next = editing?.trim() ?? ''
+    if (keep && next && next !== title) send({ kind: 'edit', taskId, title: next.slice(0, 120) })
+    setEditing(null)
+  }
+  if (editing === null)
+    return (
+      <h2 className="serif title-rename" title="Click to rename" onClick={() => setEditing(title)}>
+        {title}
+      </h2>
+    )
+  return (
+    <input
+      className="serif title-input"
+      aria-label="Task title"
+      autoFocus
+      maxLength={120}
+      value={editing}
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => setEditing(e.currentTarget.value)}
+      onBlur={() => finish(true)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') finish(true)
+        else if (e.key === 'Escape') finish(false)
+      }}
+    />
+  )
+}

@@ -110,6 +110,18 @@ describe('API over the socket', () => {
     expect(answer.code).toBe('FORBIDDEN')
   })
 
+  it('lets a session rename its own task, and keeps that title from Autopilot naming it later', async () => {
+    const mine = await owner.tasks.create({ idempotencyKey: k(), brief: 'Fix the base URL cut', start: false })
+    const other = await owner.tasks.create({ idempotencyKey: k(), title: 'Other', start: false })
+    const session = connect(socket, service.issueToken(`session ${mine.id}`, 'session', mine.id).secret)
+
+    const renamed = await session.tasks.rename({ idempotencyKey: k(), id: mine.id, title: 'Org-level connections' })
+    expect(renamed.title).toBe('Org-level connections')
+    expect(service.nameTask(mine.id, 'A name from the brief').title).toBe('Org-level connections')
+    const error = await errorOf(session.tasks.rename({ idempotencyKey: k(), id: other.id, title: 'x' }))
+    expect(error.code).toBe('FORBIDDEN')
+  })
+
   it('lets a session search the queue and turns a follow-up for a thread already filed into an update', async () => {
     const sourceUrl = 'https://example.slack.com/archives/C1/p7'
     const filed = await owner.tasks.create({ idempotencyKey: k(), title: 'Review the WAF choice', start: false, sourceUrl })
