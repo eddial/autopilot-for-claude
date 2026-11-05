@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import {
   createdText,
   draftHeading,
@@ -122,8 +122,49 @@ const snoozeTimes = (): { label: string; day: string; time: string; until: Date 
     .map((t) => ({ ...t, day: day(t.until), time: time(t.until) }))
 }
 
+/**
+ * What you are writing on a task. There is one box at the foot of the conversation, whichever form
+ * it takes, so a message arriving and swapping its form leaves your words, your files and your
+ * cursor where they are. The phone keeps its draft under the same key.
+ */
+const useReply = (taskId: string) => {
+  const [text, setText] = useDraft(`${taskId}:composer`)
+  const files = useFiles(taskId)
+  // A box leaving the page never reports the blur, so this still holds when the next one mounts.
+  const writing = useRef(false)
+  // Only when a box arrives, so it stays out of the way of the cursor while you write.
+  const carryOn = useCallback((el: HTMLTextAreaElement | null) => {
+    if (!el || !writing.current) return
+    el.focus()
+    el.setSelectionRange(el.value.length, el.value.length)
+  }, [])
+  return {
+    text,
+    files,
+    /** Sent: the words go, and the keys go back to moving through the queue. */
+    sent: () => {
+      setText('')
+      writing.current = false
+    },
+    box: {
+      ref: carryOn,
+      value: text,
+      onChange: (e: ChangeEvent<HTMLTextAreaElement>) => setText(e.target.value),
+      onFocus: () => {
+        writing.current = true
+      },
+      onBlur: () => {
+        writing.current = false
+      },
+    },
+  }
+}
+
+type Reply = ReturnType<typeof useReply>
+
 export const TaskPane = ({ item, workstreams, onClose }: Props) => {
   const { task } = item
+  const reply = useReply(task.id)
   // The task comes from the window's store, kept current by the feed: no request on open once it
   // has been seen. Until then, the ask from the queue shows straight away.
   const { detail, pending } = useDetail(task.id)
@@ -156,17 +197,17 @@ export const TaskPane = ({ item, workstreams, onClose }: Props) => {
       ? [
           <li key="ask" className="entry ask-entry">
             <Avatar who={ask.author} />
-            <AskCard update={ask} />
+            <AskCard update={ask} reply={reply} />
           </li>,
         ]
       : item.band === 'triage' && firstLookQuestions(updates).length > 0
         ? [
             <li key="before" className="entry ask-entry">
               <Avatar who="scout" />
-              <BeforeStart taskId={task.id} updates={updates} />
+              <BeforeStart taskId={task.id} updates={updates} reply={reply} />
             </li>,
           ]
-        : [<Now key="now" item={item} />, <Composer key="composer" item={item} />]),
+        : [<Now key="now" item={item} />, <Composer key="composer" item={item} reply={reply} />]),
   ]
 
   const session = item.session
@@ -316,14 +357,13 @@ const Attachments = ({ taskId, links }: { taskId: string; links: Update['attachm
  * A new task whose first look has questions: asked here, before the start, so the session begins
  * with the answers instead of guessing. Answering is optional; Start goes either way.
  */
-const BeforeStart = ({ taskId, updates }: { taskId: string; updates: Update[] }) => {
-  const [text, setText] = useDraft(`${taskId}:answers`)
+const BeforeStart = ({ taskId, updates, reply: { text, sent, box } }: { taskId: string; updates: Update[]; reply: Reply }) => {
   const questions = firstLookQuestions(updates)
   if (questions.length === 0) return null
   const start = () => {
     if (text.trim()) send({ kind: 'instruct', taskId, body: `Answers to the first look's questions:\n\n${text.trim()}` })
     else send({ kind: 'start', taskId })
-    setText('')
+    sent()
   }
   return (
     <section className="ask-card" aria-label="Before starting">
@@ -340,8 +380,7 @@ const BeforeStart = ({ taskId, updates }: { taskId: string; updates: Update[] })
         rows={3}
         aria-label="Your answers"
         placeholder="Answer what you know…"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
+        {...box}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
             e.preventDefault()
@@ -360,9 +399,7 @@ const BeforeStart = ({ taskId, updates }: { taskId: string; updates: Update[] })
 }
 
 /** The one thing waiting on the owner, with its answers. It is the newest message, so it shows in full. */
-const AskCard = ({ update }: { update: Update }) => {
-  const [text, setText] = useDraft(`${update.taskId}:${update.id}`)
-  const files = useFiles(update.taskId)
+const AskCard = ({ update, reply: { text, files, sent, box } }: { update: Update; reply: Reply }) => {
   const answer = (reply: { optionId: string } | { text: string }) => {
     send({
       kind: 'answer',
@@ -371,7 +408,7 @@ const AskCard = ({ update }: { update: Update }) => {
       ...reply,
       ...(files.links.length > 0 ? { attachments: files.links } : {}),
     })
-    setText('')
+    sent()
     files.clear()
   }
   const ready = (text.trim().length > 0 || files.links.length > 0) && !files.busy
@@ -413,8 +450,7 @@ const AskCard = ({ update }: { update: Update }) => {
           placeholder={
             update.kind === 'done' ? 'Or ask for changes…' : update.options.length > 0 ? 'Or answer in your own words…' : 'Answer…'
           }
-          value={text}
-          onChange={(e) => setText(e.target.value)}
+          {...box}
           onPaste={files.onPaste}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -738,15 +774,13 @@ const Actions = ({ item, session: withSession = true, start = true }: { item: Qu
 }
 
 /** The timeline's newest entry: a line for telling the session something; it grows while you write. */
-const Composer = ({ item }: { item: QueueItem }) => {
+const Composer = ({ item, reply: { text, files, sent, box } }: { item: QueueItem; reply: Reply }) => {
   const { task, session } = item
-  const [text, setText] = useDraft(`${task.id}:composer`)
-  const files = useFiles(task.id)
   const ready = (text.trim().length > 0 || files.links.length > 0) && !files.busy
-  const reply = () => {
+  const submit = () => {
     if (!ready) return
     send({ kind: 'instruct', taskId: task.id, body: text.trim(), ...(files.links.length > 0 ? { attachments: files.links } : {}) })
-    setText('')
+    sent()
     files.clear()
   }
   const live = session && session.state !== 'ended'
@@ -759,18 +793,17 @@ const Composer = ({ item }: { item: QueueItem }) => {
             aria-label="Reply to Autopilot"
             rows={Math.min(8, Math.max(2, text.split('\n').length))}
             placeholder={live ? 'Reply to the session…' : session ? 'Reply to pick it up again…' : 'Reply to start a session…'}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
+            {...box}
             onPaste={files.onPaste}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
-                reply()
+                submit()
               }
             }}
           />
           <AttachButton onFiles={files.add} />
-          <Button kind="send" aria-label="Send" title="Send (Enter; Shift-Enter for a new line)" disabled={!ready} onClick={reply}>
+          <Button kind="send" aria-label="Send" title="Send (Enter; Shift-Enter for a new line)" disabled={!ready} onClick={submit}>
             <Icon name="enter" size={14} />
           </Button>
         </div>

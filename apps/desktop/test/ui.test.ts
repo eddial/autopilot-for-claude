@@ -221,6 +221,42 @@ describe('the Mac app window', () => {
     await expect.poll(() => page.getByLabel('Reply to Autopilot').inputValue()).toBe('Half an answer about the lease')
   }, 30_000)
 
+  it('keeps what you are writing when a new message swaps the reply box', async () => {
+    const task = server.service.createTask(
+      CreateTask.parse({ idempotencyKey: 'ui-swap-box', title: 'Book the removal van', start: false }),
+      'owner',
+    )
+    await tab('Needs me').click()
+    await page.getByRole('option', { name: /Book the removal van/ }).click()
+    const reply = page.getByRole('textbox', { name: 'Reply to Autopilot' })
+    await reply.click()
+    await page.keyboard.type('Half a thought')
+    await reply.evaluate((el) => {
+      const data = new DataTransfer()
+      data.items.add(new File(['quote'], 'quote.pdf', { type: 'application/pdf' }))
+      el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }))
+    })
+    await expect.poll(() => page.locator('.file-chip').textContent()).toContain('quote.pdf')
+    server.service.postUpdate(
+      PostUpdate.parse({ idempotencyKey: 'ui-swap-ask', taskId: task.id, kind: 'question', body: 'Which day?' }),
+      'session',
+    )
+    await expect.poll(() => page.getByLabel('Needs you').count()).toBe(1)
+    await expect.poll(() => reply.inputValue()).toBe('Half a thought')
+    await expect.poll(() => page.locator('.file-chip').textContent()).toContain('quote.pdf')
+    // Still in the box: the next words land after the first, with no click in between.
+    await page.keyboard.type(' about Friday')
+    await expect.poll(() => reply.inputValue()).toBe('Half a thought about Friday')
+    // And the cursor stays where you put it.
+    await page.keyboard.press('Home')
+    await page.keyboard.type('So: ')
+    await expect.poll(() => reply.inputValue()).toBe('So: Half a thought about Friday')
+    await page.keyboard.press('Enter')
+    const answer = () => server.service.getTask(task.id).updates.findLast((u) => u.kind === 'instruction')
+    await expect.poll(() => answer()?.body).toContain('Half a thought about Friday')
+    expect(answer()?.attachments.map((a) => a.title)).toEqual(['quote.pdf'])
+  }, 30_000)
+
   it("changes a task's priority from its properties", async () => {
     await tab('Needs me').click()
     await page.getByRole('option', { name: /Renew the office lease/ }).click()

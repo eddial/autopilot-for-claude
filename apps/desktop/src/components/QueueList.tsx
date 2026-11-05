@@ -500,7 +500,7 @@ const Expanded = ({
   onDone: () => void
 }) => {
   const ask = item.openAsk
-  const [text, setText] = useDraft(`${item.task.id}:${ask?.id ?? 'reply'}`)
+  const [text, setText] = useDraft(`${item.task.id}:composer`)
   const answer = (reply: { optionId: string } | { text: string }) => {
     if (!ask) return
     send({ kind: 'answer', taskId: item.task.id, updateId: ask.id, ...reply })
