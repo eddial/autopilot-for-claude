@@ -21,7 +21,7 @@ const write = (key: string, text: string) => {
 
 /**
  * Text being written, kept as it is typed, so a restart, a crash or a closed window does not lose
- * it. Keyed by where it is written (`AP-2:answers`); setting it to '' after sending clears it.
+ * it. Keyed by where it is written (`AP-2:composer`); setting it to '' after sending clears it.
  */
 export const useDraft = (key: string): [string, (text: string) => void] => {
   const [text, setText] = useState(() => read(key))
