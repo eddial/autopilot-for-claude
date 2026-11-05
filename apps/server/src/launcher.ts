@@ -64,6 +64,10 @@ type Live = {
   sessionId: string
   screen: Screen
   stuck: boolean
+  /** How many marks of a turn that ended without a Stop hook the screen showed when last read. */
+  dead: number
+  /** The silence already said on the task: the session's last activity when it was reported stuck. */
+  stalled?: string
   /** Read after each redraw while a slash command Autopilot typed is on screen. */
   onScreen?: () => void
 }
@@ -71,6 +75,19 @@ type Live = {
 /** Startup screens a session can stop at; nobody is at the terminal to answer them. */
 const STARTUP_PROMPT = /trust this folder|Enter to confirm|Bypass Permissions mode|Do you want to proceed/i
 const STUCK_AFTER_MS = 45_000
+
+/**
+ * A turn Claude Code ended without running its Stop hook: an expired login, an API error, or the
+ * turn stopped from the keyboard. Nothing else tells the server the session is free again.
+ */
+const DEAD_TURN =
+  /Login expired[^\n]*|Please run \/login[^\n]*|OAuth token has expired[^\n]*|API Error:[^\n]*|Interrupted by user|Interrupted · /g
+const LOGIN = /login|OAuth/i
+const INTERRUPTED = /^Interrupted/
+/** Working this long without a hook reporting in: the session is said to be stuck, once per silence. */
+export const STALL_AFTER_MS = 30 * 60_000
+/** Sooner when an answer from the owner is waiting for it. */
+export const HELD_AFTER_MS = 15 * 60_000
 
 /**
  * What `/autofix-pr` draws. It runs no turn, so no Stop hook says the session is free again: the
@@ -318,7 +335,7 @@ export class Launcher {
       rows: 40,
       key: sessionId,
     })
-    const live: Live = { pty, sessionId, screen: new Screen(), stuck: false }
+    const live: Live = { pty, sessionId, screen: new Screen(), stuck: false, dead: 0 }
     this.live.set(task.id, live)
 
     if (resumed) service.reopenSession(sessionId, pty.pid)
@@ -384,6 +401,7 @@ export class Launcher {
     }
     const read = () => {
       link()
+      this.deadTurn(taskId, live)
       live.onScreen?.()
     }
     live.screen.write('', read)
@@ -391,6 +409,83 @@ export class Launcher {
       live.screen.write(data, read)
     })
     pty.onExit(({ exitCode }) => this.exited(taskId, sessionId, exitCode))
+  }
+
+  private deadMarks(live: Live): string[] {
+    return live.screen.text().match(DEAD_TURN) ?? []
+  }
+
+  /**
+   * A turn that ended without a Stop hook would leave the session working for good, holding every
+   * answer for it. Read from the screen instead: the session is free again, and the task says why.
+   * An expired login stops every session, so it is also reported once for all of them.
+   */
+  private deadTurn(taskId: string, live: Live): void {
+    if (this.stopping) return
+    const marks = this.deadMarks(live)
+    const seen = live.dead
+    live.dead = marks.length
+    if (marks.length <= seen) return
+    const { service } = this.opts
+    if (service.session(live.sessionId)?.state !== 'working') return
+    const mark = (marks.at(-1) ?? '').trim()
+    service.setSession(live.sessionId, { state: 'idle', activity: null })
+    // Stopped from the keyboard: whoever did it knows.
+    if (INTERRUPTED.test(mark)) {
+      service.systemEvent(taskId, 'The session’s turn was stopped; it is free again')
+      return
+    }
+    if (LOGIN.test(mark))
+      service.openHealth(
+        'claude-login',
+        'Claude Code needs a fresh login',
+        `A session’s turn ended with “${mark}”, and every session stops the same way until Claude Code is signed in again. Run \`claude /login\` on this Mac, then reply on the tasks that say they were stopped.`,
+      )
+    service.systemUpdate(
+      taskId,
+      'blocked',
+      `The session’s turn ended on an error before it did anything with your last message: “${mark}”. Reply to try again${LOGIN.test(mark) ? ' once Claude Code is signed in' : ''}.`,
+    )
+  }
+
+  /**
+   * A session that says it is working but has not reported in for a long time is stuck where no
+   * hook reaches: a command that never returns, a dialog, a dead turn the screen did not show.
+   * Said on its task once per silence, sooner when an answer from the owner is waiting for it.
+   */
+  checkStalls(): void {
+    const { service } = this.opts
+    const now = service.now().getTime()
+    const answers = new Map<string, number>()
+    for (const item of service.pendingOutbox(200))
+      if (item.kind === 'deliver_answer') answers.set(item.payload.taskId, (answers.get(item.payload.taskId) ?? 0) + 1)
+    for (const [taskId, live] of this.live) {
+      const session = service.session(live.sessionId)
+      if (session?.state !== 'working' || live.stalled === session.lastActivityAt) continue
+      const waiting = answers.get(taskId) ?? 0
+      const silent = now - Date.parse(session.lastActivityAt)
+      if (silent < (waiting > 0 ? HELD_AFTER_MS : STALL_AFTER_MS)) continue
+      live.stalled = session.lastActivityAt
+      const tail = live.screen
+        .text()
+        .split('\n')
+        .map((l) => l.trimEnd())
+        .filter((l) => l.trim())
+        .slice(-12)
+        .join('\n')
+      const stuck = `The session has not reported in for ${Math.round(silent / 60_000)} minutes while working${session.activity ? ` (last: ${session.activity})` : ''}, so it is probably stuck.`
+      const held =
+        waiting === 0
+          ? ''
+          : waiting === 1
+            ? ' Your message is waiting until it is free.'
+            : ` ${waiting} of your messages are waiting until it is free.`
+      service.systemUpdate(
+        taskId,
+        'blocked',
+        `${stuck}${held} Open it to see what it is doing, and stop the turn if it hangs. The screen shows:\n\n${tail}`,
+      )
+    }
   }
 
   /**
@@ -408,8 +503,9 @@ export class Launcher {
         hosted.pty.kill()
         continue
       }
-      const live: Live = { pty: hosted.pty, sessionId: hosted.key, screen: new Screen(), stuck: false }
-      live.screen.write(hosted.screen)
+      const live: Live = { pty: hosted.pty, sessionId: hosted.key, screen: new Screen(), stuck: false, dead: 0 }
+      // What it showed before this server: not news.
+      live.screen.write(hosted.screen, () => (live.dead = this.deadMarks(live).length))
       this.live.set(session.taskId, live)
       this.watch(session.taskId, live)
       log(`reattached ${session.taskId}`)

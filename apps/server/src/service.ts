@@ -1370,6 +1370,8 @@ export class Service {
         state: input.state,
         ...(activity === undefined ? {} : { activity }),
       })
+      // A turn that finished: Claude Code is signed in again.
+      if (input.state === 'idle') this.closeHealth('claude-login', 'Sessions are finishing their turns again.')
       return session
     })
   }
