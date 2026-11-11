@@ -213,6 +213,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     void watchers.tick()
     void routing.tick()
     void scout.tick()
+    launcher.checkStalls()
   }, 30_000)
   // Files sent with tasks go 30 days after the task closes; checked at start and every hour.
   const files = join(paths.data, 'files')
