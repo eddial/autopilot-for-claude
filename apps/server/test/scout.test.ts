@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { CreateTask, TaskRef } from '@autopilot/contracts'
+import { CreateTask, FileItem, TaskRef } from '@autopilot/contracts'
 import { openDatabase } from '../src/db.ts'
 import { resolvePaths } from '../src/paths.ts'
 import type { Workstream } from '@autopilot/contracts'
@@ -21,6 +21,7 @@ const REPLY: ScoutOutput = {
   approach: ['Check the PR review state', 'Draft a reply with the date'],
   questions: ['Promise the 24th, or a range?'],
   workstream: 'customers',
+  merged: '',
 }
 
 const ws = (name: string): Workstream => ({
@@ -34,7 +35,7 @@ const ws = (name: string): Workstream => ({
   machineId: null,
 })
 
-const setup = (onRun: () => void = () => {}, workstreams: Workstream[] = []) => {
+const setup = (onRun: () => void = () => {}, workstreams: Workstream[] = [], reply: ScoutOutput = REPLY) => {
   const dir = mkdtempSync(join(tmpdir(), 'ap-scout-'))
   const paths = resolvePaths({ AUTOPILOT_DATA: join(dir, 'data'), AUTOPILOT_HOME: join(dir, 'home') })
   mkdirSync(join(paths.home, 'signals'), { recursive: true })
@@ -44,7 +45,7 @@ const setup = (onRun: () => void = () => {}, workstreams: Workstream[] = []) => 
   const runClaude: RunClaude = (_prompt, options) => {
     calls.push({ tools: options.tools })
     onRun()
-    return Promise.resolve({ ...REPLY, title: 'Reply to Acme on the SSO date' })
+    return Promise.resolve({ ...reply, title: 'Reply to Acme on the SSO date' })
   }
   const scout = new Scout({ service, paths, workstreams: () => workstreams, runClaude, prompts: PROMPTS, owner: 'Badr' })
   const create = (title: string, start: boolean, workstream = 'customers') =>
@@ -70,6 +71,40 @@ describe('scout', () => {
     // Informing is not asking: the task stays in New.
     expect(service.getTask(waiting.id).band).toBe('triage')
     expect(service.getTask(started.id).updates).toEqual([])
+  })
+
+  it('closes a review request whose pull request merged before the owner touched it, and asks nothing', async () => {
+    const note = 'Emile merged it on 10 Nov at 20:33 UTC, before you got to it.'
+    const { service, scout, create } = setup(() => {}, [], { ...REPLY, merged: note })
+    const { taskId } = service.fileItem(
+      FileItem.parse({
+        idempotencyKey: 'file-pr-61',
+        item: {
+          signal: 'github',
+          url: 'https://github.com/acme/plugins/pull/61',
+          sender: 'Emile',
+          channel: 'acme/plugins',
+          at: '2026-11-10T18:00:00Z',
+          title: 'Review the plugin sync',
+          summary: 'Emile asks for your review.',
+        },
+        action: 'create',
+        workstream: 'customers',
+        reason: 'review requested',
+        searches: ['plugins'],
+        gated: false,
+      }),
+    )
+    // A task of the owner's own is no review request: the line is ignored and the look posted.
+    const own = create('Reply to Acme about SSO', false)
+    await scout.tick()
+
+    const review = service.getTask(taskId ?? '')
+    expect(review.task.state).toBe('done')
+    expect(review.updates.at(-1)).toMatchObject({ author: 'scout', kind: 'done', body: note })
+    expect(review.updates.some((u) => u.body.includes('Before starting'))).toBe(false)
+    expect(service.getTask(own.id).task.state).toBe('triage')
+    expect(service.getTask(own.id).updates.at(-1)).toMatchObject({ author: 'scout', kind: 'info' })
   })
 
   it('posts nothing when the task was started while it looked', async () => {

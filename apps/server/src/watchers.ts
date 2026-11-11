@@ -25,6 +25,8 @@ export const WatcherOutput = z.object({
   theirs: z.boolean().default(false),
   sources: z.array(z.string()),
   pr: PullRequestNews,
+  /** When it merged: the pull request is the owner's own, or they reviewed or commented on it. */
+  ownerActed: z.boolean().default(false),
 })
 
 export type WatchersOptions = {
@@ -80,7 +82,9 @@ export class Watchers {
           continue
         }
         const reviewing = band === 'your_turn' && service.getTask(task.id).updates.some((u) => u.open && u.kind === 'review')
-        if (band !== 'waiting' && band !== 'fyi' && !reviewing) continue
+        // A review request still in New is watched too: merged before the owner got to it, it closes.
+        const unread = band === 'triage' && service.untouchedReview(task.id)
+        if (band !== 'waiting' && band !== 'fyi' && !reviewing && !unread) continue
         const last = watcher.lastCheckedAt ? Date.parse(watcher.lastCheckedAt) : 0
         if (now - last < durationMs(watcher.every)) continue
         await this.check(watcher.id).catch((error: unknown) => {
@@ -154,6 +158,7 @@ export class Watchers {
         wake,
         theirs: result.theirs,
         pr: result.pr,
+        ownerActed: result.ownerActed,
       })
     }
     service.watcherChecked(id, result.fingerprint)
@@ -182,6 +187,7 @@ export class Watchers {
           '"stuck" (it cannot move without work: merge conflicts, no reviewer requested and nobody reviewing, changes requested that nobody has answered for a day, checks failing for over an hour with no new commit);',
           '"" when none of these, or when nothing changed.',
         ].join(' '),
+        `- ownerActed: when pr is "merged", true when ${this.o.owner} opened, reviewed, approved or commented on the pull request; else false`,
         `Never count ${this.o.owner}'s own messages, comments or reviews as news: they already know what they said.`,
       ].join('\n\n'),
     ].join('\n\n---\n\n')
