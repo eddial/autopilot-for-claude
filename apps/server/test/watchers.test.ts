@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { Workstream } from '@autopilot/contracts'
-import { CreateTask, WaitOn } from '@autopilot/contracts'
+import { CreateTask, FileItem, WaitOn } from '@autopilot/contracts'
 import { openDatabase } from '../src/db.ts'
 import { resolvePaths } from '../src/paths.ts'
 import { Service } from '../src/service.ts'
@@ -29,7 +29,15 @@ const setup = (autonomy: number) => {
   mkdirSync(paths.home, { recursive: true })
   let clock = Date.parse('2026-10-25T10:00:00Z')
   const service = new Service({ db: openDatabase(':memory:'), now: () => new Date(clock) })
-  const replies: { fingerprint: string; changed: boolean; summary: string; pr?: string; theirs?: boolean; about?: boolean }[] = []
+  const replies: {
+    fingerprint: string
+    changed: boolean
+    summary: string
+    pr?: string
+    theirs?: boolean
+    about?: boolean
+    ownerActed?: boolean
+  }[] = []
   let calls = 0
   const runClaude: RunClaude = () => {
     calls++
@@ -50,7 +58,36 @@ const setup = (autonomy: number) => {
     }),
     'session',
   )
-  return { service, watchers, task, replies, calls: () => calls, advance: (minutes: number) => (clock += minutes * 60_000) }
+  return { service, watchers, task, replies, paths, calls: () => calls, advance: (minutes: number) => (clock += minutes * 60_000) }
+}
+
+/** A review request filed from GitHub, in New, with the only watcher there is. */
+const fileReview = (n: number) => {
+  const t = setup(2)
+  mkdirSync(join(t.paths.home, 'signals'), { recursive: true })
+  writeFileSync(join(t.paths.home, 'signals', 'github.md'), '---\nevery: 10m\ntools: [Bash(gh pr view:*)]\n---\nPRs.\n')
+  // Only the review's watcher here: the waiting task's is dropped.
+  for (const r of t.service.watcherRuns()) t.service.removeWatcher({ idempotencyKey: `drop-${r.watcher.id}`, id: r.watcher.id })
+  const { taskId } = t.service.fileItem(
+    FileItem.parse({
+      idempotencyKey: `file-pr-${n}`,
+      item: {
+        signal: 'github',
+        url: `https://github.com/acme/app/pull/${n}`,
+        sender: 'Emile',
+        channel: 'acme/app',
+        at: '2026-10-25T09:00:00Z',
+        title: 'Review the sync',
+        summary: 'Emile asks for your review.',
+      },
+      action: 'create',
+      workstream: 'engineering',
+      reason: 'review requested',
+      searches: ['sync'],
+      gated: false,
+    }),
+  )
+  return { ...t, id: taskId ?? '' }
 }
 
 describe('watchers', () => {
@@ -160,6 +197,30 @@ describe('watchers', () => {
     merged.advance(31)
     await merged.watchers.tick()
     expect(merged.service.task(merged.task.id).state).toBe('done')
+  })
+
+  it('closes a review request in New when its pull request merges without the owner, and only reports it when they reviewed', async () => {
+    const untouched = fileReview(61)
+    untouched.replies.push(
+      { fingerprint: 'r0', changed: false, summary: '' },
+      { fingerprint: 'r1', changed: true, summary: 'Emile merged it on 10 Nov at 20:33 UTC.', pr: 'merged' },
+    )
+    await untouched.watchers.tick()
+    untouched.advance(31)
+    await untouched.watchers.tick()
+    expect(untouched.service.getTask(untouched.id).task.state).toBe('done')
+    expect(untouched.service.getTask(untouched.id).updates.at(-1)).toMatchObject({ kind: 'done', author: 'watcher' })
+
+    const reviewed = fileReview(62)
+    reviewed.replies.push(
+      { fingerprint: 'r0', changed: false, summary: '' },
+      { fingerprint: 'r1', changed: true, summary: 'Emile merged it after your approval.', pr: 'merged', ownerActed: true },
+    )
+    await reviewed.watchers.tick()
+    reviewed.advance(31)
+    await reviewed.watchers.tick()
+    expect(reviewed.service.getTask(reviewed.id).task.state).toBe('triage')
+    expect(reviewed.service.getTask(reviewed.id).updates.at(-1)).toMatchObject({ kind: 'info', author: 'watcher' })
   })
 
   it('hands a stuck pull request to the session even when news would otherwise be a question', async () => {

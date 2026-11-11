@@ -1111,7 +1111,15 @@ export class Service {
    */
   watcherNews(
     id: string,
-    news: { body: string; attachments: Link[]; wake: boolean; theirs?: boolean; pr?: 'merged' | 'closed' | 'ready' | 'stuck' | '' },
+    news: {
+      body: string
+      attachments: Link[]
+      wake: boolean
+      theirs?: boolean
+      pr?: 'merged' | 'closed' | 'ready' | 'stuck' | ''
+      /** The pull request is the owner's own, or they reviewed or commented on it. */
+      ownerActed?: boolean
+    },
   ): Update {
     return this.transaction(() => {
       const task = this.task(this.watcherTask(id))
@@ -1119,6 +1127,20 @@ export class Service {
       // task keeps waiting and its watchers keep watching.
       if (news.theirs && !news.pr) {
         const update = this.insertUpdate(task, { kind: 'fyi', body: news.body, author: 'watcher', attachments: news.attachments })
+        this.touch(task, {})
+        return update
+      }
+      // Merged before the owner did anything on the review they were asked for: nothing to ask.
+      if (news.pr === 'merged' && !news.ownerActed && this.untouchedReview(task.id)) {
+        const update = this.insertUpdate(task, { kind: 'done', body: news.body, author: 'watcher', attachments: news.attachments })
+        this.close(this.task(task.id), 'done')
+        return update
+      }
+      // A review request the owner did act on: the merge is news, and closing it stays their call.
+      const watched = this.sql('select what from watchers where id = ?').get(id) as Row | undefined
+      if (news.pr === 'merged' && task.createdBy === 'signal' && task.source.url && str(watched?.what).includes(task.source.url)) {
+        this.sql('delete from watchers where id = ?').run(id)
+        const update = this.insertUpdate(task, { kind: 'info', body: news.body, author: 'watcher', attachments: news.attachments })
         this.touch(task, {})
         return update
       }
@@ -1162,6 +1184,28 @@ export class Service {
         this.touch(task, {})
       }
       return update
+    })
+  }
+
+  /**
+   * A task filed from someone else's pull request (a review request) that the owner has not touched
+   * in Autopilot: no answer from them and no session started. Whether they reviewed or commented on
+   * GitHub is for whoever reads the pull request to say.
+   */
+  untouchedReview(taskId: string): boolean {
+    const task = this.task(taskId)
+    if (task.state === 'done' || task.state === 'canceled') return false
+    if (task.createdBy !== 'signal' || !task.source.url || !isPullRequest(task.source.url) || task.sessionId) return false
+    return !this.getTask(taskId).updates.some((u) => u.author === 'owner')
+  }
+
+  /** The first look found the pull request already merged: an untouched review closes, unasked. */
+  closeMergedReview(taskId: string, note: string, attachments: Link[] = []): boolean {
+    return this.transaction(() => {
+      if (!this.untouchedReview(taskId)) return false
+      this.insertUpdate(this.task(taskId), { kind: 'done', body: note, author: 'scout', attachments })
+      this.close(this.task(taskId), 'done')
+      return true
     })
   }
 
@@ -1287,6 +1331,9 @@ export class Service {
           createdBy: 'signal',
         })
         taskId = task.id
+        // A review request: if the pull request merges before the owner gets to it, there is
+        // nothing left to review, and its watcher closes the task.
+        if (isPullRequest(item.url)) this.insertWatcher(task.id, { what: pullRequestWatch(item.url), every: '30m' })
       } else if (action === 'update') {
         if (!taskId) throw new DomainError('BAD_REQUEST', { field: 'taskId' }, 'An update needs the task it belongs to')
         this.addToTask(this.task(taskId), {

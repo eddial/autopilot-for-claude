@@ -16,6 +16,11 @@ export const ScoutOutput = z.object({
   questions: z.array(z.string()),
   /** Where it belongs, when it came without one of the owner's workstreams; "" otherwise. */
   workstream: z.string(),
+  /**
+   * A review request whose pull request already merged with no review or comment from the owner:
+   * one line on who merged it and when. "" otherwise. Optional so a reply without it still parses.
+   */
+  merged: z.string().default(''),
 })
 export type ScoutOutput = z.infer<typeof ScoutOutput>
 
@@ -100,6 +105,8 @@ export class Scout {
     // Started, closed or answered meanwhile: the session or the owner already has it.
     if (service.queue({ band: 'triage' }).items.every((i) => i.task.id !== task.id)) return
     if (unplaced && workstreams.some((w) => w.name === result.workstream)) service.placeTask(task.id, result.workstream)
+    // Merged before the owner looked: nothing left to review, so nothing to ask.
+    if (result.merged.trim() && service.closeMergedReview(task.id, result.merged.trim().slice(0, 500), scoutLinks(result))) return
     service.systemUpdate(task.id, 'info', scoutBody(result), scoutLinks(result), 'scout')
   }
 
@@ -169,6 +176,7 @@ export class Scout {
         '- approach: one to four short steps the work would likely take',
         '- questions: up to 3 things only the owner can answer before work starts; [] when none',
         `- workstream: ${choices.length > 0 ? 'the name of the workstream above it belongs in' : '""'}`,
+        `- merged: when the task asks ${this.o.owner} to review a pull request someone else opened, that pull request has already merged, and ${this.o.owner} left no review or comment on it: one line saying who merged it and when ("Emile merged it on 10 Nov at 20:33 UTC, before you got to it."). Else ""`,
       ].join('\n\n'),
     ].join('\n\n---\n\n')
   }
@@ -184,7 +192,7 @@ export class Scout {
 }
 
 /** The update as the owner reads it on a phone. */
-export const scoutBody = (r: Omit<ScoutOutput, 'workstream'>): string =>
+export const scoutBody = (r: Omit<ScoutOutput, 'workstream' | 'merged'>): string =>
   [
     r.summary.trim(),
     r.approach.length > 0 ? `Likely approach:\n${r.approach.map((s, i) => `${i + 1}. ${s}`).join('\n')}` : '',
