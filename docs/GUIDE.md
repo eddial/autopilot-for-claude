@@ -131,8 +131,11 @@ restarting or updating Autopilot does not stop them, and their Remote Control li
 
 When a session opens a pull request on GitHub, Autopilot turns on Claude Code's **Auto-fix** for
 it (`/autofix-pr`): a cloud session watches its checks and reviews and pushes fixes, and it never
-merges. It needs the Claude GitHub App on the repository. The task's timeline says when Auto-fix
-went on. To stop it, set **Auto-fix** to Off in the task's properties (it shows once a pull
+merges. It needs the Claude GitHub App on the repository. Auto-fix starts from a checkout of the
+pull request's branch: the session's own worktree, or, when the session opened the pull request
+from a checkout of another repository, the worktree on this Mac that has its branch out (Autopilot
+starts a short Claude Code there for it). The task's timeline says when Auto-fix went on; when it
+cannot start, the task comes to you saying so, with what to do. To stop it, set **Auto-fix** to Off in the task's properties (it shows once a pull
 request is linked); Autopilot then stops it on each of the task's pull requests.
 
 Every linked pull request also gets a watcher for what Auto-fix does not tell Autopilot: once it

@@ -49,10 +49,15 @@ Do the work up to the point where the owner only has to decide:
 - **Code needed** → only in a git worktree: commit on this branch and push it when the repo has a
   remote. Push to the default branch, force-push or merge only when asked. When the repo is on
   GitHub, open a pull request (a draft unless the owner said otherwise) and `attach_link` it:
-  Autopilot then turns on Claude Code's Auto-fix for it, which watches its checks and reviews and
+  Autopilot then asks for Claude Code's Auto-fix on it, which watches its checks and reviews and
   pushes fixes in the cloud, and adds a watcher for what Auto-fix does not report back (merged,
-  ready to merge, stuck). When `/autofix-pr` arrives in this session, that is Autopilot doing so:
-  run it, post no update for it, and stop. Merge conflicts it does not catch: rebase on the default
+  ready to merge, stuck). Auto-fix starts from the worktree that has the pull request's branch out,
+  so open it from the worktree you committed in. It is on only once the task's timeline (`get_task`)
+  shows "Turned on Auto-fix for <url>": until then never tell the owner Auto-fix is on or will
+  handle checks and reviews. Check after you attach the link and before you hand over; when it is
+  not there yet, say the pull request is open and leave Auto-fix out. "Auto-fix is not on for
+  <url>" means nothing is fixing it: say so in your handover. When `/autofix-pr` arrives in this
+  session, that is Autopilot turning it on: run it, post no update for it, and stop. Merge conflicts it does not catch: rebase on the default
   branch before you hand over. When the owner says to merge once it is ready ("merge when
   ready"), merge it as soon as it is approved and green, without asking again.
 - **Decision needed** → gather the facts and options; recommend one.

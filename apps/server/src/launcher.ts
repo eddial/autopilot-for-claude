@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Task, Workstream } from '@autopilot/contracts'
 import { checkoutFor, prepareWorkspace, type Checkouts } from './checkouts.ts'
-import { hasGitHubRemote, isGitCheckout } from './git.ts'
+import { autofixCheckout, hasGitHubRemote, isGitCheckout, pullRequestBranch } from './git.ts'
 import type { Paths } from './paths.ts'
 import type { OutboxItem, Service } from './service.ts'
 import { Screen } from './screen.ts'
@@ -56,6 +56,8 @@ export type LauncherOptions = {
    * none when the server owns its terminals itself, as in tests.
    */
   attach?: (() => Promise<{ running: Hosted[]; exited: { key: string; exitCode: number }[] }>) | null
+  /** The branch a pull request comes from, for finding the worktree it was opened from. */
+  prBranch?: (url: string) => string | null
   log?: (message: string) => void
 }
 
@@ -81,6 +83,8 @@ const AUTOFIX_CONSENT = /Before you start[\s\S]*Continue/
 const AUTOFIX_STARTED = /Spawned cloud autofix[^\n]*/g
 const AUTOFIX_FAILED = /Autofix PR failed[\s\S]*?(?=Esc\/Enter to close|$)/g
 const AUTOFIX_SETTLE_MS = 60_000
+/** What Auto-fix is asked to do with a pull request. */
+const autofixAsk = (url: string) => `Keep ${url} green and answer its reviews. Never merge it.`
 
 /**
  * Claude Code asks "Do you trust this folder?" in a folder it has not seen, and the session never
@@ -133,6 +137,7 @@ export class Launcher {
       workspace: () => options.paths.workspace,
       place: null,
       attach: null,
+      prBranch: pullRequestBranch,
       log: () => {},
       ...options,
     }
@@ -464,68 +469,149 @@ export class Launcher {
   }
 
   /**
-   * Turns Claude Code's Auto-fix on for a pull request the session opened, or off (`stop`), once
-   * the session is idle: on, a cloud session watches its checks and reviews and pushes fixes, after
-   * this one ends too. A session that has ended is brought back for it, idle, as when you open it.
-   * Only from a checkout of the pull request's repository, which is where Auto-fix starts from.
+   * Turns Claude Code's Auto-fix on for a pull request the session opened, or off (`stop`): on, a
+   * cloud session watches its checks and reviews and pushes fixes, after this one ends too.
+   * Auto-fix starts from the checkout it is typed in, so it needs one of the pull request's
+   * repository. The session's own folder, once it is idle (a session that has ended is brought back
+   * for it, idle, as when you open it). A session that opened the pull request from a checkout of
+   * another repository: a short-lived Claude Code in that checkout, found by its remote and the pull
+   * request's branch. None found, or it does not start: the owner hears it, with what to do.
    */
   private autofix(taskId: string, url: string, stop: boolean): 'done' | 'defer' {
     const { service } = this.opts
     const live = this.live.get(taskId)
     const session = service.getTask(taskId).session
+    const repo = /github\.com\/([^/]+\/[^/]+)\/pull\//.exec(url)?.[1]
+    // A session that opened it from a checkout of another repository: Auto-fix starts from the
+    // worktree that has its branch out, without waiting on the session.
+    if (repo && session && !hasGitHubRemote(session.cwd, repo)) {
+      // Nothing was started from there for a stop to reach.
+      if (stop) return 'done'
+      const branch = this.opts.prBranch(url)
+      const dir = branch ? autofixCheckout(repo, branch, this.clones(repo)) : null
+      if (dir) return this.autofixIn(taskId, url, dir)
+      this.autofixOff(
+        taskId,
+        url,
+        branch
+          ? `no worktree of ${repo} on this Mac has its branch ${branch} out, and the session's folder ${session.cwd} has no GitHub remote for it. Auto-fix starts from a checkout of the pull request's branch.`
+          : `GitHub did not say which branch it comes from (\`gh pr view\` failed), and the session's folder ${session.cwd} has no GitHub remote for ${repo}.`,
+      )
+      return 'done'
+    }
     if (!live) {
       if (!session) return 'done'
       service.resumeTask({ idempotencyKey: `autofix-resume-${session.id}-${Date.now()}`, id: taskId })
       return 'defer'
     }
     if (session?.state !== 'idle') return 'defer'
-    const repo = /github\.com\/([^/]+\/[^/]+)\/pull\//.exec(url)?.[1]
-    if (!stop && repo && !hasGitHubRemote(session.cwd, repo)) {
-      service.systemEvent(
-        taskId,
-        `Auto-fix is not on for ${url}: this session works in ${session.cwd}, which has no GitHub remote for ${repo}, and Auto-fix starts from there`,
-      )
-      return 'done'
-    }
-    const count = (re: RegExp) => (live.screen.text().match(re) ?? []).length
+    // Answers wait until it is done; typed into its dialog, they would be lost.
+    service.setSession(live.sessionId, { state: 'working' })
+    this.driveAutofix(taskId, url, stop, live, () => {
+      if (service.session(live.sessionId)?.state === 'working') service.setSession(live.sessionId, { state: 'idle', activity: null })
+    })
+    live.pty.write(stop ? '/autofix-pr stop' : `/autofix-pr ${autofixAsk(url)}`)
+    live.pty.write('\r')
+    return 'done'
+  }
+
+  /** The checkouts of `repo` on this Mac: the one found by its remote, and the default. */
+  private clones(repo: string): string[] {
+    const checkouts = this.opts.checkouts()
+    return [checkouts.repos[repo.toLowerCase()], checkouts.fallback].filter((c): c is string => !!c)
+  }
+
+  /** `/autofix-pr` in a Claude Code of its own in `dir`, closed once it has started or failed. */
+  private autofixIn(taskId: string, url: string, dir: string): 'done' {
+    if (this.opts.claudeConfig) trustFolder(this.opts.claudeConfig, realpathSync(dir))
+    const pty = this.opts.spawn(this.opts.claude, ['--no-chrome', `/autofix-pr ${autofixAsk(url)}`], {
+      cwd: dir,
+      env: process.env as Record<string, string>,
+      cols: 120,
+      rows: 40,
+      key: `autofix-${randomUUID()}`,
+    })
+    const screen = new Screen()
+    const own = { pty, screen } as { pty: Pty; screen: Screen; onScreen?: () => void }
+    let closed = false
+    pty.onData((data) => screen.write(data, () => own.onScreen?.()))
+    pty.onExit(() => {
+      closed = true
+    })
+    this.driveAutofix(
+      taskId,
+      url,
+      false,
+      own,
+      () => {
+        if (!closed) pty.kill()
+      },
+      dir,
+    )
+    this.opts.log(`autofix ${taskId} from ${dir}`)
+    return 'done'
+  }
+
+  /**
+   * Reads what `/autofix-pr` draws until it has started or failed, or a minute has passed: it asks
+   * once first (Continue), and a failure waits for a key. A start is a line in the timeline;
+   * anything else comes to the owner.
+   */
+  private driveAutofix(
+    taskId: string,
+    url: string,
+    stop: boolean,
+    term: { pty: Pty; screen: Screen; onScreen?: () => void },
+    done: () => void,
+    from?: string,
+  ): void {
+    const { service } = this.opts
+    const count = (re: RegExp) => (term.screen.text().match(re) ?? []).length
     const before = { started: count(AUTOFIX_STARTED), failed: count(AUTOFIX_FAILED) }
     // What is drawn last, without the empty rows below it.
-    const tailOf = () => live.screen.text().trimEnd().split('\n').slice(-20).join('\n')
+    const tailOf = () => term.screen.text().trimEnd().split('\n').slice(-20).join('\n')
     let consented = false
-    // Free again once it has started or failed, or after a minute whatever it shows.
-    const settle = (event: string) => {
+    const settle = (outcome: { event: string } | { failed: string }) => {
       clearTimeout(timer)
-      live.onScreen = undefined
-      if (service.session(live.sessionId)?.state === 'working') service.setSession(live.sessionId, { state: 'idle', activity: null })
-      service.systemEvent(taskId, event)
+      term.onScreen = undefined
+      done()
+      if ('event' in outcome) service.systemEvent(taskId, outcome.event)
+      else this.autofixOff(taskId, url, outcome.failed)
     }
     const timer = setTimeout(() => {
       const tail = tailOf()
-      if (/Esc(\/Enter)? to (cancel|close)/.test(tail)) live.pty.write('\u001b')
+      if (/Esc(\/Enter)? to (cancel|close)/.test(tail)) term.pty.write('\u001b')
       settle(
         stop
-          ? `Turned off Auto-fix for ${url}`
-          : `Auto-fix for ${url} did not confirm within a minute. The screen showed:\n\n${tail.trim()}`,
+          ? { event: `Turned off Auto-fix for ${url}` }
+          : { failed: `it did not confirm within a minute. The screen showed:\n\n${tail.trim()}` },
       )
     }, AUTOFIX_SETTLE_MS)
     timer.unref()
-    live.onScreen = () => {
+    term.onScreen = () => {
       if (!consented && AUTOFIX_CONSENT.test(tailOf())) {
         consented = true
-        live.pty.write('\r')
+        term.pty.write('\r')
       } else if (count(AUTOFIX_FAILED) > before.failed) {
-        const reason = (live.screen.text().match(AUTOFIX_FAILED) ?? []).at(-1)?.replace(/\s+/g, ' ').trim()
-        live.pty.write('\u001b')
-        settle(`Auto-fix could not start for ${url}: ${reason}`)
+        const reason = (term.screen.text().match(AUTOFIX_FAILED) ?? []).at(-1)?.replace(/\s+/g, ' ').trim()
+        term.pty.write('\u001b')
+        settle(stop ? { event: `Auto-fix could not stop for ${url}: ${reason}` } : { failed: reason ?? 'Autofix PR failed' })
       } else if (count(AUTOFIX_STARTED) > before.started) {
-        settle(`Turned on Auto-fix for ${url}: Claude watches its checks and reviews and pushes fixes`)
+        settle({
+          event: `Turned on Auto-fix for ${url}${from ? ` (started from ${from})` : ''}: Claude watches its checks and reviews and pushes fixes`,
+        })
       }
     }
-    live.pty.write(stop ? '/autofix-pr stop' : `/autofix-pr Keep ${url} green and answer its reviews. Never merge it.`)
-    live.pty.write('\r')
-    // Answers wait until it is done; typed into its dialog, they would be lost.
-    service.setSession(live.sessionId, { state: 'working' })
-    return 'done'
+  }
+
+  /** Auto-fix did not go on: the owner is told, with what to do, never only the timeline. */
+  private autofixOff(taskId: string, url: string, why: string): void {
+    const repo = /github\.com\/([^/]+\/[^/]+)\/pull\//.exec(url)?.[1] ?? 'the repository'
+    this.opts.service.systemUpdate(
+      taskId,
+      'blocked',
+      `Auto-fix is not on for ${url}: ${why}\n\nNothing is fixing its checks or answering its reviews. Type \`/autofix-pr ${url}\` in Claude Code in a checkout of ${repo}, or set Auto-fix to Off in the task's properties, then reply here.`,
+    )
   }
 
   private end(taskId: string): 'done' {
