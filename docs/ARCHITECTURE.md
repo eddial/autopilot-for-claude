@@ -25,7 +25,7 @@ machine stays a different connection, not a different code path.
     global shortcut, updater             │     └─ logs/
                                          ▼
  autopilot server (launchd agent, user session)  ── socket ──▶ session host (its own agent) ── node-pty ──▶ claude --remote-control …
-   unix socket, owner-only                       ── spawn ─────▶ claude -p --json-schema …  (signals, watchers, scout)
+   unix socket, owner-only                       ── spawn ─────▶ claude -p --json-schema …  (signals, watchers, scout, sweep)
 ```
 
 - The app bundles the server and, on first run, installs it as a per-user launchd agent. It starts
@@ -72,6 +72,7 @@ One language and one contract across the server, the Mac app, the iPhone app and
 | Sessions | `claude --remote-control` in a pseudo-terminal (`node-pty`) owned by the session host, a small process apart from the server (`session-host.ts`), so restarting or updating the server stops no session; the server reattaches after a restart. A session lives until its task closes; only working ones count against the parallel limit. No tmux |
 | Signals and watchers | `claude -p --json-schema` with the signal's read-only tools, as today |
 | Scout | Once per task waiting in New: a read-only `claude -p` over the signals' connectors and the workstream's code, posted as a "First look" update (summary, related links, likely approach, questions). Started tasks get this from their session |
+| Triage sweep | Once an hour: one read-only `claude -p` over the signals' connectors for every task a signal filed in Triage that nobody has touched (no session, no word from the owner). A ticket closed, a question answered or a pull request merged meanwhile closes the task as done with one line on who resolved it and when; when unsure it stays |
 | MCP | `@modelcontextprotocol/sdk`: streamable HTTP on the server, `autopilot mcp` as a stdio bridge |
 | Desktop | Electron, React 19, Vite, Tailwind 4, TanStack Router, TanStack Query, Legend List; signed and notarised, electron-updater |
 | Mobile | Expo with a dev client and EAS builds to TestFlight, React Native, React Navigation native stack and native tabs, Legend List, `@expo/ui`, `expo-secure-store`, `expo-sqlite`, `expo-notifications`, a share extension |

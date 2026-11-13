@@ -23,6 +23,7 @@ import { KEEP_AFTER_CLOSE_MS, sweepFiles } from './files.ts'
 import { claudeHeadless, Signals, watchLogin, type RunClaude } from './signals.ts'
 import { Routing } from './routing.ts'
 import { Scout } from './scout.ts'
+import { TriageSweep } from './triage-sweep.ts'
 import { installService } from './service-install.ts'
 import { Setup } from './setup.ts'
 import { Watchers } from './watchers.ts'
@@ -134,6 +135,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   const watchers = new Watchers({ service, paths, workstreams, runClaude, prompts, owner, log })
   const routing = new Routing({ service, paths, runClaude, owner, log })
   const scout = new Scout({ service, paths, workstreams, runClaude, prompts, owner, log })
+  const triageSweep = new TriageSweep({ service, paths, runClaude, owner, log })
 
   const tailnet = options.tailnet ?? tailnetAddress
   const machine = (): Machine => ({
@@ -207,12 +209,13 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   const drain = () => void launcher.drain().catch((error: unknown) => log(`outbox: ${String(error)}`))
   const unsubscribe = service.onChange(drain)
   const outbox = setInterval(drain, 2000)
-  // Signals, watchers, routing and the scout each run one at a time, but beside each other.
+  // Signals, watchers, routing, the scout and the hourly Triage sweep each run one at a time, but beside each other.
   const tick = setInterval(() => {
     void signals.tick()
     void watchers.tick()
     void routing.tick()
     void scout.tick()
+    void triageSweep.tick()
   }, 30_000)
   // Files sent with tasks go 30 days after the task closes; checked at start and every hour.
   const files = join(paths.data, 'files')
