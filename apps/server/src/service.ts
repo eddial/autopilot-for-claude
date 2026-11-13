@@ -1209,6 +1209,26 @@ export class Service {
     })
   }
 
+  /**
+   * Waiting in Triage from a signal, with a source to check, and nobody has acted on it yet: no
+   * session, no word from the owner. What the hourly sweep may close when its source is resolved.
+   */
+  untouchedTriage(taskId: string): boolean {
+    const task = this.task(taskId)
+    if (task.state !== 'triage' || task.createdBy !== 'signal' || !task.source.url || task.sessionId) return false
+    return !this.getTask(taskId).updates.some((u) => u.author === 'owner')
+  }
+
+  /** The sweep found the source resolved elsewhere: an untouched task in Triage closes as done, unasked. */
+  closeResolved(taskId: string, note: string, attachments: Link[] = []): boolean {
+    return this.transaction(() => {
+      if (!this.untouchedTriage(taskId)) return false
+      this.insertUpdate(this.task(taskId), { kind: 'done', body: note, author: 'scout', attachments })
+      this.close(this.task(taskId), 'done')
+      return true
+    })
+  }
+
   /** Whether a watcher still waits on one of the task's pull requests. */
   private watchesPullRequest(taskId: string): boolean {
     const rows = this.sql('select what from watchers where task_id = ?').all(taskId) as Row[]
