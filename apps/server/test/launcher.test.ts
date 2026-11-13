@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AttachLink, CreateTask, EditTask, PostUpdate, ReportSession } from '@autopilot/contracts'
@@ -13,26 +13,42 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-/** A launcher on a fake terminal: what it types, and a way to draw on its screen. */
-const autofixSession = async (key: string) => {
+/**
+ * A launcher on fake terminals: what it types, and a way to draw on the last one's screen.
+ * `spawned` is every Claude Code it starts, where and with what; `checkouts` and `prBranch` stand
+ * in for this Mac's checkouts and GitHub.
+ */
+const autofixSession = async (
+  key: string,
+  options: { checkouts?: Record<string, string>; prBranch?: (url: string) => string | null } = {},
+) => {
   const dir = mkdtempSync(join(tmpdir(), 'ap-autofix-'))
   const service = new Service({ db: openDatabase(':memory:') })
   const typed: string[] = []
+  const spawned: { cwd: string; args: string[]; killed: boolean }[] = []
   const terminal: { draw?: (data: string) => void } = {}
   const launcher = new Launcher({
     service,
     paths: resolvePaths({ AUTOPILOT_DATA: join(dir, 'data') }),
     workstreams: () => [],
-    spawn: (): Pty => ({
-      pid: 1,
-      write: (data) => void typed.push(data),
-      kill: () => {},
-      onData: (listener) => {
-        terminal.draw = listener
-      },
-      onExit: () => {},
-    }),
+    spawn: (_file, args, { cwd }): Pty => {
+      const run = { cwd, args, killed: false }
+      spawned.push(run)
+      return {
+        pid: 1,
+        write: (data) => void typed.push(data),
+        kill: () => {
+          run.killed = true
+        },
+        onData: (listener) => {
+          terminal.draw = listener
+        },
+        onExit: () => {},
+      }
+    },
     self: { node: process.execPath, script: 'autopilot.js' },
+    checkouts: () => ({ repos: options.checkouts ?? {}, fallback: null }),
+    prBranch: options.prBranch ?? (() => null),
   })
   const task = service.createTask(CreateTask.parse({ idempotencyKey: `${key}-00001`, title: 'Fix the retry bug' }))
   await launcher.drain()
@@ -49,7 +65,20 @@ const autofixSession = async (key: string) => {
       'session',
     )
   const draw = (data: string) => terminal.draw?.(data)
-  return { service, launcher, task, cwd, typed, report, attach, draw }
+  return { service, launcher, task, cwd, typed, spawned, report, attach, draw }
+}
+
+const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-C', cwd, ...args], { stdio: 'ignore' })
+
+/** A checkout of acme/api with a worktree on `branch`, as a session in another repository leaves it. */
+const acmeCheckout = (branch: string) => {
+  const clone = mkdtempSync(join(tmpdir(), 'ap-acme-'))
+  git(clone, 'init', '-q', '-b', 'main')
+  git(clone, 'remote', 'add', 'origin', 'git@github.com:acme/api.git')
+  git(clone, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'first')
+  const worktree = join(mkdtempSync(join(tmpdir(), 'ap-acme-wt-')), 'fix')
+  git(clone, 'worktree', 'add', '-q', '-b', branch, worktree)
+  return { clone, worktree: realpathSync(worktree) }
 }
 
 describe('starting Claude Code', () => {
@@ -134,25 +163,57 @@ describe('starting Claude Code', () => {
     expect(typed.filter((t) => t.startsWith('/autofix-pr')).slice(1)).toEqual(['/autofix-pr stop'])
   })
 
-  it('never leaves a session held by Auto-fix: skipped outside the pull request’s repository, and a failure closed and said', async () => {
+  it('never leaves a session held by Auto-fix, and tells the owner when it is not on: no checkout to start from, or a failure', async () => {
     const { service, launcher, task, cwd, typed, report, attach, draw } = await autofixSession('fail')
     report('idle', 1)
-    // A checkout with no remote for acme/api: Auto-fix would fail there, so it is not typed.
+    // The session's folder has no remote for acme/api and no worktree has the branch out: nothing
+    // is typed, and the owner hears it, with what to do.
     attach(1)
     await launcher.drain()
     expect(typed.filter((t) => t.startsWith('/autofix-pr'))).toEqual([])
     expect(service.getTask(task.id).session?.state).toBe('idle')
-    expect(service.getTask(task.id).updates.at(-1)?.body).toContain('no GitHub remote for acme/api')
+    const missing = service.getTask(task.id)
+    expect(missing.band).toBe('your_turn')
+    expect(missing.updates.at(-1)).toMatchObject({ author: 'system', kind: 'blocked', open: true })
+    expect(missing.updates.at(-1)?.body).toContain('Auto-fix is not on for https://github.com/acme/api/pull/42')
+    expect(missing.updates.at(-1)?.body).toContain('/autofix-pr https://github.com/acme/api/pull/42')
 
-    // It fails anyway: the message is closed and goes on the task, and the session is free.
-    execFileSync('git', ['-C', cwd, 'remote', 'add', 'origin', 'https://github.com/acme/api.git'])
+    // It fails anyway: the message is closed, the owner hears it, and the session is free.
+    git(cwd, 'remote', 'add', 'origin', 'https://github.com/acme/api.git')
     attach(2, 43)
     await launcher.drain()
     expect(typed.filter((t) => t.startsWith('/autofix-pr'))).toHaveLength(1)
     draw("\r\n Autofix PR failed: can't start autofix —\r\n   Cloud agents need a moment.\r\n Esc/Enter to close")
     await vi.waitFor(() => expect(service.getTask(task.id).session?.state).toBe('idle'))
     expect(typed.at(-1)).toBe('\u001b')
-    expect(service.getTask(task.id).updates.at(-1)?.body).toContain('Auto-fix could not start for https://github.com/acme/api/pull/43')
+    expect(service.getTask(task.id).updates.at(-1)).toMatchObject({ kind: 'blocked' })
+    expect(service.getTask(task.id).updates.at(-1)?.body).toContain('Auto-fix is not on for https://github.com/acme/api/pull/43')
+    expect(service.getTask(task.id).updates.at(-1)?.body).toContain('Cloud agents need a moment')
+  })
+
+  it('turns on Auto-fix from the worktree a pull request was opened from, in another repository than the session’s', async () => {
+    const { clone, worktree } = acmeCheckout('fix-retry')
+    const { service, launcher, task, cwd, spawned, report, attach, draw } = await autofixSession('elsewhere', {
+      checkouts: { 'acme/api': clone },
+      prBranch: (url) => (url.endsWith('/42') ? 'fix-retry' : null),
+    })
+    // Still working: it does not wait on the session, whose folder is not where Auto-fix starts.
+    report('working', 1)
+    attach(1)
+    await launcher.drain()
+    const run = spawned.at(-1)
+    expect(spawned).toHaveLength(2)
+    expect(run?.cwd).toBe(worktree)
+    expect(run?.cwd).not.toBe(cwd)
+    expect(run?.args.at(-1)).toBe('/autofix-pr Keep https://github.com/acme/api/pull/42 green and answer its reviews. Never merge it.')
+    expect(service.getTask(task.id).session?.state).toBe('working')
+    draw('\r\n Autofix PR\r\n Before you start\r\n ❯ 1. Continue  start monitoring this PR\r\n   2. Not now\r\n Esc to cancel')
+    draw('\r\n ⎿  Spawned cloud autofix PR session on fix-retry (PR #42)\r\n')
+    await vi.waitFor(() => expect(run?.killed).toBe(true))
+    const detail = service.getTask(task.id)
+    expect(detail.updates.at(-1)).toMatchObject({ author: 'system', kind: 'event' })
+    expect(detail.updates.at(-1)?.body).toContain(`Turned on Auto-fix for https://github.com/acme/api/pull/42 (started from ${worktree})`)
+    expect(detail.band).toBe('running')
   })
 
   it('keeps a finished session until the task closes, without holding a slot, and says so when a restart stranded a task', async () => {

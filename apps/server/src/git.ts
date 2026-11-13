@@ -26,3 +26,52 @@ export const hasGitHubRemote = (path: string, repo: string): boolean => {
     return false
   }
 }
+
+/** The folders of a checkout's worktrees (the checkout itself first), each with the branch it has out. */
+export const worktreesOf = (path: string): { dir: string; branch: string | null }[] => {
+  try {
+    const out = execFileSync('git', ['-C', path, 'worktree', 'list', '--porcelain'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+    return out
+      .split('\n\n')
+      .map((block) => ({
+        dir: /^worktree (.+)$/m.exec(block)?.[1] ?? '',
+        branch: /^branch refs\/heads\/(.+)$/m.exec(block)?.[1] ?? null,
+      }))
+      .filter((w) => w.dir && existsSync(w.dir))
+  } catch {
+    return []
+  }
+}
+
+/** The branch a pull request comes from, asked of GitHub; null when `gh` cannot say. */
+export const pullRequestBranch = (url: string): string | null => {
+  try {
+    const out = execFileSync('gh', ['pr', 'view', url, '--json', 'headRefName', '-q', '.headRefName'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 20_000,
+    })
+    return out.trim() || null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Where Auto-fix for a pull request in `repo` can start. `/autofix-pr` finds its pull request by
+ * the branch the folder it is typed in has out (`gh pr view` with no number) and refuses on the
+ * default branch, so it is a worktree with the pull request's `branch` out, in a checkout with the
+ * repository's GitHub remote: where the session that opened it worked. `clones` are the checkouts
+ * of `repo` on this Mac; each one's worktrees are looked through, wherever they are.
+ */
+export const autofixCheckout = (repo: string, branch: string, clones: string[]): string | null => {
+  for (const clone of clones) {
+    if (!hasGitHubRemote(clone, repo)) continue
+    const on = worktreesOf(clone).find((w) => w.branch === branch)
+    if (on) return on.dir
+  }
+  return null
+}

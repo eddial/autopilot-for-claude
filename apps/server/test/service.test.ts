@@ -275,6 +275,24 @@ describe('filing', () => {
     expect(s.task(task.id).state).toBe('triage')
   })
 
+  it('asks for Auto-fix once on a pull request its live session links, in whatever repository, and never on one the owner links', () => {
+    const s = setup()
+    const task = create(s, { start: false })
+    liveSession(s, task.id)
+    const link = (url: string, by: 'session' | 'owner') =>
+      s.attachLink(AttachLink.parse({ idempotencyKey: key(), taskId: task.id, link: { url, title: 'PR' } }), by)
+    // A session working in the Autopilot folder that opened a pull request in another repository.
+    link('https://github.com/acme/other/pull/7', 'session')
+    link('https://github.com/acme/other/pull/7', 'session')
+    link('https://github.com/acme/app/pull/9', 'owner')
+    expect(
+      s
+        .pendingOutbox()
+        .filter((o) => o.kind === 'autofix_pr')
+        .map((o) => o.payload),
+    ).toEqual([{ taskId: task.id, url: 'https://github.com/acme/other/pull/7' }])
+  })
+
   it('finds tasks closed in the last 30 days, with their state', () => {
     let clock = Date.parse('2026-10-01T10:00:00Z')
     const s = new Service({ db: openDatabase(':memory:'), now: () => new Date(clock) })
