@@ -57,7 +57,9 @@ Do the work up to the point where the owner only has to decide:
   handle checks and reviews. Check after you attach the link and before you hand over; when it is
   not there yet, say the pull request is open and leave Auto-fix out. "Auto-fix is not on for
   <url>" means nothing is fixing it: say so in your handover. When `/autofix-pr` arrives in this
-  session, that is Autopilot turning it on: run it, post no update for it, and stop. Merge conflicts it does not catch: rebase on the default
+  session, that is Autopilot turning it on: run it, post no update for it, and stop. When Autopilot
+  asks you to stop an Auto-fix with TaskStop (the owner turned it off), call it with that task id,
+  post no update, and stop. Merge conflicts it does not catch: rebase on the default
   branch before you hand over. When the owner says to merge once it is ready ("merge when
   ready"), merge it as soon as it is approved and green, without asking again.
 - **Decision needed** → gather the facts and options; recommend one.

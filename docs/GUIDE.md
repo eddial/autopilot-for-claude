@@ -136,7 +136,10 @@ pull request's branch: the session's own worktree, or, when the session opened t
 from a checkout of another repository, the worktree on this Mac that has its branch out (Autopilot
 starts a short Claude Code there for it). The task's timeline says when Auto-fix went on; when it
 cannot start, the task comes to you saying so, with what to do. To stop it, set **Auto-fix** to Off in the task's properties (it shows once a pull
-request is linked); Autopilot then stops it on each of the task's pull requests.
+request is linked). Autopilot then has the Claude Code that started each pull request's Auto-fix
+stop it, which archives its cloud session, and the timeline says so once it has. When it cannot
+(it has not stopped within two minutes, or the short Claude Code that started it cannot be brought
+back), the task comes to you with the cloud session's link to stop it there.
 
 Every linked pull request also gets a watcher for what Auto-fix does not tell Autopilot: once it
 merges, the task closes; once it is approved and green, the task asks you to merge ("merge it"

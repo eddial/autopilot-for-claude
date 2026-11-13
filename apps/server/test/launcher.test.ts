@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AttachLink, CreateTask, EditTask, PostUpdate, ReportSession } from '@autopilot/contracts'
@@ -49,6 +49,7 @@ const autofixSession = async (
     self: { node: process.execPath, script: 'autopilot.js' },
     checkouts: () => ({ repos: options.checkouts ?? {}, fallback: null }),
     prBranch: options.prBranch ?? (() => null),
+    claudeHome: join(dir, 'claude'),
   })
   const task = service.createTask(CreateTask.parse({ idempotencyKey: `${key}-00001`, title: 'Fix the retry bug' }))
   await launcher.drain()
@@ -65,7 +66,24 @@ const autofixSession = async (
       'session',
     )
   const draw = (data: string) => terminal.draw?.(data)
-  return { service, launcher, task, cwd, typed, spawned, report, attach, draw }
+  /** What `/autofix-pr` leaves behind: the cloud session, recorded as a background task of `session` in `folder`. */
+  const recordAutofix = (pr: number, taskId: string, session: string, folder: string, conversation = true) => {
+    const project = join(dir, 'claude', 'projects', folder.replace(/[^A-Za-z0-9]/g, '-'))
+    mkdirSync(join(project, session, 'remote-agents'), { recursive: true })
+    if (conversation) writeFileSync(join(project, `${session}.jsonl`), `${JSON.stringify({ type: 'user', cwd: folder })}\n`)
+    const file = join(project, session, 'remote-agents', `remote-agent-${taskId}.meta.json`)
+    writeFileSync(
+      file,
+      JSON.stringify({
+        taskId,
+        remoteTaskType: 'autofix-pr',
+        sessionId: `session_${taskId}`,
+        remoteTaskMetadata: { owner: 'acme', repo: 'api', prNumber: pr },
+      }),
+    )
+    return file
+  }
+  return { service, launcher, task, cwd, typed, spawned, report, attach, draw, recordAutofix }
 }
 
 const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-C', cwd, ...args], { stdio: 'ignore' })
@@ -128,7 +146,7 @@ describe('starting Claude Code', () => {
     expect(detail.updates[0]?.body).toContain('Do you trust this folder?')
   })
 
-  it('turns on Auto-fix for a pull request the session links, once it is idle and only once, and stops it when switched off', async () => {
+  it('turns on Auto-fix for a pull request the session links, once it is idle and only once, and not once switched off', async () => {
     const { service, launcher, task, cwd, typed, report, attach, draw } = await autofixSession('fix')
     execFileSync('git', ['-C', cwd, 'remote', 'add', 'origin', 'git@github.com:acme/api.git'])
     report('working', 1)
@@ -153,14 +171,92 @@ describe('starting Claude Code', () => {
     expect(service.getTask(task.id).updates.at(-1)).toMatchObject({ author: 'system', kind: 'event' })
     expect(service.getTask(task.id).updates.at(-1)?.body).toContain('Turned on Auto-fix')
 
-    // Switched off: stopped on that pull request, and a new one gets none.
+    // Switched off: a new pull request gets none, and `/autofix-pr` is never typed to stop one.
     report('idle', 3)
     service.editTask(EditTask.parse({ idempotencyKey: 'fix-off-1', id: task.id, autofix: false }))
     await launcher.drain()
     report('idle', 4)
     attach(3, 43)
     await launcher.drain()
-    expect(typed.filter((t) => t.startsWith('/autofix-pr')).slice(1)).toEqual(['/autofix-pr stop'])
+    expect(typed.filter((t) => t.startsWith('/autofix-pr'))).toHaveLength(1)
+  })
+
+  it('stops Auto-fix through the background task of the session that started it, and says it is off only once Claude Code has', async () => {
+    const { service, launcher, task, cwd, typed, spawned, report, recordAutofix } = await autofixSession('stop')
+    const { worktree } = acmeCheckout('claude/fix')
+    const session = service.getTask(task.id).session?.id ?? ''
+    for (const pr of [42, 43])
+      service.attachLink(
+        AttachLink.parse({
+          idempotencyKey: `stop-link-${pr}`,
+          taskId: task.id,
+          link: { url: `https://github.com/acme/api/pull/${pr}`, title: `PR #${pr}` },
+        }),
+        'owner',
+      )
+    // #42 from the task's session; #43 from a short Claude Code in another checkout, long closed.
+    const own = recordAutofix(42, 'rauto0042', session, cwd)
+    const short = recordAutofix(43, 'rauto0043', 'short-session', worktree)
+    vi.useFakeTimers()
+
+    // Switched off: the task's session is asked once it is idle; the other is resumed where it ran.
+    report('working', 1)
+    service.editTask(EditTask.parse({ idempotencyKey: 'stop-off-01', id: task.id, autofix: false }))
+    await launcher.drain()
+    expect(typed.filter((t) => t.includes('TaskStop'))).toEqual([])
+    report('idle', 2)
+    await launcher.drain()
+    const asked = typed.filter((t) => t.includes('TaskStop'))
+    expect(asked).toHaveLength(1)
+    expect(asked[0]).toContain(
+      'Auto-fix is now off for https://github.com/acme/api/pull/42. Stop its cloud session: call TaskStop with task_id rauto0042.',
+    )
+    const resumed = spawned.at(-1)
+    expect(resumed?.cwd).toBe(worktree)
+    expect(resumed?.args.slice(0, 2)).toEqual(['--resume', 'short-session'])
+    expect(resumed?.args.at(-1)).toContain('call TaskStop with task_id rauto0043.')
+    expect(typed.some((t) => t.startsWith('/autofix-pr stop'))).toBe(false)
+
+    // Off once Claude Code has removed the record, not before.
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(service.getTask(task.id).updates.some((u) => u.body.startsWith('Turned off'))).toBe(false)
+    rmSync(own)
+    rmSync(short)
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(service.getTask(task.id).updates.map((u) => u.body)).toEqual(
+      expect.arrayContaining([
+        'Turned off Auto-fix for https://github.com/acme/api/pull/42: its cloud session is stopped (https://claude.ai/code/session_rauto0042)',
+        'Turned off Auto-fix for https://github.com/acme/api/pull/43: its cloud session is stopped (https://claude.ai/code/session_rauto0043)',
+      ]),
+    )
+    expect(resumed?.killed).toBe(true)
+  })
+
+  it('says when Auto-fix did not stop, with where to stop it', async () => {
+    const { service, launcher, task, cwd, report, recordAutofix } = await autofixSession('late')
+    service.attachLink(
+      AttachLink.parse({
+        idempotencyKey: 'late-link-1',
+        taskId: task.id,
+        link: { url: 'https://github.com/acme/api/pull/42', title: 'PR #42' },
+      }),
+      'owner',
+    )
+    recordAutofix(42, 'rauto0042', service.getTask(task.id).session?.id ?? '', cwd)
+    // One started by a Claude Code that only ran `/autofix-pr`: no conversation to resume it with.
+    recordAutofix(42, 'rauto0099', 'no-conversation', cwd, false)
+    vi.useFakeTimers()
+    report('idle', 1)
+    service.editTask(EditTask.parse({ idempotencyKey: 'late-off-01', id: task.id, autofix: false }))
+    await launcher.drain()
+    expect(service.getTask(task.id).updates.at(-1)).toMatchObject({
+      kind: 'blocked',
+      body: 'Auto-fix for https://github.com/acme/api/pull/42 is still on: the Claude Code that started it has no conversation to bring it back with. Stop it at https://claude.ai/code/session_rauto0099 (archive the session), then reply here.',
+    })
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect(service.getTask(task.id).updates.at(-1)?.body).toBe(
+      'Auto-fix for https://github.com/acme/api/pull/42 is still on: it did not stop within two minutes. Stop it at https://claude.ai/code/session_rauto0042 (archive the session), then reply here.',
+    )
   })
 
   it('never leaves a session held by Auto-fix, and tells the owner when it is not on: no checkout to start from, or a failure', async () => {
