@@ -1,6 +1,17 @@
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  readSync,
+  realpathSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Task, Workstream } from '@autopilot/contracts'
@@ -42,6 +53,11 @@ export type LauncherOptions = {
    * trusted; null leaves it alone (tests).
    */
   claudeConfig?: string | null
+  /**
+   * Claude Code's own folder (`~/.claude`), where it records the Auto-fix it runs for a pull
+   * request; null finds none (tests that do not stop Auto-fix).
+   */
+  claudeHome?: string | null
   /** The checkouts on this Mac, for tasks that name a repository and for `repo: default`. */
   checkouts?: () => Checkouts
   /** The folder tasks without a repository work in (checkouts.yaml `workspace:`); tests leave it out. */
@@ -85,6 +101,90 @@ const AUTOFIX_FAILED = /Autofix PR failed[\s\S]*?(?=Esc\/Enter to close|$)/g
 const AUTOFIX_SETTLE_MS = 60_000
 /** What Auto-fix is asked to do with a pull request. */
 const autofixAsk = (url: string) => `Keep ${url} green and answer its reviews. Never merge it.`
+/** How long Auto-fix has to stop before the task says it is still on. */
+const AUTOFIX_STOP_MS = 120_000
+
+/**
+ * An Auto-fix Claude Code runs for a pull request: a background task (`task`) of the Claude Code
+ * session that typed `/autofix-pr` (`session`), recorded in `file`, watching from `cloudSession`.
+ */
+export type RunningAutofix = { task: string; session: string; cloudSession: string; file: string; cwd: string | null }
+
+/** Where the owner can open, and stop, these cloud sessions. */
+const cloudLinks = (list: RunningAutofix[]): string => list.map((r) => `https://claude.ai/code/${r.cloudSession}`).join(', ')
+
+const entries = (dir: string): string[] => {
+  try {
+    return readdirSync(dir)
+  } catch {
+    return []
+  }
+}
+
+/** The folder a Claude Code session ran in, from the start of its transcript. */
+const sessionCwd = (transcript: string): string | null => {
+  try {
+    const fd = openSync(transcript, 'r')
+    const head = Buffer.alloc(256 * 1024)
+    try {
+      readSync(fd, head, 0, head.length, 0)
+    } finally {
+      closeSync(fd)
+    }
+    const cwd = /"cwd":("(?:[^"\\]|\\.)*")/.exec(head.toString('utf8'))?.[1]
+    return cwd ? (JSON.parse(cwd) as string) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The Auto-fix Claude Code runs for a pull request, from any session on this Mac (the task's own,
+ * or a short one started in another checkout). `/autofix-pr` has no way to stop one (whatever
+ * follows it is the cloud session's prompt): it records the cloud session as a background task of
+ * the session, in `projects/<folder>/<session>/remote-agents/remote-agent-<task>.meta.json`, and
+ * stopping that task (TaskStop) archives the cloud session and removes the file.
+ */
+export const runningAutofix = (claudeHome: string, url: string): RunningAutofix[] => {
+  const pr = /github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/.exec(url)
+  if (!pr) return []
+  const projects = join(claudeHome, 'projects')
+  const found: RunningAutofix[] = []
+  for (const project of entries(projects))
+    for (const session of entries(join(projects, project)).filter((n) => !n.includes('.'))) {
+      const dir = join(projects, project, session, 'remote-agents')
+      for (const name of entries(dir).filter((n) => n.endsWith('.meta.json'))) {
+        const file = join(dir, name)
+        let meta: { taskId?: unknown; sessionId?: unknown; remoteTaskType?: unknown; remoteTaskMetadata?: Record<string, unknown> }
+        try {
+          meta = JSON.parse(readFileSync(file, 'utf8')) as typeof meta
+        } catch {
+          continue
+        }
+        const on = meta.remoteTaskMetadata
+        if (
+          meta.remoteTaskType === 'autofix-pr' &&
+          typeof meta.taskId === 'string' &&
+          typeof meta.sessionId === 'string' &&
+          String(on?.owner).toLowerCase() === pr[1]?.toLowerCase() &&
+          String(on?.repo).toLowerCase() === pr[2]?.toLowerCase() &&
+          String(on?.prNumber) === pr[3]
+        )
+          found.push({
+            task: meta.taskId,
+            session,
+            cloudSession: meta.sessionId,
+            file,
+            cwd: sessionCwd(join(projects, project, `${session}.jsonl`)),
+          })
+      }
+    }
+  return found
+}
+
+/** What a session is asked to do to stop Auto-fix on a pull request. */
+const stopAsk = (taskId: string, url: string, running: RunningAutofix[]) =>
+  `Autopilot on ${taskId}: Auto-fix is now off for ${url}. Stop its cloud session: call TaskStop with task_id ${running.map((r) => r.task).join(', then with task_id ')}. Do nothing else, and post no update for it.`
 
 /**
  * Claude Code asks "Do you trust this folder?" in a folder it has not seen, and the session never
@@ -132,6 +232,7 @@ export class Launcher {
       claude: 'claude',
       pluginDir: null,
       claudeConfig: null,
+      claudeHome: null,
       maxParallel: 4,
       checkouts: () => ({ repos: {}, fallback: null }),
       workspace: () => options.paths.workspace,
@@ -478,6 +579,7 @@ export class Launcher {
    * request's branch. None found, or it does not start: the owner hears it, with what to do.
    */
   private autofix(taskId: string, url: string, stop: boolean): 'done' | 'defer' {
+    if (stop) return this.stopAutofix(taskId, url)
     const { service } = this.opts
     const live = this.live.get(taskId)
     const session = service.getTask(taskId).session
@@ -485,8 +587,6 @@ export class Launcher {
     // A session that opened it from a checkout of another repository: Auto-fix starts from the
     // worktree that has its branch out, without waiting on the session.
     if (repo && session && !hasGitHubRemote(session.cwd, repo)) {
-      // Nothing was started from there for a stop to reach.
-      if (stop) return 'done'
       const branch = this.opts.prBranch(url)
       const dir = branch ? autofixCheckout(repo, branch, this.clones(repo)) : null
       if (dir) return this.autofixIn(taskId, url, dir)
@@ -507,11 +607,76 @@ export class Launcher {
     if (session?.state !== 'idle') return 'defer'
     // Answers wait until it is done; typed into its dialog, they would be lost.
     service.setSession(live.sessionId, { state: 'working' })
-    this.driveAutofix(taskId, url, stop, live, () => {
+    this.driveAutofix(taskId, url, live, () => {
       if (service.session(live.sessionId)?.state === 'working') service.setSession(live.sessionId, { state: 'idle', activity: null })
     })
-    live.pty.write(stop ? '/autofix-pr stop' : `/autofix-pr ${autofixAsk(url)}`)
+    live.pty.write(`/autofix-pr ${autofixAsk(url)}`)
     live.pty.write('\r')
+    return 'done'
+  }
+
+  /**
+   * Stops every Auto-fix running for a pull request. Each is a background task of the Claude Code
+   * session that started it, and that session stops it (TaskStop), which archives the cloud
+   * session: the task's own session once it is idle, or the one started in another checkout,
+   * resumed where it ran. Claude Code brings a background task back only with a conversation, and
+   * a Claude Code that only ran `/autofix-pr` has none: that one the owner stops, by its link. The
+   * task says it is off only once Claude Code has removed every record, and asks the owner to stop
+   * what is still on after two minutes.
+   */
+  private stopAutofix(taskId: string, url: string): 'done' | 'defer' {
+    const { service, claudeHome } = this.opts
+    const running = claudeHome ? runningAutofix(claudeHome, url) : []
+    if (running.length === 0) {
+      service.systemEvent(taskId, `Auto-fix was not running for ${url}, so there was nothing to stop`)
+      return 'done'
+    }
+    const live = this.live.get(taskId)
+    const session = service.getTask(taskId).session
+    const own = running.filter((r) => r.session === session?.id)
+    // The task's own session stops its own: brought back if it ended, and asked once it is idle.
+    if (own.length > 0) {
+      if (!live) {
+        if (!session) return 'done'
+        service.resumeTask({ idempotencyKey: `autofix-resume-${session.id}-${Date.now()}`, id: taskId })
+        return 'defer'
+      }
+      if (session?.state !== 'idle') return 'defer'
+      live.pty.write(paste(stopAsk(taskId, url, own)))
+      service.setSession(live.sessionId, { state: 'working' })
+    }
+    const elsewhere = running.filter((r) => r.session !== session?.id)
+    const stranded = elsewhere.filter((r) => !r.cwd || !existsSync(r.cwd))
+    if (stranded.length > 0)
+      this.autofixStillOn(taskId, url, stranded, 'the Claude Code that started it has no conversation to bring it back with')
+    const others = Map.groupBy(
+      elsewhere.filter((r) => !stranded.includes(r)),
+      (r) => r.session,
+    )
+    const reachable = running.filter((r) => !stranded.includes(r))
+    if (reachable.length === 0) return 'done'
+    const ptys = [...others].map(([id, list]) => {
+      const cwd = list[0]?.cwd ?? ''
+      this.opts.log(`autofix ${taskId}: stopping from ${cwd}`)
+      return this.opts.spawn(
+        this.opts.claude,
+        ['--resume', id, '--no-chrome', '--permission-mode', 'bypassPermissions', stopAsk(taskId, url, list)],
+        { cwd, env: process.env as Record<string, string>, cols: 120, rows: 40, key: `autofix-stop-${randomUUID()}` },
+      )
+    })
+    const since = Date.now()
+    const poll = setInterval(() => {
+      const left = reachable.filter((r) => existsSync(r.file))
+      const late = Date.now() - since >= AUTOFIX_STOP_MS
+      if (left.length > 0 && !late) return
+      clearInterval(poll)
+      for (const pty of ptys) pty.kill()
+      const stopped = reachable.filter((r) => !left.includes(r))
+      if (stopped.length > 0)
+        service.systemEvent(taskId, `Turned off Auto-fix for ${url}: its cloud session is stopped (${cloudLinks(stopped)})`)
+      if (left.length > 0) this.autofixStillOn(taskId, url, left, 'it did not stop within two minutes')
+    }, 1000)
+    poll.unref()
     return 'done'
   }
 
@@ -541,7 +706,6 @@ export class Launcher {
     this.driveAutofix(
       taskId,
       url,
-      false,
       own,
       () => {
         if (!closed) pty.kill()
@@ -560,7 +724,6 @@ export class Launcher {
   private driveAutofix(
     taskId: string,
     url: string,
-    stop: boolean,
     term: { pty: Pty; screen: Screen; onScreen?: () => void },
     done: () => void,
     from?: string,
@@ -581,11 +744,7 @@ export class Launcher {
     const timer = setTimeout(() => {
       const tail = tailOf()
       if (/Esc(\/Enter)? to (cancel|close)/.test(tail)) term.pty.write('\u001b')
-      settle(
-        stop
-          ? { event: `Turned off Auto-fix for ${url}` }
-          : { failed: `it did not confirm within a minute. The screen showed:\n\n${tail.trim()}` },
-      )
+      settle({ failed: `it did not confirm within a minute. The screen showed:\n\n${tail.trim()}` })
     }, AUTOFIX_SETTLE_MS)
     timer.unref()
     term.onScreen = () => {
@@ -595,13 +754,22 @@ export class Launcher {
       } else if (count(AUTOFIX_FAILED) > before.failed) {
         const reason = (term.screen.text().match(AUTOFIX_FAILED) ?? []).at(-1)?.replace(/\s+/g, ' ').trim()
         term.pty.write('\u001b')
-        settle(stop ? { event: `Auto-fix could not stop for ${url}: ${reason}` } : { failed: reason ?? 'Autofix PR failed' })
+        settle({ failed: reason ?? 'Autofix PR failed' })
       } else if (count(AUTOFIX_STARTED) > before.started) {
         settle({
           event: `Turned on Auto-fix for ${url}${from ? ` (started from ${from})` : ''}: Claude watches its checks and reviews and pushes fixes`,
         })
       }
     }
+  }
+
+  /** Auto-fix the owner turned off is still on: they are asked to stop it by its link. */
+  private autofixStillOn(taskId: string, url: string, left: RunningAutofix[], why: string): void {
+    this.opts.service.systemUpdate(
+      taskId,
+      'blocked',
+      `Auto-fix for ${url} is still on: ${why}. Stop it at ${cloudLinks(left)} (archive the session), then reply here.`,
+    )
   }
 
   /** Auto-fix did not go on: the owner is told, with what to do, never only the timeline. */

@@ -42,6 +42,8 @@ export type ServerOptions = {
   maxParallel?: number
   /** Claude Code's settings file, for trusting the launcher's folders; null leaves it alone. */
   claudeConfig?: string | null
+  /** Claude Code's folder, where it records the Auto-fix it runs; null finds none. */
+  claudeHome?: string | null
   /** The HTTPS port for paired devices; 0 picks a free one (tests). */
   devicePort?: number
   /** This Mac's Tailscale address, which devices pair over; tests stand loopback in for it. */
@@ -116,6 +118,12 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     pluginDir: join(ROOT, 'plugin'),
     // Tests run their own stand-in for Claude Code and leave ~/.claude.json alone.
     claudeConfig: options.claudeConfig !== undefined ? options.claudeConfig : options.spawn ? null : join(homedir(), '.claude.json'),
+    claudeHome:
+      options.claudeHome !== undefined
+        ? options.claudeHome
+        : options.spawn
+          ? null
+          : (process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude')),
     maxParallel: options.maxParallel ?? 4,
     // Finding checkouts walks a few folders; once in ten minutes is plenty.
     checkouts: keepSync(10 * 60_000, () => loadCheckouts(paths.home)),
