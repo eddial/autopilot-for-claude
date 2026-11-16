@@ -1068,6 +1068,27 @@ button {
   color: var(--text-3);
 }
 
+/* Where a pull request stands: its icon and word in the state's colour (PR_STATES), as pr-<status>. */
+.pr-icon {
+  display: flex;
+}
+
+.pr-draft {
+  color: var(--text-3);
+}
+
+.pr-open {
+  color: var(--pilot);
+}
+
+.pr-merged {
+  color: var(--merged);
+}
+
+.pr-closed {
+  color: var(--clay);
+}
+
 /* Its actions float to its left, over the page, while the pointer is on it. */
 /* A file's first lines, read in the card under its row. */
 .side-link-preview {

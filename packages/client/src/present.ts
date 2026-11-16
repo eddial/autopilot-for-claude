@@ -1,7 +1,7 @@
-import { titleFromBrief, type Band, type Draft, type QueueItem, type Task, type Update } from '@autopilot/contracts'
+import { titleFromBrief, type Band, type Draft, type Link, type QueueItem, type Task, type Update } from '@autopilot/contracts'
 import type { Conflict } from './commands.ts'
 import type { SyncState } from './sync.ts'
-import { MARKS, type Mark } from '@autopilot/design'
+import { MARKS, type Colour, type Mark } from '@autopilot/design'
 
 /**
  * How an update reads on a task's page, the same on the Mac and the iPhone: its label, who posted
@@ -222,15 +222,27 @@ const kindOf = ({ url, title }: { url: string; title: string }): LinkKind => {
   return { label: source, icon: 'link' }
 }
 
-const PR_STATUS = { open: 'Open', draft: 'Draft', merged: 'Merged', closed: 'Closed' } as const
-
 /**
- * What a link is, for the line under its title: a pull request says where it stands once GitHub
- * has said ("Merged"), anything else its kind ("Google Doc").
+ * Where a pull request stands, as both apps draw it: the word, and the colour of its icon and word
+ * (draft grey, in review green, merged purple, closed clay), with the merge glyph once merged.
  */
-export const linkLabel = (link: { url: string; title: string; status?: keyof typeof PR_STATUS }): string => {
-  const { label } = linkKind(link)
-  return label === 'Pull request' && link.status ? `${label} · ${PR_STATUS[link.status]}` : label
+export const PR_STATES = {
+  draft: { label: 'Draft', colour: 'text3', icon: 'pull' },
+  open: { label: 'In review', colour: 'pilot', icon: 'pull' },
+  merged: { label: 'Merged', colour: 'merged', icon: 'merge' },
+  closed: { label: 'Closed', colour: 'clay', icon: 'pull' },
+} as const satisfies Record<NonNullable<Link['status']>, { label: string; colour: Colour; icon: 'pull' | 'merge' }>
+
+export type PullRequestState = (typeof PR_STATES)[keyof typeof PR_STATES]
+
+/** A pull request link's state once GitHub has said; null for anything else. */
+export const pullRequestState = (link: { url: string; title: string; status?: Link['status'] }): PullRequestState | null =>
+  link.status && linkKind(link).label === 'Pull request' ? PR_STATES[link.status] : null
+
+/** What a link is, as plain text where colour cannot go (a menu): "Pull request · Merged", "Google Doc". */
+export const linkLabel = (link: { url: string; title: string; status?: Link['status'] }): string => {
+  const state = pullRequestState(link)
+  return state ? `${linkKind(link).label} · ${state.label}` : linkKind(link).label
 }
 
 /**

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { linkKind, linkLabel, linkSource } from '@autopilot/client'
+import { linkKind, linkSource, pullRequestState } from '@autopilot/client'
 import type { LinkPreview, Link } from '@autopilot/contracts'
 import { api, shell } from '../api.ts'
 import { ago } from '../format.ts'
@@ -71,9 +71,10 @@ export const LinkRow = ({ taskId, link }: { taskId: string; link: Link }) => {
         <Button kind="item" className="link-title" onClick={() => open(link.url)}>
           <span className="title">{titleOf(link)}</span>
           <span className="meta">
-            {[file ? fileName(link.url) : linkLabel(link), link.subtitle ?? (file ? null : linkSource(link.url))]
+            {[file ? fileName(link.url) : linkKind(link).label, link.subtitle ?? (file ? null : linkSource(link.url))]
               .filter(Boolean)
               .join(' · ')}
+            <PullRequestWord link={link} />
           </span>
         </Button>
         <div className="link-actions">
@@ -130,7 +131,27 @@ export const Linked = ({ taskId, links, noun }: { taskId: string; links: Link[];
 /** Where a link lives, by its mark; its kind where it has none. */
 const KindIcon = ({ link, size }: { link: Link; size: number }) => {
   const kind = linkKind(link)
+  const state = pullRequestState(link)
+  // A pull request GitHub has spoken for: its glyph in its state's colour, in place of GitHub's mark.
+  if (state && link.status)
+    return (
+      <span className={`pr-icon pr-${link.status}`}>
+        <NavIcon name={state.icon} size={size} />
+      </span>
+    )
   return kind.mark ? <SourceMark mark={kind.mark} size={size} /> : <NavIcon name={kind.icon} size={size} />
+}
+
+/** Where a pull request stands, after its kind, in its state's colour: " · Merged". */
+const PullRequestWord = ({ link }: { link: Link }) => {
+  const state = pullRequestState(link)
+  if (!state || !link.status) return null
+  return (
+    <>
+      {' · '}
+      <span className={`pr-${link.status}`}>{state.label}</span>
+    </>
+  )
 }
 
 /** The link's icon on an update's attachment chip. */
@@ -167,7 +188,8 @@ export const SideLink = ({ taskId, link, at }: { taskId: string; link: Link; at:
         <span className="side-link-text">
           <span className="side-link-title">{title}</span>
           <span className="side-link-meta">
-            {linkLabel(link)}
+            {linkKind(link).label}
+            <PullRequestWord link={link} />
             {at ? ` · ${ago(at)}` : ''}
           </span>
         </span>

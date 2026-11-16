@@ -38,6 +38,8 @@ export const colours = {
   amber: '#D9A94E',
   amberSoft: '#E8C47F',
   amberTint: 'rgba(217, 169, 78, 0.14)',
+  // A merged pull request, in the purple GitHub uses for it, so it reads at a glance.
+  merged: '#A68AE8',
 
   border: 'rgba(222, 220, 209, 0.15)',
   borderStrong: 'rgba(222, 220, 209, 0.22)',
@@ -82,6 +84,7 @@ export const lightColours: Record<Colour, string> = {
   amber: '#B7862C',
   amberSoft: '#8A6418',
   amberTint: 'rgba(183, 134, 44, 0.16)',
+  merged: '#7652CC',
 
   border: 'rgba(31, 30, 29, 0.12)',
   borderStrong: 'rgba(31, 30, 29, 0.2)',
