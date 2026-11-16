@@ -904,6 +904,15 @@ button {
   min-width: 200px;
 }
 
+.menu-items button.open {
+  background: var(--press);
+}
+
+/* The submenu's arrow, as quiet as a detail. */
+.menu-items .menu-sub {
+  color: var(--text-3);
+}
+
 .menu-items.align-right {
   left: auto;
   right: 0;

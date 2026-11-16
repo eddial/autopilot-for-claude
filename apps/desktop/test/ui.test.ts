@@ -268,6 +268,25 @@ describe('the Mac app window', () => {
     await expect.poll(() => server.service.getTask(task).task.priority).toBe(1)
   }, 30_000)
 
+  it('changes priority and snoozes a task from its row, with a right-click', async () => {
+    asking('Sort out the expenses', 90)
+    await tab('Needs me').click()
+    const row = page.getByRole('option', { name: /Sort out the expenses/ })
+    const task = server.service.queue().items.find((i) => i.task.title === 'Sort out the expenses')?.task.id ?? ''
+    await row.click({ button: 'right' })
+    // Each property opens beside the menu, the one in use ticked.
+    await page.getByRole('menuitem', { name: 'Priority' }).hover()
+    await shot('row-menu')
+    await page.getByRole('menuitemradio', { name: 'High' }).click()
+    await expect.poll(() => server.service.getTask(task).task.priority).toBe(2)
+    await expect.poll(() => page.getByRole('menu').count()).toBe(0)
+
+    await row.click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Snooze' }).click()
+    await page.getByRole('menuitem', { name: /Tomorrow morning/ }).click()
+    await expect.poll(() => server.service.getTask(task).task.snoozedUntil).not.toBeNull()
+  }, 30_000)
+
   it('moves one tab along with a two-finger swipe across the list', async () => {
     await tab('Running').click()
     await page.getByRole('listbox', { name: 'Tasks' }).hover()
