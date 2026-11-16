@@ -222,6 +222,17 @@ const kindOf = ({ url, title }: { url: string; title: string }): LinkKind => {
   return { label: source, icon: 'link' }
 }
 
+const PR_STATUS = { open: 'Open', draft: 'Draft', merged: 'Merged', closed: 'Closed' } as const
+
+/**
+ * What a link is, for the line under its title: a pull request says where it stands once GitHub
+ * has said ("Merged"), anything else its kind ("Google Doc").
+ */
+export const linkLabel = (link: { url: string; title: string; status?: keyof typeof PR_STATUS }): string => {
+  const { label } = linkKind(link)
+  return label === 'Pull request' && link.status ? `${label} · ${PR_STATUS[link.status]}` : label
+}
+
 /**
  * What a session made to share, which both apps list as Artifacts apart from the rest: a file it
  * wrote, a Google Doc, Sheet or Slides, a Claude artifact.

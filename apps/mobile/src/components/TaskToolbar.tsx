@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Alert, Linking } from 'react-native'
 import type { Band, MoveTarget, QueueItem } from '@autopilot/contracts'
 import { router, Stack } from 'expo-router'
-import { firstLookQuestions, linkGroups, linkKind, linkSource, PRIORITY_NAMES } from '@autopilot/client'
+import { firstLookQuestions, linkGroups, linkLabel, linkSource, PRIORITY_NAMES } from '@autopilot/client'
 import { useDetail, useSyncInstance } from '../store.ts'
 import { colours, tones } from '@autopilot/design'
 
@@ -65,7 +65,7 @@ export const linksMenu = (links: QueueItem['task']['links'], hidden = false) => 
             <Stack.Toolbar.MenuAction
               key={l.url}
               icon={GROUP_ICONS[g.key]}
-              subtitle={[linkKind(l).label, l.subtitle ?? (file ? 'On your Mac' : linkSource(l.url))].filter(Boolean).join(' · ')}
+              subtitle={[linkLabel(l), l.subtitle ?? (file ? 'On your Mac' : linkSource(l.url))].filter(Boolean).join(' · ')}
               disabled={file}
               onPress={() => void Linking.openURL(l.url)}
             >

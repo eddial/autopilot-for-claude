@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { AttachLink, Change, CreateTask, FileItem, PostUpdate } from '@autopilot/contracts'
 import { backfillMirrors, openDatabase } from '../src/db.ts'
+import { PullRequests } from '../src/pull-requests.ts'
 import { DomainError, Service } from '../src/service.ts'
 
 let n = 0
@@ -273,6 +274,22 @@ describe('filing', () => {
     expect(s.watcherRuns().map((r) => r.watcher.what)).toEqual([expect.stringContaining(pr)])
     s.createTask(CreateTask.parse({ idempotencyKey: key(), title: 'Fix the retry', ticket: { ...ticket, closed: true } }))
     expect(s.task(task.id).state).toBe('triage')
+  })
+
+  it('shows where a linked pull request stands without moving its task, and stops looking once a closed task merged', async () => {
+    const s = setup()
+    const task = create(s, { start: false })
+    const pr = 'https://github.com/acme/app/pull/88'
+    s.attachLink(AttachLink.parse({ idempotencyKey: key(), taskId: task.id, link: { url: pr, title: 'Retry fix (PR #88)' } }))
+    const before = s.task(task.id).updatedAt
+    const asked: string[] = []
+    const prs = new PullRequests({ service: s, status: async (url) => (asked.push(url), 'merged') })
+    await prs.refresh()
+    expect(s.task(task.id).links.map((l) => l.status)).toEqual(['merged'])
+    expect(s.task(task.id).updatedAt).toBe(before)
+    s.closeTask({ idempotencyKey: key(), id: task.id, outcome: 'done' })
+    await prs.refresh()
+    expect(asked).toEqual([pr])
   })
 
   it('asks for Auto-fix once on a pull request its live session links, in whatever repository, and never on one the owner links', () => {

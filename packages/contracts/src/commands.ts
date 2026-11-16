@@ -136,7 +136,8 @@ export const UploadFile = command({
   data: z.base64().max(28_000_000),
 })
 
-export const AttachLink = command({ taskId: TaskId, link: Link })
+/** The server sets a pull request's status, so a session does not send one. */
+export const AttachLink = command({ taskId: TaskId, link: Link.omit({ status: true }) })
 
 /** A read: one of the task's own links, nothing else. */
 export const PreviewLink = z.object({ taskId: TaskId, url: z.url() })
