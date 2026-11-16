@@ -1,4 +1,5 @@
-import { execFileSync } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
+import type { Link } from '@autopilot/contracts'
 import { existsSync } from 'node:fs'
 
 /** A folder git knows as a checkout: what a workstream's `repo` must be for worktrees. */
@@ -75,3 +76,22 @@ export const autofixCheckout = (repo: string, branch: string, clones: string[]):
   }
   return null
 }
+
+export type PullRequestStatus = NonNullable<Link['status']>
+
+/** Where a pull request stands, asked of GitHub; null when `gh` cannot say. Never blocks the server. */
+export const pullRequestStatus = (url: string): Promise<PullRequestStatus | null> =>
+  new Promise((resolve) => {
+    execFile('gh', ['pr', 'view', url, '--json', 'state,isDraft'], { encoding: 'utf8', timeout: 20_000 }, (error, stdout) => {
+      if (error) return resolve(null)
+      try {
+        const pr = JSON.parse(stdout) as { state?: string; isDraft?: boolean }
+        if (pr.state === 'MERGED') return resolve('merged')
+        if (pr.state === 'CLOSED') return resolve('closed')
+        if (pr.state === 'OPEN') return resolve(pr.isDraft ? 'draft' : 'open')
+        resolve(null)
+      } catch {
+        resolve(null)
+      }
+    })
+  })

@@ -27,6 +27,8 @@ import { TriageSweep } from './triage-sweep.ts'
 import { installService } from './service-install.ts'
 import { Setup } from './setup.ts'
 import { Watchers } from './watchers.ts'
+import { pullRequestStatus, type PullRequestStatus } from './git.ts'
+import { PullRequests } from './pull-requests.ts'
 
 /** The repository root, for `prompts/` and `plugin/`. */
 export const ROOT = join(import.meta.dirname, '..', '..', '..')
@@ -48,6 +50,8 @@ export type ServerOptions = {
   devicePort?: number
   /** This Mac's Tailscale address, which devices pair over; tests stand loopback in for it. */
   tailnet?: () => string | null
+  /** Where a pull request stands; `gh` by default, nothing in tests unless they pass one. */
+  pullRequestStatus?: (url: string) => Promise<PullRequestStatus | null>
   log?: (message: string) => void
 }
 
@@ -213,6 +217,13 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
   if (service.listDevices().length > 0) await openDevices()
   const server: Server = await listen(router, service, paths.socket)
 
+  // Where each linked pull request stands, from GitHub. Tests pass their own lookup.
+  const pullRequests = new PullRequests({
+    service,
+    status: options.pullRequestStatus ?? (options.spawn ? async () => null : pullRequestStatus),
+    log,
+  })
+
   // Side effects run after each commit and on a timer, so a deferred delivery is retried.
   const drain = () => void launcher.drain().catch((error: unknown) => log(`outbox: ${String(error)}`))
   const unsubscribe = service.onChange(drain)
@@ -224,6 +235,7 @@ export const startServer = async (options: ServerOptions): Promise<ServerHandle>
     void routing.tick()
     void scout.tick()
     void triageSweep.tick()
+    void pullRequests.tick()
   }, 30_000)
   // Files sent with tasks go 30 days after the task closes; checked at start and every hour.
   const files = join(paths.data, 'files')

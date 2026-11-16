@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { linkKind, linkSource } from '@autopilot/client'
+import { linkKind, linkLabel, linkSource } from '@autopilot/client'
 import type { LinkPreview, Link } from '@autopilot/contracts'
 import { api, shell } from '../api.ts'
 import { ago } from '../format.ts'
@@ -59,7 +59,6 @@ const Preview = ({ taskId, url }: { taskId: string; url: string }) => {
 
 /** One link: its kind, where it lives, and the ways to open it. */
 export const LinkRow = ({ taskId, link }: { taskId: string; link: Link }) => {
-  const kind = linkKind(link)
   const file = link.url.startsWith('file:')
   const [reading, setReading] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -72,7 +71,9 @@ export const LinkRow = ({ taskId, link }: { taskId: string; link: Link }) => {
         <Button kind="item" className="link-title" onClick={() => open(link.url)}>
           <span className="title">{titleOf(link)}</span>
           <span className="meta">
-            {[file ? fileName(link.url) : kind.label, link.subtitle ?? (file ? null : linkSource(link.url))].filter(Boolean).join(' · ')}
+            {[file ? fileName(link.url) : linkLabel(link), link.subtitle ?? (file ? null : linkSource(link.url))]
+              .filter(Boolean)
+              .join(' · ')}
           </span>
         </Button>
         <div className="link-actions">
@@ -141,7 +142,6 @@ export const LinkIcon = ({ link }: { link: Link }) => <KindIcon link={link} size
  * copies it.
  */
 export const SideLink = ({ taskId, link, at }: { taskId: string; link: Link; at: string | null }) => {
-  const kind = linkKind(link)
   const file = link.url.startsWith('file:')
   const [reading, setReading] = useState(false)
   const title = titleOf(link)
@@ -167,7 +167,7 @@ export const SideLink = ({ taskId, link, at }: { taskId: string; link: Link; at:
         <span className="side-link-text">
           <span className="side-link-title">{title}</span>
           <span className="side-link-meta">
-            {kind.label}
+            {linkLabel(link)}
             {at ? ` · ${ago(at)}` : ''}
           </span>
         </span>

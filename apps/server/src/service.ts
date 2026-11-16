@@ -128,6 +128,8 @@ export const hashSecret = (secret: string): string => createHash('sha256').updat
 const ACTIVE = `state not in ('done', 'canceled')`
 /** How far back `match_items` finds closed tasks. */
 const RECENTLY_CLOSED_MS = 30 * 24 * 60 * 60 * 1000
+/** How long after a task closes its pull requests' status is still looked up. */
+const PR_STATUS_AFTER_CLOSE_MS = 7 * 24 * 60 * 60 * 1000
 
 /**
  * Everything the API can do, on top of SQLite. Each write runs in one
@@ -914,6 +916,32 @@ export class Service {
       if (isPullRequest(input.link.url) && !watched.some((w) => str(w.what).includes(input.link.url)))
         this.insertWatcher(task.id, { what: pullRequestWatch(input.link.url), every: '30m' })
       return this.touch(task, { links: [...task.links, { ...input.link, at: this.iso() }] })
+    })
+  }
+
+  /**
+   * The pull requests whose status to keep current: those of active tasks, and of tasks closed in
+   * the last week that GitHub has not yet called merged or closed (a task closes before its pull
+   * request merges, or on the merge, before the next look).
+   */
+  pullRequestLinks(): { taskId: string; url: string; status: Link['status'] }[] {
+    const since = new Date(this.now().getTime() - PR_STATUS_AFTER_CLOSE_MS).toISOString()
+    const rows = this.sql(`select * from tasks where (${ACTIVE} or updated_at >= ?) and links like '%/pull/%'`).all(since) as Row[]
+    return rows.flatMap((row) => {
+      const task = this.toTask(row)
+      const closed = task.state === 'done' || task.state === 'canceled'
+      return task.links
+        .filter((l) => isPullRequest(l.url) && !(closed && (l.status === 'merged' || l.status === 'closed')))
+        .map((l) => ({ taskId: task.id, url: l.url, status: l.status }))
+    })
+  }
+
+  /** GitHub said where a linked pull request stands. Not news on its own, so the task keeps its place. */
+  setLinkStatus(taskId: string, url: string, status: NonNullable<Link['status']>): void {
+    this.transaction(() => {
+      const task = this.task(taskId)
+      if (!task.links.some((l) => l.url === url && l.status !== status)) return
+      this.saveTask({ ...task, links: task.links.map((l) => (l.url === url ? { ...l, status } : l)) })
     })
   }
 

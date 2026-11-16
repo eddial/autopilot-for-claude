@@ -29,5 +29,10 @@ export const Link = z.object({
   subtitle: z.string().max(200).optional(),
   /** When it was linked; the server sets it. Missing on links from before. */
   at: z.iso.datetime({ offset: true }).optional(),
+  /**
+   * Where a pull request stands, as GitHub last said; the server sets it and keeps it current.
+   * Missing on other links and until GitHub has been asked.
+   */
+  status: z.enum(['open', 'draft', 'merged', 'closed']).optional(),
 })
 export type Link = z.infer<typeof Link>

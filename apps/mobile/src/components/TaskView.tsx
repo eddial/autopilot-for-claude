@@ -15,6 +15,7 @@ import {
   draftMark,
   eventText,
   linkKind,
+  linkLabel,
   linkSource,
   nowText,
   nowTone,
@@ -479,7 +480,6 @@ const LinkRow = ({ taskId, link }: { taskId: string; link: QueueItem['task']['li
   const file = link.url.startsWith('file:')
   const [text, setText] = useState<string | null | undefined>(undefined)
   const [reading, setReading] = useState(false)
-  const kind = linkKind(link)
   const press = () => {
     if (!file) return void Linking.openURL(link.url)
     setReading((r) => !r)
@@ -498,7 +498,7 @@ const LinkRow = ({ taskId, link }: { taskId: string; link: QueueItem['task']['li
             {link.title.replace(/^(file|gmail|slack|github|linear|drive):\s*/i, '')}
           </Text>
           <Text style={type.meta} numberOfLines={1}>
-            {[kind.label, link.subtitle ?? (file ? 'On your Mac' : linkSource(link.url))].filter(Boolean).join(' · ')}
+            {[linkLabel(link), link.subtitle ?? (file ? 'On your Mac' : linkSource(link.url))].filter(Boolean).join(' · ')}
           </Text>
         </View>
       </Pressable>
