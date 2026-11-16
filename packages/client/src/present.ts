@@ -223,8 +223,8 @@ const kindOf = ({ url, title }: { url: string; title: string }): LinkKind => {
 }
 
 /**
- * Where a pull request stands, as both apps draw it: the word, and the colour of its icon and word
- * (draft grey, in review green, merged purple, closed clay), with the merge glyph once merged.
+ * Where a pull request stands, as both apps draw it: the word, and the colour of its icon (draft
+ * grey, in review green, merged purple, closed clay), with the merge glyph once merged.
  */
 export const PR_STATES = {
   draft: { label: 'Draft', colour: 'text3', icon: 'pull' },
@@ -239,7 +239,7 @@ export type PullRequestState = (typeof PR_STATES)[keyof typeof PR_STATES]
 export const pullRequestState = (link: { url: string; title: string; status?: Link['status'] }): PullRequestState | null =>
   link.status && linkKind(link).label === 'Pull request' ? PR_STATES[link.status] : null
 
-/** What a link is, as plain text where colour cannot go (a menu): "Pull request · Merged", "Google Doc". */
+/** What a link is, under its title: "Pull request · Merged", "Google Doc". */
 export const linkLabel = (link: { url: string; title: string; status?: Link['status'] }): string => {
   const state = pullRequestState(link)
   return state ? `${linkKind(link).label} · ${state.label}` : linkKind(link).label

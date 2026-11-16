@@ -1068,7 +1068,7 @@ button {
   color: var(--text-3);
 }
 
-/* Where a pull request stands: its icon and word in the state's colour (PR_STATES), as pr-<status>. */
+/* Where a pull request stands: its icon in the state's colour (PR_STATES), as pr-<status>. */
 .pr-icon {
   display: flex;
 }

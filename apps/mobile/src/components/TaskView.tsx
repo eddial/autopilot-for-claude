@@ -15,7 +15,7 @@ import {
   draftMark,
   eventText,
   linkKind,
-  pullRequestState,
+  linkLabel,
   linkSource,
   nowText,
   nowTone,
@@ -489,7 +489,6 @@ const LinkRow = ({ taskId, link }: { taskId: string; link: QueueItem['task']['li
         .then((p) => setText(p.text))
         .catch(() => setText(null))
   }
-  const state = pullRequestState(link)
   return (
     <View>
       <Pressable onPress={press} accessibilityRole={file ? 'button' : 'link'} style={styles.linkRow}>
@@ -499,13 +498,7 @@ const LinkRow = ({ taskId, link }: { taskId: string; link: QueueItem['task']['li
             {link.title.replace(/^(file|gmail|slack|github|linear|drive):\s*/i, '')}
           </Text>
           <Text style={type.meta} numberOfLines={1}>
-            {[linkKind(link).label, link.subtitle ?? (file ? 'On your Mac' : linkSource(link.url))].filter(Boolean).join(' · ')}
-            {state && (
-              <>
-                {' · '}
-                <Text style={{ color: colours[state.colour] }}>{state.label}</Text>
-              </>
-            )}
+            {[linkLabel(link), link.subtitle ?? (file ? 'On your Mac' : linkSource(link.url))].filter(Boolean).join(' · ')}
           </Text>
         </View>
       </Pressable>
