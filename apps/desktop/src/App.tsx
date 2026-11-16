@@ -357,6 +357,7 @@ export const App = () => {
         selected={selected}
         onSelect={selectTask}
         onOpen={openTask}
+        workstreams={workstreams}
         width={listWidth}
         banner={banner}
         showingTasks={view.kind === 'task'}

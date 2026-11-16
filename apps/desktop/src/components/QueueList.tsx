@@ -1,8 +1,9 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { QueueItem } from '@autopilot/contracts'
+import type { QueueItem, Workstream } from '@autopilot/contracts'
 import { emptyWords, rowStatus, sectionsOf, type GroupBy } from '@autopilot/client'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Menu } from './Menu.tsx'
+import { Menu, useContextMenu } from './Menu.tsx'
+import { taskMenu } from './TaskMenu.tsx'
 import { useDraft } from '../drafts.ts'
 import { prefetch, send } from '../store.ts'
 import { age, rowMeta } from '../format.ts'
@@ -25,6 +26,8 @@ type Props = {
   selected: string | null
   onSelect: (id: string) => void
   onOpen: (id: string) => void
+  /** The workstreams a task can be moved to from its right-click menu. */
+  workstreams: Workstream[]
   width: number
   banner: string | null
   /** The pane beside the list shows a task (not Set up, New task…): one is always open there. */
@@ -127,6 +130,7 @@ export const QueueList = (props: Props) => {
     selected,
     onSelect,
     onOpen,
+    workstreams,
     width,
     banner,
     showingTasks,
@@ -192,6 +196,18 @@ export const QueueList = (props: Props) => {
     return () => window.removeEventListener('keydown', keys)
   }, [order, onTab, onSelect])
   const rows = useRef<HTMLDivElement>(null)
+
+  // Right-click a row for what you would otherwise open it for: status, priority, workstream,
+  // snooze. Built when it opens, so the rows (memoised) keep one handler.
+  const context = useContextMenu()
+  const latest = useRef({ workstreams, onOpen })
+  latest.current = { workstreams, onOpen }
+  const openMenu = context.open
+  const onMenu = useCallback(
+    (event: React.MouseEvent, item: QueueItem) => openMenu(event, taskMenu(item, latest.current.workstreams, latest.current.onOpen)),
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- `open` only sets state
+    [],
+  )
 
   // A two-finger swipe sideways across the list moves one tab along, as on the phone: fingers to
   // the left for the next. The trackpad sends it as wheel events, momentum included after the
@@ -386,6 +402,7 @@ export const QueueList = (props: Props) => {
                     workstream={groupBy === 'priority'}
                     onSelect={pick}
                     onOpen={onOpen}
+                    onMenu={onMenu}
                   />
                 )}
               </div>
@@ -413,6 +430,7 @@ export const QueueList = (props: Props) => {
           </Button>
         </footer>
       )}
+      {context.menu}
     </section>
   )
 }
@@ -428,6 +446,8 @@ type RowProps = {
   left?: boolean
   onSelect?: (id: string) => void
   onOpen: (id: string) => void
+  /** Right-click: what can be done with it, without opening it. */
+  onMenu?: (event: React.MouseEvent, item: QueueItem) => void
 }
 
 /** Under the title: where it stands, when it is your turn, in green; then what it is about now. */
@@ -448,7 +468,7 @@ const PRIORITY_NAME: Record<number, string> = { 1: 'Urgent', 2: 'High priority',
 
 /** Rerenders only when what it shows changed: the store keeps unchanged tasks and asks as the same objects. */
 const TaskRow = memo(
-  ({ item, selected, left = false, hint, workstream = false, onSelect, onOpen }: RowProps) => (
+  ({ item, selected, left = false, hint, workstream = false, onSelect, onOpen, onMenu }: RowProps) => (
     <Button
       kind="row"
       className={[item.unread ? null : 'read', left ? 'left' : null].filter(Boolean).join(' ') || undefined}
@@ -458,6 +478,7 @@ const TaskRow = memo(
       onClick={() => onSelect?.(item.task.id)}
       onMouseEnter={() => prefetch(item.task.id)}
       onDoubleClick={() => onOpen(item.task.id)}
+      onContextMenu={onMenu && ((e) => onMenu(e, item))}
     >
       {hint !== undefined && <kbd className="hint hint-alt row-hint">⌥{hint}</kbd>}
       <div className="text">
@@ -484,7 +505,8 @@ const TaskRow = memo(
     a.item.band === b.item.band &&
     a.item.unread === b.item.unread &&
     a.onSelect === b.onSelect &&
-    a.onOpen === b.onOpen,
+    a.onOpen === b.onOpen &&
+    a.onMenu === b.onMenu,
 )
 
 /** A row opened in place with Space: answer it without opening the task. */

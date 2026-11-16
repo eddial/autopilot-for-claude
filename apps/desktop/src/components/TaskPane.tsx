@@ -14,7 +14,7 @@ import {
   updateTone,
   type Pending,
 } from '@autopilot/client'
-import type { Band, Draft, MoveTarget, QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contracts'
+import type { Draft, QueueItem, TaskSignal, Update, Workstream } from '@autopilot/contracts'
 import {
   filedBy,
   firstLookQuestions,
@@ -33,6 +33,7 @@ import { useDraft } from '../drafts.ts'
 import { markSeen, send, useDetail, useStore } from '../store.ts'
 import { AttachButton, FileChips, useFiles } from './Files.tsx'
 import { Menu, type MenuItem } from './Menu.tsx'
+import { moves, PRIORITY, snoozeTimes, workstreamNames } from './TaskMenu.tsx'
 import type { Tone } from '@autopilot/design'
 import {
   Avatar,
@@ -47,7 +48,6 @@ import {
   Markdown,
   Meta,
   NavIcon,
-  type NavIconName,
   SourceMark,
   TriageMark,
   Spacer,
@@ -85,41 +85,6 @@ const SESSION_STATE: Record<string, string> = {
   idle: 'Session idle',
   waiting_permission: 'Session waits for a permission',
   ended: 'Session ended',
-}
-
-const time = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-
-/** Snooze choices, as times from now, each with the day and time it comes back. */
-const snoozeTimes = (): { label: string; day: string; time: string; until: Date }[] => {
-  const now = new Date()
-  const at = (days: number, hour: number) => {
-    const d = new Date(now)
-    d.setDate(d.getDate() + days)
-    d.setHours(hour, 0, 0, 0)
-    return d
-  }
-  const later = (hours: number) => new Date(now.getTime() + hours * 3_600_000)
-  const monday = (8 - now.getDay()) % 7 || 7
-  const day = (d: Date) => {
-    const days = Math.round((new Date(d).setHours(0, 0, 0, 0) - new Date(now).setHours(0, 0, 0, 0)) / 86_400_000)
-    if (days === 0) return 'Today'
-    if (days === 1) return 'Tomorrow'
-    return d.toLocaleDateString('en-GB', days < 7 ? { weekday: 'long' } : { weekday: 'short', day: 'numeric', month: 'short' })
-  }
-  // An evening less than an hour away is no snooze at all.
-  const soon = later(1)
-  const choices = [
-    { label: 'In an hour', until: soon },
-    { label: 'In three hours', until: later(3) },
-    { label: 'This evening', until: at(0, 18) },
-    { label: 'Tomorrow morning', until: at(1, 9) },
-    { label: 'Monday morning', until: at(monday, 9) },
-    { label: 'In a week', until: at(7, 9) },
-  ]
-  // On a Sunday, Monday morning is tomorrow morning.
-  return choices
-    .filter((t, i) => t.until >= soon && !choices.slice(0, i).some((c) => c.until.getTime() === t.until.getTime()))
-    .map((t) => ({ ...t, day: day(t.until), time: time(t.until) }))
 }
 
 /**
@@ -669,21 +634,6 @@ const useOpenSession = (session: QueueItem['session']) => {
   return { preferred, choices }
 }
 
-/** The views a task can be moved to by hand, and the bands each shows. */
-const MOVES: { to: MoveTarget; label: string; icon: NavIconName; bands: Band[] }[] = [
-  { to: 'needs_me', label: 'Needs me', icon: 'needs', bands: ['your_turn', 'fyi', 'triage'] },
-  { to: 'running', label: 'Running', icon: 'running', bands: ['running'] },
-  { to: 'waiting', label: 'Waiting on others', icon: 'waiting', bands: ['waiting'] },
-]
-
-/** Every view but the one it is in, to move it there by hand. */
-const moves = (item: QueueItem, prefix: string): MenuItem[] =>
-  MOVES.filter((m) => !m.bands.includes(item.band)).map((m) => ({
-    label: `${prefix}${m.label}`,
-    icon: <NavIcon name={m.icon} size={14} />,
-    run: () => send({ kind: 'move', taskId: item.task.id, to: m.to }),
-  }))
-
 /**
  * What you can do with the task: Start (unless Before I start in the timeline starts it), the
  * session, Back to waiting when the ball is still with others, Snooze and Mark done; moving it to
@@ -840,7 +790,7 @@ const Properties = ({
   // Links from before they carried a time: when the activity says it was linked.
   const linkedAt = (url: string) => updates.find((u) => u.attachments.some((a) => a.url === url))?.createdAt ?? null
   const { task, session } = item
-  const streams: MenuItem[] = [...new Set([...workstreams.map((w) => w.name).filter((n) => n !== 'autopilot'), 'inbox'])]
+  const streams: MenuItem[] = workstreamNames(workstreams)
     .filter((name) => name !== task.workstream)
     .map((name) => ({
       label: name,
@@ -1055,8 +1005,6 @@ const SignalRow = ({ mention }: { mention: TaskSignal }) => {
     <div className="prop-text signal-row">{body}</div>
   )
 }
-
-const PRIORITY: Record<number, string> = { 1: 'Urgent', 2: 'High', 3: 'Normal', 4: 'Low' }
 
 /** The task's title; a click opens it to rename. Enter or leaving the field keeps it, Escape puts it back. */
 const Title = ({ taskId, title }: { taskId: string; title: string }) => {
