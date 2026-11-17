@@ -67,6 +67,26 @@ service.attachLink(
     link: { url: 'https://acme.slack.com/archives/C042/p1729850000', title: 'Incident thread in #eng-alerts' },
   }),
 )
+// Where each pull request stands, as GitHub would say: one of each.
+for (const [n, title] of [
+  [86, 'First try: retry on 429 only'],
+  [87, 'Log each retry with its delay'],
+  [89, 'Queue retries for the next minute'],
+] as const)
+  service.attachLink(
+    AttachLink.parse({
+      idempotencyKey: key(),
+      taskId: pr.id,
+      link: { url: `https://github.com/acme/webhooks/pull/${n}`, title: `${title} (PR #${n})` },
+    }),
+  )
+for (const [n, status] of [
+  [86, 'closed'],
+  [87, 'merged'],
+  [88, 'open'],
+  [89, 'draft'],
+] as const)
+  service.setLinkStatus(pr.id, `https://github.com/acme/webhooks/pull/${n}`, status)
 service.addWatcher({
   idempotencyKey: key(),
   taskId: pr.id,

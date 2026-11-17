@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { linkKind, linkLabel, linkSource } from '@autopilot/client'
+import { linkKind, linkLabel, linkSource, pullRequestState } from '@autopilot/client'
 import type { LinkPreview, Link } from '@autopilot/contracts'
 import { api, shell } from '../api.ts'
 import { ago } from '../format.ts'
@@ -130,6 +130,14 @@ export const Linked = ({ taskId, links, noun }: { taskId: string; links: Link[];
 /** Where a link lives, by its mark; its kind where it has none. */
 const KindIcon = ({ link, size }: { link: Link; size: number }) => {
   const kind = linkKind(link)
+  const state = pullRequestState(link)
+  // A pull request GitHub has spoken for: its glyph in its state's colour, in place of GitHub's mark.
+  if (state && link.status)
+    return (
+      <span className={`pr-icon pr-${link.status}`}>
+        <NavIcon name={state.icon} size={size} />
+      </span>
+    )
   return kind.mark ? <SourceMark mark={kind.mark} size={size} /> : <NavIcon name={kind.icon} size={size} />
 }
 

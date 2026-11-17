@@ -31,8 +31,9 @@ import {
 } from '@autopilot/design'
 import Svg, { Circle, Path } from 'react-native-svg'
 import { SymbolView, type SFSymbol } from 'expo-symbols'
+import type { Link } from '@autopilot/contracts'
 import { SafeAreaProvider, SafeAreaView, useSafeAreaFrame, useSafeAreaInsets, type Metrics } from 'react-native-safe-area-context'
-import { emptyWords, linkKind, parseMarkdown, workstreamMark, type Inline, type LinkKind } from '@autopilot/client'
+import { emptyWords, linkKind, parseMarkdown, pullRequestState, workstreamMark, type Inline, type LinkKind } from '@autopilot/client'
 
 /**
  * The phone's building blocks, the same kinds as the Mac window's `src/ui.tsx` and from the same
@@ -316,9 +317,14 @@ export const SourceMark = ({ mark, size = 14 }: { mark: Mark; size?: number }) =
   </Svg>
 )
 
+const PR_SYMBOL: Record<'pull' | 'merge', SFSymbol> = { pull: 'arrow.triangle.pull', merge: 'arrow.triangle.merge' }
+
 /** Where a link lives, by its mark; what kind of thing it is, as the system draws it, where it has none. */
-export const LinkIcon = ({ link, size = 14 }: { link: { url: string; title: string }; size?: number }) => {
+export const LinkIcon = ({ link, size = 14 }: { link: Link; size?: number }) => {
   const kind = linkKind(link)
+  // A pull request GitHub has spoken for: its glyph in its state's colour, in place of GitHub's mark.
+  const state = pullRequestState(link)
+  if (state) return <SymbolView name={PR_SYMBOL[state.icon]} size={size} tintColor={colours[state.colour]} />
   return kind.mark ? (
     <SourceMark mark={kind.mark} size={size} />
   ) : (

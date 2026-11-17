@@ -195,6 +195,24 @@ const NAV_ICONS = {
     </>
   ),
   code: <path d="M7.5 6 3.5 10l4 4M12.5 6l4 4-4 4" />,
+  /** A pull request: a branch with its change heading back. */
+  pull: (
+    <>
+      <circle cx="6" cy="5" r="1.75" />
+      <circle cx="6" cy="15" r="1.75" />
+      <circle cx="14" cy="15" r="1.75" />
+      <path d="M6 6.75v6.5M14 13.25V8.5a2 2 0 0 0-2-2H9.5M11 5 9.5 6.5 11 8" />
+    </>
+  ),
+  /** A merged pull request: the branch joined back. */
+  merge: (
+    <>
+      <circle cx="6" cy="4.75" r="1.75" />
+      <circle cx="6" cy="15.25" r="1.75" />
+      <circle cx="14" cy="10.5" r="1.75" />
+      <path d="M6 6.5v7M6 6.5c0 2.5 2 4 6.25 4" />
+    </>
+  ),
   mail: (
     <>
       <rect x="3" y="5" width="14" height="10.5" rx="1.75" />
