@@ -69,7 +69,8 @@ export const mcpTools: readonly McpTool[] = [
   },
   {
     name: 'attach_link',
-    description: 'Attach a link to your task: a branch, pull request, draft or file you created.',
+    description:
+      'Attach a link to your task: a branch, pull request, draft or file you created. With claim true on a team ticket (a Linear issue link), your task takes that ticket on: a new signal about it updates your task instead of filing another. Claim only a ticket you work, not one you only created for later.',
     procedure: ['links', 'attach'],
     input: noKey(AttachLink),
   },
@@ -118,7 +119,7 @@ export const mcpTools: readonly McpTool[] = [
   {
     name: 'match_items',
     description:
-      'Search tasks before filing or creating one, by source URL, ticket id or a short name: active tasks, and those closed in the last 30 days with their state.',
+      'Search tasks before filing or creating one, by source URL, ticket id or a short name: active tasks, and those closed in the last 30 days with their state. Also searches their updates (returned as mentions), and finds a Linear issue link by its ticket id whatever its slug.',
     procedure: ['items', 'match'],
     input: MatchItems,
   },

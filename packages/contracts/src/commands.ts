@@ -136,8 +136,12 @@ export const UploadFile = command({
   data: z.base64().max(28_000_000),
 })
 
-/** The server sets a pull request's status, so a session does not send one. */
-export const AttachLink = command({ taskId: TaskId, link: Link.omit({ status: true }) })
+/**
+ * The server sets a pull request's status, so a session does not send one. `claim` on a team
+ * ticket's link says the task now works that ticket: it mirrors it, so the ticket's signal updates
+ * this task instead of filing a new one. A plain link never claims a ticket.
+ */
+export const AttachLink = command({ taskId: TaskId, link: Link.omit({ status: true }), claim: z.boolean().optional() })
 
 /** A read: one of the task's own links, nothing else. */
 export const PreviewLink = z.object({ taskId: TaskId, url: z.url() })

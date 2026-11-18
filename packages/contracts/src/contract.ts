@@ -119,6 +119,10 @@ export const MatchedTask = z.object({
   links: Task.shape.links,
   /** The start of its brief: what the task asks, so a signal can tell whether an item moves it. */
   brief: z.string().default(''),
+  /** The team ticket it works, when it claimed or was filed from one. */
+  mirrors: z.string().nullable().default(null),
+  /** Its updates that name what was searched for, newest first, with who wrote them. */
+  mentions: z.array(z.object({ author: z.string(), kind: z.string(), body: z.string() })).default([]),
 })
 
 export const VersionInfo = z.object({ version: z.int(), oldestClient: z.int() })

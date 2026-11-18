@@ -69,6 +69,15 @@ rules say so), set `ticket` on each item: `id` is the ticket's identifier (`LLE-
 finds an existing mirror by that id, so a ticket is never filed twice, and a closed ticket closes
 its mirror. Return a closed ticket as `update`; it needs no `taskId`.
 
+A session can work a ticket before its task mirrors it: it moved the ticket to In Progress before
+it claimed it. So search the ticket id too (`match_items` finds a Linear link by its id whatever
+the slug, and searches tasks' updates, returned as `mentions`). An open ticket is an `update` on an
+active task that links it or names it in its updates when that task is visibly working on it: an
+owner update tells it to build or implement the ticket, or it links a pull request for it. That
+holds even when the task's title still describes an older ask; the engine then makes it the
+ticket's mirror. A task that only created the ticket, or only discusses it, does not count: the
+ticket is a new task, with that task named in the `summary`.
+
 An item's `url` is the most specific link there is: a message or thread permalink, not the DM or
 channel it sits in, so a later message in the same DM is not taken for the same item.
 

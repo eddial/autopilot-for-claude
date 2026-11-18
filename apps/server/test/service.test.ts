@@ -35,6 +35,12 @@ const liveSession = (s: Service, taskId: string) =>
     pid: null,
   })
 
+/** LLE-19597 under whatever slug its title gave it. */
+const issue = (slug: string) => `https://linear.app/acme/issue/LLE-19597/${slug}`
+
+const linkTicket = (s: Service, taskId: string, url: string, claim?: boolean) =>
+  s.attachLink(AttachLink.parse({ idempotencyKey: key(), taskId, link: { url, title: 'LLE-19597' }, claim }), 'session')
+
 describe('tasks', () => {
   it('starts a session for a new task and applies a replayed command once', () => {
     const s = setup()
@@ -247,6 +253,54 @@ describe('filing', () => {
     expect(s.getTask(first.id).updates.map((u) => u.body)).toEqual(['Set up Cloudflare WAF\n\nFrom the standup.'])
     expect(s.queue().items).toHaveLength(1)
     expect(s.pendingOutbox().filter((o) => o.kind === 'start_session')).toEqual([])
+  })
+
+  const ticketSignal = (s: Service, over: Record<string, unknown> = {}) =>
+    s.fileItem(
+      FileItem.parse({
+        idempotencyKey: key(),
+        item: { ...item, signal: 'linear', url: issue('sync-org-owners-project-admins'), ticket: { id: 'LLE-19597', closed: false } },
+        action: 'create',
+        reason: 'assigned to you',
+        searches: ['LLE-19597'],
+        gated: false,
+        ...over,
+      }),
+    )
+
+  it('leaves a ticket a session only created to a task of its own', () => {
+    const s = setup()
+    const creator = create(s, { title: 'Recommend who gets status page updates', start: false })
+    linkTicket(s, creator.id, issue('sync-org-owners'))
+    expect(ticketSignal(s)).toMatchObject({ action: 'created' })
+    expect(s.task(creator.id).source.mirrors).toBeNull()
+  })
+
+  it('gives a claimed ticket to the task that claimed it, whatever its slug', () => {
+    const s = setup()
+    const worker = create(s, { title: 'Implement status page sync', start: false })
+    linkTicket(s, worker.id, issue('sync-org-owners'), true)
+    expect(s.task(worker.id).source.mirrors).toBe('LLE-19597')
+    expect(ticketSignal(s)).toMatchObject({ action: 'updated', taskId: worker.id })
+    // Another task cannot take it over, and only a ticket link can be claimed.
+    const other = create(s, { title: 'Something else', start: false })
+    expect(linkTicket(s, other.id, issue('x'), true).source.mirrors).toBeNull()
+    expect(() => linkTicket(s, other.id, 'https://github.com/acme/app/pull/1', true)).toThrow(DomainError)
+  })
+
+  it('finds a task working a ticket it has not claimed yet, and the filing step gives it the ticket', () => {
+    const s = setup()
+    const worker = create(s, { title: 'Recommend who gets status page updates', start: false })
+    s.instruct({ idempotencyKey: key(), taskId: worker.id, body: 'Implement LLE-19597 too and babysit the PR.' })
+    linkTicket(s, worker.id, 'https://github.com/acme/app/pull/11055')
+    const match = s.matchItems({ queries: [issue('sync-org-owners-project-admins')] }).tasks
+    expect(match.map((t) => [t.id, t.mirrors, t.mentions.map((m) => m.author)])).toEqual([[worker.id, null, ['owner']]])
+    expect(ticketSignal(s, { action: 'update', taskId: worker.id, note: 'Moved to In Progress.' })).toMatchObject({
+      action: 'updated',
+      taskId: worker.id,
+    })
+    // It mirrors the ticket now, so the next signal about it needs no judging.
+    expect(ticketSignal(s)).toMatchObject({ action: 'updated', taskId: worker.id })
   })
 
   it('keeps files sent with a new task on it before its session is asked for', () => {
