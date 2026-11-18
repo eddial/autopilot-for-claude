@@ -6193,6 +6193,9 @@
             "url",
             "title"
           ]
+        },
+        "claim": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -6708,6 +6711,37 @@
               "brief": {
                 "default": "",
                 "type": "string"
+              },
+              "mirrors": {
+                "default": null,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "mentions": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "author": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "body": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "author",
+                    "kind",
+                    "body"
+                  ],
+                  "additionalProperties": false
+                }
               }
             },
             "required": [
@@ -6717,7 +6751,9 @@
               "state",
               "sourceUrl",
               "links",
-              "brief"
+              "brief",
+              "mirrors",
+              "mentions"
             ],
             "additionalProperties": false
           }

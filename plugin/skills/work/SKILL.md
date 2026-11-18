@@ -24,6 +24,19 @@ When the task mirrors a team ticket (`source.mirrors`), that ticket is the real 
 commits and PRs name the ticket and are written for the team, never Autopilot. Write nothing on the
 ticket unless the owner asks.
 
+### Claiming a team ticket
+
+A task that works a team ticket claims it: `attach_link` with the ticket's Linear link and `claim:
+true`. The task then mirrors it, so a signal about the ticket (it moves, someone comments) updates
+this task instead of filing a new one, and the ticket closing closes the task. Claim it first,
+before you move it to In Progress, start building it or open a PR for it: the Linear signal may
+run the minute it moves. Claim when the owner tells you to build a ticket, when you take one over,
+or when you create one and then work it yourself.
+
+A ticket you only create for later (a follow-up, someone else's job) is linked without `claim`, so
+it gets a task of its own when it comes back. When the ask changes (a "recommend" becomes
+"implement LLE-19597"), `rename_task` too, so the title says what the task works.
+
 ### Filing other tasks
 
 When the work turns up something else to do (a to-do from a meeting, a ticket, another thread),

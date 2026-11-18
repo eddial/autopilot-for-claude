@@ -64,6 +64,10 @@ export class DomainError extends Error {
   }
 }
 
+/** The team ticket a Linear issue link points to, whatever slug its title gave it: `LLE-19597`. */
+export const ticketOfUrl = (url: string): string | null =>
+  /^https:\/\/linear\.app\/[^/]+\/issue\/([A-Z][A-Z0-9]*-\d+)(?:[/?#]|$)/.exec(url)?.[1] ?? null
+
 /** A pull request on GitHub, which Claude Code's Auto-fix can watch. */
 export const isPullRequest = (url: string): boolean => /^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/.test(url)
 
@@ -451,7 +455,7 @@ export class Service {
     this.db
       .prepare(
         `update tasks set title = ?, brief = ?, workstream = ?, priority = ?, state = ?, snoozed_until = ?,
-         links = ?, session_id = ?, updated_at = ?, seen_at = ?, autofix = ? where id = ?`,
+         links = ?, session_id = ?, updated_at = ?, seen_at = ?, autofix = ?, mirrors = ? where id = ?`,
       )
       .run(
         task.title,
@@ -465,6 +469,7 @@ export class Service {
         task.updatedAt,
         task.seenAt,
         task.autofix ? 1 : 0,
+        task.source.mirrors,
         task.id,
       )
     this.emit({ type: 'task.upserted', task })
@@ -901,22 +906,44 @@ export class Service {
     })
   }
 
-  /** A link joins the task's list, and the timeline says who linked it and when. */
+  /**
+   * A link joins the task's list, and the timeline says who linked it and when. A claimed ticket
+   * makes the task its mirror, unless the task already mirrors one or another active task has it.
+   */
   attachLink(input: In<typeof AttachLink>, by: Author = 'session'): Task {
     return this.idempotent(input.idempotencyKey, 'links.attach', () => {
-      const task = this.task(input.taskId)
-      if (task.links.some((l) => l.url === input.link.url)) return task
-      this.insertUpdate(task, { kind: 'event', body: `Linked ${input.link.title}`, author: by, attachments: [input.link] })
-      // A pull request the session opened: Claude Code's Auto-fix keeps it green and answers its
-      // reviews, so the session asks for it once it is idle.
-      if (by === 'session' && task.autofix && isPullRequest(input.link.url) && this.liveSession(task))
-        this.enqueue('autofix_pr', { taskId: task.id, url: input.link.url })
-      // And a watcher sees to what Auto-fix does not report back: merged, ready to merge, or stuck.
-      const watched = this.sql('select what from watchers where task_id = ?').all(task.id) as Row[]
-      if (isPullRequest(input.link.url) && !watched.some((w) => str(w.what).includes(input.link.url)))
-        this.insertWatcher(task.id, { what: pullRequestWatch(input.link.url), every: '30m' })
-      return this.touch(task, { links: [...task.links, { ...input.link, at: this.iso() }] })
+      const ticket = input.claim ? ticketOfUrl(input.link.url) : null
+      if (input.claim && !ticket) throw new DomainError('BAD_REQUEST', { field: 'claim' }, 'Only a Linear issue link can be claimed')
+      const linked = this.linkOnce(input, by)
+      return ticket ? this.claimTicket(linked, ticket, by) : linked
     })
+  }
+
+  private claimTicket(task: Task, ticket: string, by: Author): Task {
+    if (task.source.mirrors === ticket) return task
+    const holder = this.openWithSource(ticket, null)
+    const body = task.source.mirrors
+      ? `Did not claim ${ticket}: this task already works ${task.source.mirrors}`
+      : holder
+        ? `Did not claim ${ticket}: ${holder.id} already works it`
+        : `Claimed ${ticket}`
+    this.insertUpdate(task, { kind: 'event', body, author: by })
+    return task.source.mirrors || holder ? this.touch(task, {}) : this.touch(task, { source: { ...task.source, mirrors: ticket } })
+  }
+
+  private linkOnce(input: In<typeof AttachLink>, by: Author): Task {
+    const task = this.task(input.taskId)
+    if (task.links.some((l) => l.url === input.link.url)) return task
+    this.insertUpdate(task, { kind: 'event', body: `Linked ${input.link.title}`, author: by, attachments: [input.link] })
+    // A pull request the session opened: Claude Code's Auto-fix keeps it green and answers its
+    // reviews, so the session asks for it once it is idle.
+    if (by === 'session' && task.autofix && isPullRequest(input.link.url) && this.liveSession(task))
+      this.enqueue('autofix_pr', { taskId: task.id, url: input.link.url })
+    // And a watcher sees to what Auto-fix does not report back: merged, ready to merge, or stuck.
+    const watched = this.sql('select what from watchers where task_id = ?').all(task.id) as Row[]
+    if (isPullRequest(input.link.url) && !watched.some((w) => str(w.what).includes(input.link.url)))
+      this.insertWatcher(task.id, { what: pullRequestWatch(input.link.url), every: '30m' })
+    return this.touch(task, { links: [...task.links, { ...input.link, at: this.iso() }] })
   }
 
   /**
@@ -1291,21 +1318,32 @@ export class Service {
 
   // ── signals ───────────────────────────────────────────────────────────────
 
-  /** Active tasks, and those closed in the last 30 days, so finished work is not filed again. */
+  /**
+   * Active tasks, and those closed in the last 30 days, so finished work is not filed again. Their
+   * updates count too: a task that names a ticket only in what the owner told it still matches. A
+   * Linear issue link is searched by its ticket id, since the slug changes with the title.
+   */
   matchItems(input: In<typeof MatchItems>) {
     const since = new Date(this.now().getTime() - RECENTLY_CLOSED_MS).toISOString()
-    const seen = new Map<string, Task>()
+    const seen = new Map<string, { task: Task; terms: Set<string> }>()
     for (const query of input.queries) {
-      const like = `%${query.replace(/[%_]/g, '')}%`
+      const term = (ticketOfUrl(query) ?? query).replace(/[%_]/g, '')
+      const like = `%${term}%`
       const rows = this.sql(
         `select * from tasks where (${ACTIVE} or updated_at >= ?)
-         and (source_url = ? or mirrors = ? or title like ? or links like ? or brief like ?)
+         and (source_url = ? or mirrors = ? or title like ? or links like ? or brief like ?
+              or exists (select 1 from updates u where u.task_id = tasks.id and u.kind != 'event' and u.body like ?))
          order by ${ACTIVE} desc, updated_at desc limit 20`,
-      ).all(since, query, query, like, like, like) as Row[]
-      for (const row of rows) seen.set(str(row.id), this.toTask(row))
+      ).all(since, query, term, like, like, like, like) as Row[]
+      for (const row of rows) {
+        const id = str(row.id)
+        const hit = seen.get(id) ?? { task: this.toTask(row), terms: new Set<string>() }
+        hit.terms.add(term)
+        seen.set(id, hit)
+      }
     }
     return {
-      tasks: [...seen.values()].map((t) => ({
+      tasks: [...seen.values()].map(({ task: t, terms }) => ({
         id: t.id,
         title: t.title,
         workstream: t.workstream,
@@ -1313,8 +1351,19 @@ export class Service {
         sourceUrl: t.source.url,
         links: t.links,
         brief: briefStart(t.brief),
+        mirrors: t.source.mirrors,
+        mentions: this.mentions(t.id, [...terms]),
       })),
     }
+  }
+
+  /** The updates that name a search term, newest first: enough to see who asked for what. */
+  private mentions(taskId: string, terms: string[]): { author: string; kind: string; body: string }[] {
+    const rows = this.sql(
+      `select author, kind, body from updates where task_id = ? and kind != 'event'
+       and (${terms.map(() => 'body like ?').join(' or ')}) order by created_at desc limit 3`,
+    ).all(taskId, ...terms.map((t) => `%${t}%`)) as Row[]
+    return rows.map((r) => ({ author: str(r.author), kind: str(r.kind), body: str(r.body).slice(0, 400) }))
   }
 
   /** The open task that mirrors this ticket, or else has this source URL. */
@@ -1384,6 +1433,11 @@ export class Service {
         if (isPullRequest(item.url)) this.insertWatcher(task.id, { what: pullRequestWatch(item.url), every: '30m' })
       } else if (action === 'update') {
         if (!taskId) throw new DomainError('BAD_REQUEST', { field: 'taskId' }, 'An update needs the task it belongs to')
+        // The filing step judged an open ticket to belong to a task that works it without having
+        // claimed it: that task mirrors it now, so the next signal about it needs no judging.
+        const target = this.task(taskId)
+        if (item.ticket && !item.ticket.closed && !target.source.mirrors && !this.openWithSource(item.ticket.id, null))
+          this.claimTicket(target, item.ticket.id, 'signal')
         this.addToTask(this.task(taskId), {
           body: input.note || item.summary,
           author: 'signal',
